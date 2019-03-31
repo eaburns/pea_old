@@ -1,6 +1,28 @@
 {
 package main
-import "github.com/eaburns/peggy/peg"
+
+import (
+	"strconv"
+	"unicode/utf8"
+
+	"github.com/eaburns/peggy/peg"
+)
+
+type token struct {
+	start, end int
+	text string
+	string string
+	rune rune
+}
+
+func hex(s string) rune {
+	x, err := strconv.ParseInt(s, 16, 32)
+	if err != nil {
+		panic("impossible")
+	}
+	return rune(x)
+}
+
 }
 
 File <- Def* _ EOF
@@ -94,38 +116,64 @@ Block <- _ "[" ( ( CIdent TypeName? )+ _ "|" )? Stmts _ "]"
 
 # Tokens
 
-Int "integer" <- _ [+\-]? [0-9]+
+Int "integer" <- _ ( text:( [+\-]? [0-9]+ ) {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-Float "floating point" <- _ [+\-]? [0-9]+ "." [0-9]+ ( [eE] [+\-]? [0-9]+ )?
+Float "floating point" <- _ ( text:( [+\-]? [0-9]+ "." [0-9]+ ( [eE] [+\-]? [0-9]+ )? ) {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-Rune "rune" <- _ ['] !"\n" ( Esc / "\\'" / [^'] ) [']
+Rune "rune" <- _ ( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
+	r, w := utf8.DecodeRuneInString(data)
+	if w != len(data) {
+		panic("impossible")
+	}
+	return token{start: start, end: end, text: text, rune: r}
+} ) { return "" }
 
 String "string" <-
-	_ ["] ( !"\n" ( Esc / "\\\"" / [^"] ) )* ["] /
-	_ [`] ( "\\`" / [^`] )* [`]
+	_ ( text0:( ["] data0:( !"\n" ( Esc / "\\\"" / [^"] ) )* ["] ) {
+		return token{start: start, end: end, text: text0, string: data0}
+	} )  { return "" } /
+	_ ( text1: ( [`] data1:( "\\`" / [^`] )* [`] ) {
+		return token{start: start, end: end, text: text1, string: data1}
+	} ) { return "" }
 	
 Esc <-
-	"\\n" /
-	"\\t" /
-	"\\b" /
-	"\\\\" /
-	"\\" X X /
-	"\\x" X X X X /
-	"\\X" X X X X X X X X
+	"\\n" { return "\n" } /
+	"\\t" { return "\t" }/
+	"\\b" { return "\b" }/
+	"\\\\" { return "\\" } /
+	"\\" x0:( X X ) { return string(hex(x0)) } /
+	"\\x" x1:( X X X X ) { return string(hex(x1)) } /
+	"\\X" x2:( X X X X X X X X ) { return string(hex(x2)) }
 	
 X <- [a-fA-F0-9]
 
-Op "operator" <- _ !"//" !"/*" [!%&*+\-/<=>?@\\|~]+
+Op "operator" <- _ !"//" !"/*" ( text:( [!%&*+\-/<=>?@\\|~]+ ) {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-ModName "module name" <- _ "#" [_a-zA-Z][_a-zA-Z0-9]*
+ModName "module name" <- _ ( text:( "#" [_a-zA-Z][_a-zA-Z0-9]* ) {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-IdentC "identifier:" <- _ !TypeVar !"import" [_a-zA-Z][_a-zA-Z0-9]* ":"
+IdentC "identifier:" <- _ !TypeVar !"import" ( text:( [_a-zA-Z][_a-zA-Z0-9]* ":" ) {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-CIdent ":identifier"<- _ ":" !TypeVar !"import" [_a-zA-Z][_a-zA-Z0-9]*
+CIdent ":identifier"<- _ ":" !TypeVar !"import" ( text:( [_a-zA-Z][_a-zA-Z0-9]* ) {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-Ident "identifier" <- _ !TypeVar !"import" [_a-zA-Z][_a-zA-Z0-9]* !":"
+Ident "identifier" <- _ !TypeVar !"import" ( text:( [_a-zA-Z][_a-zA-Z0-9]* ) !":" {
+	return token{start: start, end: end, text: text}
+} ) { return "" }
 
-TypeVar "type variable" <- _ [A-Z] ![_a-zA-Z0-9]
+TypeVar "type variable" <- _ ( text:( [A-Z] ![_a-zA-Z0-9] ) {
+	return token{start: start, end: end, text: text }
+} ) { return "" }
 
 _ "" <- ( Space / Cmnt )*
 

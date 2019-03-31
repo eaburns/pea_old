@@ -44,6 +44,7 @@ go test -test.timeout=60s ./... > $o 2>&1 || fail
 echo golint
 golint ./... \
 	| grep -v "grammar.go:" \
+	| egrep -v "ast.go:.*(Start|End) should have comment" \
 	> $o 2>&1
 # Silly: diff the grepped golint output with empty.
 # If it's non-empty, error, otherwise succeed.
