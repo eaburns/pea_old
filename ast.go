@@ -9,14 +9,34 @@ type File struct {
 // A Def is a module-level definition.
 type Def interface{}
 
+// A Mod is a module definition.
+type Mod struct {
+	start, end int
+	Mod        ModName
+	Defs       []Def
+}
+
+// A ModName is a module name.
+type ModName []Ident
+
+func (n ModName) Start() int { return n[0].Start() }
+func (n ModName) End() int   { return n[len(n)-1].End() }
+
+// Import is an import statement.
+type Import struct {
+	start, end int
+	Path       string
+}
+
 // A Fun is a function or method definition.
 type Fun struct {
-	Mod   []string
-	Sel   string
-	Recv  *TypeSig
-	Parms []Parm // types cannot be nil
-	Ret   *TypeName
-	Stmts []Stmt
+	start, end int
+	Mod        ModName
+	Sel        string
+	Recv       *TypeSig
+	Parms      []Parm // types cannot be nil
+	Ret        *TypeName
+	Stmts      []Stmt
 }
 
 // A Parm is a name and a type.
@@ -30,8 +50,10 @@ type Parm struct {
 
 // A Var is a module-level variable definition.
 type Var struct {
-	Name string
-	Val  Block
+	start, end int
+	Mod        ModName
+	Name       string
+	Val        []Stmt
 }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
@@ -42,24 +64,32 @@ type TypeSig struct {
 
 // A TypeName is the name of a concrete type.
 type TypeName struct {
-	Name  string
-	Args  []TypeName
-	Block bool
+	Name string
+	Args []TypeName
 }
 
 // A Struct defines a struct type.
 type Struct struct {
-	Fields []Parm // types cannot be nil
+	start, end int
+	Mod        ModName
+	Sig        TypeSig
+	Fields     []Parm // types cannot be nil
 }
 
 // A Enum defines an enum type.
 type Enum struct {
-	Cases []Parm // types may be nil
+	start, end int
+	Mod        ModName
+	Sig        TypeSig
+	Cases      []Parm // types may be nil
 }
 
 // A Virt defines a virtual type.
 type Virt struct {
-	Meths []MethSig
+	start, end int
+	Mod        ModName
+	Sig        TypeSig
+	Meths      []MethSig
 }
 
 // A MethSig is the signature of a method.
@@ -92,7 +122,7 @@ type Expr interface {
 // A Call is a method call or a cascade.
 type Call struct {
 	start, end int
-	Recv       Expr
+	Recv       Expr // nil for module-less function calls
 	Msgs       []Msg
 }
 
@@ -109,7 +139,7 @@ type Msg struct {
 // An Ident is a variable name as an expression.
 type Ident struct {
 	start, end int
-	Name       string
+	Text       string
 }
 
 func (n Ident) Start() int { return n.start }

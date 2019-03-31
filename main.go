@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/eaburns/peggy/peg"
+	"github.com/eaburns/pretty"
 )
 
 func main() {
@@ -26,12 +27,8 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	_, t := _FileNode(p, 0)
-	if err := peg.PrettyWrite(os.Stdout, t); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	fmt.Println("")
+	_, t := _FileAction(p, 0)
+	fmt.Println(pretty.String(t))
 }
 
 func read() string {
