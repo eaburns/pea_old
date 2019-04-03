@@ -28,7 +28,11 @@ func main() {
 		os.Exit(1)
 	}
 	_, t := _FileAction(p, 0)
-	fmt.Println(pretty.String(t))
+	for _, d := range (*t).Defs {
+		pretty.Print(d)
+		fmt.Println("")
+		fmt.Println("")
+	}
 }
 
 func read() string {
