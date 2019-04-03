@@ -1406,18 +1406,18 @@ fail:
 func _DefAction(parser *_Parser, start int) (int, *[]Def) {
 	var labels [12]string
 	use(labels)
-	var label0 []Ident
-	var label3 [][]Def
-	var label6 TypeSig
-	var label9 []Def
-	var label10 []Def
-	var label11 []Def
-	var label1 ModName
 	var label2 String
 	var label4 Def
 	var label5 *Var
 	var label7 Def
+	var label9 []Def
+	var label11 []Def
+	var label0 []Ident
+	var label1 ModName
 	var label8 Def
+	var label10 []Def
+	var label3 [][]Def
+	var label6 TypeSig
 	dp := parser.deltaPos[start][_Def]
 	if dp < 0 {
 		return -1, nil
@@ -2715,15 +2715,15 @@ fail:
 func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
 	var labels [9]string
 	use(labels)
+	var label0 Ident
 	var label2 Ident
+	var label6 TypeName
+	var label8 *TypeName
+	var label1 Ident
 	var label3 TypeName
 	var label4 Ident
 	var label5 Ident
-	var label6 TypeName
-	var label0 Ident
 	var label7 []parm
-	var label8 *TypeName
-	var label1 Ident
 	dp := parser.deltaPos[start][_FunSig]
 	if dp < 0 {
 		return -1, nil
@@ -4347,61 +4347,39 @@ fail:
 }
 
 func _TypeParmAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [3]string
+	var labels [2]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _TypeParm, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
-	// t0:TypeName {…}/n:TypeVar t1:TypeName? {…}
+	// action
+	// n:TypeVar t1:TypeName?
+	// n:TypeVar
 	{
-		pos3 := pos
-		// action
-		// t0:TypeName
+		pos1 := pos
+		// TypeVar
+		if !_accept(parser, _TypeVarAccepts, &pos, &perr) {
+			goto fail
+		}
+		labels[0] = parser.text[pos1:pos]
+	}
+	// t1:TypeName?
+	{
+		pos2 := pos
+		// TypeName?
 		{
-			pos5 := pos
+			pos4 := pos
 			// TypeName
 			if !_accept(parser, _TypeNameAccepts, &pos, &perr) {
-				goto fail4
+				goto fail5
 			}
-			labels[0] = parser.text[pos5:pos]
+			goto ok6
+		fail5:
+			pos = pos4
+		ok6:
 		}
-		goto ok0
-	fail4:
-		pos = pos3
-		// action
-		// n:TypeVar t1:TypeName?
-		// n:TypeVar
-		{
-			pos8 := pos
-			// TypeVar
-			if !_accept(parser, _TypeVarAccepts, &pos, &perr) {
-				goto fail6
-			}
-			labels[1] = parser.text[pos8:pos]
-		}
-		// t1:TypeName?
-		{
-			pos9 := pos
-			// TypeName?
-			{
-				pos11 := pos
-				// TypeName
-				if !_accept(parser, _TypeNameAccepts, &pos, &perr) {
-					goto fail12
-				}
-				goto ok13
-			fail12:
-				pos = pos11
-			ok13:
-			}
-			labels[2] = parser.text[pos9:pos]
-		}
-		goto ok0
-	fail6:
-		pos = pos3
-		goto fail
-	ok0:
+		labels[1] = parser.text[pos2:pos]
 	}
 	return _memoize(parser, _TypeParm, start, pos, perr)
 fail:
@@ -4409,7 +4387,7 @@ fail:
 }
 
 func _TypeParmNode(parser *_Parser, start int) (int, *peg.Node) {
-	var labels [3]string
+	var labels [2]string
 	use(labels)
 	dp := parser.deltaPos[start][_TypeParm]
 	if dp < 0 {
@@ -4422,60 +4400,35 @@ func _TypeParmNode(parser *_Parser, start int) (int, *peg.Node) {
 	}
 	pos := start
 	node = &peg.Node{Name: "TypeParm"}
-	// t0:TypeName {…}/n:TypeVar t1:TypeName? {…}
+	// action
+	// n:TypeVar t1:TypeName?
+	// n:TypeVar
 	{
-		pos3 := pos
-		nkids1 := len(node.Kids)
-		// action
-		// t0:TypeName
+		pos1 := pos
+		// TypeVar
+		if !_node(parser, _TypeVarNode, node, &pos) {
+			goto fail
+		}
+		labels[0] = parser.text[pos1:pos]
+	}
+	// t1:TypeName?
+	{
+		pos2 := pos
+		// TypeName?
 		{
-			pos5 := pos
+			nkids3 := len(node.Kids)
+			pos4 := pos
 			// TypeName
 			if !_node(parser, _TypeNameNode, node, &pos) {
-				goto fail4
+				goto fail5
 			}
-			labels[0] = parser.text[pos5:pos]
+			goto ok6
+		fail5:
+			node.Kids = node.Kids[:nkids3]
+			pos = pos4
+		ok6:
 		}
-		goto ok0
-	fail4:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		// action
-		// n:TypeVar t1:TypeName?
-		// n:TypeVar
-		{
-			pos8 := pos
-			// TypeVar
-			if !_node(parser, _TypeVarNode, node, &pos) {
-				goto fail6
-			}
-			labels[1] = parser.text[pos8:pos]
-		}
-		// t1:TypeName?
-		{
-			pos9 := pos
-			// TypeName?
-			{
-				nkids10 := len(node.Kids)
-				pos11 := pos
-				// TypeName
-				if !_node(parser, _TypeNameNode, node, &pos) {
-					goto fail12
-				}
-				goto ok13
-			fail12:
-				node.Kids = node.Kids[:nkids10]
-				pos = pos11
-			ok13:
-			}
-			labels[2] = parser.text[pos9:pos]
-		}
-		goto ok0
-	fail6:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		goto fail
-	ok0:
+		labels[1] = parser.text[pos2:pos]
 	}
 	node.Text = parser.text[start:pos]
 	parser.node[key] = node
@@ -4485,7 +4438,7 @@ fail:
 }
 
 func _TypeParmFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [3]string
+	var labels [2]string
 	use(labels)
 	pos, failure := _failMemo(parser, _TypeParm, start, errPos)
 	if failure != nil {
@@ -4496,55 +4449,33 @@ func _TypeParmFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _TypeParm}
-	// t0:TypeName {…}/n:TypeVar t1:TypeName? {…}
+	// action
+	// n:TypeVar t1:TypeName?
+	// n:TypeVar
 	{
-		pos3 := pos
-		// action
-		// t0:TypeName
+		pos1 := pos
+		// TypeVar
+		if !_fail(parser, _TypeVarFail, errPos, failure, &pos) {
+			goto fail
+		}
+		labels[0] = parser.text[pos1:pos]
+	}
+	// t1:TypeName?
+	{
+		pos2 := pos
+		// TypeName?
 		{
-			pos5 := pos
+			pos4 := pos
 			// TypeName
 			if !_fail(parser, _TypeNameFail, errPos, failure, &pos) {
-				goto fail4
+				goto fail5
 			}
-			labels[0] = parser.text[pos5:pos]
+			goto ok6
+		fail5:
+			pos = pos4
+		ok6:
 		}
-		goto ok0
-	fail4:
-		pos = pos3
-		// action
-		// n:TypeVar t1:TypeName?
-		// n:TypeVar
-		{
-			pos8 := pos
-			// TypeVar
-			if !_fail(parser, _TypeVarFail, errPos, failure, &pos) {
-				goto fail6
-			}
-			labels[1] = parser.text[pos8:pos]
-		}
-		// t1:TypeName?
-		{
-			pos9 := pos
-			// TypeName?
-			{
-				pos11 := pos
-				// TypeName
-				if !_fail(parser, _TypeNameFail, errPos, failure, &pos) {
-					goto fail12
-				}
-				goto ok13
-			fail12:
-				pos = pos11
-			ok13:
-			}
-			labels[2] = parser.text[pos9:pos]
-		}
-		goto ok0
-	fail6:
-		pos = pos3
-		goto fail
-	ok0:
+		labels[1] = parser.text[pos2:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -4554,11 +4485,10 @@ fail:
 }
 
 func _TypeParmAction(parser *_Parser, start int) (int, *Parm) {
-	var labels [3]string
+	var labels [2]string
 	use(labels)
-	var label0 TypeName
-	var label1 Ident
-	var label2 *TypeName
+	var label0 Ident
+	var label1 *TypeName
 	dp := parser.deltaPos[start][_TypeParm]
 	if dp < 0 {
 		return -1, nil
@@ -4571,85 +4501,49 @@ func _TypeParmAction(parser *_Parser, start int) (int, *Parm) {
 	}
 	var node Parm
 	pos := start
-	// t0:TypeName {…}/n:TypeVar t1:TypeName? {…}
+	// action
 	{
-		pos3 := pos
-		var node2 Parm
-		// action
+		start0 := pos
+		// n:TypeVar t1:TypeName?
+		// n:TypeVar
 		{
-			start5 := pos
-			// t0:TypeName
+			pos2 := pos
+			// TypeVar
+			if p, n := _TypeVarAction(parser, pos); n == nil {
+				goto fail
+			} else {
+				label0 = *n
+				pos = p
+			}
+			labels[0] = parser.text[pos2:pos]
+		}
+		// t1:TypeName?
+		{
+			pos3 := pos
+			// TypeName?
 			{
-				pos6 := pos
+				pos5 := pos
+				label1 = new(TypeName)
 				// TypeName
 				if p, n := _TypeNameAction(parser, pos); n == nil {
-					goto fail4
+					goto fail6
 				} else {
-					label0 = *n
+					*label1 = *n
 					pos = p
 				}
-				labels[0] = parser.text[pos6:pos]
+				goto ok7
+			fail6:
+				label1 = nil
+				pos = pos5
+			ok7:
 			}
-			node = func(
-				start, end int, t0 TypeName) Parm {
-				return Parm{Type: &t0}
-			}(
-				start5, pos, label0)
+			labels[1] = parser.text[pos3:pos]
 		}
-		goto ok0
-	fail4:
-		node = node2
-		pos = pos3
-		// action
-		{
-			start8 := pos
-			// n:TypeVar t1:TypeName?
-			// n:TypeVar
-			{
-				pos10 := pos
-				// TypeVar
-				if p, n := _TypeVarAction(parser, pos); n == nil {
-					goto fail7
-				} else {
-					label1 = *n
-					pos = p
-				}
-				labels[1] = parser.text[pos10:pos]
-			}
-			// t1:TypeName?
-			{
-				pos11 := pos
-				// TypeName?
-				{
-					pos13 := pos
-					label2 = new(TypeName)
-					// TypeName
-					if p, n := _TypeNameAction(parser, pos); n == nil {
-						goto fail14
-					} else {
-						*label2 = *n
-						pos = p
-					}
-					goto ok15
-				fail14:
-					label2 = nil
-					pos = pos13
-				ok15:
-				}
-				labels[2] = parser.text[pos11:pos]
-			}
-			node = func(
-				start, end int, n Ident, t0 TypeName, t1 *TypeName) Parm {
-				return Parm{Name: n.Text, Type: t1}
-			}(
-				start8, pos, label1, label0, label2)
-		}
-		goto ok0
-	fail7:
-		node = node2
-		pos = pos3
-		goto fail
-	ok0:
+		node = func(
+			start, end int, n Ident, t1 *TypeName) Parm {
+			return Parm{Name: n.Text, Type: t1}
+		}(
+			start0, pos, label0, label1)
 	}
 	parser.act[key] = node
 	return pos, &node
@@ -5807,20 +5701,20 @@ fail:
 func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 	var labels [14]string
 	use(labels)
+	var label0 *Ident
+	var label5 Ident
+	var label9 TypeName
 	var label12 []Ident
-	var label13 TypeName
+	var label6 []TypeName
+	var label8 *TypeName
 	var label1 []Ident
 	var label2 string
-	var label5 Ident
-	var label6 []TypeName
+	var label3 *Ident
 	var label7 TypeName
 	var label11 []TypeName
-	var label3 *Ident
 	var label4 []Ident
-	var label9 TypeName
-	var label0 *Ident
-	var label8 *TypeName
 	var label10 TypeName
+	var label13 TypeName
 	dp := parser.deltaPos[start][_TypeName]
 	if dp < 0 {
 		return -1, nil
@@ -6802,10 +6696,10 @@ fail:
 func _StructAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
+	var label2 []Parm
 	var label3 *Struct
 	var label0 Ident
 	var label1 TypeName
-	var label2 []Parm
 	dp := parser.deltaPos[start][_Struct]
 	if dp < 0 {
 		return -1, nil
@@ -7301,10 +7195,10 @@ fail:
 func _EnumAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
-	var label0 Parm
-	var label1 Parm
 	var label2 []Parm
 	var label3 *Enum
+	var label0 Parm
+	var label1 Parm
 	dp := parser.deltaPos[start][_Enum]
 	if dp < 0 {
 		return -1, nil
@@ -9140,10 +9034,10 @@ func _StmtsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 func _StmtsAction(parser *_Parser, start int) (int, *[]Stmt) {
 	var labels [4]string
 	use(labels)
-	var label0 Stmt
 	var label1 Stmt
 	var label2 []Stmt
 	var label3 *[]Stmt
+	var label0 Stmt
 	dp := parser.deltaPos[start][_Stmts]
 	if dp < 0 {
 		return -1, nil
@@ -9836,8 +9730,8 @@ fail:
 func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 	var labels [2]string
 	use(labels)
-	var label0 []Parm
 	var label1 Expr
+	var label0 []Parm
 	dp := parser.deltaPos[start][_Assign]
 	if dp < 0 {
 		return -1, nil
@@ -11889,10 +11783,10 @@ fail:
 func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 	var labels [4]string
 	use(labels)
+	var label3 Msg
 	var label0 Call
 	var label1 []Ident
 	var label2 Expr
-	var label3 Msg
 	dp := parser.deltaPos[start][_Binary]
 	if dp < 0 {
 		return -1, nil
@@ -12716,11 +12610,11 @@ fail:
 func _NaryAction(parser *_Parser, start int) (int, *Call) {
 	var labels [5]string
 	use(labels)
-	var label4 Msg
 	var label0 Call
 	var label1 Call
 	var label2 []Ident
 	var label3 *Expr
+	var label4 Msg
 	dp := parser.deltaPos[start][_Nary]
 	if dp < 0 {
 		return -1, nil
@@ -13370,11 +13264,11 @@ fail:
 func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 	var labels [5]string
 	use(labels)
+	var label0 Ident
+	var label1 Call
 	var label2 Call
 	var label3 Expr
 	var label4 []arg
-	var label0 Ident
-	var label1 Call
 	dp := parser.deltaPos[start][_NaryMsg]
 	if dp < 0 {
 		return -1, nil
@@ -14624,10 +14518,10 @@ fail:
 func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [4]string
 	use(labels)
+	var label3 []Expr
 	var label0 TypeName
 	var label1 Expr
 	var label2 *[]Expr
-	var label3 []Expr
 	dp := parser.deltaPos[start][_Ctor]
 	if dp < 0 {
 		return -1, nil
@@ -15703,10 +15597,10 @@ fail:
 func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [4]string
 	use(labels)
+	var label3 []Stmt
 	var label0 Ident
 	var label1 *TypeName
 	var label2 []Parm
-	var label3 []Stmt
 	dp := parser.deltaPos[start][_Block]
 	if dp < 0 {
 		return -1, nil
@@ -16164,8 +16058,8 @@ fail:
 func _IntAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [2]string
 	use(labels)
-	var label0 string
 	var label1 Int
+	var label0 string
 	dp := parser.deltaPos[start][_Int]
 	if dp < 0 {
 		return -1, nil
@@ -18280,12 +18174,12 @@ fail:
 func _StringAction(parser *_Parser, start int) (int, *String) {
 	var labels [6]string
 	use(labels)
-	var label3 string
-	var label4 string
-	var label5 String
 	var label0 string
 	var label1 string
 	var label2 String
+	var label3 string
+	var label4 string
+	var label5 String
 	dp := parser.deltaPos[start][_String]
 	if dp < 0 {
 		return -1, nil
@@ -19141,9 +19035,9 @@ fail:
 func _EscAction(parser *_Parser, start int) (int, *string) {
 	var labels [3]string
 	use(labels)
+	var label0 string
 	var label1 string
 	var label2 string
-	var label0 string
 	dp := parser.deltaPos[start][_Esc]
 	if dp < 0 {
 		return -1, nil
@@ -21622,8 +21516,8 @@ fail:
 func _IdentAction(parser *_Parser, start int) (int, *Ident) {
 	var labels [2]string
 	use(labels)
-	var label1 Ident
 	var label0 string
+	var label1 Ident
 	dp := parser.deltaPos[start][_Ident]
 	if dp < 0 {
 		return -1, nil
@@ -21972,8 +21866,8 @@ fail:
 func _TypeVarAction(parser *_Parser, start int) (int, *Ident) {
 	var labels [2]string
 	use(labels)
-	var label0 string
 	var label1 Ident
+	var label0 string
 	dp := parser.deltaPos[start][_TypeVar]
 	if dp < 0 {
 		return -1, nil

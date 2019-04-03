@@ -154,9 +154,7 @@ TypeParms <-
 		return []Parm(append([]Parm{p0}, ps...))
 	}
 
-TypeParm <-
-	t0:TypeName { return Parm{Type: &t0} }/
-	n:TypeVar t1:TypeName? { return Parm{Name: n.Text, Type: t1} }
+TypeParm <- n:TypeVar t1:TypeName? { return Parm{Name: n.Text, Type: t1} }
 
 TypeName <-
 	tv0:TypeVar? ids0:Ident* op:[?&] {
