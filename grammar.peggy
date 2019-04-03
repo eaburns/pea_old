@@ -201,23 +201,23 @@ TypeName <-
 	} /
 	_ "(" n2:TypeName _ ")" { return TypeName(n2) }
 
-Type <- _ ( "{" d:( Struct / Enum / Virt ) _ "}" ) {
-	return Def(d.(setLocer).setLoc(start, end))
-}
+Type <- Struct / Enum / Virt
 
-Struct <- fs:( n:IdentC t:TypeName { return Parm{Name: n.Text, Type: &t} } )+ {
-	return Def(&Struct{Fields: fs})
-}
+Struct <- _ s:( "{" fs:( n:IdentC t:TypeName { return Parm{Name: n.Text, Type: &t} } )* _ "}" {
+	return &Struct{start: start, end: end, Fields: fs}
+} ) { return Def(s) }
 
-Enum <- c:Case cs:( _ "," c1:Case { return Parm(c1) } )* ( _ "," )? {
-	return Def(&Enum{Cases: append([]Parm{c}, cs...)})
-}
+Enum <- _ e: ( "{" c:Case cs:( _ "," c1:Case { return Parm(c1) } )* ( _ "," )? _ "}" {
+	return &Enum{start: start, end: end, Cases: append([]Parm{c}, cs...)}
+} ) { return Def(e) }
 
 Case <-
 	id0:Ident { return Parm{Name: id0.Text} } /
 	id1:IdentC t:TypeName { return Parm{Name: id1.Text, Type: &t} }
 
-Virt <- ss:MethSig+ { return Def(&Virt{Meths: ss}) }
+Virt <- _ v:( "{"  ss:MethSig+ _ "}" {
+	return &Virt{start: start, end: end, Meths: ss}
+} ) { return Def(v) }
 
 MethSig <- _ "[" ps:(
 	id0:Ident { return []parm{{name: id0}} } /

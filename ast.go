@@ -1,5 +1,7 @@
 package main
 
+//go:generate peggy -o grammar.go -t grammar.peggy
+
 // A File is a source code file.
 type File struct {
 	Text string
