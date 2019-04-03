@@ -66,7 +66,7 @@ func hex(s string) rune {
 
 }
 
-File <- dss:Def* _ EOF { return []Def(flatten(dss)) }
+File <- dss:Def* _ EOF { return &File{ Defs: flatten(dss) } }
 
 Def <- m:( m1:ModName* { return ModName(m1) } ) ds0:(
 	_ ( "import" p:String ) {
