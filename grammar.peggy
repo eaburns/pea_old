@@ -192,10 +192,10 @@ TypeName <-
 	} /
 	_ "(" n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _ "," )? _")" ids2:Ident+ {
 		as := append([]TypeName{n0}, ns...)
-		for _, id := range ids1[:len(ids1)-1] {
+		for _, id := range ids2[:len(ids2)-1] {
 			as = []TypeName{{Name: id.Text, Args: as}}
 		}
-		return TypeName{Name: ids1[len(ids1)-1].Text, Args: as}
+		return TypeName{Name: ids2[len(ids2)-1].Text, Args: as}
 	} /
 	_ "(" n2:TypeName _ ")" { return TypeName(n2) }
 
