@@ -36,6 +36,7 @@ type Fun struct {
 	Mod        ModName
 	Sel        string
 	Recv       *TypeSig
+	TypeParms  []Parm // types may be nil
 	Parms      []Parm // types cannot be nil
 	Ret        *TypeName
 	Stmts      []Stmt

@@ -100,12 +100,19 @@ Def <- m:( m1:ModName* { return ModName(m1) } ) ds0:(
 	return []Def(ds)
 }
 
-Fun <- _ ( "[" f:FunSig _ "|" ss:Stmts _"]" ) {
-	copy := *f
+Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
+	copy := *sig
 	copy.start = start
 	copy.end = end
 	copy.Stmts = ss
-	return Def(&copy)
+	return (*Fun)(&copy)
+} ) {
+	if tps != nil {
+		copy := *f
+		copy.TypeParms = *tps
+		return Def(&copy)
+	}
+	return Def(f)
 }
 
 FunSig <- ps:(
