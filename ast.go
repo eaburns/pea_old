@@ -9,7 +9,10 @@ type File struct {
 }
 
 // A Def is a module-level definition.
-type Def interface{}
+type Def interface {
+	Start() int
+	End() int
+}
 
 // A Mod is a module definition.
 type Mod struct {
@@ -17,6 +20,9 @@ type Mod struct {
 	Mod        ModName
 	Defs       []Def
 }
+
+func (n *Mod) Start() int { return n.start }
+func (n *Mod) End() int   { return n.end }
 
 // A ModName is a module name.
 type ModName []Ident
@@ -30,6 +36,9 @@ type Import struct {
 	Path       string
 }
 
+func (n *Import) Start() int { return n.start }
+func (n *Import) End() int   { return n.end }
+
 // A Fun is a function or method definition.
 type Fun struct {
 	start, end int
@@ -41,6 +50,9 @@ type Fun struct {
 	Ret        *TypeName
 	Stmts      []Stmt
 }
+
+func (n *Fun) Start() int { return n.start }
+func (n *Fun) End() int   { return n.end }
 
 // A Parm is a name and a type.
 // Parms are used in several AST nodes.
@@ -58,6 +70,9 @@ type Var struct {
 	Name       string
 	Val        []Stmt
 }
+
+func (n *Var) Start() int { return n.start }
+func (n *Var) End() int   { return n.end }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
@@ -79,6 +94,9 @@ type Struct struct {
 	Fields     []Parm // types cannot be nil
 }
 
+func (n *Struct) Start() int { return n.start }
+func (n *Struct) End() int   { return n.end }
+
 // A Enum defines an enum type.
 type Enum struct {
 	start, end int
@@ -87,6 +105,9 @@ type Enum struct {
 	Cases      []Parm // types may be nil
 }
 
+func (n *Enum) Start() int { return n.start }
+func (n *Enum) End() int   { return n.end }
+
 // A Virt defines a virtual type.
 type Virt struct {
 	start, end int
@@ -94,6 +115,9 @@ type Virt struct {
 	Sig        TypeSig
 	Meths      []MethSig
 }
+
+func (n *Virt) Start() int { return n.start }
+func (n *Virt) End() int   { return n.end }
 
 // A MethSig is the signature of a method.
 type MethSig struct {
