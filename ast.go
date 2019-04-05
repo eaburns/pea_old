@@ -2,11 +2,19 @@ package main
 
 //go:generate peggy -o grammar.go -t grammar.peggy
 
+// A Mod is a module: the unit of compilation.
+type Mod struct {
+	Name  string
+	Files []*File
+}
+
 // A File is a source code file.
 type File struct {
 	Path string
-	Text string
 	Defs []Def
+
+	offs  int   // offset of the start of the file
+	lines []int // offset of newlines
 }
 
 // A Def is a module-level definition.
@@ -15,21 +23,21 @@ type Def interface {
 	End() int
 }
 
-// A Mod is a module definition.
-type Mod struct {
+// A SubMod is a module definition.
+type SubMod struct {
 	start, end int
-	Mod        ModName
+	Mod        ModPath
 	Defs       []Def
 }
 
-func (n *Mod) Start() int { return n.start }
-func (n *Mod) End() int   { return n.end }
+func (n *SubMod) Start() int { return n.start }
+func (n *SubMod) End() int   { return n.end }
 
-// A ModName is a module name.
-type ModName []Ident
+// A ModPath is a module name.
+type ModPath []Ident
 
-func (n ModName) Start() int { return n[0].Start() }
-func (n ModName) End() int   { return n[len(n)-1].End() }
+func (n ModPath) Start() int { return n[0].Start() }
+func (n ModPath) End() int   { return n[len(n)-1].End() }
 
 // Import is an import statement.
 type Import struct {
@@ -43,7 +51,7 @@ func (n *Import) End() int   { return n.end }
 // A Fun is a function or method definition.
 type Fun struct {
 	start, end int
-	Mod        ModName
+	Mod        ModPath
 	Sel        string
 	Recv       *TypeSig
 	TypeParms  []Parm // types may be nil
@@ -67,7 +75,7 @@ type Parm struct {
 // A Var is a module-level variable definition.
 type Var struct {
 	start, end int
-	Mod        ModName
+	Mod        ModPath
 	Name       string
 	Val        []Stmt
 }
@@ -90,7 +98,7 @@ type TypeName struct {
 // A Struct defines a struct type.
 type Struct struct {
 	start, end int
-	Mod        ModName
+	Mod        ModPath
 	Sig        TypeSig
 	Fields     []Parm // types cannot be nil
 }
@@ -101,7 +109,7 @@ func (n *Struct) End() int   { return n.end }
 // A Enum defines an enum type.
 type Enum struct {
 	start, end int
-	Mod        ModName
+	Mod        ModPath
 	Sig        TypeSig
 	Cases      []Parm // types may be nil
 }
@@ -112,7 +120,7 @@ func (n *Enum) End() int   { return n.end }
 // A Virt defines a virtual type.
 type Virt struct {
 	start, end int
-	Mod        ModName
+	Mod        ModPath
 	Sig        TypeSig
 	Meths      []MethSig
 }

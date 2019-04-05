@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/eaburns/peggy/peg"
@@ -12,28 +11,37 @@ import (
 func main() {
 	pretty.Indent = "    "
 
-	var path string
-	var in io.Reader = os.Stdin
-	if len(os.Args) > 1 {
-		path = os.Args[1]
-		f, err := os.Open(path)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+	p := NewParser("main")
+
+	if len(os.Args) == 1 {
+		if err := p.Parse("", os.Stdin); err != nil {
+			die(err)
 		}
-		defer f.Close()
-		in = f
+	} else {
+		for _, file := range os.Args[1:] {
+			if err := p.ParseFile(file); err != nil {
+				die(err)
+			}
+		}
 	}
-	file, err := Parse(path, in)
-	if err != nil {
-		peg.PrettyWrite(os.Stdout, err.(parseError).fail)
-		fmt.Println("")
-		fmt.Println(err)
-		os.Exit(1)
+
+	m := p.Mod()
+	fmt.Println("=== " + m.Name)
+	for _, f := range m.Files {
+		fmt.Println("--- " + f.Path)
+		for _, d := range f.Defs {
+			pretty.Print(d)
+			fmt.Println("")
+		}
 	}
-	for _, d := range file.Defs {
-		pretty.Print(d)
-		fmt.Println("")
+	fmt.Println("")
+}
+
+func die(err error) {
+	if pe, ok := err.(parseError); ok {
+		peg.PrettyWrite(os.Stdout, pe.fail)
 		fmt.Println("")
 	}
+	fmt.Println(err)
+	os.Exit(1)
 }

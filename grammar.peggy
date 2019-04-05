@@ -17,16 +17,16 @@ func flatten(dss [][]Def) []Def {
 }
 
 type setModer interface {
-	setMod(ModName) Def
+	setMod(ModPath) Def
 }
 
-func (n Mod) setMod(m ModName) Def { n.Mod = m; return &n }
-func (n Import) setMod(m ModName) Def { return &n }
-func (n Fun) setMod(m ModName) Def { n.Mod = m; return &n }
-func (n Var) setMod(m ModName) Def { n.Mod = m; return &n }
-func (n Struct) setMod(m ModName) Def { n.Mod = m; return &n }
-func (n Enum) setMod(m ModName) Def { n.Mod = m; return &n }
-func (n Virt) setMod(m ModName) Def { n.Mod = m; return &n }
+func (n SubMod) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Import) setMod(m ModPath) Def { return &n }
+func (n Fun) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Var) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Struct) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Enum) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Virt) setMod(m ModPath) Def { n.Mod = m; return &n }
 
 type setSiger interface {
 	setSig(TypeSig) Def
@@ -64,16 +64,18 @@ func hex(s string) rune {
 	return rune(x)
 }
 
+func l(p *_Parser, offs int) int { return p.data.(*Parser).offs + offs }
+
 }
 
 File <- dss:Def* _ EOF { return &File{ Defs: flatten(dss) } }
 
-Def <- m:( m1:ModName* { return ModName(m1) } ) ds0:(
+Def <- m:ModPath? ds0:(
 	_ ( "import" p:String ) {
-		return []Def{&Import{start: start, end: end, Path: p.Data}}
+		return []Def{&Import{start: l(parser, start), end: l(parser, end), Path: p.Data}}
 	} /
 	_ ( "(" dss:Def+ _ ")" ) {
-		return []Def{&Mod{start: start, end: end, Defs: flatten(dss)}}
+		return []Def{&SubMod{start: l(parser, start), end: l(parser, end), Defs: flatten(dss)}}
 	} /
 	f:Fun {
 		return []Def{f}
@@ -94,10 +96,19 @@ Def <- m:( m1:ModName* { return ModName(m1) } ) ds0:(
 	}
 ) {
 	var ds []Def
+	mp := []Ident{{Text: parser.data.(*Parser).mod}}
+	if m != nil {
+		mp = *m
+	}
 	for i := range ds0 {
-		ds = append(ds, ds0[i].(setModer).setMod(m))
+		ds = append(ds, ds0[i].(setModer).setMod(mp))
 	}
 	return []Def(ds)
+}
+
+ModPath <- n:ModName+ {
+	n = append([]Ident{{Text: parser.data.(*Parser).mod}}, n...)
+	return ModPath(n)
 }
 
 Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
@@ -143,7 +154,7 @@ Ret <- _"^" t:TypeName {
 }
 
 Var <- n:Ident _":=" _"[" ss:Stmts _"]" {
-	return &Var{start: n.start, end: end, Name: n.Text, Val: ss}
+	return &Var{start: n.start, end: l(parser, end), Name: n.Text, Val: ss}
 }
 
 TypeSig <- ps:TypeParms? n:( Ident / Op ) {
@@ -209,11 +220,11 @@ TypeName <-
 Type <- Struct / Enum / Virt
 
 Struct <- _ s:( "{" fs:( n:IdentC t:TypeName { return Parm{Name: n.Text, Type: &t} } )* _ "}" {
-	return &Struct{start: start, end: end, Fields: fs}
+	return &Struct{start: l(parser, start), end: l(parser, end), Fields: fs}
 } ) { return Def(s) }
 
 Enum <- _ e: ( "{" c:Case cs:( _ "," c1:Case { return Parm(c1) } )* ( _ "," )? _ "}" {
-	return &Enum{start: start, end: end, Cases: append([]Parm{c}, cs...)}
+	return &Enum{start: l(parser, start), end: l(parser, end), Cases: append([]Parm{c}, cs...)}
 } ) { return Def(e) }
 
 Case <-
@@ -221,7 +232,7 @@ Case <-
 	id1:IdentC t:TypeName { return Parm{Name: id1.Text, Type: &t} }
 
 Virt <- _ v:( "{"  ss:MethSig+ _ "}" {
-	return &Virt{start: start, end: end, Meths: ss}
+	return &Virt{start: l(parser, start), end: l(parser, end), Meths: ss}
 } ) { return Def(v) }
 
 MethSig <- _ "[" ps:(
@@ -265,7 +276,7 @@ Call <- c:( Nary / Binary / Unary ) cs:(
 	return Expr(c)
 }
 
-Unary <- r:( Primary / n:ModName+ { return Expr(ModName(n)) } ) ms:UnaryMsg+ {
+Unary <- r:( Primary / n:ModPath { return Expr(n) } ) ms:UnaryMsg+ {
 	c := Call{start: r.Start(), end: ms[0].end, Recv: r, Msgs: []Msg{ms[0]}}
 	for _, m := range ms[1:] {
 		c = Call{start: r.Start(), end: m.end, Recv: c, Msgs: []Msg{m}}
@@ -278,9 +289,9 @@ UnaryMsg <- i:Ident { return Msg{start: i.start, end: i.end, Sel: i.Text} }
 Binary <- r:(
 	u:Unary { return Expr(u) } /
 	Primary /
-	n:ModName+ { return Expr(ModName(n)) }
+	n:ModPath { return Expr(n) }
 ) m:BinMsg {
-	return Call{start: r.Start(), end: end, Recv: r, Msgs: []Msg{m}}}
+	return Call{start: r.Start(), end: l(parser, end), Recv: r, Msgs: []Msg{m}}}
 
 BinMsg <-
 	n:Op a:(
@@ -288,14 +299,14 @@ BinMsg <-
 		u:Unary { return Expr(u) } /
 		Primary
 	) {
-	return Msg{start: n.start, end: end, Sel: n.Text, Args: []Expr{a}}
+	return Msg{start: n.start, end: l(parser, end), Sel: n.Text, Args: []Expr{a}}
 }
 
 Nary <- r:(
 	b:Binary { return Expr(b) } /
 	u:Unary { return Expr(u) } /
 	Primary /
-	n:ModName+ { return Expr(ModName(n)) }
+	n:ModPath { return Expr(n) }
 )? m:NaryMsg {
 	s := m.start
 	var recv Expr
@@ -303,7 +314,7 @@ Nary <- r:(
 		s = (*r).Start()
 		recv = *r
 	}
-	return Call{start: s, end: end, Recv: recv, Msgs: []Msg{m}}
+	return Call{start: s, end: l(parser, end), Recv: recv, Msgs: []Msg{m}}
 }
 
 NaryMsg <- as:(
@@ -319,7 +330,7 @@ NaryMsg <- as:(
 		sel += a.name.Text
 		es = append(es, a.val)
 	}
-	return Msg{start: as[0].name.start, end: end, Sel: sel, Args: es}
+	return Msg{start: as[0].name.start, end: l(parser, end), Sel: sel, Args: es}
 }
 
 Primary <-
@@ -335,7 +346,7 @@ Primary <-
 Ctor <- _ ( "{" t:TypeName _"|" as:(
 	( IdentC e0:Expr { return Expr(e0) } )+ /
 	a:Ary? { if a != nil { return *a }; return []Expr{} }
-) _"}" ) { return Expr(Ctor{start: start, end: end, Type: t, Args: as}) }
+) _"}" ) { return Expr(Ctor{start: l(parser, start), end: l(parser, end), Type: t, Args: as}) }
 
 Ary <- e0:Expr  es:( _ ";" e:Expr { return Expr(e) } )* ( _";" )? {
 	return []Expr(append([]Expr{e0}, es...))
@@ -344,17 +355,17 @@ Ary <- e0:Expr  es:( _ ";" e:Expr { return Expr(e) } )* ( _";" )? {
 Block <- _ ( "[" (
 	( ps:( n:CIdent t:TypeName? { return Parm{Name: n.Text, Type: t} } )+ _ "|" )? ss:Stmts
 ) _ "]" ) {
-	return Expr(Block{start: start, end: end, Parms: ps, Stmts: ss})
+	return Expr(Block{start: l(parser, start), end: l(parser, end), Parms: ps, Stmts: ss})
 }
 
 # Tokens
 
 Int "integer" <- _ tok:( text:( [+\-]? [0-9]+ ) {
-	return Int{start: start, end: end, Text: text}
+	return Int{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Expr(tok) }
 
 Float "floating point" <- _ tok:( text:( [+\-]? [0-9]+ "." [0-9]+ ( [eE] [+\-]? [0-9]+ )? ) {
-	return Float{start: start, end: end, Text: text}
+	return Float{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Expr(tok) }
 
 Rune "rune" <- _ tok:( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
@@ -362,15 +373,15 @@ Rune "rune" <- _ tok:( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
 	if w != len(data) {
 		panic("impossible")
 	}
-	return Rune{start: start, end: end, Text: text, Rune: r}
+	return Rune{start: l(parser, start), end: l(parser, end), Text: text, Rune: r}
 } ) { return Expr(tok) }
 
 String "string" <-
 	_ tok0:( text0:( ["] data0:( !"\n" ( Esc / "\\\"" / [^"] ) )* ["] ) {
-		return String{start: start, end: end, Text: text0, Data: data0}
+		return String{start: l(parser, start), end: l(parser, end), Text: text0, Data: data0}
 	} ) { return String(tok0) } /
 	_ tok1:( text1: ( [`] data1:( "\\`" / [^`] )* [`] ) {
-		return String{start: start, end: end, Text: text1, Data: data1}
+		return String{start: l(parser, start), end: l(parser, end), Text: text1, Data: data1}
 	} ) { return String(tok1) }
 
 Esc <-
@@ -385,27 +396,27 @@ Esc <-
 X <- [a-fA-F0-9]
 
 Op "operator" <- _ !"//" !"/*" tok:( text:( [!%&*+\-/<=>?@\\|~]+ ) {
-	return Ident{start: start, end: end, Text: text}
+	return Ident{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Ident(tok) }
 
 ModName "module name" <- _ tok:( text:( "#" [_a-zA-Z][_a-zA-Z0-9]* ) {
-	return Ident{start: start, end: end, Text: text}
+	return Ident{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Ident(tok) }
 
 IdentC "identifier:" <- _ !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ":" ) {
-	return Ident{start: start, end: end, Text: text}
+	return Ident{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Ident(tok) }
 
 CIdent ":identifier"<- _ ":" !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ) {
-	return Ident{start: start, end: end, Text: text}
+	return Ident{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Ident(tok) }
 
 Ident "identifier" <- _ !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ) !":" {
-	return Ident{start: start, end: end, Text: text}
+	return Ident{start: l(parser, start), end: l(parser, end), Text: text}
 } ) { return Ident(tok) }
 
 TypeVar "type variable" <- _ tok:( text:( [A-Z] ![_a-zA-Z0-9] ) {
-	return Ident{start: start, end: end, Text: text }
+	return Ident{start: l(parser, start), end: l(parser, end), Text: text }
 } ) { return Ident(tok) }
 
 _ "" <- ( Space / Cmnt )*
