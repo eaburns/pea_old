@@ -4,6 +4,7 @@ package main
 
 // A File is a source code file.
 type File struct {
+	Path string
 	Text string
 	Defs []Def
 }
