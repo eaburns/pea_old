@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	pretty.Indent = "    "
 	text := read()
 	p := _NewParser(text)
 	if pos, perr := _FileAccepts(p, 0); pos < 0 {
