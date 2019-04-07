@@ -26,10 +26,9 @@ func main() {
 	}
 
 	m := p.Mod()
-	fmt.Println("=== " + m.Name)
 	for _, f := range m.Files {
-		fmt.Println("--- " + f.Path)
 		for _, d := range f.Defs {
+			fmt.Println(m.Loc(d))
 			pretty.Print(d)
 			fmt.Println("")
 		}
