@@ -1,4 +1,4 @@
-package main
+package pea
 
 import (
 	"io"
@@ -69,6 +69,8 @@ type parseError struct {
 	text string
 	fail *peg.Fail
 }
+
+func (err parseError) Tree() *peg.Fail { return err.fail }
 
 func (err parseError) Error() string {
 	e := peg.SimpleError(err.text, err.fail)

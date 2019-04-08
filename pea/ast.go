@@ -1,4 +1,4 @@
-package main
+package pea
 
 //go:generate peggy -o grammar.go -t grammar.peggy
 

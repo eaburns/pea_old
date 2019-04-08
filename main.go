@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/eaburns/pea/pea"
 	"github.com/eaburns/peggy/peg"
 	"github.com/eaburns/pretty"
 )
@@ -11,7 +12,7 @@ import (
 func main() {
 	pretty.Indent = "    "
 
-	p := NewParser("main")
+	p := pea.NewParser("main")
 
 	if len(os.Args) == 1 {
 		if err := p.Parse("", os.Stdin); err != nil {
@@ -37,8 +38,8 @@ func main() {
 }
 
 func die(err error) {
-	if pe, ok := err.(parseError); ok {
-		peg.PrettyWrite(os.Stdout, pe.fail)
+	if pe, ok := err.(interface{ Tree() *peg.Fail }); ok {
+		peg.PrettyWrite(os.Stdout, pe.Tree())
 		fmt.Println("")
 	}
 	fmt.Println(err)
