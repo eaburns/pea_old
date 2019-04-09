@@ -12,7 +12,7 @@ import (
 func main() {
 	pretty.Indent = "    "
 
-	p := pea.NewParser("main")
+	p := pea.NewParser("#Main")
 
 	if len(os.Args) == 1 {
 		if err := p.Parse("", os.Stdin); err != nil {
@@ -29,7 +29,8 @@ func main() {
 	m := p.Mod()
 	for _, f := range m.Files {
 		for _, d := range f.Defs {
-			fmt.Println(m.Loc(d))
+			s := d.String()
+			fmt.Printf("%s: %s\n", m.Loc(d), s)
 			pretty.Print(d)
 			fmt.Println("")
 		}

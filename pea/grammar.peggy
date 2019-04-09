@@ -16,6 +16,22 @@ func flatten(dss [][]Def) []Def {
 	return defs
 }
 
+func (n SubMod) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Import) setMod(m ModPath) Def { return &n }
+func (n Fun) setMod(m ModPath) Def    { n.Mod = m; return &n }
+func (n Var) setMod(m ModPath) Def    { n.Mod = m; return &n }
+func (n Struct) setMod(m ModPath) Def { n.Mod = m; return &n }
+func (n Enum) setMod(m ModPath) Def   { n.Mod = m; return &n }
+func (n Virt) setMod(m ModPath) Def   { n.Mod = m; return &n }
+
+func (n SubMod) setStart(s int) Def { n.start = s; return &n }
+func (n Import) setStart(s int) Def { n.start = s; return &n }
+func (n Fun) setStart(s int) Def    { n.start = s; return &n }
+func (n Var) setStart(s int) Def    { n.start = s; return &n }
+func (n Struct) setStart(s int) Def { n.start = s; return &n }
+func (n Enum) setStart(s int) Def   { n.start = s; return &n }
+func (n Virt) setStart(s int) Def   { n.start = s; return &n }
+
 type setSiger interface {
 	setSig(TypeSig) Def
 }

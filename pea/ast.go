@@ -26,25 +26,11 @@ type Node interface {
 // A Def is a module-level definition.
 type Def interface {
 	Node
+	// String returns a 1-line summary of the definition.
+	String() string
 	setMod(ModPath) Def
 	setStart(int) Def
 }
-
-func (n SubMod) setMod(m ModPath) Def { n.Mod = m; return &n }
-func (n Import) setMod(m ModPath) Def { return &n }
-func (n Fun) setMod(m ModPath) Def    { n.Mod = m; return &n }
-func (n Var) setMod(m ModPath) Def    { n.Mod = m; return &n }
-func (n Struct) setMod(m ModPath) Def { n.Mod = m; return &n }
-func (n Enum) setMod(m ModPath) Def   { n.Mod = m; return &n }
-func (n Virt) setMod(m ModPath) Def   { n.Mod = m; return &n }
-
-func (n SubMod) setStart(s int) Def { n.start = s; return &n }
-func (n Import) setStart(s int) Def { n.start = s; return &n }
-func (n Fun) setStart(s int) Def    { n.start = s; return &n }
-func (n Var) setStart(s int) Def    { n.start = s; return &n }
-func (n Struct) setStart(s int) Def { n.start = s; return &n }
-func (n Enum) setStart(s int) Def   { n.start = s; return &n }
-func (n Virt) setStart(s int) Def   { n.start = s; return &n }
 
 type location struct {
 	start, end int
