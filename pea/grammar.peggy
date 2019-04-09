@@ -258,8 +258,12 @@ TypeName <-
 		return TypeName{location: tv2.location, Name: tv2.Text}
 	} /
 	_ blk:(
-		"[" ps:TypeName* r:( _"|" r1:TypeName { return TypeName(r1) } )? _"]" {
+		"[" psp:TypeNameList? r:( _"|" r1:TypeName { return TypeName(r1) } )? _"]" {
 		name := "[]"
+		var ps []TypeName
+		if psp != nil {
+			ps = *psp
+		}
 		if r != nil {
 			name = "[|]"
 			ps = append(ps, *r)
@@ -271,23 +275,26 @@ TypeName <-
 		}
 	} ) { return TypeName(blk) } /
 	_ tn0:(
-		"(" n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _ "," )? _")" ids2:Ident+ {
+		"(" ns:TypeNameList _")" ids2:Ident+ {
 		s := loc1(parser, start)
-		as := append([]TypeName{n0}, ns...)
 		for _, id := range ids2[:len(ids2)-1] {
-			as = []TypeName{{
+			ns = []TypeName{{
 				location: location{s, id.end},
 				Name: id.Text,
-				Args: as,
+				Args: ns,
 			}}
 		}
 		return TypeName{
 			location: loc(parser, start, end),
 			Name: ids2[len(ids2)-1].Text,
-			Args: as,
+			Args: ns,
 		}
 	} ) { return TypeName(tn0)} /
 	_ "(" n2:TypeName _ ")" { return TypeName(n2) }
+
+TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _ "," )? {
+	return []TypeName(append([]TypeName{n0}, ns...))
+}
 
 Type <- Struct / Enum / Virt
 
