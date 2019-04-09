@@ -152,7 +152,8 @@ FunSig <- ps:(
 	}
 	var sel string
 	var parms []Parm
-	for _, p := range ps {
+	for i := range ps {
+		p := &ps[i]
 		sel += p.key.Text
 		parms = append(parms, Parm{
 			location: location{p.key.start, p.typ.end},
