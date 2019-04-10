@@ -349,7 +349,9 @@ MethSig <- _ sig:( "[" ps:(
 	var ts []TypeName
 	for _, p := range ps {
 		s += p.name.Text
-		ts = append(ts, p.typ)
+		if p.typ.Name != "" { // p.typ.Name=="" means unary method
+			ts = append(ts, p.typ)
+		}
 	}
 	return MethSig{
 		location: loc(parser, start, end),
