@@ -136,6 +136,65 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestKey(t *testing.T) {
+	tests := []struct {
+		in   string // source; the first Def is tested against want
+		want string
+	}{
+		{
+			"[foo: t T | ]",
+			"#Main foo:",
+		},
+		{
+			"T [foo: t T | ]",
+			"#Main foo:",
+		},
+		{
+			"Point [x ^Int | ]",
+			"#Main Point x",
+		},
+		{
+			"Point [x ^Int | ]",
+			"#Main Point x",
+		},
+		{
+			"Point [x: i Int | ]",
+			"#Main Point x:",
+		},
+		{
+			"Point [* p Point ^Point | ]",
+			"#Main Point *",
+		},
+		{
+			"(K Key, V) Map [do: f [(K, V) Point] | ]",
+			"#Main Map do:",
+		},
+		{
+			"Point { x: Float y: Float }",
+			"#Main Point",
+		},
+		{
+			"T Opt {none, some: T}",
+			"#Main Opt",
+		},
+		{
+			"T Key { [= T& ^Bool] [hash ^Int64] }",
+			"#Main Key",
+		},
+	}
+	for _, test := range tests {
+		mod, err := parseString(test.in)
+		if err != nil {
+			t.Errorf("failed to parse %q: %v", test.in, err)
+			continue
+		}
+		got := mod.Files[0].Defs[0].(interface{ Key() string }).Key()
+		if got != test.want {
+			t.Errorf("%q.Key()= %q, want %q", test.in, got, test.want)
+		}
+	}
+}
+
 func parseString(str string) (*Mod, error) {
 	p := NewParser("#Main")
 	if err := p.Parse("", strings.NewReader(str)); err != nil {
