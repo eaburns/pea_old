@@ -80,6 +80,11 @@ type arg struct {
 	val Expr
 }
 
+type tname struct {
+	mod ModPath
+	name Ident
+}
+
 func hex(s string) rune {
 	x, err := strconv.ParseInt(s, 16, 32)
 	if err != nil {
@@ -224,24 +229,26 @@ TypeParm <- n:TypeVar t1:TypeName? {
 }
 
 TypeName <-
-	tv1:TypeVar? ids1:( TypeOp / Ident )+ {
-		s := ids1[0].start
+	tv1:TypeVar? ns0:TName+ {
+		s := ns0[0].name.start
 		var a []TypeName
 		if tv1 != nil {
 			s = tv1.start
 			a = []TypeName{{location: tv1.location, Name: tv1.Text}}
 		}
-		for _, id := range ids1[:len(ids1)-1] {
+		for _, n := range ns0[:len(ns0)-1] {
 			a = []TypeName{{
-				location: location{s, id.end},
-				Name: id.Text,
+				location: location{s, n.name.end},
+				Mod: n.mod,
+				Name: n.name.Text,
 				Args: a,
 			}}
 		}
-		n := ids1[len(ids1)-1]
+		n := ns0[len(ns0)-1]
 		return TypeName{
-			location: location{s, n.end},
-			Name: n.Text,
+			location: location{s, n.name.end},
+			Mod: n.mod,
+			Name: n.name.Text,
 			Args: a,
 		}
 	} /
@@ -261,30 +268,43 @@ TypeName <-
 		}
 		return TypeName{
 			location: loc(parser, start, end),
+			Mod: []Ident{{Text: parser.data.(*Parser).mod}},
 			Name: name,
 			Args: ps,
 		}
 	} ) { return TypeName(blk) } /
 	_ tn0:(
-		"(" ns:TypeNameList _")" ids2:Ident+ {
+		"(" ns1:TypeNameList _")" ns2:TName+ {
 		s := loc1(parser, start)
-		for _, id := range ids2[:len(ids2)-1] {
-			ns = []TypeName{{
-				location: location{s, id.end},
-				Name: id.Text,
-				Args: ns,
+		for _, n := range ns2[:len(ns2)-1] {
+			ns1 = []TypeName{{
+				location: location{s, n.name.end},
+				Mod: n.mod,
+				Name: n.name.Text,
+				Args: ns1,
 			}}
 		}
 		return TypeName{
 			location: loc(parser, start, end),
-			Name: ids2[len(ids2)-1].Text,
-			Args: ns,
+			Mod: ns2[len(ns2)-1].mod,
+			Name: ns2[len(ns2)-1].name.Text,
+			Args: ns1,
 		}
 	} ) { return TypeName(tn0)} /
 	_ "(" n2:TypeName _ ")" { return TypeName(n2) }
 
 TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _ "," )? {
 	return []TypeName(append([]TypeName{n0}, ns...))
+}
+
+TName <- m:ModPath? n:( TypeOp / Ident ) {
+	var mp ModPath
+	if m == nil {
+		mp = []Ident{{Text: parser.data.(*Parser).mod}}
+	} else {
+		mp = *m
+	}
+	return tname{mod: mp, name: n}
 }
 
 Type <- Struct / Enum / Virt

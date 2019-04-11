@@ -151,6 +151,10 @@ func (n TypeName) Key() string { return n.Name }
 func buildTypeNameString(n TypeName, s *strings.Builder) {
 	switch {
 	case len(n.Name) > 0 && n.Name[0] == '[':
+		if len(n.Mod) > 0 {
+			buildModPathString(n.Mod, s)
+			s.WriteRune(' ')
+		}
 		s.WriteRune('[')
 		for i, a := range n.Args {
 			if i == len(n.Args)-1 && len(n.Name) > 2 && n.Name[1] == '|' {
@@ -164,11 +168,13 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 		return
 	case len(n.Args) == 1:
 		buildTypeNameString(n.Args[0], s)
-		if r, _ := utf8.DecodeRuneInString(n.Name); !unicode.IsPunct(r) {
-			s.WriteRune(' ')
-		}
+		s.WriteRune(' ')
 		fallthrough
 	case len(n.Args) == 0:
+		if len(n.Mod) > 0 {
+			buildModPathString(n.Mod, s)
+			s.WriteRune(' ')
+		}
 		s.WriteString(n.Name)
 		return
 	}
@@ -180,6 +186,10 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 		buildTypeNameString(a, s)
 	}
 	s.WriteString(") ")
+	if len(n.Mod) > 0 {
+		buildModPathString(n.Mod, s)
+		s.WriteRune(' ')
+	}
 	s.WriteString(n.Name)
 }
 

@@ -24,31 +24,31 @@ func TestString(t *testing.T) {
 		},
 		{
 			"[max: x Int and: y Int ^Int | ]",
-			"function: #Main [max: Int and: Int ^Int]",
+			"function: #Main [max: #Main Int and: #Main Int ^#Main Int]",
 		},
 		{
 			"#Sub [max: x Int and: y Int ^Int | ]",
-			"function: #Main #Sub [max: Int and: Int ^Int]",
+			"function: #Main #Sub [max: #Main Int and: #Main Int ^#Main Int]",
 		},
 		{
 			"Int [orMax: x Int ^Int | ]",
-			"function: #Main Int [orMax: Int ^Int]",
+			"function: #Main Int [orMax: #Main Int ^#Main Int]",
 		},
 		{
 			"#Sub Int [orMax: x Int ^Int | ]",
-			"function: #Main #Sub Int [orMax: Int ^Int]",
+			"function: #Main #Sub Int [orMax: #Main Int ^#Main Int]",
 		},
 		{
 			"Int [add: x Int | ]",
-			"function: #Main Int [add: Int]",
+			"function: #Main Int [add: #Main Int]",
 		},
 		{
 			"Int [+ x Int ^Int | ]",
-			"function: #Main Int [+ Int ^Int]",
+			"function: #Main Int [+ #Main Int ^#Main Int]",
 		},
 		{
 			"Int [neg ^Int | ]",
-			"function: #Main Int [neg ^Int]",
+			"function: #Main Int [neg ^#Main Int]",
 		},
 		{
 			"Int [inc | ]",
@@ -64,11 +64,11 @@ func TestString(t *testing.T) {
 		},
 		{
 			"Point { x: Float y: Int }",
-			"struct: #Main Point {x: Float y: Int}",
+			"struct: #Main Point {x: #Main Float y: #Main Int}",
 		},
 		{
 			"#Sub1 #Sub2 Point { x: Float y: Int }",
-			"struct: #Main #Sub1 #Sub2 Point {x: Float y: Int}",
+			"struct: #Main #Sub1 #Sub2 Point {x: #Main Float y: #Main Int}",
 		},
 		{
 			"#Sub1 (X, Y) Pair { x: X y: Y }",
@@ -76,11 +76,11 @@ func TestString(t *testing.T) {
 		},
 		{
 			"#Sub1 T Vec { data: T Array }",
-			"struct: #Main #Sub1 T Vec {data: T Array}",
+			"struct: #Main #Sub1 T Vec {data: T #Main Array}",
 		},
 		{
 			"(K Key, V) Map {}",
-			"struct: #Main (K Key, V) Map {}",
+			"struct: #Main (K #Main Key, V) Map {}",
 		},
 		{
 			"T Opt {some: T, none}",
@@ -88,11 +88,11 @@ func TestString(t *testing.T) {
 		},
 		{
 			"T! { error: String, ok: T }",
-			"enum: #Main T! {error: String, ok: T}",
+			"enum: #Main T! {error: #Main String, ok: T}",
 		},
 		{
 			"T Ord { [= T& ^Bool] [< T& ^Bool] }",
-			"virtual: #Main T Ord {[= T& ^Bool] [< T& ^Bool]}",
+			"virtual: #Main T Ord {[= T #Main & ^#Main Bool] [< T #Main & ^#Main Bool]}",
 		},
 		{
 			"Foo { [bar] }",
@@ -100,19 +100,19 @@ func TestString(t *testing.T) {
 		},
 		{
 			"Foo { [bar: Int baz: Float Array] }",
-			"virtual: #Main Foo {[bar: Int baz: Float Array]}",
+			"virtual: #Main Foo {[bar: #Main Int baz: #Main Float #Main Array]}",
 		},
 		{
 			"[x: f (String, Int) Map | ]",
-			"function: #Main [x: (String, Int) Map]",
+			"function: #Main [x: (#Main String, #Main Int) #Main Map]",
 		},
 		{
 			"[do: f [Int, Float, String Array | String] | ]",
-			"function: #Main [do: [Int, Float, String Array | String]]",
+			"function: #Main [do: #Main [#Main Int, #Main Float, #Main String #Main Array | #Main String]]",
 		},
 		{
 			"[do: f [Int, Float, String Array] | ]",
-			"function: #Main [do: [Int, Float, String Array]]",
+			"function: #Main [do: #Main [#Main Int, #Main Float, #Main String #Main Array]]",
 		},
 		{
 			"T [foo: t T | ]",
@@ -120,11 +120,15 @@ func TestString(t *testing.T) {
 		},
 		{
 			"(K Key, V) [foo: k K bar: v V | ]",
-			"function: #Main (K Key, V) [foo: K bar: V]",
+			"function: #Main (K #Main Key, V) [foo: K bar: V]",
 		},
 		{
 			"[x: v Int Array? Vec | ]",
-			"function: #Main [x: Int Array? Vec]",
+			"function: #Main [x: #Main Int #Main Array #Main ? #Main Vec]",
+		},
+		{
+			"[x: _ #Foo #Bar #Baz Int | ]",
+			"function: #Main [x: #Main #Foo #Bar #Baz Int]",
 		},
 	}
 	for _, test := range tests {
