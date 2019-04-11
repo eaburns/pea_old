@@ -32,22 +32,6 @@ func (n *Fun) String() string {
 	return s.String()
 }
 
-// Key returns a unique identifier for the function.
-// It is an error if two functions have the same key.
-// The exact format of the key is unspecified, but it includes
-// the module path, the Key of the receiver type if any, and the selector.
-func (n *Fun) Key() string {
-	var s strings.Builder
-	buildModPathString(n.Mod, &s)
-	s.WriteRune(' ')
-	if n.Recv != nil {
-		s.WriteString(n.Recv.Name)
-		s.WriteRune(' ')
-	}
-	s.WriteString(n.Sel)
-	return s.String()
-}
-
 func buildFunString(n *Fun, s *strings.Builder) {
 	buildModPathString(n.Mod, s)
 	s.WriteRune(' ')
@@ -143,11 +127,6 @@ func (n TypeName) String() string {
 	return s.String()
 }
 
-// Key returns a unique identifier for the type.
-// The key is the module path and the name of the type.
-// The key will match the Key() of the type's definition.
-func (n TypeName) Key() string { return n.Name }
-
 func buildTypeNameString(n TypeName, s *strings.Builder) {
 	switch {
 	case len(n.Name) > 0 && n.Name[0] == '[':
@@ -212,11 +191,6 @@ func (n *Struct) String() string {
 	return s.String()
 }
 
-// Key returns a unique identifier for the type.
-// The exact format is unspecified,
-// but it includes the module path and type name.
-func (n *Struct) Key() string { return n.Mod.String() + " " + n.Sig.Name }
-
 func (n *Enum) String() string {
 	var s strings.Builder
 	s.WriteString("enum: ")
@@ -238,11 +212,6 @@ func (n *Enum) String() string {
 	return s.String()
 }
 
-// Key returns a unique identifier for the type.
-// The exact format is unspecified,
-// but it includes the module path and type name.
-func (n *Enum) Key() string { return n.Mod.String() + " " + n.Sig.Name }
-
 func (n *Virt) String() string {
 	var s strings.Builder
 	s.WriteString("virtual: ")
@@ -259,11 +228,6 @@ func (n *Virt) String() string {
 	s.WriteRune('}')
 	return s.String()
 }
-
-// Key returns a unique identifier for the type.
-// The exact format is unspecified,
-// but it includes the module path and type name.
-func (n *Virt) Key() string { return n.Mod.String() + " " + n.Sig.Name }
 
 func (n MethSig) String() string {
 	var s strings.Builder
