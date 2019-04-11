@@ -122,6 +122,10 @@ func TestString(t *testing.T) {
 			"(K Key, V) [foo: k K bar: v V | ]",
 			"function: #Main (K Key, V) [foo: K bar: V]",
 		},
+		{
+			"[x: v Int Array? Vec | ]",
+			"function: #Main [x: Int Array? Vec]",
+		},
 	}
 	for _, test := range tests {
 		mod, err := parseString(test.in)

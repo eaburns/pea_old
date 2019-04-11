@@ -224,32 +224,7 @@ TypeParm <- n:TypeVar t1:TypeName? {
 }
 
 TypeName <-
-	tv0:TypeVar? ids0:Ident* op:TypeOp {
-		s := op.start
-		var a []TypeName
-		if tv0 != nil {
-			s = tv0.start
-			a = []TypeName{{location: tv0.location, Name: tv0.Text}}
-		}
-		if len(ids0) > 0 {
-			if tv0 == nil {
-				s = ids0[0].start
-			}
-			for _, id := range ids0[:len(ids0)-1] {
-				a = []TypeName{{
-					location: location{s, id.end},
-					Name: id.Text,
-					Args: a,
-				}}
-			}
-		}
-		return TypeName{
-			location: location{s, op.end},
-			Name: op.Text,
-			Args: a,
-		}
-	} /
-	tv1:TypeVar? ids1:Ident+ {
+	tv1:TypeVar? ids1:( TypeOp / Ident )+ {
 		s := ids1[0].start
 		var a []TypeName
 		if tv1 != nil {
