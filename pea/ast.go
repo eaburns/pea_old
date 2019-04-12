@@ -28,7 +28,9 @@ type Def interface {
 	Node
 	// String returns a 1-line summary of the definition.
 	String() string
-	setMod(ModPath) Def
+
+	addMod(*ModPath) Def
+	setPriv(bool) Def
 	setStart(int) Def
 }
 
@@ -39,13 +41,6 @@ type location struct {
 func (n location) Start() int { return n.start }
 func (n location) End() int   { return n.end }
 
-// A SubMod is a module definition.
-type SubMod struct {
-	location
-	Mod  ModPath
-	Defs []Def
-}
-
 // A ModPath is a module name.
 type ModPath []Ident
 
@@ -55,12 +50,14 @@ func (n ModPath) End() int   { return n[len(n)-1].End() }
 // Import is an import statement.
 type Import struct {
 	location
+	Priv bool
 	Path string
 }
 
 // A Fun is a function or method definition.
 type Fun struct {
 	location
+	Priv      bool
 	Mod       ModPath
 	Sel       string
 	Recv      *TypeSig
@@ -83,6 +80,7 @@ type Parm struct {
 // A Var is a module-level variable definition.
 type Var struct {
 	location
+	Priv bool
 	Mod  ModPath
 	Name string
 	Val  []Stmt
@@ -106,6 +104,7 @@ type TypeName struct {
 // A Struct defines a struct type.
 type Struct struct {
 	location
+	Priv   bool
 	Mod    ModPath
 	Sig    TypeSig
 	Fields []Parm // types cannot be nil
@@ -114,6 +113,7 @@ type Struct struct {
 // A Enum defines an enum type.
 type Enum struct {
 	location
+	Priv  bool
 	Mod   ModPath
 	Sig   TypeSig
 	Cases []Parm // types may be nil
@@ -122,6 +122,7 @@ type Enum struct {
 // A Virt defines a virtual type.
 type Virt struct {
 	location
+	Priv  bool
 	Mod   ModPath
 	Sig   TypeSig
 	Meths []MethSig

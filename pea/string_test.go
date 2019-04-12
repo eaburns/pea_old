@@ -11,14 +11,6 @@ func TestString(t *testing.T) {
 		want string
 	}{
 		{
-			"#Sub ( Point {} )",
-			"submodule: #Main #Sub",
-		},
-		{
-			"#Sub1 #Sub2 #Sub3 ( Point {} )",
-			"submodule: #Main #Sub1 #Sub2 #Sub3",
-		},
-		{
 			"import \"foo\"",
 			"import: foo",
 		},
@@ -129,6 +121,10 @@ func TestString(t *testing.T) {
 		{
 			"[x: _ #Foo #Bar #Baz Int | ]",
 			"function: #Main [x: #Main #Foo #Bar #Baz Int]",
+		},
+		{
+			"#Nest0 ( #Nest1 ( #Nest2 Point {} ) )",
+			"struct: #Main #Nest0 #Nest1 #Nest2 Point {}",
 		},
 	}
 	for _, test := range tests {

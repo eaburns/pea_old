@@ -8,23 +8,28 @@ import (
 	"github.com/eaburns/peggy/peg"
 )
 
-func flatten(dss [][]Def) []Def {
-	var defs []Def
-	for _, ds := range dss {
-		defs = append(defs, ds...)
+func (n Import) addMod(*ModPath) Def { return &n }
+func (n Fun) addMod(m *ModPath) Def    { n.Mod = pm(m, n.Mod); return &n }
+func (n Var) addMod(m *ModPath) Def    { n.Mod = pm(m, n.Mod); return &n }
+func (n Struct) addMod(m *ModPath) Def { n.Mod = pm(m, n.Mod); return &n }
+func (n Enum) addMod(m *ModPath) Def   { n.Mod = pm(m, n.Mod); return &n }
+func (n Virt) addMod(m *ModPath) Def   { n.Mod = pm(m, n.Mod); return &n }
+
+func pm(prefix *ModPath, suffix ModPath) ModPath {
+	if prefix == nil {
+		return suffix
 	}
-	return defs
+	n := len(*prefix)
+	return append((*prefix)[:n:n], suffix...)
 }
 
-func (n SubMod) setMod(m ModPath) Def { n.Mod = m; return &n }
-func (n Import) setMod(m ModPath) Def { return &n }
-func (n Fun) setMod(m ModPath) Def    { n.Mod = m; return &n }
-func (n Var) setMod(m ModPath) Def    { n.Mod = m; return &n }
-func (n Struct) setMod(m ModPath) Def { n.Mod = m; return &n }
-func (n Enum) setMod(m ModPath) Def   { n.Mod = m; return &n }
-func (n Virt) setMod(m ModPath) Def   { n.Mod = m; return &n }
+func (n Import) setPriv(b bool) Def { n.Priv = b; return &n }
+func (n Fun) setPriv(b bool) Def    { n.Priv = b; return &n }
+func (n Var) setPriv(b bool) Def    { n.Priv = b; return &n }
+func (n Struct) setPriv(b bool) Def { n.Priv = b; return &n }
+func (n Enum) setPriv(b bool) Def   { n.Priv = b; return &n }
+func (n Virt) setPriv(b bool) Def   { n.Priv = b; return &n }
 
-func (n SubMod) setStart(s int) Def { n.start = s; return &n }
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def    { n.start = s; return &n }
 func (n Var) setStart(s int) Def    { n.start = s; return &n }
@@ -50,23 +55,6 @@ func distSig(s TypeSig, in []Def) []Def {
 		out[0] = out[0].setStart(s.start)
 	}
 	return out
-}
-
-func distMod(p *_Parser, m *ModPath, in []Def) []Def {
-	var out []Def
-	var mp []Ident
-	if m == nil {
-		mp = []Ident{{Text: p.data.(*Parser).mod}}
-	} else {
-		mp = *m
-	}
-	for i := range in {
-		out = append(out, in[i].setMod(mp))
-	}
-	if m != nil && len(out) == 1 {
-		out[0] = out[0].setStart((*m)[1].start)
-	}
-	return []Def(out)
 }
 
 type parm struct {
@@ -101,18 +89,29 @@ func loc(p *_Parser, start, end int) location {
 func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
 }
 
-File <- dss:Def* _ EOF { return &File{ Defs: flatten(dss) } }
+File <- defss:Def* _ EOF {
+	var out []Def
+	mod := &ModPath{{Text: parser.data.(*Parser).mod}}
+	for _, defs := range defss {
+		for _, def := range defs {
+			out = append(out, def.addMod(mod))
+		}
+	}
+	return &File{Defs: out}
+}
 
 Def <- m:ModPath? ds0:(
 	_ ( "import" p:String ) {
-		return []Def{
-			&Import{location: loc(parser, start, end), Path: p.Data},
-		}
+		return []Def{&Import{location: loc(parser, start, end), Path: p.Data}}
 	} /
-	_ ( "(" dss:Def+ _ ")" ) {
-		return []Def{
-			&SubMod{location: loc(parser, start, end), Defs: flatten(dss)},
+	_ ( "(" defss:Def+ _ ")" ) {
+		var out []Def
+		for _, defs := range defss {
+			for _, def := range defs {
+				out = append(out, def.setPriv(m == nil))
+			}
 		}
+		return []Def(out)
 	} /
 	f:Fun {
 		return []Def{f}
@@ -128,15 +127,17 @@ Def <- m:ModPath? ds0:(
 		return []Def(distSig(sig, ds1))
 	}
 ) {
-	return []Def(distMod(parser, m, ds0))
+	var out []Def
+	for i := range ds0 {
+		out = append(out, ds0[i].addMod(m))
+	}
+	if m != nil && len(out) == 1 {
+		out[0] = out[0].setStart(m.Start())
+	}
+	return []Def(out)
 }
 
-ModPath <- n:ModName+ {
-	n = append([]Ident{{
-		Text: parser.data.(*Parser).mod,
-	}}, n...)
-	return ModPath(n)
-}
+ModPath <- n:ModName+ { return ModPath(n) }
 
 Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
 	copy := *sig
@@ -298,11 +299,9 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 }
 
 TName <- m:ModPath? n:( TypeOp / Ident ) {
-	var mp ModPath
-	if m == nil {
-		mp = []Ident{{Text: parser.data.(*Parser).mod}}
-	} else {
-		mp = *m
+	mp := []Ident{{Text: parser.data.(*Parser).mod}}
+	if m != nil {
+		mp = append(mp, (*m)...)
 	}
 	return tname{mod: mp, name: n}
 }

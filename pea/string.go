@@ -6,8 +6,6 @@ import (
 	"unicode/utf8"
 )
 
-func (n *SubMod) String() string { return "submodule: " + n.Mod.String() }
-
 func (n ModPath) String() string {
 	var s strings.Builder
 	buildModPathString(n, &s)
