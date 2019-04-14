@@ -36,6 +36,13 @@ func main() {
 		}
 	}
 	fmt.Println("")
+
+	if errs := pea.Check(m, pea.Trace); len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Println(err)
+		}
+		os.Exit(1)
+	}
 }
 
 func die(err error) {

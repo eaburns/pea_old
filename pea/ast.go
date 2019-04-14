@@ -29,6 +29,8 @@ type Def interface {
 	// String returns a 1-line summary of the definition.
 	String() string
 
+	name() string
+	mod() ModPath
 	addMod(*ModPath) Def
 	setPriv(bool) Def
 	setStart(int) Def
@@ -54,6 +56,9 @@ type Import struct {
 	Path string
 }
 
+func (n *Import) name() string { panic("impossible") }
+func (n *Import) mod() ModPath { panic("impossible") }
+
 // A Fun is a function or method definition.
 type Fun struct {
 	location
@@ -66,6 +71,15 @@ type Fun struct {
 	Ret       *TypeName
 	Stmts     []Stmt
 }
+
+func (n *Fun) name() string {
+	if n.Recv != nil {
+		return n.Recv.String() + " " + n.Sel
+	}
+	return n.Sel
+}
+
+func (n *Fun) mod() ModPath { return n.Mod }
 
 // A Parm is a name and a type.
 // Parms are used in several AST nodes.
@@ -85,6 +99,9 @@ type Var struct {
 	Name string
 	Val  []Stmt
 }
+
+func (n *Var) name() string { return n.Name }
+func (n *Var) mod() ModPath { return n.Mod }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
@@ -110,6 +127,9 @@ type Struct struct {
 	Fields []Parm // types cannot be nil
 }
 
+func (n *Struct) name() string { return n.Sig.Name }
+func (n *Struct) mod() ModPath { return n.Mod }
+
 // A Enum defines an enum type.
 type Enum struct {
 	location
@@ -119,6 +139,9 @@ type Enum struct {
 	Cases []Parm // types may be nil
 }
 
+func (n *Enum) name() string { return n.Sig.Name }
+func (n *Enum) mod() ModPath { return n.Mod }
+
 // A Virt defines a virtual type.
 type Virt struct {
 	location
@@ -127,6 +150,9 @@ type Virt struct {
 	Sig   TypeSig
 	Meths []MethSig
 }
+
+func (n *Virt) name() string { return n.Sig.Name }
+func (n *Virt) mod() ModPath { return n.Mod }
 
 // A MethSig is the signature of a method.
 type MethSig struct {
