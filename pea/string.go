@@ -31,7 +31,7 @@ func (n *Fun) String() string {
 }
 
 func buildFunString(n *Fun, s *strings.Builder) {
-	buildModPathString(n.Mod, s)
+	buildModPathString(n.mod, s)
 	s.WriteRune(' ')
 	if n.Recv != nil {
 		buildTypeSigString(*n.Recv, s)
@@ -80,9 +80,9 @@ func buildFunString(n *Fun, s *strings.Builder) {
 func (n *Var) String() string {
 	var s strings.Builder
 	s.WriteString("variable: ")
-	buildModPathString(n.Mod, &s)
+	buildModPathString(n.mod, &s)
 	s.WriteRune(' ')
-	s.WriteString(n.Name)
+	s.WriteString(n.Ident)
 	return s.String()
 }
 
@@ -173,7 +173,7 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 func (n *Struct) String() string {
 	var s strings.Builder
 	s.WriteString("struct: ")
-	buildModPathString(n.Mod, &s)
+	buildModPathString(n.mod, &s)
 	s.WriteRune(' ')
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
@@ -192,7 +192,7 @@ func (n *Struct) String() string {
 func (n *Enum) String() string {
 	var s strings.Builder
 	s.WriteString("enum: ")
-	buildModPathString(n.Mod, &s)
+	buildModPathString(n.mod, &s)
 	s.WriteRune(' ')
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
@@ -213,7 +213,7 @@ func (n *Enum) String() string {
 func (n *Virt) String() string {
 	var s strings.Builder
 	s.WriteString("virtual: ")
-	buildModPathString(n.Mod, &s)
+	buildModPathString(n.mod, &s)
 	s.WriteRune(' ')
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")

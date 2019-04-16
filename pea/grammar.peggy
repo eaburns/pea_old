@@ -9,11 +9,11 @@ import (
 )
 
 func (n Import) addMod(*ModPath) Def { return &n }
-func (n Fun) addMod(m *ModPath) Def    { n.Mod = pm(m, n.Mod); return &n }
-func (n Var) addMod(m *ModPath) Def    { n.Mod = pm(m, n.Mod); return &n }
-func (n Struct) addMod(m *ModPath) Def { n.Mod = pm(m, n.Mod); return &n }
-func (n Enum) addMod(m *ModPath) Def   { n.Mod = pm(m, n.Mod); return &n }
-func (n Virt) addMod(m *ModPath) Def   { n.Mod = pm(m, n.Mod); return &n }
+func (n Fun) addMod(m *ModPath) Def    { n.mod = pm(m, n.mod); return &n }
+func (n Var) addMod(m *ModPath) Def    { n.mod = pm(m, n.mod); return &n }
+func (n Struct) addMod(m *ModPath) Def { n.mod = pm(m, n.mod); return &n }
+func (n Enum) addMod(m *ModPath) Def   { n.mod = pm(m, n.mod); return &n }
+func (n Virt) addMod(m *ModPath) Def   { n.mod = pm(m, n.mod); return &n }
 
 func pm(prefix *ModPath, suffix ModPath) ModPath {
 	if prefix == nil {
@@ -23,12 +23,12 @@ func pm(prefix *ModPath, suffix ModPath) ModPath {
 	return append((*prefix)[:n:n], suffix...)
 }
 
-func (n Import) setPriv(b bool) Def { n.Priv = b; return &n }
-func (n Fun) setPriv(b bool) Def    { n.Priv = b; return &n }
-func (n Var) setPriv(b bool) Def    { n.Priv = b; return &n }
-func (n Struct) setPriv(b bool) Def { n.Priv = b; return &n }
-func (n Enum) setPriv(b bool) Def   { n.Priv = b; return &n }
-func (n Virt) setPriv(b bool) Def   { n.Priv = b; return &n }
+func (n Import) setPriv(b bool) Def { n.priv = b; return &n }
+func (n Fun) setPriv(b bool) Def    { n.priv = b; return &n }
+func (n Var) setPriv(b bool) Def    { n.priv = b; return &n }
+func (n Struct) setPriv(b bool) Def { n.priv = b; return &n }
+func (n Enum) setPriv(b bool) Def   { n.priv = b; return &n }
+func (n Virt) setPriv(b bool) Def   { n.priv = b; return &n }
 
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def    { n.start = s; return &n }
@@ -193,7 +193,7 @@ Ret <- _ "^" t:TypeName {
 Var <- n:Ident _":=" _"[" ss:Stmts _"]" {
 	return &Var{
 		location: location{n.start, loc1(parser, end)},
-		Name: n.Text,
+		Ident: n.Text,
 		Val: ss,
 	}
 }

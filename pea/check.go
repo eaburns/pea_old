@@ -71,7 +71,7 @@ type state struct {
 }
 
 // key returns a state.defs map key from a Def.
-func key(d Def) [2]string { return [2]string{d.mod().String(), d.name()} }
+func key(d Def) [2]string { return [2]string{d.Mod().String(), d.Name()} }
 
 type ctx struct {
 	*state
