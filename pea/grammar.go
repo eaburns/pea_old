@@ -1414,17 +1414,17 @@ fail:
 func _DefAction(parser *_Parser, start int) (int, *[]Def) {
 	var labels [11]string
 	use(labels)
-	var label5 TypeSig
-	var label6 Def
-	var label9 []Def
-	var label10 []Def
-	var label2 [][]Def
-	var label4 *Var
-	var label3 Def
 	var label7 Def
 	var label8 []Def
+	var label10 []Def
 	var label0 *ModPath
+	var label2 [][]Def
+	var label3 Def
+	var label4 *Var
+	var label5 TypeSig
 	var label1 String
+	var label6 Def
+	var label9 []Def
 	dp := parser.deltaPos[start][_Def]
 	if dp < 0 {
 		return -1, nil
@@ -2352,10 +2352,10 @@ fail:
 func _FunAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
-	var label3 (*Fun)
 	var label0 *[]Parm
 	var label1 *Fun
 	var label2 []Stmt
+	var label3 (*Fun)
 	dp := parser.deltaPos[start][_Fun]
 	if dp < 0 {
 		return -1, nil
@@ -3009,15 +3009,15 @@ fail:
 func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
 	var labels [9]string
 	use(labels)
+	var label1 Ident
+	var label4 Ident
+	var label5 Ident
+	var label0 Ident
 	var label2 Ident
 	var label3 TypeName
-	var label5 Ident
 	var label6 TypeName
-	var label8 *TypeName
-	var label0 Ident
-	var label4 Ident
 	var label7 []parm
-	var label1 Ident
+	var label8 *TypeName
 	dp := parser.deltaPos[start][_FunSig]
 	if dp < 0 {
 		return -1, nil
@@ -3974,8 +3974,8 @@ fail:
 func _TypeSigAction(parser *_Parser, start int) (int, *TypeSig) {
 	var labels [2]string
 	use(labels)
-	var label1 Ident
 	var label0 *[]Parm
+	var label1 Ident
 	dp := parser.deltaPos[start][_TypeSig]
 	if dp < 0 {
 		return -1, nil
@@ -4486,10 +4486,10 @@ fail:
 func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
 	var labels [4]string
 	use(labels)
-	var label0 Ident
 	var label1 Parm
 	var label2 Parm
 	var label3 []Parm
+	var label0 Ident
 	dp := parser.deltaPos[start][_TypeParms]
 	if dp < 0 {
 		return -1, nil
@@ -5729,15 +5729,15 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 	use(labels)
 	var label6 TypeName
 	var label8 []tname
-	var label9 TypeName
 	var label10 TypeName
-	var label2 Ident
+	var label0 *Ident
 	var label1 []tname
-	var label3 *[]TypeName
 	var label4 TypeName
 	var label5 *TypeName
+	var label2 Ident
+	var label3 *[]TypeName
 	var label7 []TypeName
-	var label0 *Ident
+	var label9 TypeName
 	dp := parser.deltaPos[start][_TypeName]
 	if dp < 0 {
 		return -1, nil
@@ -7820,10 +7820,10 @@ fail:
 func _EnumAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
-	var label0 Parm
-	var label1 Parm
 	var label2 []Parm
 	var label3 *Enum
+	var label0 Parm
+	var label1 Parm
 	dp := parser.deltaPos[start][_Enum]
 	if dp < 0 {
 		return -1, nil
@@ -8159,9 +8159,9 @@ fail:
 func _CaseAction(parser *_Parser, start int) (int, *Parm) {
 	var labels [3]string
 	use(labels)
-	var label0 Ident
 	var label1 Ident
 	var label2 TypeName
+	var label0 Ident
 	dp := parser.deltaPos[start][_Case]
 	if dp < 0 {
 		return -1, nil
@@ -9726,10 +9726,10 @@ func _StmtsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 func _StmtsAction(parser *_Parser, start int) (int, *[]Stmt) {
 	var labels [4]string
 	use(labels)
+	var label0 Stmt
 	var label1 Stmt
 	var label2 []Stmt
 	var label3 *[]Stmt
-	var label0 Stmt
 	dp := parser.deltaPos[start][_Stmts]
 	if dp < 0 {
 		return -1, nil
@@ -10876,12 +10876,12 @@ fail:
 func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
 	var labels [6]string
 	use(labels)
-	var label0 Ident
-	var label1 *TypeName
 	var label2 Parm
 	var label3 Ident
 	var label4 *TypeName
 	var label5 []Parm
+	var label0 Ident
+	var label1 *TypeName
 	dp := parser.deltaPos[start][_Lhs]
 	if dp < 0 {
 		return -1, nil
@@ -12449,10 +12449,10 @@ fail:
 func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 	var labels [4]string
 	use(labels)
-	var label3 Msg
 	var label0 Call
 	var label1 ModPath
 	var label2 Expr
+	var label3 Msg
 	dp := parser.deltaPos[start][_Binary]
 	if dp < 0 {
 		return -1, nil
@@ -13225,11 +13225,11 @@ fail:
 func _NaryAction(parser *_Parser, start int) (int, *Call) {
 	var labels [5]string
 	use(labels)
+	var label1 Call
+	var label2 ModPath
 	var label3 *Expr
 	var label4 Msg
 	var label0 Call
-	var label1 Call
-	var label2 ModPath
 	dp := parser.deltaPos[start][_Nary]
 	if dp < 0 {
 		return -1, nil
@@ -13862,11 +13862,11 @@ fail:
 func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 	var labels [5]string
 	use(labels)
-	var label0 Ident
-	var label1 Call
 	var label2 Call
 	var label3 Expr
 	var label4 []arg
+	var label0 Ident
+	var label1 Call
 	dp := parser.deltaPos[start][_NaryMsg]
 	if dp < 0 {
 		return -1, nil
@@ -14124,7 +14124,7 @@ func _PrimaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		return dp, de
 	}
 	pos, perr := start, -1
-	// i:Ident {…}/Int/Float/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		// action
@@ -14140,15 +14140,15 @@ func _PrimaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		goto ok0
 	fail4:
 		pos = pos3
-		// Int
-		if !_accept(parser, _IntAccepts, &pos, &perr) {
+		// Float
+		if !_accept(parser, _FloatAccepts, &pos, &perr) {
 			goto fail6
 		}
 		goto ok0
 	fail6:
 		pos = pos3
-		// Float
-		if !_accept(parser, _FloatAccepts, &pos, &perr) {
+		// Int
+		if !_accept(parser, _IntAccepts, &pos, &perr) {
 			goto fail7
 		}
 		goto ok0
@@ -14244,7 +14244,7 @@ func _PrimaryNode(parser *_Parser, start int) (int, *peg.Node) {
 	}
 	pos := start
 	node = &peg.Node{Name: "Primary"}
-	// i:Ident {…}/Int/Float/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		nkids1 := len(node.Kids)
@@ -14262,16 +14262,16 @@ func _PrimaryNode(parser *_Parser, start int) (int, *peg.Node) {
 	fail4:
 		node.Kids = node.Kids[:nkids1]
 		pos = pos3
-		// Int
-		if !_node(parser, _IntNode, node, &pos) {
+		// Float
+		if !_node(parser, _FloatNode, node, &pos) {
 			goto fail6
 		}
 		goto ok0
 	fail6:
 		node.Kids = node.Kids[:nkids1]
 		pos = pos3
-		// Float
-		if !_node(parser, _FloatNode, node, &pos) {
+		// Int
+		if !_node(parser, _IntNode, node, &pos) {
 			goto fail7
 		}
 		goto ok0
@@ -14373,7 +14373,7 @@ func _PrimaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _Primary}
-	// i:Ident {…}/Int/Float/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		// action
@@ -14389,15 +14389,15 @@ func _PrimaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		goto ok0
 	fail4:
 		pos = pos3
-		// Int
-		if !_fail(parser, _IntFail, errPos, failure, &pos) {
+		// Float
+		if !_fail(parser, _FloatFail, errPos, failure, &pos) {
 			goto fail6
 		}
 		goto ok0
 	fail6:
 		pos = pos3
-		// Float
-		if !_fail(parser, _FloatFail, errPos, failure, &pos) {
+		// Int
+		if !_fail(parser, _IntFail, errPos, failure, &pos) {
 			goto fail7
 		}
 		goto ok0
@@ -14494,9 +14494,9 @@ fail:
 func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [3]string
 	use(labels)
+	var label0 Ident
 	var label1 String
 	var label2 Expr
-	var label0 Ident
 	dp := parser.deltaPos[start][_Primary]
 	if dp < 0 {
 		return -1, nil
@@ -14509,7 +14509,7 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	}
 	var node Expr
 	pos := start
-	// i:Ident {…}/Int/Float/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		var node2 Expr
@@ -14538,8 +14538,8 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	fail4:
 		node = node2
 		pos = pos3
-		// Int
-		if p, n := _IntAction(parser, pos); n == nil {
+		// Float
+		if p, n := _FloatAction(parser, pos); n == nil {
 			goto fail7
 		} else {
 			node = *n
@@ -14549,8 +14549,8 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	fail7:
 		node = node2
 		pos = pos3
-		// Float
-		if p, n := _FloatAction(parser, pos); n == nil {
+		// Int
+		if p, n := _IntAction(parser, pos); n == nil {
 			goto fail8
 		} else {
 			node = *n
@@ -17922,9 +17922,9 @@ fail:
 func _RuneAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [3]string
 	use(labels)
-	var label2 Rune
 	var label0 string
 	var label1 string
+	var label2 Rune
 	dp := parser.deltaPos[start][_Rune]
 	if dp < 0 {
 		return -1, nil
@@ -18784,12 +18784,12 @@ fail:
 func _StringAction(parser *_Parser, start int) (int, *String) {
 	var labels [6]string
 	use(labels)
+	var label5 String
 	var label0 string
 	var label1 string
 	var label2 String
 	var label3 string
 	var label4 string
-	var label5 String
 	dp := parser.deltaPos[start][_String]
 	if dp < 0 {
 		return -1, nil
@@ -19645,9 +19645,9 @@ fail:
 func _EscAction(parser *_Parser, start int) (int, *string) {
 	var labels [3]string
 	use(labels)
+	var label2 string
 	var label0 string
 	var label1 string
-	var label2 string
 	dp := parser.deltaPos[start][_Esc]
 	if dp < 0 {
 		return -1, nil
@@ -20372,8 +20372,8 @@ fail:
 func _OpAction(parser *_Parser, start int) (int, *Ident) {
 	var labels [2]string
 	use(labels)
-	var label1 Ident
 	var label0 string
+	var label1 Ident
 	dp := parser.deltaPos[start][_Op]
 	if dp < 0 {
 		return -1, nil

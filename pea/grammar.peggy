@@ -518,8 +518,8 @@ NaryMsg <- as:(
 
 Primary <-
 	i:Ident { return Expr(i) }/
-	Int /
 	Float /
+	Int /
 	Rune /
 	s:String { return Expr(s) } /
 	Ctor /
