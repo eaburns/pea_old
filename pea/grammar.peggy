@@ -426,7 +426,7 @@ Lhs <- id:(
 Expr <- Call / Primary
 
 Call <- c:( Nary / Binary / Unary ) cs:(
-	_";" m:( UnaryMsg / BinMsg / NaryMsg ) { return Msg(m) }
+	_"," m:( UnaryMsg / BinMsg / NaryMsg ) { return Msg(m) }
 )* {
 	c.Msgs = append(c.Msgs, cs...)
 	return Expr(c)
