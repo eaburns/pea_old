@@ -51,12 +51,6 @@ type location struct {
 func (n location) Start() int { return n.start }
 func (n location) End() int   { return n.end }
 
-// A ModPath is a module name.
-type ModPath []Ident
-
-func (n ModPath) Start() int { return n[0].Start() }
-func (n ModPath) End() int   { return n[len(n)-1].End() }
-
 // Import is an import statement.
 type Import struct {
 	location
@@ -119,6 +113,12 @@ type TypeSig struct {
 	location
 	Name  string
 	Parms []Parm // types may be nil
+
+	// Args is non-nil for an instantiated type.
+	Args map[*Parm]TypeName
+	// x is non-nil for an instantiated type.
+	// It is the scope that encompases the type parameters.
+	x *scope
 }
 
 // A TypeName is the name of a concrete type.
@@ -201,6 +201,8 @@ func (n *Assign) End() int   { return n.Val.End() }
 type Expr interface {
 	Start() int
 	End() int
+
+	sub(*scope, map[*Parm]TypeName) Expr
 }
 
 // A Call is a method call or a cascade.
@@ -216,6 +218,26 @@ type Msg struct {
 	Sel  string
 	Args []Expr
 }
+
+// A Ctor type constructor literal.
+type Ctor struct {
+	location
+	Type TypeName
+	Args []Expr
+}
+
+// A Block is a block literal.
+type Block struct {
+	location
+	Parms []Parm // if type is nil, it must be inferred
+	Stmts []Stmt
+}
+
+// A ModPath is a module name.
+type ModPath []Ident
+
+func (n ModPath) Start() int { return n[0].Start() }
+func (n ModPath) End() int   { return n[len(n)-1].End() }
 
 // An Ident is a variable name as an expression.
 type Ident struct {
@@ -247,18 +269,4 @@ type String struct {
 	location
 	Text string
 	Data string
-}
-
-// A Ctor type constructor literal.
-type Ctor struct {
-	location
-	Type TypeName
-	Args []Expr
-}
-
-// A Block is a block literal.
-type Block struct {
-	location
-	Parms []Parm // if type is nil, it must be inferred
-	Stmts []Stmt
 }

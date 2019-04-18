@@ -23,11 +23,11 @@ func Check(mod *Mod, opts ...Opt) []error {
 	for _, opt := range opts {
 		opt(s)
 	}
-	errs := checkMod(&ctx{state: s}, mod)
+	errs := checkMod(&scope{state: s}, mod)
 	return convertErrors(errs)
 }
 
-func checkMod(x *ctx, mod *Mod) (errs []checkError) {
+func checkMod(x *scope, mod *Mod) (errs []checkError) {
 	defer x.tr("checkMod(…)")(errs)
 	for _, file := range mod.Files {
 		if es := checkFile(x, file); len(es) > 0 {
@@ -37,12 +37,12 @@ func checkMod(x *ctx, mod *Mod) (errs []checkError) {
 	return errs
 }
 
-func checkFile(x *ctx, file *File) (errs []checkError) {
+func checkFile(x *scope, file *File) (errs []checkError) {
 	defer x.tr("checkFile(%s)", file.Path)(errs)
 	return checkDefs(x, file.Defs)
 }
 
-func checkDefs(x *ctx, defs []Def) (errs []checkError) {
+func checkDefs(x *scope, defs []Def) (errs []checkError) {
 	defer x.tr("checkDefs(…)")(errs)
 	for _, def := range defs {
 		// TODO: resolve imports before checking defs.
@@ -73,14 +73,25 @@ type state struct {
 // key returns a state.defs map key from a Def.
 func key(d Def) [2]string { return [2]string{d.Mod().String(), d.Name()} }
 
-type ctx struct {
+type scope struct {
 	*state
-	parent *ctx
-	finder finder
+	parent *scope
+	name   string
+	node   Node
 }
 
-type finder interface {
-	find(string) Node
+func (x *scope) find(s string) Node {
+	if x.name == s {
+		return x.node
+	}
+	if x.parent == nil {
+		return nil
+	}
+	return x.parent.find(s)
+}
+
+func (x *scope) push(s string, n Node) *scope {
+	return &scope{state: x.state, parent: x, name: s, node: n}
 }
 
 type checkError struct {
@@ -92,7 +103,7 @@ type checkError struct {
 
 func (s *state) loc(n Node) Loc { return s.mod.Loc(n) }
 
-func (x *ctx) err(n Node, f string, vs ...interface{}) *checkError {
+func (x *scope) err(n Node, f string, vs ...interface{}) *checkError {
 	return &checkError{loc: x.mod.Loc(n), msg: fmt.Sprintf(f, vs...)}
 }
 
@@ -161,7 +172,7 @@ func sortErrors(errs []checkError) []checkError {
 // If non-empty, only the first element of vs is used.
 // It must be either a slice of types convertable to error,
 // or a pointer to a type convertable to error.
-func (x *ctx) tr(f string, vs ...interface{}) func(...interface{}) {
+func (x *scope) tr(f string, vs ...interface{}) func(...interface{}) {
 	if !x.trace {
 		return func(...interface{}) {}
 	}
@@ -187,7 +198,7 @@ func (x *ctx) tr(f string, vs ...interface{}) func(...interface{}) {
 	}
 }
 
-func (x *ctx) log(f string, vs ...interface{}) {
+func (x *scope) log(f string, vs ...interface{}) {
 	if !x.trace {
 		return
 	}
