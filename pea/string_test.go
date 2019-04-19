@@ -12,119 +12,119 @@ func TestString(t *testing.T) {
 	}{
 		{
 			"import \"foo\"",
-			"import: foo",
+			"import foo",
 		},
 		{
 			"[max: x Int and: y Int ^Int | ]",
-			"function: [max: Int and: Int ^Int]",
+			"[max: Int and: Int ^Int]",
 		},
 		{
 			"#Sub [max: x Int and: y Int ^Int | ]",
-			"function: #Sub [max: Int and: Int ^Int]",
+			"#Sub [max: Int and: Int ^Int]",
 		},
 		{
 			"Int [orMax: x Int ^Int | ]",
-			"function: Int [orMax: Int ^Int]",
+			"Int [orMax: Int ^Int]",
 		},
 		{
 			"#Sub Int [orMax: x Int ^Int | ]",
-			"function: #Sub Int [orMax: Int ^Int]",
+			"#Sub Int [orMax: Int ^Int]",
 		},
 		{
 			"Int [add: x Int | ]",
-			"function: Int [add: Int]",
+			"Int [add: Int]",
 		},
 		{
 			"Int [+ x Int ^Int | ]",
-			"function: Int [+ Int ^Int]",
+			"Int [+ Int ^Int]",
 		},
 		{
 			"Int [neg ^Int | ]",
-			"function: Int [neg ^Int]",
+			"Int [neg ^Int]",
 		},
 		{
 			"Int [inc | ]",
-			"function: Int [inc]",
+			"Int [inc]",
 		},
 		{
 			"x := [ 5 ]",
-			"variable: x",
+			"x",
 		},
 		{
 			"#Sub1 #Sub2 x := [ 5 ]",
-			"variable: #Sub1 #Sub2 x",
+			"#Sub1 #Sub2 x",
 		},
 		{
 			"Point { x: Float y: Int }",
-			"struct: Point {x: Float y: Int}",
+			"Point {x: Float y: Int}",
 		},
 		{
 			"#Sub1 #Sub2 Point { x: Float y: Int }",
-			"struct: #Sub1 #Sub2 Point {x: Float y: Int}",
+			"#Sub1 #Sub2 Point {x: Float y: Int}",
 		},
 		{
 			"#Sub1 (X, Y) Pair { x: X y: Y }",
-			"struct: #Sub1 (X, Y) Pair {x: X y: Y}",
+			"#Sub1 (X, Y) Pair {x: X y: Y}",
 		},
 		{
 			"#Sub1 T Vec { data: T Array }",
-			"struct: #Sub1 T Vec {data: T Array}",
+			"#Sub1 T Vec {data: T Array}",
 		},
 		{
 			"(K Key, V) Map {}",
-			"struct: (K Key, V) Map {}",
+			"(K Key, V) Map {}",
 		},
 		{
 			"T Opt {some: T, none}",
-			"enum: T Opt {some: T, none}",
+			"T Opt {some: T, none}",
 		},
 		{
 			"T! { error: String, ok: T }",
-			"enum: T! {error: String, ok: T}",
+			"T! {error: String, ok: T}",
 		},
 		{
 			"T Ord { [= T& ^Bool] [< T& ^Bool] }",
-			"virtual: T Ord {[= T & ^Bool] [< T & ^Bool]}",
+			"T Ord {[= T & ^Bool] [< T & ^Bool]}",
 		},
 		{
 			"Foo { [bar] }",
-			"virtual: Foo {[bar]}",
+			"Foo {[bar]}",
 		},
 		{
 			"Foo { [bar: Int baz: Float Array] }",
-			"virtual: Foo {[bar: Int baz: Float Array]}",
+			"Foo {[bar: Int baz: Float Array]}",
 		},
 		{
 			"[x: f (String, Int) Map | ]",
-			"function: [x: (String, Int) Map]",
+			"[x: (String, Int) Map]",
 		},
 		{
 			"[do: f [Int, Float, String Array | String] | ]",
-			"function: [do: [Int, Float, String Array | String]]",
+			"[do: [Int, Float, String Array | String]]",
 		},
 		{
 			"[do: f [Int, Float, String Array] | ]",
-			"function: [do: [Int, Float, String Array]]",
+			"[do: [Int, Float, String Array]]",
 		},
 		{
 			"T [foo: t T | ]",
-			"function: T [foo: T]",
+			"T [foo: T]",
 		},
 		{
 			"(K Key, V) [foo: k K bar: v V | ]",
-			"function: (K Key, V) [foo: K bar: V]",
+			"(K Key, V) [foo: K bar: V]",
 		},
 		{
 			"[x: v Int Array? Vec | ]",
-			"function: [x: Int Array ? Vec]",
+			"[x: Int Array ? Vec]",
 		},
 		{
 			"[x: _ #Foo #Bar #Baz Int | ]",
-			"function: [x: #Foo #Bar #Baz Int]",
+			"[x: #Foo #Bar #Baz Int]",
 		},
 		{
 			"#Nest0 ( #Nest1 ( #Nest2 Point {} ) )",
-			"struct: #Nest0 #Nest1 #Nest2 Point {}",
+			"#Nest0 #Nest1 #Nest2 Point {}",
 		},
 	}
 	for _, test := range tests {

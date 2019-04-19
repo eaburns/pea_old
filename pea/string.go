@@ -19,11 +19,10 @@ func buildModPathString(n ModPath, s *strings.Builder) {
 	}
 }
 
-func (n *Import) String() string { return "import: " + n.Path }
+func (n *Import) String() string { return "import " + n.Path }
 
 func (n *Fun) String() string {
 	var s strings.Builder
-	s.WriteString("function: ")
 	buildFunString(n, &s)
 	return s.String()
 }
@@ -76,7 +75,6 @@ func buildFunString(n *Fun, s *strings.Builder) {
 
 func (n *Var) String() string {
 	var s strings.Builder
-	s.WriteString("variable: ")
 	buildModPathString(n.ModPath, &s)
 	s.WriteString(n.Ident)
 	return s.String()
@@ -165,7 +163,6 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 
 func (n *Struct) String() string {
 	var s strings.Builder
-	s.WriteString("struct: ")
 	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
@@ -183,7 +180,6 @@ func (n *Struct) String() string {
 
 func (n *Enum) String() string {
 	var s strings.Builder
-	s.WriteString("enum: ")
 	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
@@ -203,7 +199,6 @@ func (n *Enum) String() string {
 
 func (n *Virt) String() string {
 	var s strings.Builder
-	s.WriteString("virtual: ")
 	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
