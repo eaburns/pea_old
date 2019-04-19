@@ -26,7 +26,7 @@ type Node interface {
 // A Def is a module-level definition.
 type Def interface {
 	Node
-	// String returns a 1-line summary of the definition.
+	// String returns a human-readable, 1-line summary of the Def.
 	String() string
 
 	// Name returns the definition's name,
@@ -39,7 +39,7 @@ type Def interface {
 	// Priv returns whether the field is private.
 	Priv() bool
 
-	addMod(*ModPath) Def
+	addMod(ModPath) Def
 	setPriv(bool) Def
 	setStart(int) Def
 }
@@ -55,18 +55,18 @@ func (n location) End() int   { return n.end }
 type Import struct {
 	location
 	priv bool
+	ModPath
 	Path string
 }
 
-func (n *Import) Name() string { panic("impossible") }
-func (n *Import) Mod() ModPath { panic("impossible") }
 func (n *Import) Priv() bool   { return n.priv }
+func (n *Import) Name() string { return n.Path }
 
 // A Fun is a function or method definition.
 type Fun struct {
 	location
-	priv      bool
-	mod       ModPath
+	priv bool
+	ModPath
 	Sel       string
 	Recv      *TypeSig
 	TypeParms []Parm // types may be nil
@@ -75,15 +75,14 @@ type Fun struct {
 	Stmts     []Stmt
 }
 
+func (n *Fun) Priv() bool { return n.priv }
+
 func (n *Fun) Name() string {
 	if n.Recv != nil {
 		return n.Recv.String() + " " + n.Sel
 	}
 	return n.Sel
 }
-
-func (n *Fun) Mod() ModPath { return n.mod }
-func (n *Fun) Priv() bool   { return n.priv }
 
 // A Parm is a name and a type.
 // Parms are used in several AST nodes.
@@ -98,15 +97,14 @@ type Parm struct {
 // A Var is a module-level variable definition.
 type Var struct {
 	location
-	priv  bool
-	mod   ModPath
+	priv bool
+	ModPath
 	Ident string
 	Val   []Stmt
 }
 
-func (n *Var) Name() string { return n.Ident }
-func (n *Var) Mod() ModPath { return n.mod }
 func (n *Var) Priv() bool   { return n.priv }
+func (n *Var) Name() string { return n.Ident }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
@@ -124,7 +122,7 @@ type TypeSig struct {
 // A TypeName is the name of a concrete type.
 type TypeName struct {
 	location
-	Mod  ModPath // empty for type variables
+	Mod  *ModPath // null for type variables
 	Name string
 	Args []TypeName
 }
@@ -132,41 +130,38 @@ type TypeName struct {
 // A Struct defines a struct type.
 type Struct struct {
 	location
-	priv   bool
-	mod    ModPath
+	priv bool
+	ModPath
 	Sig    TypeSig
 	Fields []Parm // types cannot be nil
 }
 
-func (n *Struct) Name() string { return n.Sig.Name }
-func (n *Struct) Mod() ModPath { return n.mod }
 func (n *Struct) Priv() bool   { return n.priv }
+func (n *Struct) Name() string { return n.Sig.Name }
 
 // A Enum defines an enum type.
 type Enum struct {
 	location
-	priv  bool
-	mod   ModPath
+	priv bool
+	ModPath
 	Sig   TypeSig
 	Cases []Parm // types may be nil
 }
 
-func (n *Enum) Name() string { return n.Sig.Name }
-func (n *Enum) Mod() ModPath { return n.mod }
 func (n *Enum) Priv() bool   { return n.priv }
+func (n *Enum) Name() string { return n.Sig.Name }
 
 // A Virt defines a virtual type.
 type Virt struct {
 	location
-	priv  bool
-	mod   ModPath
+	priv bool
+	ModPath
 	Sig   TypeSig
 	Meths []MethSig
 }
 
-func (n *Virt) Name() string { return n.Sig.Name }
-func (n *Virt) Mod() ModPath { return n.mod }
 func (n *Virt) Priv() bool   { return n.priv }
+func (n *Virt) Name() string { return n.Sig.Name }
 
 // A MethSig is the signature of a method.
 type MethSig struct {
@@ -234,10 +229,13 @@ type Block struct {
 }
 
 // A ModPath is a module name.
-type ModPath []Ident
+type ModPath struct {
+	location
+	Root string // current or imported module name
+	Path []string
+}
 
-func (n ModPath) Start() int { return n[0].Start() }
-func (n ModPath) End() int   { return n[len(n)-1].End() }
+func (n ModPath) Mod() ModPath { return n }
 
 // An Ident is a variable name as an expression.
 type Ident struct {

@@ -183,6 +183,7 @@ var ignoreUnexported = cmpopts.IgnoreUnexported(
 	Msg{},
 	Ctor{},
 	Block{},
+	ModPath{},
 	Ident{},
 	Int{},
 	Float{},

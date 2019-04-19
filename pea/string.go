@@ -13,11 +13,9 @@ func (n ModPath) String() string {
 }
 
 func buildModPathString(n ModPath, s *strings.Builder) {
-	for i, m := range n {
-		if i > 0 {
-			s.WriteRune(' ')
-		}
-		s.WriteString(m.Text)
+	for _, p := range n.Path {
+		s.WriteString(p)
+		s.WriteRune(' ')
 	}
 }
 
@@ -31,8 +29,7 @@ func (n *Fun) String() string {
 }
 
 func buildFunString(n *Fun, s *strings.Builder) {
-	buildModPathString(n.mod, s)
-	s.WriteRune(' ')
+	buildModPathString(n.ModPath, s)
 	if n.Recv != nil {
 		buildTypeSigString(*n.Recv, s)
 		s.WriteRune(' ')
@@ -80,8 +77,7 @@ func buildFunString(n *Fun, s *strings.Builder) {
 func (n *Var) String() string {
 	var s strings.Builder
 	s.WriteString("variable: ")
-	buildModPathString(n.mod, &s)
-	s.WriteRune(' ')
+	buildModPathString(n.ModPath, &s)
 	s.WriteString(n.Ident)
 	return s.String()
 }
@@ -128,9 +124,8 @@ func (n TypeName) String() string {
 func buildTypeNameString(n TypeName, s *strings.Builder) {
 	switch {
 	case len(n.Name) > 0 && n.Name[0] == '[':
-		if len(n.Mod) > 0 {
-			buildModPathString(n.Mod, s)
-			s.WriteRune(' ')
+		if n.Mod != nil {
+			buildModPathString(*n.Mod, s)
 		}
 		s.WriteRune('[')
 		for i, a := range n.Args {
@@ -148,9 +143,8 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 		s.WriteRune(' ')
 		fallthrough
 	case len(n.Args) == 0:
-		if len(n.Mod) > 0 {
-			buildModPathString(n.Mod, s)
-			s.WriteRune(' ')
+		if n.Mod != nil {
+			buildModPathString(*n.Mod, s)
 		}
 		s.WriteString(n.Name)
 		return
@@ -163,9 +157,8 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 		buildTypeNameString(a, s)
 	}
 	s.WriteString(") ")
-	if len(n.Mod) > 0 {
-		buildModPathString(n.Mod, s)
-		s.WriteRune(' ')
+	if n.Mod != nil {
+		buildModPathString(*n.Mod, s)
 	}
 	s.WriteString(n.Name)
 }
@@ -173,8 +166,7 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 func (n *Struct) String() string {
 	var s strings.Builder
 	s.WriteString("struct: ")
-	buildModPathString(n.mod, &s)
-	s.WriteRune(' ')
+	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
 	for i, field := range n.Fields {
@@ -192,8 +184,7 @@ func (n *Struct) String() string {
 func (n *Enum) String() string {
 	var s strings.Builder
 	s.WriteString("enum: ")
-	buildModPathString(n.mod, &s)
-	s.WriteRune(' ')
+	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
 	for i, cas := range n.Cases {
@@ -213,8 +204,7 @@ func (n *Enum) String() string {
 func (n *Virt) String() string {
 	var s strings.Builder
 	s.WriteString("virtual: ")
-	buildModPathString(n.mod, &s)
-	s.WriteRune(' ')
+	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
 	s.WriteString(" {")
 	for i, meth := range n.Meths {

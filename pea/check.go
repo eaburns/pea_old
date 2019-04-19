@@ -71,7 +71,9 @@ type state struct {
 }
 
 // key returns a state.defs map key from a Def.
-func key(d Def) [2]string { return [2]string{d.Mod().String(), d.Name()} }
+func key(d Def) [2]string {
+	return [2]string{d.Mod().Root + " " + d.Mod().String(), d.Name()}
+}
 
 type scope struct {
 	*state

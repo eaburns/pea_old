@@ -157,7 +157,7 @@ func subParms(x *scope, sub map[*Parm]TypeName, in []Parm) []Parm {
 // subTypeName always returns non-nil.
 func subTypeName(x *scope, sub map[*Parm]TypeName, n TypeName) *TypeName {
 	defer x.tr("subTypeName(%v, %s)", sub, n)()
-	if len(n.Mod) == 0 {
+	if n.Mod == nil {
 		d := x.find(n.Name)
 		if d == nil {
 			x.log("no definition")

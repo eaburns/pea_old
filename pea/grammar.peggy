@@ -8,34 +8,33 @@ import (
 	"github.com/eaburns/peggy/peg"
 )
 
-func (n Import) addMod(*ModPath) Def { return &n }
-func (n Fun) addMod(m *ModPath) Def    { n.mod = pm(m, n.mod); return &n }
-func (n Var) addMod(m *ModPath) Def    { n.mod = pm(m, n.mod); return &n }
-func (n Struct) addMod(m *ModPath) Def { n.mod = pm(m, n.mod); return &n }
-func (n Enum) addMod(m *ModPath) Def   { n.mod = pm(m, n.mod); return &n }
-func (n Virt) addMod(m *ModPath) Def   { n.mod = pm(m, n.mod); return &n }
-
-func pm(prefix *ModPath, suffix ModPath) ModPath {
-	if prefix == nil {
-		return suffix
+func (n *ModPath) prepend(m ModPath) {
+	if m.start != m.end {
+		n.start = m.start
 	}
-	n := len(*prefix)
-	return append((*prefix)[:n:n], suffix...)
+	n.Path = append(m.Path[:len(m.Path):len(m.Path)], n.Path...)
 }
 
+func (n Import) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+func (n Fun) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+func (n Var) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+func (n Struct) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+func (n Enum) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+func (n Virt) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+
 func (n Import) setPriv(b bool) Def { n.priv = b; return &n }
-func (n Fun) setPriv(b bool) Def    { n.priv = b; return &n }
-func (n Var) setPriv(b bool) Def    { n.priv = b; return &n }
+func (n Fun) setPriv(b bool) Def { n.priv = b; return &n }
+func (n Var) setPriv(b bool) Def { n.priv = b; return &n }
 func (n Struct) setPriv(b bool) Def { n.priv = b; return &n }
-func (n Enum) setPriv(b bool) Def   { n.priv = b; return &n }
-func (n Virt) setPriv(b bool) Def   { n.priv = b; return &n }
+func (n Enum) setPriv(b bool) Def { n.priv = b; return &n }
+func (n Virt) setPriv(b bool) Def { n.priv = b; return &n }
 
 func (n Import) setStart(s int) Def { n.start = s; return &n }
-func (n Fun) setStart(s int) Def    { n.start = s; return &n }
-func (n Var) setStart(s int) Def    { n.start = s; return &n }
+func (n Fun) setStart(s int) Def { n.start = s; return &n }
+func (n Var) setStart(s int) Def { n.start = s; return &n }
 func (n Struct) setStart(s int) Def { n.start = s; return &n }
-func (n Enum) setStart(s int) Def   { n.start = s; return &n }
-func (n Virt) setStart(s int) Def   { n.start = s; return &n }
+func (n Enum) setStart(s int) Def { n.start = s; return &n }
+func (n Virt) setStart(s int) Def { n.start = s; return &n }
 
 type setSiger interface {
 	setSig(TypeSig) Def
@@ -91,16 +90,15 @@ func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
 
 File <- defss:Def* _ EOF {
 	var out []Def
-	mod := &ModPath{{Text: parser.data.(*Parser).mod}}
 	for _, defs := range defss {
 		for _, def := range defs {
-			out = append(out, def.addMod(mod))
+			out = append(out, def)
 		}
 	}
 	return &File{Defs: out}
 }
 
-Def <- m:ModPath? ds0:(
+Def <- mp:ModPath? defs:(
 	_ ( "import" p:String ) {
 		return []Def{&Import{location: loc(parser, start, end), Path: p.Data}}
 	} /
@@ -108,7 +106,7 @@ Def <- m:ModPath? ds0:(
 		var out []Def
 		for _, defs := range defss {
 			for _, def := range defs {
-				out = append(out, def.setPriv(m == nil))
+				out = append(out, def.setPriv(mp.Path == nil))
 			}
 		}
 		return []Def(out)
@@ -127,17 +125,32 @@ Def <- m:ModPath? ds0:(
 		return []Def(distSig(sig, ds1))
 	}
 ) {
-	var out []Def
-	for i := range ds0 {
-		out = append(out, ds0[i].addMod(m))
+	if mp == nil {
+		mp = &ModPath{
+			location: loc(parser, defs[0].Start(), defs[0].Start()), // empty location
+			Root: parser.data.(*Parser).mod,
+		}
 	}
-	if m != nil && len(out) == 1 {
-		out[0] = out[0].setStart(m.Start())
+	var out []Def
+	for _, d := range defs {
+		out = append(out, d.addMod(*mp))
+	}
+	if mp.start != mp.end && len(out) == 1 {
+		out[0] = out[0].setStart(mp.Start())
 	}
 	return []Def(out)
 }
 
-ModPath <- n:ModName+ { return ModPath(n) }
+ModPath <- ns:ModName+ {
+	mp := ModPath{
+		location: location{start: ns[0].Start(), end: ns[len(ns)-1].End()},
+		Root: parser.data.(*Parser).mod,
+	}
+	for _, n := range ns {
+		mp.Path = append(mp.Path, n.Text)
+	}
+	return ModPath(mp)
+}
 
 Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
 	copy := *sig
@@ -240,7 +253,7 @@ TypeName <-
 		for _, n := range ns0[:len(ns0)-1] {
 			a = []TypeName{{
 				location: location{s, n.name.end},
-				Mod: n.mod,
+				Mod: &n.mod,
 				Name: n.name.Text,
 				Args: a,
 			}}
@@ -248,7 +261,7 @@ TypeName <-
 		n := ns0[len(ns0)-1]
 		return TypeName{
 			location: location{s, n.name.end},
-			Mod: n.mod,
+			Mod: &n.mod,
 			Name: n.name.Text,
 			Args: a,
 		}
@@ -269,7 +282,7 @@ TypeName <-
 		}
 		return TypeName{
 			location: loc(parser, start, end),
-			Mod: []Ident{{Text: parser.data.(*Parser).mod}},
+			Mod: &ModPath{Root: parser.data.(*Parser).mod},
 			Name: name,
 			Args: ps,
 		}
@@ -280,14 +293,14 @@ TypeName <-
 		for _, n := range ns2[:len(ns2)-1] {
 			ns1 = []TypeName{{
 				location: location{s, n.name.end},
-				Mod: n.mod,
+				Mod: &n.mod,
 				Name: n.name.Text,
 				Args: ns1,
 			}}
 		}
 		return TypeName{
 			location: loc(parser, start, end),
-			Mod: ns2[len(ns2)-1].mod,
+			Mod: &ns2[len(ns2)-1].mod,
 			Name: ns2[len(ns2)-1].name.Text,
 			Args: ns1,
 		}
@@ -298,12 +311,14 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 	return []TypeName(append([]TypeName{n0}, ns...))
 }
 
-TName <- m:ModPath? n:( TypeOp / Ident ) {
-	mp := []Ident{{Text: parser.data.(*Parser).mod}}
-	if m != nil {
-		mp = append(mp, (*m)...)
+TName <- mp:ModPath? n:( TypeOp / Ident ) {
+	if mp == nil {
+		mp = &ModPath{
+			location: loc(parser, n.Start(), n.Start()), // empty location
+			Root: parser.data.(*Parser).mod,
+		}
 	}
-	return tname{mod: mp, name: n}
+	return tname{mod: *mp, name: n}
 }
 
 Type <- Struct / Enum / Virt
