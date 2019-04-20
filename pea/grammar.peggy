@@ -106,7 +106,7 @@ Def <- mp:ModPath? defs:(
 		var out []Def
 		for _, defs := range defss {
 			for _, def := range defs {
-				out = append(out, def.setPriv(mp.Path == nil))
+				out = append(out, def.setPriv(mp == nil))
 			}
 		}
 		return []Def(out)
