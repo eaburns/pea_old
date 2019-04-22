@@ -25,33 +25,22 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 	return &n, nil
 }
 
-func (n Struct) inst(x *scope, typ TypeName) (_ *Struct, errs []checkError) {
-	defer x.tr("Struct.inst(%s, %s)", n.Name(), typ)(errs)
+func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
+	defer x.tr("Type.inst(%s, %s)", n.Name(), typ)(errs)
 	n.Sig, errs = instTypeSig(x, n.Sig, typ)
 	if len(errs) != 0 {
 		return &n, errs
 	}
-	n.Fields = subParms(n.Sig.x, n.Sig.Args, n.Fields)
-	return &n, nil
-}
-
-func (n Enum) inst(x *scope, typ TypeName) (_ *Enum, errs []checkError) {
-	defer x.tr("Enum.inst(%s, %s)", n.Name(), typ)(errs)
-	n.Sig, errs = instTypeSig(x, n.Sig, typ)
-	if len(errs) != 0 {
-		return &n, errs
+	switch {
+	case n.Alias != nil:
+		n.Alias = subTypeName(x, n.Sig.Args, *n.Alias)
+	case n.Fields != nil:
+		n.Fields = subParms(n.Sig.x, n.Sig.Args, n.Fields)
+	case n.Cases != nil:
+		n.Cases = subParms(n.Sig.x, n.Sig.Args, n.Cases)
+	case n.Virts != nil:
+		n.Virts = subMethSigs(n.Sig.x, n.Sig.Args, n.Virts)
 	}
-	n.Cases = subParms(n.Sig.x, n.Sig.Args, n.Cases)
-	return &n, nil
-}
-
-func (n Virt) inst(x *scope, typ TypeName) (_ *Virt, errs []checkError) {
-	defer x.tr("Virt.inst(%s, %s)", n.Name(), typ)(errs)
-	n.Sig, errs = instTypeSig(x, n.Sig, typ)
-	if len(errs) != 0 {
-		return &n, errs
-	}
-	n.Meths = subMethSigs(n.Sig.x, n.Sig.Args, n.Meths)
 	return &n, nil
 }
 

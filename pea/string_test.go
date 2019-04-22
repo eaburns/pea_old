@@ -51,6 +51,14 @@ func TestString(t *testing.T) {
 			"x",
 		},
 		{
+			"Int := Int32",
+			"Int := Int32",
+		},
+		{
+			"T IntMap := (Int, T) Map",
+			"T IntMap := (Int, T) Map",
+		},
+		{
 			"#Sub1 #Sub2 x := [ 5 ]",
 			"#Sub1 #Sub2 x",
 		},

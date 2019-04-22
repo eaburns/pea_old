@@ -161,60 +161,51 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 	s.WriteString(n.Name)
 }
 
-func (n *Struct) String() string {
+func (n *Type) String() string {
 	var s strings.Builder
 	buildModPathString(n.ModPath, &s)
 	buildTypeSigString(n.Sig, &s)
-	s.WriteString(" {")
-	for i, field := range n.Fields {
-		if i > 0 {
-			s.WriteRune(' ')
-		}
-		s.WriteString(field.Name)
-		s.WriteRune(' ')
-		buildTypeNameString(*field.Type, &s)
-	}
-	s.WriteRune('}')
-	return s.String()
-}
 
-func (n *Enum) String() string {
-	var s strings.Builder
-	buildModPathString(n.ModPath, &s)
-	buildTypeSigString(n.Sig, &s)
-	s.WriteString(" {")
-	for i, cas := range n.Cases {
-		if i > 0 {
-			s.WriteString(", ")
-		}
-		s.WriteString(cas.Name)
-		if cas.Type != nil {
+	switch {
+	case n.Alias != nil:
+		s.WriteString(" := ")
+		buildTypeNameString(*n.Alias, &s)
+	case n.Fields != nil:
+		s.WriteString(" {")
+		for i, f := range n.Fields {
+			if i > 0 {
+				s.WriteRune(' ')
+			}
+			s.WriteString(f.Name)
 			s.WriteRune(' ')
-			buildTypeNameString(*cas.Type, &s)
+			buildTypeNameString(*f.Type, &s)
 		}
-	}
-	s.WriteRune('}')
-	return s.String()
-}
-
-func (n *Virt) String() string {
-	var s strings.Builder
-	buildModPathString(n.ModPath, &s)
-	buildTypeSigString(n.Sig, &s)
-	s.WriteString(" {")
-	for i, meth := range n.Meths {
-		if i > 0 {
-			s.WriteRune(' ')
+		s.WriteRune('}')
+	case n.Cases != nil:
+		s.WriteString(" {")
+		for i, c := range n.Cases {
+			if i > 0 {
+				s.WriteString(", ")
+			}
+			s.WriteString(c.Name)
+			if c.Type != nil {
+				s.WriteRune(' ')
+				buildTypeNameString(*c.Type, &s)
+			}
 		}
-		buildMethSigString(meth, &s)
+		s.WriteRune('}')
+	case n.Virts != nil:
+		s.WriteString(" {")
+		for i, v := range n.Virts {
+			if i > 0 {
+				s.WriteRune(' ')
+			}
+			buildMethSigString(v, &s)
+		}
+		s.WriteRune('}')
+	default:
+		s.WriteString(" {}")
 	}
-	s.WriteRune('}')
-	return s.String()
-}
-
-func (n MethSig) String() string {
-	var s strings.Builder
-	buildMethSigString(n, &s)
 	return s.String()
 }
 

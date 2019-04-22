@@ -123,11 +123,7 @@ func inst(mod *Mod, typ TypeName) (Def, []checkError) {
 	switch def := mod.Files[0].Defs[0].(type) {
 	case *Fun:
 		return def.instRecv(x, typ)
-	case *Struct:
-		return def.inst(x, typ)
-	case *Enum:
-		return def.inst(x, typ)
-	case *Virt:
+	case *Type:
 		return def.inst(x, typ)
 	default:
 		panic(fmt.Sprintf("bad def type: %T", def))
@@ -173,9 +169,7 @@ var ignoreUnexported = cmpopts.IgnoreUnexported(
 	Var{},
 	TypeSig{},
 	TypeName{},
-	Struct{},
-	Enum{},
-	Virt{},
+	Type{},
 	MethSig{},
 	Ret{},
 	Assign{},

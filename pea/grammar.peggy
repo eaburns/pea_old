@@ -18,32 +18,24 @@ func (n *ModPath) prepend(m ModPath) {
 func (n Import) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
 func (n Fun) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
 func (n Var) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-func (n Struct) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-func (n Enum) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-func (n Virt) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
+func (n Type) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
 
 func (n Import) setPriv(b bool) Def { n.priv = b; return &n }
 func (n Fun) setPriv(b bool) Def { n.priv = b; return &n }
 func (n Var) setPriv(b bool) Def { n.priv = b; return &n }
-func (n Struct) setPriv(b bool) Def { n.priv = b; return &n }
-func (n Enum) setPriv(b bool) Def { n.priv = b; return &n }
-func (n Virt) setPriv(b bool) Def { n.priv = b; return &n }
+func (n Type) setPriv(b bool) Def { n.priv = b; return &n }
 
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def { n.start = s; return &n }
 func (n Var) setStart(s int) Def { n.start = s; return &n }
-func (n Struct) setStart(s int) Def { n.start = s; return &n }
-func (n Enum) setStart(s int) Def { n.start = s; return &n }
-func (n Virt) setStart(s int) Def { n.start = s; return &n }
+func (n Type) setStart(s int) Def { n.start = s; return &n }
 
 type setSiger interface {
 	setSig(TypeSig) Def
 }
 
 func (n Fun) setSig(s TypeSig) Def { n.Recv = &s; return &n }
-func (n Struct) setSig(s TypeSig) Def { n.Sig = s; return &n }
-func (n Enum) setSig(s TypeSig) Def { n.Sig = s; return &n }
-func (n Virt) setSig(s TypeSig) Def { n.Sig = s; return &n }
+func (n Type) setSig(s TypeSig) Def { n.Sig = s; return &n }
 
 func distSig(s TypeSig, in []Def) []Def {
 	var out []Def
@@ -116,6 +108,9 @@ Def <- mp:ModPath? defs:(
 	} /
 	v:Var {
 		return []Def{v}
+	} /
+	a:Alias {
+		return []Def{a}
 	} /
 	sig:TypeSig ds1:(
 		t0:Type { return []Def{t0} } /
@@ -321,23 +316,31 @@ TName <- mp:ModPath? n:( TypeOp / Ident ) {
 	return tname{mod: *mp, name: n}
 }
 
-Type <- Struct / Enum / Virt
+Alias <- sig:TypeSig _ ":=" n:TypeName {
+	return Def(&Type{
+		location: location{sig.start, n.end},
+		Sig: sig,
+		Alias: &n,
+	})
+}
 
-Struct <- _ s:(
+Type <- And / Or / Virt
+
+And <- _ s:(
 	"{" fs:(
 		n:IdentC t:TypeName {
 			return Parm{location: n.location, Name: n.Text, Type: &t}
 		}
 	)* _ "}" {
-	return &Struct{
+	return &Type{
 		location: loc(parser, start, end),
 		Fields: fs,
 	}
 } ) { return Def(s) }
 
-Enum <- _ e: (
+Or <- _ e: (
 	"{" c:Case cs:( _ "," c1:Case { return Parm(c1) } )* ( _ "," )? _ "}" {
-	return &Enum{
+	return &Type{
 		location: loc(parser, start, end),
 		Cases: append([]Parm{c}, cs...),
 	}
@@ -358,10 +361,10 @@ Case <-
 		}
 	}
 
-Virt <- _ v:( "{"  ss:MethSig+ _ "}" {
-	return &Virt{
+Virt <- _ v:( "{"  vs:MethSig+ _ "}" {
+	return &Type{
 		location: loc(parser, start, end),
-		Meths: ss,
+		Virts: vs,
 	}
 } ) { return Def(v) }
 

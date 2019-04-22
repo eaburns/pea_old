@@ -127,41 +127,45 @@ type TypeName struct {
 	Args []TypeName
 }
 
-// A Struct defines a struct type.
-type Struct struct {
+// A Type defines a type.
+// There are several kinds of Types:
+// 	1) Built-in types are primitive to the language.
+// 	2) Aliases aren't types, but are alternative names for other types.
+// 	3) And types are a composite of one or more other types
+// 	   that are the fields of the And type.
+// 	   This is akin to a struct or class in other languages.
+// 	4) Or types are a conjunction of zero or more explicitly named types,
+// 	   that are ethe cases of the Or type.
+//	   Or types fill the role of enums, null-able pointers,
+// 	   and tagged unions in other languages.
+// 	5) Virtual types are defined by a set of method signatures.
+// 	   Any type with the required methods is automatically
+// 	   convertable to the virtual type.
+type Type struct {
 	location
 	priv bool
 	ModPath
-	Sig    TypeSig
+	Sig TypeSig
+
+	// Alias, Fields, Cases, and Virts
+	// are mutually exclusive.
+	// If any one is non-nil, the others are nil.
+
+	// Alias is non-nil for a type Alias.
+	Alias *TypeName
+
+	// Fields is non-nil for an And type.
 	Fields []Parm // types cannot be nil
+
+	// Cases is non-nil for an Or type.
+	Cases []Parm // types can be nil
+
+	// Virts is non-nil for a Virtual type.
+	Virts []MethSig
 }
 
-func (n *Struct) Priv() bool   { return n.priv }
-func (n *Struct) Name() string { return n.Sig.Name }
-
-// A Enum defines an enum type.
-type Enum struct {
-	location
-	priv bool
-	ModPath
-	Sig   TypeSig
-	Cases []Parm // types may be nil
-}
-
-func (n *Enum) Priv() bool   { return n.priv }
-func (n *Enum) Name() string { return n.Sig.Name }
-
-// A Virt defines a virtual type.
-type Virt struct {
-	location
-	priv bool
-	ModPath
-	Sig   TypeSig
-	Meths []MethSig
-}
-
-func (n *Virt) Priv() bool   { return n.priv }
-func (n *Virt) Name() string { return n.Sig.Name }
+func (n *Type) Priv() bool   { return n.priv }
+func (n *Type) Name() string { return n.Sig.Name }
 
 // A MethSig is the signature of a method.
 type MethSig struct {
