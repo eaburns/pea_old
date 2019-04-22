@@ -141,7 +141,7 @@ func TestString(t *testing.T) {
 			t.Errorf("failed to parse %q: %v", test.in, err)
 			continue
 		}
-		got := mod.Files[0].Defs[0].String()
+		got := mod.Defs[0].String()
 		if got != test.want {
 			t.Errorf("%q.String()= %q, want %q", test.in, got, test.want)
 		}

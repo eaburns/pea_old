@@ -13,13 +13,21 @@ type Opt func(*state)
 var (
 	// Trace enables tracing of the type checker.
 	Trace Opt = func(x *state) { x.trace = true }
+	// Word64 makes Word and Uint aliases to Uint64, and Int an alias to Int64.
+	Word64 = func(x *state) { x.wordSize = 64 }
+	// Word32 makes Word and Uint aliases to Uint32, and Int an alias to Int32.
+	Word32 = func(x *state) { x.wordSize = 32 }
 )
 
 // Check type-checks the module.
 // Check modifies its arugment, performing some simplifications on the AST
 // and populating several fields not set by parsing.
 func Check(mod *Mod, opts ...Opt) []error {
-	s := &state{mod: mod, defs: make(map[[2]string]Def)}
+	s := &state{
+		mod:      mod,
+		defs:     make(map[[2]string]Def),
+		wordSize: 64,
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -29,17 +37,8 @@ func Check(mod *Mod, opts ...Opt) []error {
 
 func checkMod(x *scope, mod *Mod) (errs []checkError) {
 	defer x.tr("checkMod(…)")(errs)
-	for _, file := range mod.Files {
-		if es := checkFile(x, file); len(es) > 0 {
-			errs = append(errs, es...)
-		}
-	}
-	return errs
-}
-
-func checkFile(x *scope, file *File) (errs []checkError) {
-	defer x.tr("checkFile(%s)", file.Path)(errs)
-	return checkDefs(x, file.Defs)
+	mod.Imports = []*Mod{builtin(x.wordSize)}
+	return checkDefs(x, mod.Defs)
 }
 
 func checkDefs(x *scope, defs []Def) (errs []checkError) {
@@ -64,7 +63,8 @@ func checkDefs(x *scope, defs []Def) (errs []checkError) {
 type state struct {
 	mod *Mod
 	// Defs maps <ModPath, Name> → Def for fun, var, and type definitions.
-	defs map[[2]string]Def
+	defs     map[[2]string]Def
+	wordSize int
 
 	trace bool
 	ident string

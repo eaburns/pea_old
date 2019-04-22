@@ -26,22 +26,29 @@ func main() {
 		}
 	}
 
-	m := p.Mod()
-	for _, f := range m.Files {
-		for _, d := range f.Defs {
-			s := d.String()
-			fmt.Printf("%s: %s\n", m.Loc(d), s)
-			pretty.Print(d)
-			fmt.Println("")
-		}
+	mod := p.Mod()
+	for _, d := range mod.Defs {
+		fmt.Printf("%s: %s\n", mod.Loc(d), d.String())
+		pretty.Print(d)
+		fmt.Println("")
 	}
 	fmt.Println("")
 
-	if errs := pea.Check(m, pea.Trace); len(errs) > 0 {
+	if errs := pea.Check(mod, pea.Trace); len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
 		os.Exit(1)
+	}
+
+	fmt.Println("Imports:")
+	for _, m := range mod.Imports {
+		if m.Name != "" {
+			fmt.Println("---- module", m.Name)
+		}
+		for _, d := range m.Defs {
+			fmt.Println(d.String())
+		}
 	}
 }
 

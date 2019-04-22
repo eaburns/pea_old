@@ -406,7 +406,7 @@ fail:
 	return -1, failure
 }
 
-func _FileAction(parser *_Parser, start int) (int, **File) {
+func _FileAction(parser *_Parser, start int) (int, *[]Def) {
 	var labels [1]string
 	use(labels)
 	var label0 [][]Def
@@ -417,10 +417,10 @@ func _FileAction(parser *_Parser, start int) (int, **File) {
 	key := _key{start: start, rule: _File}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(*File)
+		n := n.([]Def)
 		return start + int(dp-1), &n
 	}
-	var node *File
+	var node []Def
 	pos := start
 	// action
 	{
@@ -461,14 +461,14 @@ func _FileAction(parser *_Parser, start int) (int, **File) {
 			pos = p
 		}
 		node = func(
-			start, end int, defss [][]Def) *File {
+			start, end int, defss [][]Def) []Def {
 			var out []Def
 			for _, defs := range defss {
 				for _, def := range defs {
 					out = append(out, def)
 				}
 			}
-			return &File{Defs: out}
+			return []Def(out)
 		}(
 			start0, pos, label0)
 	}

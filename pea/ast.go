@@ -4,15 +4,14 @@ package pea
 
 // A Mod is a module: the unit of compilation.
 type Mod struct {
-	Name  string
-	Files []*File
+	Name    string
+	files   []file
+	Defs    []Def
+	Imports []*Mod
 }
 
-// A File is a source code file.
-type File struct {
-	Path string
-	Defs []Def
-
+type file struct {
+	path  string
 	offs  int   // offset of the start of the file
 	lines []int // offset of newlines
 }

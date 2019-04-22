@@ -87,7 +87,7 @@ File <- defss:Def* _ EOF {
 			out = append(out, def)
 		}
 	}
-	return &File{Defs: out}
+	return []Def(out)
 }
 
 Def <- mp:ModPath? defs:(

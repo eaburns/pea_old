@@ -120,7 +120,7 @@ func inst(mod *Mod, typ TypeName) (Def, []checkError) {
 	s := &state{mod: mod, defs: make(map[[2]string]Def)}
 	x := &scope{state: s}
 
-	switch def := mod.Files[0].Defs[0].(type) {
+	switch def := mod.Defs[0].(type) {
 	case *Fun:
 		return def.instRecv(x, typ)
 	case *Type:
@@ -162,7 +162,6 @@ func parseTypeName(str string) (TypeName, error) {
 
 var ignoreUnexported = cmpopts.IgnoreUnexported(
 	Mod{},
-	File{},
 	Import{},
 	Fun{},
 	Parm{},
