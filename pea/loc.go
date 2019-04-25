@@ -12,11 +12,9 @@ type Loc struct {
 func (l Loc) String() string {
 	switch {
 	case l.Line[0] == l.Line[1] && l.Col[0] == l.Col[1]:
-		return fmt.Sprintf("%s:%d:%d", l.Path, l.Line[0], l.Col[0])
-	case l.Line[0] == l.Line[1]:
-		return fmt.Sprintf("%s:%d.%d:%d", l.Path, l.Line[0], l.Col[0], l.Col[1])
+		return fmt.Sprintf("%s:%d.%d", l.Path, l.Line[0], l.Col[0])
 	default:
-		return fmt.Sprintf("%s:%d.%d:%d.%d", l.Path, l.Line[0], l.Col[0], l.Line[1], l.Col[1])
+		return fmt.Sprintf("%s:%d.%d-%d.%d", l.Path, l.Line[0], l.Col[0], l.Line[1], l.Col[1])
 	}
 }
 
