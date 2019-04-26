@@ -92,9 +92,9 @@ File <- defss:Def* _ EOF {
 }
 
 Def <- mp:ModPath? defs:(
-	_ ( "import" p:String ) {
+	_ i:( "import" p:String  {
 		return []Def{&Import{location: loc(parser, start, end), Path: p.Data}}
-	} /
+	} ) { return []Def(i) } /
 	_ ( "(" defss:Def+ _ ")" ) {
 		var out []Def
 		for _, defs := range defss {
