@@ -117,7 +117,7 @@ func TestInst(t *testing.T) {
 }
 
 func inst(mod *Mod, typ TypeName) (Def, []checkError) {
-	s := &state{mod: mod, defs: make(map[[2]string]Def)}
+	s := newState(mod)
 	x := &scope{state: s}
 
 	switch def := mod.Defs[0].(type) {

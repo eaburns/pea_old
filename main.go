@@ -12,7 +12,7 @@ import (
 func main() {
 	pretty.Indent = "    "
 
-	p := pea.NewParser("#Main")
+	p := pea.NewParser("#main")
 
 	if len(os.Args) == 1 {
 		if err := p.Parse("", os.Stdin); err != nil {

@@ -2,6 +2,8 @@ package pea
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -23,56 +25,185 @@ var (
 // Check modifies its arugment, performing some simplifications on the AST
 // and populating several fields not set by parsing.
 func Check(mod *Mod, opts ...Opt) []error {
-	s := &state{
-		mod:      mod,
-		defs:     make(map[[2]string]Def),
-		wordSize: 64,
-	}
+	s := newState(mod)
 	for _, opt := range opts {
 		opt(s)
 	}
-	errs := checkMod(&scope{state: s}, mod)
+	x := &scope{state: s}
+	mod.Imports = append(mod.Imports, builtinMod(x.wordSize))
+	if es := collect(x, nil, []string{mod.Name}, mod.Imports[0]); len(es) > 0 {
+		panic("impossible")
+	}
+	errs := collect(x, nil, []string{mod.Name}, mod)
 	return convertErrors(errs)
 }
 
-func checkMod(x *scope, mod *Mod) (errs []checkError) {
-	defer x.tr("checkMod(…)")(errs)
-	mod.Imports = []*Mod{builtin(x.wordSize)}
-	return checkDefs(x, mod.Defs)
-}
-
-func checkDefs(x *scope, defs []Def) (errs []checkError) {
-	defer x.tr("checkDefs(…)")(errs)
-	for _, def := range defs {
-		// TODO: resolve imports before checking defs.
-		if _, ok := def.(*Import); ok {
-			continue
-		}
-		k := key(def)
-		if prev, ok := x.defs[k]; ok {
-			err := x.err(def, "%s redefined", k[0]+" "+k[1])
-			note(err, "previous definition %s", x.loc(prev))
-			errs = append(errs, *err)
-			continue
-		}
-		x.defs[k] = def
-	}
-	return errs
-}
-
 type state struct {
-	mod *Mod
-	// Defs maps <ModPath, Name> → Def for fun, var, and type definitions.
-	defs     map[[2]string]Def
+	mod      *Mod
+	mods     *module
 	wordSize int
+	importer func(string) (*Mod, error)
 
 	trace bool
 	ident string
 }
 
-// key returns a state.defs map key from a Def.
-func key(d Def) [2]string {
-	return [2]string{d.Mod().Root + " " + d.Mod().String(), d.Name()}
+func newState(mod *Mod) *state {
+	return &state{
+		mod:      mod,
+		mods:     newModule(""),
+		importer: defaultImporter,
+		wordSize: 64,
+	}
+}
+
+type module struct {
+	name string
+	defs map[string]Def
+	kids map[string]*module
+}
+
+type imported struct {
+	imp *Import
+	Def
+}
+
+type builtin struct {
+	Def
+}
+
+func newModule(name string) *module {
+	return &module{
+		name: name,
+		defs: make(map[string]Def),
+		kids: make(map[string]*module),
+	}
+}
+
+// add either adds the def and return nil
+// or a def with the same name already exists
+// and nothing is added and the previous def is returned.
+// The return is an imported, a builtin, or a Def.
+func (t *module) add(path []string, def Def) interface{} {
+	if len(path) == 0 {
+		prev, ok := t.defs[def.Name()]
+		if ok {
+			return prev
+		}
+		t.defs[def.Name()] = def
+		return nil
+	}
+	k := t.kids[path[0]]
+	if k == nil {
+		k = newModule(path[0])
+		t.kids[path[0]] = k
+	}
+	return k.add(path[1:], def)
+}
+
+func collect(x *scope, imp *Import, path []string, mod *Mod) (errs []checkError) {
+	defer x.tr("collect(%v, %v, %s)", imp, path, mod.Name)(errs)
+	for _, def := range mod.Defs {
+		if d, ok := def.(*Import); ok {
+			m, err := importMod(x, d)
+			if err != nil {
+				errs = append(errs, *err)
+				continue
+			}
+			kidImp := imp
+			if kidImp == nil {
+				kidImp = d
+			}
+			es := collect(x, kidImp, append(path, d.Mod().Path...), m)
+			if len(es) > 0 {
+				errs = append(errs, es...)
+			}
+		} else {
+			switch {
+			case def.Mod().Root == "":
+				def = builtin{def}
+			case imp != nil:
+				def = imported{imp, def}
+			}
+			p := append(path, def.Mod().Path...)
+			x.log("adding %v %v", p, def)
+			prev := x.mods.add(p, def)
+			if prev != nil {
+				errs = append(errs, *redefError(x, def, prev))
+			}
+		}
+	}
+	return errs
+}
+
+func redefError(x *scope, def, prev interface{}) *checkError {
+	var err *checkError
+	switch def := def.(type) {
+	case imported:
+		err = x.err(def.imp, "imported definition %s redefined", defName(def))
+	case builtin:
+		// Built-in defs are added first, so they can never be a redef.
+		panic(fmt.Sprintf("impossible definition type %T", def))
+	case Def:
+		err = x.err(def, "%s redefined", defName(def))
+	default:
+		panic(fmt.Sprintf("impossible definition type %T", def))
+	}
+	switch prev := prev.(type) {
+	case imported:
+		note(err, "previous definition imported from %s", x.loc(prev.imp))
+	case builtin:
+		note(err, "%s is a built-in definition", defName(prev))
+	case Def:
+		note(err, "previous definition %s", x.loc(prev))
+	default:
+		panic(fmt.Sprintf("impossible previous definition type %T", prev))
+	}
+	return err
+}
+
+func defName(def Def) string {
+	if m := def.Mod().String(); m != "" {
+		return m + " " + def.Name()
+	}
+	return def.Name()
+}
+
+func importMod(x *scope, n *Import) (m *Mod, err *checkError) {
+	x.tr("importMod(%s)", n.Path)(err)
+	for _, m = range x.mod.Imports {
+		if m.Name == n.Path {
+			x.log("returning previously imported module")
+			return m, nil
+		}
+	}
+	var e error
+	if m, e = x.importer(n.Path); e != nil {
+		return nil, x.err(n, "error importing %s: %s", n.Path, e)
+	}
+	x.log("returning new module: %s, %s", n.Path, m.Name)
+	x.mod.Imports = append(x.mod.Imports, m)
+	return m, nil
+}
+
+func defaultImporter(path string) (*Mod, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	finfos, err := f.Readdir(0) // all
+	f.Close()
+	if err != nil {
+		return nil, err
+	}
+	p := NewParser(path)
+	for _, fi := range finfos {
+		err := p.ParseFile(filepath.Join(path, fi.Name()))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return p.Mod(), nil
 }
 
 type scope struct {
