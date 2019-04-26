@@ -11,6 +11,7 @@ func (n *ModPath) prepend(m ModPath) {
 	if m.start != m.end {
 		n.start = m.start
 	}
+	n.Root = m.Root
 	n.Path = append(m.Path[:len(m.Path):len(m.Path)], n.Path...)
 }
 
