@@ -99,18 +99,18 @@ func TestRedefError(t *testing.T) {
 			err:  "Xyz redefined",
 		},
 		{
-			name: "built-in redefined",
+			name: "built-in overridden",
 			src:  "Int32 {}",
-			err:  "Int32 redefined(.|\n)*Int32 is a built-in",
+			err:  "",
 		},
 		{
-			name: "import redefined",
+			name: "import overridden",
 			src:  `import "xyz" Xyz{}`,
 			mods: [][2]string{{
 				"xyz",
 				"Xyz{}",
 			}},
-			err: "Xyz redefined(.|\n)*previous definition imported",
+			err: "",
 		},
 		{
 			name: "redefined by import",

@@ -86,8 +86,17 @@ func newModule(name string) *module {
 // The return is an imported, a builtin, or a Def.
 func (t *module) add(path []string, def Def) interface{} {
 	if len(path) == 0 {
-		prev, ok := t.defs[def.Name()]
-		if ok {
+		switch prev := t.defs[def.Name()].(type) {
+		case nil:
+			break
+		case imported:
+			if _, ok := def.(imported); ok {
+				return prev
+			}
+			break // overridden
+		case builtin:
+			break // overridden
+		default:
 			return prev
 		}
 		t.defs[def.Name()] = def
