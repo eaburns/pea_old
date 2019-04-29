@@ -192,6 +192,11 @@ func importMod(x *scope, n *Import) (m *Mod, err *checkError) {
 	}
 	x.log("returning new module: %s, %s", n.Path, m.Name)
 	x.mod.Imports = append(x.mod.Imports, m)
+
+	if es := collect(x, nil, []string{m.Name}, m); len(es) > 0 {
+		panic(fmt.Sprintf("error collecting imported module: %v", es))
+	}
+
 	return m, nil
 }
 
