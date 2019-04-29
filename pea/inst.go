@@ -2,10 +2,6 @@ package pea
 
 import "fmt"
 
-func (*Import) inst(*scope, []TypeName) (Def, []checkError) {
-	panic("impossible")
-}
-
 func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 	defer x.tr("Fun.instRecv(%s, %s)", n.Name(), typ)(errs)
 	if n.Recv == nil {
