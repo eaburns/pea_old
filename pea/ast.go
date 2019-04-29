@@ -35,9 +35,6 @@ type Def interface {
 	// Mod returns the module path of the definition.
 	Mod() ModPath
 
-	// Priv returns whether the field is private.
-	Priv() bool
-
 	addMod(ModPath) Def
 	setPriv(bool) Def
 	setStart(int) Def
@@ -53,18 +50,17 @@ func (n location) End() int   { return n.end }
 // Import is an import statement.
 type Import struct {
 	location
-	priv bool
+	Priv bool
 	ModPath
 	Path string
 }
 
-func (n *Import) Priv() bool   { return n.priv }
 func (n *Import) Name() string { return n.Path }
 
 // A Fun is a function or method definition.
 type Fun struct {
 	location
-	priv bool
+	Priv bool
 	ModPath
 	Sel       string
 	Recv      *TypeSig
@@ -73,8 +69,6 @@ type Fun struct {
 	Ret       *TypeName
 	Stmts     []Stmt
 }
-
-func (n *Fun) Priv() bool { return n.priv }
 
 func (n *Fun) Name() string {
 	if n.Recv != nil {
@@ -96,13 +90,12 @@ type Parm struct {
 // A Var is a module-level variable definition.
 type Var struct {
 	location
-	priv bool
+	Priv bool
 	ModPath
 	Ident string
 	Val   []Stmt
 }
 
-func (n *Var) Priv() bool   { return n.priv }
 func (n *Var) Name() string { return n.Ident }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
@@ -142,7 +135,7 @@ type TypeName struct {
 // 	   convertable to the virtual type.
 type Type struct {
 	location
-	priv bool
+	Priv bool
 	ModPath
 	Sig TypeSig
 
@@ -163,7 +156,6 @@ type Type struct {
 	Virts []MethSig
 }
 
-func (n *Type) Priv() bool   { return n.priv }
 func (n *Type) Name() string { return n.Sig.Name }
 
 // A MethSig is the signature of a method.

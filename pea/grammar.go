@@ -20,10 +20,10 @@ func (n Fun) addMod(m ModPath) Def    { n.ModPath.prepend(m); return &n }
 func (n Var) addMod(m ModPath) Def    { n.ModPath.prepend(m); return &n }
 func (n Type) addMod(m ModPath) Def   { n.ModPath.prepend(m); return &n }
 
-func (n Import) setPriv(b bool) Def { n.priv = b; return &n }
-func (n Fun) setPriv(b bool) Def    { n.priv = b; return &n }
-func (n Var) setPriv(b bool) Def    { n.priv = b; return &n }
-func (n Type) setPriv(b bool) Def   { n.priv = b; return &n }
+func (n Import) setPriv(b bool) Def { n.Priv = b; return &n }
+func (n Fun) setPriv(b bool) Def    { n.Priv = b; return &n }
+func (n Var) setPriv(b bool) Def    { n.Priv = b; return &n }
+func (n Type) setPriv(b bool) Def   { n.Priv = b; return &n }
 
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def    { n.start = s; return &n }
