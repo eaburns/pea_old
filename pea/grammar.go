@@ -60,7 +60,7 @@ type arg struct {
 }
 
 type tname struct {
-	mod  ModPath
+	mod  *ModPath
 	name Ident
 }
 
@@ -5923,12 +5923,12 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 				var a []TypeName
 				if tv1 != nil {
 					s = tv1.start
-					a = []TypeName{{location: tv1.location, Name: tv1.Text}}
+					a = []TypeName{{location: tv1.location, Name: tv1.Text, Var: true}}
 				}
 				for _, n := range ns0[:len(ns0)-1] {
 					a = []TypeName{{
 						location: location{s, n.name.end},
-						Mod:      &n.mod,
+						Mod:      n.mod,
 						Name:     n.name.Text,
 						Args:     a,
 					}}
@@ -5936,7 +5936,7 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 				n := ns0[len(ns0)-1]
 				return TypeName{
 					location: location{s, n.name.end},
-					Mod:      &n.mod,
+					Mod:      n.mod,
 					Name:     n.name.Text,
 					Args:     a,
 				}
@@ -5964,7 +5964,7 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 			}
 			node = func(
 				start, end int, ns0 []tname, tv1 *Ident, tv2 Ident) TypeName {
-				return TypeName{location: tv2.location, Name: tv2.Text}
+				return TypeName{location: tv2.location, Name: tv2.Text, Var: true}
 			}(
 				start18, pos, label1, label0, label2)
 		}
@@ -6090,7 +6090,6 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 						}
 						return TypeName{
 							location: loc(parser, start, end),
-							Mod:      &ModPath{Root: parser.data.(*Parser).mod},
 							Name:     name,
 							Args:     ps,
 						}
@@ -6194,14 +6193,14 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 						for _, n := range ns2[:len(ns2)-1] {
 							ns1 = []TypeName{{
 								location: location{s, n.name.end},
-								Mod:      &n.mod,
+								Mod:      n.mod,
 								Name:     n.name.Text,
 								Args:     ns1,
 							}}
 						}
 						return TypeName{
 							location: loc(parser, start, end),
-							Mod:      &ns2[len(ns2)-1].mod,
+							Mod:      ns2[len(ns2)-1].mod,
 							Name:     ns2[len(ns2)-1].name.Text,
 							Args:     ns1,
 						}
@@ -6947,13 +6946,7 @@ func _TNameAction(parser *_Parser, start int) (int, *tname) {
 		}
 		node = func(
 			start, end int, mp *ModPath, n Ident) tname {
-			if mp == nil {
-				mp = &ModPath{
-					location: loc(parser, n.Start(), n.Start()), // empty location
-					Root:     parser.data.(*Parser).mod,
-				}
-			}
-			return tname{mod: *mp, name: n}
+			return tname{mod: mp, name: n}
 		}(
 			start0, pos, label0, label1)
 	}

@@ -16,123 +16,123 @@ func TestString(t *testing.T) {
 		},
 		{
 			"[max: x Int and: y Int ^Int | ]",
-			"[max: Int and: Int ^Int]",
+			"#main [max: Int and: Int ^Int]",
 		},
 		{
-			"#Sub [max: x Int and: y Int ^Int | ]",
-			"#Sub [max: Int and: Int ^Int]",
+			"#sub [max: x Int and: y Int ^Int | ]",
+			"#main #sub [max: Int and: Int ^Int]",
 		},
 		{
 			"Int [orMax: x Int ^Int | ]",
-			"Int [orMax: Int ^Int]",
+			"#main Int [orMax: Int ^Int]",
 		},
 		{
-			"#Sub Int [orMax: x Int ^Int | ]",
-			"#Sub Int [orMax: Int ^Int]",
+			"#sub Int [orMax: x Int ^Int | ]",
+			"#main #sub Int [orMax: Int ^Int]",
 		},
 		{
 			"Int [add: x Int | ]",
-			"Int [add: Int]",
+			"#main Int [add: Int]",
 		},
 		{
 			"Int [+ x Int ^Int | ]",
-			"Int [+ Int ^Int]",
+			"#main Int [+ Int ^Int]",
 		},
 		{
 			"Int [neg ^Int | ]",
-			"Int [neg ^Int]",
+			"#main Int [neg ^Int]",
 		},
 		{
 			"Int [inc | ]",
-			"Int [inc]",
+			"#main Int [inc]",
 		},
 		{
 			"x := [ 5 ]",
-			"x",
+			"#main x",
 		},
 		{
 			"Int := Int32",
-			"Int := Int32",
+			"#main Int := Int32",
 		},
 		{
 			"T IntMap := (Int, T) Map",
-			"T IntMap := (Int, T) Map",
+			"#main T IntMap := (Int, T) Map",
 		},
 		{
-			"#Sub1 #Sub2 x := [ 5 ]",
-			"#Sub1 #Sub2 x",
+			"#sub1 #sub2 x := [ 5 ]",
+			"#main #sub1 #sub2 x",
 		},
 		{
 			"Point { x: Float y: Int }",
-			"Point {x: Float y: Int}",
+			"#main Point {x: Float y: Int}",
 		},
 		{
-			"#Sub1 #Sub2 Point { x: Float y: Int }",
-			"#Sub1 #Sub2 Point {x: Float y: Int}",
+			"#sub1 #sub2 Point { x: Float y: Int }",
+			"#main #sub1 #sub2 Point {x: Float y: Int}",
 		},
 		{
-			"#Sub1 (X, Y) Pair { x: X y: Y }",
-			"#Sub1 (X, Y) Pair {x: X y: Y}",
+			"#sub1 (X, Y) Pair { x: X y: Y }",
+			"#main #sub1 (X, Y) Pair {x: X y: Y}",
 		},
 		{
-			"#Sub1 T Vec { data: T Array }",
-			"#Sub1 T Vec {data: T Array}",
+			"#sub1 T Vec { data: T Array }",
+			"#main #sub1 T Vec {data: T Array}",
 		},
 		{
 			"(K Key, V) Map {}",
-			"(K Key, V) Map {}",
+			"#main (K Key, V) Map {}",
 		},
 		{
 			"T Opt {some: T, none}",
-			"T Opt {some: T, none}",
+			"#main T Opt {some: T, none}",
 		},
 		{
 			"T! { error: String, ok: T }",
-			"T! {error: String, ok: T}",
+			"#main T! {error: String, ok: T}",
 		},
 		{
 			"T Ord { [= T& ^Bool] [< T& ^Bool] }",
-			"T Ord {[= T & ^Bool] [< T & ^Bool]}",
+			"#main T Ord {[= T & ^Bool] [< T & ^Bool]}",
 		},
 		{
 			"Foo { [bar] }",
-			"Foo {[bar]}",
+			"#main Foo {[bar]}",
 		},
 		{
 			"Foo { [bar: Int baz: Float Array] }",
-			"Foo {[bar: Int baz: Float Array]}",
+			"#main Foo {[bar: Int baz: Float Array]}",
 		},
 		{
 			"[x: f (String, Int) Map | ]",
-			"[x: (String, Int) Map]",
+			"#main [x: (String, Int) Map]",
 		},
 		{
 			"[do: f [Int, Float, String Array | String] | ]",
-			"[do: [Int, Float, String Array | String]]",
+			"#main [do: [Int, Float, String Array | String]]",
 		},
 		{
 			"[do: f [Int, Float, String Array] | ]",
-			"[do: [Int, Float, String Array]]",
+			"#main [do: [Int, Float, String Array]]",
 		},
 		{
 			"T [foo: t T | ]",
-			"T [foo: T]",
+			"#main T [foo: T]",
 		},
 		{
 			"(K Key, V) [foo: k K bar: v V | ]",
-			"(K Key, V) [foo: K bar: V]",
+			"#main (K Key, V) [foo: K bar: V]",
 		},
 		{
 			"[x: v Int Array? Vec | ]",
-			"[x: Int Array ? Vec]",
+			"#main [x: Int Array ? Vec]",
 		},
 		{
-			"[x: _ #Foo #Bar #Baz Int | ]",
-			"[x: #Foo #Bar #Baz Int]",
+			"[x: _ #foo #bar #baz Int | ]",
+			"#main [x: #main #foo #bar #baz Int]",
 		},
 		{
-			"#Nest0 ( #Nest1 ( #Nest2 Point {} ) )",
-			"#Nest0 #Nest1 #Nest2 Point {}",
+			"#nest0 ( #nest1 ( #nest2 Point {} ) )",
+			"#main #nest0 #nest1 #nest2 Point {}",
 		},
 	}
 	for _, test := range tests {
@@ -149,7 +149,7 @@ func TestString(t *testing.T) {
 }
 
 func parseString(str string) (*Mod, error) {
-	p := NewParser("#Main")
+	p := NewParser("#main")
 	if err := p.Parse("", strings.NewReader(str)); err != nil {
 		return nil, err
 	}

@@ -61,7 +61,7 @@ type arg struct {
 }
 
 type tname struct {
-	mod ModPath
+	mod *ModPath
 	name Ident
 }
 
@@ -244,12 +244,12 @@ TypeName <-
 		var a []TypeName
 		if tv1 != nil {
 			s = tv1.start
-			a = []TypeName{{location: tv1.location, Name: tv1.Text}}
+			a = []TypeName{{location: tv1.location, Name: tv1.Text, Var: true}}
 		}
 		for _, n := range ns0[:len(ns0)-1] {
 			a = []TypeName{{
 				location: location{s, n.name.end},
-				Mod: &n.mod,
+				Mod: n.mod,
 				Name: n.name.Text,
 				Args: a,
 			}}
@@ -257,13 +257,13 @@ TypeName <-
 		n := ns0[len(ns0)-1]
 		return TypeName{
 			location: location{s, n.name.end},
-			Mod: &n.mod,
+			Mod: n.mod,
 			Name: n.name.Text,
 			Args: a,
 		}
 	} /
 	tv2:TypeVar {
-		return TypeName{location: tv2.location, Name: tv2.Text}
+		return TypeName{location: tv2.location, Name: tv2.Text, Var: true}
 	} /
 	_ blk:(
 		"[" psp:TypeNameList? r:( _"|" r1:TypeName { return TypeName(r1) } )? _"]" {
@@ -278,7 +278,6 @@ TypeName <-
 		}
 		return TypeName{
 			location: loc(parser, start, end),
-			Mod: &ModPath{Root: parser.data.(*Parser).mod},
 			Name: name,
 			Args: ps,
 		}
@@ -289,14 +288,14 @@ TypeName <-
 		for _, n := range ns2[:len(ns2)-1] {
 			ns1 = []TypeName{{
 				location: location{s, n.name.end},
-				Mod: &n.mod,
+				Mod: n.mod,
 				Name: n.name.Text,
 				Args: ns1,
 			}}
 		}
 		return TypeName{
 			location: loc(parser, start, end),
-			Mod: &ns2[len(ns2)-1].mod,
+			Mod: ns2[len(ns2)-1].mod,
 			Name: ns2[len(ns2)-1].name.Text,
 			Args: ns1,
 		}
@@ -307,15 +306,7 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 	return []TypeName(append([]TypeName{n0}, ns...))
 }
 
-TName <- mp:ModPath? n:( TypeOp / Ident ) {
-	if mp == nil {
-		mp = &ModPath{
-			location: loc(parser, n.Start(), n.Start()), // empty location
-			Root: parser.data.(*Parser).mod,
-		}
-	}
-	return tname{mod: *mp, name: n}
-}
+TName <- mp:ModPath? n:( TypeOp / Ident ) { return tname{mod: mp, name: n} }
 
 Alias <- sig:TypeSig _ ":=" n:TypeName {
 	return Def(&Type{

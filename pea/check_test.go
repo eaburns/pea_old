@@ -119,7 +119,7 @@ func TestRedefError(t *testing.T) {
 				"xyz",
 				"Xyz{}",
 			}},
-			err: "imported definition Xyz redefined",
+			err: "imported definition xyz Xyz redefined",
 		},
 		{
 			name: "import redefined by import",
@@ -128,7 +128,7 @@ func TestRedefError(t *testing.T) {
 				"xyz",
 				"Xyz{}",
 			}},
-			err: "imported definition Xyz redefined(.|\n)*previous definition imported",
+			err: "imported definition xyz Xyz redefined(.|\n)*previous definition imported",
 		},
 		{
 			name: "same def in different submods is ok",

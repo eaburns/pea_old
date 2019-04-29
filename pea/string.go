@@ -13,9 +13,10 @@ func (n ModPath) String() string {
 }
 
 func buildModPathString(n ModPath, s *strings.Builder) {
+	s.WriteString(n.Root)
 	for _, p := range n.Path {
-		s.WriteString(p)
 		s.WriteRune(' ')
+		s.WriteString(p)
 	}
 }
 
@@ -23,14 +24,12 @@ func (n *Import) String() string { return "import " + n.Path }
 
 func (n *Fun) String() string {
 	var s strings.Builder
-	buildFunString(n, &s)
-	return s.String()
-}
-
-func buildFunString(n *Fun, s *strings.Builder) {
-	buildModPathString(n.ModPath, s)
+	if n.ModPath.Root != "" || len(n.ModPath.Path) > 0 {
+		buildModPathString(n.ModPath, &s)
+		s.WriteRune(' ')
+	}
 	if n.Recv != nil {
-		buildTypeSigString(*n.Recv, s)
+		buildTypeSigString(*n.Recv, &s)
 		s.WriteRune(' ')
 	}
 	if len(n.TypeParms) == 1 && n.TypeParms[0].Type == nil {
@@ -45,7 +44,7 @@ func buildFunString(n *Fun, s *strings.Builder) {
 			s.WriteString(t.Name)
 			if t.Type != nil {
 				s.WriteRune(' ')
-				buildTypeNameString(*t.Type, s)
+				buildTypeNameString(*t.Type, &s)
 			}
 		}
 		s.WriteString(") ")
@@ -63,19 +62,22 @@ func buildFunString(n *Fun, s *strings.Builder) {
 			}
 			s.WriteString(sel)
 			s.WriteRune(' ')
-			buildTypeNameString(*n.Parms[i].Type, s)
+			buildTypeNameString(*n.Parms[i].Type, &s)
 		}
 	}
 	if n.Ret != nil {
 		s.WriteString(" ^")
-		buildTypeNameString(*n.Ret, s)
+		buildTypeNameString(*n.Ret, &s)
 	}
 	s.WriteRune(']')
+
+	return s.String()
 }
 
 func (n *Var) String() string {
 	var s strings.Builder
 	buildModPathString(n.ModPath, &s)
+	s.WriteRune(' ')
 	s.WriteString(n.Ident)
 	return s.String()
 }
@@ -142,6 +144,7 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 	case isFunName(n.Name):
 		if n.Mod != nil {
 			buildModPathString(*n.Mod, s)
+			s.WriteRune(' ')
 		}
 		s.WriteRune('[')
 		for i, a := range n.Args {
@@ -161,6 +164,7 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 	case len(n.Args) == 0:
 		if n.Mod != nil {
 			buildModPathString(*n.Mod, s)
+			s.WriteRune(' ')
 		}
 		s.WriteString(n.Name)
 		return
@@ -175,13 +179,17 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 	s.WriteString(") ")
 	if n.Mod != nil {
 		buildModPathString(*n.Mod, s)
+		s.WriteRune(' ')
 	}
 	s.WriteString(n.Name)
 }
 
 func (n *Type) String() string {
 	var s strings.Builder
-	buildModPathString(n.ModPath, &s)
+	if n.ModPath.Root != "" || len(n.ModPath.Path) > 0 {
+		buildModPathString(n.ModPath, &s)
+		s.WriteRune(' ')
+	}
 	buildTypeSigString(n.Sig, &s)
 
 	switch {

@@ -114,7 +114,8 @@ type TypeSig struct {
 // A TypeName is the name of a concrete type.
 type TypeName struct {
 	location
-	Mod  *ModPath // null for type variables
+	Var  bool
+	Mod  *ModPath
 	Name string
 	Args []TypeName
 }
