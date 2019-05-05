@@ -308,7 +308,7 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 
 TName <- mp:ModPath? n:( TypeOp / Ident ) { return tname{mod: mp, name: n} }
 
-Alias <- sig:TypeSig _ ":=" n:TypeName {
+Alias <- sig:TypeSig _ ":=" n:TypeName _ "." {
 	return Def(&Type{
 		location: location{sig.start, n.end},
 		Sig: sig,

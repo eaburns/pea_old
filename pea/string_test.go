@@ -51,12 +51,12 @@ func TestString(t *testing.T) {
 			"#main x",
 		},
 		{
-			"Int := Int32",
-			"#main Int := Int32",
+			"Int := Int32.",
+			"#main Int := Int32.",
 		},
 		{
-			"T IntMap := (Int, T) Map",
-			"#main T IntMap := (Int, T) Map",
+			"T IntMap := (Int, T) Map.",
+			"#main T IntMap := (Int, T) Map.",
 		},
 		{
 			"#sub1 #sub2 x := [ 5 ]",

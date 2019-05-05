@@ -196,6 +196,7 @@ func (n *Type) String() string {
 	case n.Alias != nil:
 		s.WriteString(" := ")
 		buildTypeNameString(*n.Alias, &s)
+		s.WriteRune('.')
 	case n.Fields != nil:
 		s.WriteString(" {")
 		for i, f := range n.Fields {

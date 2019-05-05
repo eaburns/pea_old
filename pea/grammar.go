@@ -6964,7 +6964,7 @@ func _AliasAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 	}
 	pos, perr := start, -1
 	// action
-	// sig:TypeSig _ ":=" n:TypeName
+	// sig:TypeSig _ ":=" n:TypeName _ "."
 	// sig:TypeSig
 	{
 		pos1 := pos
@@ -6993,6 +6993,16 @@ func _AliasAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		}
 		labels[1] = parser.text[pos2:pos]
 	}
+	// _
+	if !_accept(parser, __Accepts, &pos, &perr) {
+		goto fail
+	}
+	// "."
+	if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "." {
+		perr = _max(perr, pos)
+		goto fail
+	}
+	pos++
 	return _memoize(parser, _Alias, start, pos, perr)
 fail:
 	return _memoize(parser, _Alias, start, -1, perr)
@@ -7013,7 +7023,7 @@ func _AliasNode(parser *_Parser, start int) (int, *peg.Node) {
 	pos := start
 	node = &peg.Node{Name: "Alias"}
 	// action
-	// sig:TypeSig _ ":=" n:TypeName
+	// sig:TypeSig _ ":=" n:TypeName _ "."
 	// sig:TypeSig
 	{
 		pos1 := pos
@@ -7042,6 +7052,16 @@ func _AliasNode(parser *_Parser, start int) (int, *peg.Node) {
 		}
 		labels[1] = parser.text[pos2:pos]
 	}
+	// _
+	if !_node(parser, __Node, node, &pos) {
+		goto fail
+	}
+	// "."
+	if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "." {
+		goto fail
+	}
+	node.Kids = append(node.Kids, _leaf(parser, pos, pos+1))
+	pos++
 	node.Text = parser.text[start:pos]
 	parser.node[key] = node
 	return pos, node
@@ -7062,7 +7082,7 @@ func _AliasFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Alias}
 	// action
-	// sig:TypeSig _ ":=" n:TypeName
+	// sig:TypeSig _ ":=" n:TypeName _ "."
 	// sig:TypeSig
 	{
 		pos1 := pos
@@ -7096,6 +7116,21 @@ func _AliasFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		}
 		labels[1] = parser.text[pos2:pos]
 	}
+	// _
+	if !_fail(parser, __Fail, errPos, failure, &pos) {
+		goto fail
+	}
+	// "."
+	if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "." {
+		if pos >= errPos {
+			failure.Kids = append(failure.Kids, &peg.Fail{
+				Pos:  int(pos),
+				Want: "\".\"",
+			})
+		}
+		goto fail
+	}
+	pos++
 	parser.fail[key] = failure
 	return pos, failure
 fail:
@@ -7123,7 +7158,7 @@ func _AliasAction(parser *_Parser, start int) (int, *Def) {
 	// action
 	{
 		start0 := pos
-		// sig:TypeSig _ ":=" n:TypeName
+		// sig:TypeSig _ ":=" n:TypeName _ "."
 		// sig:TypeSig
 		{
 			pos2 := pos
@@ -7159,6 +7194,17 @@ func _AliasAction(parser *_Parser, start int) (int, *Def) {
 			}
 			labels[1] = parser.text[pos3:pos]
 		}
+		// _
+		if p, n := __Action(parser, pos); n == nil {
+			goto fail
+		} else {
+			pos = p
+		}
+		// "."
+		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "." {
+			goto fail
+		}
+		pos++
 		node = func(
 			start, end int, n TypeName, sig TypeSig) Def {
 			return Def(&Type{
