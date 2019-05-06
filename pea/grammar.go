@@ -2,6 +2,7 @@ package pea
 
 import (
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/eaburns/peggy/peg"
@@ -7759,7 +7760,11 @@ func _AndAction(parser *_Parser, start int) (int, *Def) {
 							}
 							node8 = func(
 								start, end int, n Ident, t TypeName) Parm {
-								return Parm{location: n.location, Name: n.Text, Type: &t}
+								return Parm{
+									location: n.location,
+									Name:     strings.TrimSuffix(n.Text, ":"),
+									Type:     &t,
+								}
 							}(
 								start10, pos, label0, label1)
 						}
@@ -8602,7 +8607,7 @@ func _CaseAction(parser *_Parser, start int) (int, *Parm) {
 				start, end int, id0 Ident, id1 Ident, t TypeName) Parm {
 				return Parm{
 					location: id1.location,
-					Name:     id1.Text,
+					Name:     strings.TrimSuffix(id1.Text, ":"),
 					Type:     &t,
 				}
 			}(

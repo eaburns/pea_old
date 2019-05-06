@@ -204,7 +204,7 @@ func (n *Type) String() string {
 				s.WriteRune(' ')
 			}
 			s.WriteString(f.Name)
-			s.WriteRune(' ')
+			s.WriteString(": ")
 			buildTypeNameString(*f.Type, &s)
 		}
 		s.WriteRune('}')
@@ -216,7 +216,7 @@ func (n *Type) String() string {
 			}
 			s.WriteString(c.Name)
 			if c.Type != nil {
-				s.WriteRune(' ')
+				s.WriteString(": ")
 				buildTypeNameString(*c.Type, &s)
 			}
 		}

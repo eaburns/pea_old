@@ -3,6 +3,7 @@ package pea
 
 import (
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/eaburns/peggy/peg"
@@ -321,7 +322,11 @@ Type <- And / Or / Virt
 And <- _ s:(
 	"{" fs:(
 		n:IdentC t:TypeName {
-			return Parm{location: n.location, Name: n.Text, Type: &t}
+			return Parm{
+				location: n.location,
+				Name: strings.TrimSuffix(n.Text, ":"),
+				Type: &t,
+			}
 		}
 	)* _ "}" {
 	return &Type{
@@ -348,7 +353,7 @@ Case <-
 	id1:IdentC t:TypeName {
 		return Parm{
 			location: id1.location,
-			Name: id1.Text,
+			Name: strings.TrimSuffix(id1.Text, ":"),
 			Type: &t,
 		}
 	}
