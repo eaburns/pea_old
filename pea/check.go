@@ -176,12 +176,12 @@ func redefError(x *scope, def, prev interface{}) *checkError {
 	var err *checkError
 	switch def := def.(type) {
 	case imported:
-		err = x.err(def.imp, "imported definition %s redefined", defName(def))
+		err = x.err(def.imp, "imported definition %s is redefined", defName(def))
 	case builtin:
 		// Built-in defs are added first, so they can never be a redef.
 		panic(fmt.Sprintf("impossible definition type %T", def))
 	case Def:
-		err = x.err(def, "%s redefined", defName(def))
+		err = x.err(def, "%s is redefined", defName(def))
 	default:
 		panic(fmt.Sprintf("impossible definition type %T", def))
 	}
@@ -350,7 +350,7 @@ func checkFields(x *scope, ps []Parm) (errs []checkError) {
 	for i := range ps {
 		p := &ps[i]
 		if prev := seen[p.Name]; prev != nil {
-			err := x.err(p, "field %s redefined", p.Name)
+			err := x.err(p, "field %s is redefined", p.Name)
 			note(err, "previous definition is at %s", x.loc(prev))
 			errs = append(errs, *err)
 		} else {
@@ -370,7 +370,7 @@ func checkCases(x *scope, ps []Parm) (errs []checkError) {
 		p := &ps[i]
 		lower := strings.ToLower(p.Name)
 		if prev := seen[lower]; prev != nil {
-			err := x.err(p, "case %s redefined", lower)
+			err := x.err(p, "case %s is redefined", lower)
 			note(err, "previous definition is at %s", x.loc(prev))
 			errs = append(errs, *err)
 		} else {
@@ -391,7 +391,7 @@ func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
 	for i := range sigs {
 		sig := &sigs[i]
 		if prev, ok := seen[sig.Sel]; ok {
-			err := x.err(sig, "virtual method %s redefined", sig.Sel)
+			err := x.err(sig, "virtual method %s is redefined", sig.Sel)
 			note(err, "previous definition is at %s", x.loc(prev))
 			errs = append(errs, *err)
 		} else {

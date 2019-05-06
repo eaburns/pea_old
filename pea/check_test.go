@@ -36,17 +36,17 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "type redefined",
 			src:  "Xyz{} Xyz{}",
-			err:  "Xyz redefined(.|\n)*previous definition",
+			err:  "Xyz is redefined(.|\n)*previous definition",
 		},
 		{
 			name: "fun redefined",
 			src:  "[foo: _ Int32 |] [foo: _ Int32 |]",
-			err:  "foo: redefined(.|\n)*previous definition",
+			err:  "foo: is redefined(.|\n)*previous definition",
 		},
 		{
 			name: "fun redefined with different param types",
 			src:  "[foo: _ Int32 |] [foo: _ String |]",
-			err:  "foo: redefined(.|\n)*previous definition",
+			err:  "foo: is redefined(.|\n)*previous definition",
 		},
 		{
 			name: "fun with different arity is ok",
@@ -66,37 +66,37 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "var redefined",
 			src:  "Xyz := [5] Xyz := [6]",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "fun redefines a type",
 			src:  "Xyz{} [Xyz |]",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "var redefines a type",
 			src:  "Xyz{} Xyz := [5]",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "type redefineds a fun",
 			src:  "[Xyz |] Xyz{}",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "type redefineds a var",
 			src:  "Xyz := [5] Xyz {}",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "fun redefines a var",
 			src:  "Xyz := [5] [Xyz |]",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "var redefines a fun",
 			src:  "[Xyz |] Xyz := [5]",
-			err:  "Xyz redefined",
+			err:  "Xyz is redefined",
 		},
 		{
 			name: "built-in overridden",
@@ -119,7 +119,7 @@ func TestRedefError(t *testing.T) {
 				"xyz",
 				"Xyz{}",
 			}},
-			err: "imported definition xyz Xyz redefined",
+			err: "imported definition xyz Xyz is redefined",
 		},
 		{
 			name: "import redefined by import",
@@ -128,7 +128,7 @@ func TestRedefError(t *testing.T) {
 				"xyz",
 				"Xyz{}",
 			}},
-			err: "imported definition xyz Xyz redefined(.|\n)*previous definition imported",
+			err: "imported definition xyz Xyz is redefined(.|\n)*previous definition imported",
 		},
 		{
 			name: "same def in different submods is ok",
@@ -164,7 +164,7 @@ func TestRedefError(t *testing.T) {
 				"xyz",
 				"Xyz{}",
 			}},
-			err: "Xyz redefined",
+			err: "Xyz is redefined",
 		},
 		{
 			name: "multiple redefs",
@@ -173,7 +173,7 @@ func TestRedefError(t *testing.T) {
 				Cde{}
 				[Cde |]
 			`,
-			err: "Xyz redefined(.|\n)*Abc redefined(.|\n)*Cde redefined",
+			err: "Xyz is redefined(.|\n)*Abc is redefined(.|\n)*Cde is redefined",
 		},
 	}
 	for _, test := range tests {
@@ -247,7 +247,7 @@ func TestCheckFields(t *testing.T) {
 		{
 			name: "field redefined",
 			src:  "Point { x: Float x: Float }",
-			err:  "x redefined",
+			err:  "field x is redefined",
 		},
 		{
 			name: "non-type",
@@ -298,22 +298,22 @@ func TestCheckCases(t *testing.T) {
 		{
 			name: "typeless case redefined",
 			src:  "Opt { none, none }",
-			err:  "none redefined",
+			err:  "case none is redefined",
 		},
 		{
 			name: "typed case redefined",
 			src:  "Opt { some: Int, some: Int }",
-			err:  "some redefined",
+			err:  "case some is redefined",
 		},
 		{
 			name: "typed and typeless case redefined",
 			src:  "Opt { none, none: Int }",
-			err:  "none redefined",
+			err:  "case none is redefined",
 		},
 		{
 			name: "case capitalization redefined",
 			src:  "Opt { none, None }",
-			err:  "none redefined",
+			err:  "case none is redefined",
 		},
 	}
 	for _, test := range tests {
@@ -341,7 +341,7 @@ func TestCheckVirts(t *testing.T) {
 		{
 			name: "method signature redefined",
 			src:  "IntSeq { [at: Int ^Int] [at: Int ^Int] }",
-			err:  "at: redefined",
+			err:  "virtual method at: is redefined",
 		},
 		{
 			name: "not redefined",
