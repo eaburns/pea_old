@@ -90,21 +90,6 @@ func (n TypeSig) String() string {
 
 func buildTypeSigString(n TypeSig, s *strings.Builder) {
 	switch {
-	case isFunName(n.Name):
-		s.WriteRune('[')
-		for i, p := range n.Parms {
-			if i == len(n.Parms)-1 && isRetFunName(n.Name) {
-				s.WriteString(" | ")
-			} else if i > 0 {
-				s.WriteString(", ")
-			}
-			s.WriteString(p.Name)
-			if p.Type != nil {
-				panic("impossible")
-			}
-		}
-		s.WriteRune(']')
-		return
 	case len(n.Parms) == 1 && n.Parms[0].Type == nil:
 		s.WriteString(n.Parms[0].Name)
 		if r, _ := utf8.DecodeRuneInString(n.Name); !unicode.IsPunct(r) {
@@ -130,9 +115,6 @@ func buildTypeSigString(n TypeSig, s *strings.Builder) {
 	s.WriteString(n.Name)
 }
 
-func isFunName(n string) bool    { return len(n) > 0 && n[0] == '[' }
-func isRetFunName(n string) bool { return len(n) > 2 && n[1] == '|' }
-
 func (n TypeName) String() string {
 	var s strings.Builder
 	buildTypeNameString(n, &s)
@@ -141,22 +123,6 @@ func (n TypeName) String() string {
 
 func buildTypeNameString(n TypeName, s *strings.Builder) {
 	switch {
-	case isFunName(n.Name):
-		if n.Mod != nil {
-			buildModPathString(*n.Mod, s)
-			s.WriteRune(' ')
-		}
-		s.WriteRune('[')
-		for i, a := range n.Args {
-			if i == len(n.Args)-1 && isRetFunName(n.Name) {
-				s.WriteString(" | ")
-			} else if i > 0 {
-				s.WriteString(", ")
-			}
-			buildTypeNameString(a, s)
-		}
-		s.WriteRune(']')
-		return
 	case len(n.Args) == 1:
 		buildTypeNameString(n.Args[0], s)
 		s.WriteRune(' ')

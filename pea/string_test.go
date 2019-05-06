@@ -107,14 +107,6 @@ func TestString(t *testing.T) {
 			"#main [x: (String, Int) Map]",
 		},
 		{
-			"[do: f [Int, Float, String Array | String] | ]",
-			"#main [do: [Int, Float, String Array | String]]",
-		},
-		{
-			"[do: f [Int, Float, String Array] | ]",
-			"#main [do: [Int, Float, String Array]]",
-		},
-		{
 			"T [foo: t T | ]",
 			"#main T [foo: T]",
 		},

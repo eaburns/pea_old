@@ -266,23 +266,6 @@ TypeName <-
 	tv2:TypeVar {
 		return TypeName{location: tv2.location, Name: tv2.Text, Var: true}
 	} /
-	_ blk:(
-		"[" psp:TypeNameList? r:( _"|" r1:TypeName { return TypeName(r1) } )? _"]" {
-		name := "[]"
-		var ps []TypeName
-		if psp != nil {
-			ps = *psp
-		}
-		if r != nil {
-			name = "[|]"
-			ps = append(ps, *r)
-		}
-		return TypeName{
-			location: loc(parser, start, end),
-			Name: name,
-			Args: ps,
-		}
-	} ) { return TypeName(blk) } /
 	_ tn0:(
 		"(" ns1:TypeNameList _")" ns2:TName+ {
 		s := loc1(parser, start)

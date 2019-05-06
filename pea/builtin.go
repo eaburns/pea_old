@@ -28,13 +28,13 @@ func builtinDefs(wordSize int) []Def {
 			Parms: []Parm{
 				{
 					Type: &TypeName{
-						Name: "[|]",
+						Name: "Fun0",
 						Args: []TypeName{{Name: "R"}},
 					},
 				},
 				{
 					Type: &TypeName{
-						Name: "[|]",
+						Name: "Fun0",
 						Args: []TypeName{{Name: "R"}},
 					},
 				},
@@ -126,7 +126,6 @@ func builtinDefs(wordSize int) []Def {
 	}
 	for i := 0; i <= len(funTypeParms); i++ {
 		defs = append(defs, funDefs(i)...)
-		defs = append(defs, funAlias(i))
 	}
 	for _, prefix := range [...]string{"Uint", "Int"} {
 		for _, size := range [...]int{8, 16, 32, 64} {
@@ -142,10 +141,6 @@ func builtinDefs(wordSize int) []Def {
 var funTypeParms = [...]string{"T", "U", "V", "W", "X"}
 
 func funDefs(arity int) []Def {
-	ps := make([]Parm, 0, arity+1)
-	for i := 0; i < arity; i++ {
-		ps = append(ps, Parm{Type: &TypeName{Name: funTypeParms[i]}})
-	}
 	sel := "value"
 	if arity > 0 {
 		sel = ""
@@ -153,40 +148,27 @@ func funDefs(arity int) []Def {
 			sel += "value:"
 		}
 	}
-	return []Def{
-		&Type{Sig: *funSig(arity)},
-		&Fun{
-			Sel:   sel,
-			Recv:  funSig(arity),
-			Parms: ps,
-			Ret:   &TypeName{Name: "R"},
-		},
-	}
-}
 
-func funAlias(arity int) Def {
-	as := make([]TypeName, 0, arity+1)
-	for i := 0; i < arity; i++ {
-		as = append(as, TypeName{Name: funTypeParms[i]})
-	}
-	as = append(as, TypeName{Name: "Nil"})
-
-	aliasSig := funSig(arity)
-	aliasSig.Name = fmt.Sprintf("[]%d", arity)
-	aliasSig.Parms = aliasSig.Parms[:len(aliasSig.Parms)-1]
-	return &Type{
-		Sig:   *aliasSig,
-		Alias: &TypeName{Name: "[|]", Args: as},
-	}
-}
-
-func funSig(arity int) *TypeSig {
-	sig := &TypeSig{Name: fmt.Sprintf("[|]%d", arity)}
+	sig := &TypeSig{Name: fmt.Sprintf("Fun%d", arity)}
 	for i := 0; i < arity; i++ {
 		sig.Parms = append(sig.Parms, Parm{Name: funTypeParms[i]})
 	}
 	sig.Parms = append(sig.Parms, Parm{Name: "R"})
-	return sig
+
+	ps := make([]Parm, 0, arity+1)
+	for i := 0; i < arity; i++ {
+		ps = append(ps, Parm{Type: &TypeName{Name: funTypeParms[i]}})
+	}
+
+	return []Def{
+		&Type{Sig: *sig},
+		&Fun{
+			Sel:   sel,
+			Recv:  sig,
+			Parms: ps,
+			Ret:   &TypeName{Name: "R"},
+		},
+	}
 }
 
 func intDefs(t string) []Def {
