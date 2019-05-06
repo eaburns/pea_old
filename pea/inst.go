@@ -44,10 +44,12 @@ func instTypeSig(x *scope, sig TypeSig, typ TypeName) (_ TypeSig, errs []checkEr
 	defer x.tr("instTypeSig(%s, %s)", sig, typ)(errs)
 	ps := sig.Parms
 	if len(ps) != len(typ.Args) {
-		err := x.err(sig, "expected %d arguments, got %d", len(ps), len(typ.Args))
+		err := x.err(typ, "expected %d arguments, got %d", len(ps), len(typ.Args))
 		errs = append(errs, *err)
 		return sig, errs
 	}
+
+	// TODO: instTypeSig doesn't check type constraints.
 
 	sig.x = x
 	sig.Args = make(map[*Parm]TypeName)
