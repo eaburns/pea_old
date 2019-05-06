@@ -12,10 +12,11 @@ import (
 
 func TestInst(t *testing.T) {
 	tests := []struct {
-		name string
-		def  string
-		typ  string
-		want string
+		name  string
+		def   string
+		typ   string
+		want  string
+		trace bool
 	}{
 		{
 			name: "no type vars",
@@ -34,6 +35,12 @@ func TestInst(t *testing.T) {
 			def:  "(X, Y) Pair { x: X y: Y }",
 			typ:  "(Int, Float) Pair",
 			want: "Pair { x: Int y: Float }",
+		},
+		{
+			name: "alias",
+			def:  "T Block1 := (T, Nil) Fun1.",
+			typ:  "Int Block1",
+			want: "Block1 := (Int, Nil) Fun1.",
 		},
 		{
 			name: "enum",
@@ -99,7 +106,7 @@ func TestInst(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse expected def: %s", err)
 			}
-			got, errs := inst(mod, typ)
+			got, errs := inst(test.trace, mod, typ)
 			if len(errs) > 0 {
 				t.Fatalf("failed to inst: %v", convertErrors(errs))
 			}
@@ -116,8 +123,9 @@ func TestInst(t *testing.T) {
 	}
 }
 
-func inst(mod *Mod, typ TypeName) (Def, []checkError) {
+func inst(trace bool, mod *Mod, typ TypeName) (Def, []checkError) {
 	s := newState(mod)
+	s.trace = trace
 	x := &scope{state: s}
 
 	switch def := mod.Defs[0].(type) {

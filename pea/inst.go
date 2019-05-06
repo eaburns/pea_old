@@ -29,7 +29,7 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	}
 	switch {
 	case n.Alias != nil:
-		n.Alias = subTypeName(x, n.Sig.Args, *n.Alias)
+		n.Alias = subTypeName(n.Sig.x, n.Sig.Args, *n.Alias)
 	case n.Fields != nil:
 		n.Fields = subParms(n.Sig.x, n.Sig.Args, n.Fields)
 	case n.Cases != nil:
