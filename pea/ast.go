@@ -35,6 +35,7 @@ type Def interface {
 	// Mod returns the module path of the definition.
 	Mod() ModPath
 
+	kind() string // human-readable string describing definition type
 	addMod(ModPath) Def
 	setPriv(bool) Def
 	setStart(int) Def
@@ -56,6 +57,7 @@ type Import struct {
 }
 
 func (n *Import) Name() string { return n.Path }
+func (n *Import) kind() string { return "import" }
 
 // A Fun is a function or method definition.
 type Fun struct {
@@ -75,6 +77,13 @@ func (n *Fun) Name() string {
 		return n.Recv.String() + " " + n.Sel
 	}
 	return n.Sel
+}
+
+func (n *Fun) kind() string {
+	if n.Recv == nil {
+		return "function"
+	}
+	return "method"
 }
 
 // A Parm is a name and a type.
@@ -98,6 +107,8 @@ type Var struct {
 
 func (n *Var) Name() string { return n.Ident }
 
+func (n *Var) kind() string { return "variable" }
+
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
 	location
@@ -118,6 +129,8 @@ type TypeName struct {
 	Mod  *ModPath
 	Name string
 	Args []TypeName
+
+	Type *Type
 }
 
 // A Type defines a type.
@@ -158,6 +171,8 @@ type Type struct {
 }
 
 func (n *Type) Name() string { return n.Sig.Name }
+
+func (n *Type) kind() string { return "type" }
 
 // A MethSig is the signature of a method.
 type MethSig struct {

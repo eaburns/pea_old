@@ -181,11 +181,191 @@ func TestRedefError(t *testing.T) {
 	}
 }
 
+func TestCheckTypeAlias(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src: `
+				Abc := Int.
+				Def := Abc.
+				Ghi := Def.
+			`,
+			err: "",
+		},
+		{
+			name: "undefined",
+			src: `
+				Abc := Undef.
+			`,
+			err: "Undef is undefined",
+		},
+		{
+			name: "alias of bad type",
+			src: `
+				Abc := Def.
+				Def := Undef.
+			`,
+			err: "Undef is undefined",
+		},
+		{
+			name: "2-cycle",
+			src: `
+				Abc := Def.
+				Def := Abc.
+			`,
+			err: "type alias cycle",
+		},
+		{
+			name: "larger cycle",
+			src: `
+				Abc := Def.
+				Def := Ghi.
+				Ghi := Jkl.
+				Jkl := Mno.
+				Mno := Abc.
+			`,
+			err: "type alias cycle",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestCheckFields(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src:  "Point { x: Float y: Float }",
+			err:  "",
+		},
+		{
+			name: "undefined",
+			src:  "Point { x: Undef y: Float }",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "field redefined",
+			src:  "Point { x: Float x: Float }",
+			err:  "x redefined",
+		},
+		{
+			name: "non-type",
+			src: `
+				[ someFunc | ]
+				Point { x: someFunc }
+			`,
+			err: "got function, expected a type",
+		},
+		/* // TODO: test a built-in non-type error if there is ever a built-in that is not a type.
+		{
+			name: "built-in non-type",
+			src: `
+				Point { x: someBuiltin }
+			`,
+			err: "got function, expected a type",
+		},
+		*/
+		{
+			name: "imported non-type",
+			src: `
+				import "other"
+				Point { x: someFunc }
+			`,
+			mods: [][2]string{
+				{"other", "[ someFunc | ]"},
+			},
+			err: "got function, expected a type",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestCheckCases(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src:  "IntOpt { none, some: Int }",
+			err:  "",
+		},
+		{
+			name: "undefined",
+			src:  "UndefOpt { none, some: Undef }",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "typeless case redefined",
+			src:  "Opt { none, none }",
+			err:  "none redefined",
+		},
+		{
+			name: "typed case redefined",
+			src:  "Opt { some: Int, some: Int }",
+			err:  "some redefined",
+		},
+		{
+			name: "typed and typeless case redefined",
+			src:  "Opt { none, none: Int }",
+			err:  "none redefined",
+		},
+		{
+			name: "case capitalization redefined",
+			src:  "Opt { none, None }",
+			err:  "none redefined",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestCheckVirts(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src:  "Reader { [readInto: Byte Array ^Int64] }",
+			err:  "",
+		},
+		{
+			name: "undefined parameter type",
+			src:  "Reader { [readInto: Undef ^Int64] }",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "undefined return type",
+			src:  "Reader { [readInto: Byte Array ^Undef] }",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "method signature redefined",
+			src:  "IntSeq { [at: Int ^Int] [at: Int ^Int] }",
+			err:  "at: redefined",
+		},
+		{
+			name: "not redefined",
+			src: `
+				IntSeq {
+					[at ^Int]
+					[at: Int ^Int]
+					[at: Int at: Int ^Int]
+					[at: Int put: Int]
+				}
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 type checkTest struct {
 	name  string
 	src   string
 	mods  [][2]string
-	err   string // regexp, "" meants no error
+	err   string // regexp, "" means no error
 	trace bool
 }
 

@@ -35,6 +35,11 @@ func Check(mod *Mod, opts ...Opt) []error {
 		panic("impossible")
 	}
 	errs := collect(x, nil, []string{mod.Name}, mod)
+
+	for _, def := range mod.Defs {
+		errs = append(errs, checkDef(x, def)...)
+	}
+
 	return convertErrors(errs)
 }
 
@@ -44,16 +49,22 @@ type state struct {
 	wordSize int
 	importer func(string) (*Mod, error)
 
+	aliasPath   []*Type
+	onAliasPath map[*Type]bool
+	aliasCycles map[*Type]*checkError
+
 	trace bool
 	ident string
 }
 
 func newState(mod *Mod) *state {
 	return &state{
-		mod:      mod,
-		mods:     newModule(""),
-		importer: defaultImporter,
-		wordSize: 64,
+		mod:         mod,
+		mods:        newModule(""),
+		importer:    defaultImporter,
+		onAliasPath: make(map[*Type]bool),
+		aliasCycles: make(map[*Type]*checkError),
+		wordSize:    64,
 	}
 }
 
@@ -80,10 +91,26 @@ func newModule(name string) *module {
 	}
 }
 
-// add either adds the def and return nil
-// or a def with the same name already exists
-// and nothing is added and the previous def is returned.
-// The return is an imported, a builtin, or a Def.
+// The return is an imported, a builtin, a Def, or nil.
+func (t *module) find(path []string, name string) interface{} {
+	switch {
+	case t == nil:
+		return nil
+	case len(path) == 0:
+		return t.defs[name]
+	case t.kids[path[0]] == nil:
+		return nil
+	default:
+		def := t.kids[path[0]].find(path[1:], name)
+		if def == nil {
+			return t.defs[name]
+		}
+		return def
+	}
+}
+
+// add either adds the def and return nil or returns the previous def.
+// The return is an imported, a builtin, a Def, or nil.
 func (t *module) add(path []string, def Def) interface{} {
 	if len(path) == 0 {
 		switch prev := t.defs[def.Name()].(type) {
@@ -179,7 +206,7 @@ func defName(def Def) string {
 }
 
 func importMod(x *scope, n *Import) (m *Mod, err *checkError) {
-	x.tr("importMod(%s)", n.Path)(err)
+	defer x.tr("importMod(%s)", n.Path)(err)
 	for _, m = range x.mod.Imports {
 		if m.Name == n.Path {
 			x.log("returning previously imported module")
@@ -220,25 +247,269 @@ func defaultImporter(path string) (*Mod, error) {
 	return p.Mod(), nil
 }
 
+func checkDef(x *scope, def Def) (errs []checkError) {
+	defer x.tr("checkDef(%s)", defName(def))(&errs)
+	x = &scope{state: x.state, parent: x, def: def}
+	switch def := def.(type) {
+	case *Import:
+		return nil
+	case *Fun:
+		// TODO: checkDef(*Fun) is unimplemented.
+	case *Var:
+		// TODO: checkDef(*Var) is unimplemented.
+	case *Type:
+		return checkType(x, def)
+	default:
+		panic(fmt.Sprintf("impossible Def type %T", def))
+	}
+	return errs
+}
+
+func checkType(x *scope, typ *Type) (errs []checkError) {
+	defer x.tr("checkType(%s)", typ)(&errs)
+	// We don't check ModPath. Def ModPaths are defining; they needn't be resolved.
+
+	if len(typ.Sig.Parms) > 0 {
+		// TODO: checkType for parameterized types is unimplemented.
+		// We should create stub type arguments, instantiate the type,
+		// then check the instance.
+		return nil
+	}
+
+	// TODO: checkType Type.Sig is unimplemented.
+	switch {
+	case typ.Alias != nil:
+		if err := checkAliasType(x, typ); err != nil {
+			return append(errs, *err)
+		}
+	case typ.Fields != nil:
+		if es := checkFields(x, typ.Fields); len(es) > 0 {
+			return append(errs, es...)
+		}
+	case typ.Cases != nil:
+		if es := checkCases(x, typ.Cases); len(es) > 0 {
+			return append(errs, es...)
+		}
+	case typ.Virts != nil:
+		if es := checkVirts(x, typ.Virts); len(es) > 0 {
+			return append(errs, es...)
+		}
+	}
+	return nil
+}
+
+func checkAliasType(x *scope, typ *Type) (err *checkError) {
+	defer x.tr("checkAliasType(%s)", typ)(&err)
+	if _, ok := x.aliasCycles[typ]; ok {
+		// This alias is already found to be on a cycle.
+		// The error is returned at the root of the cycle.
+		return nil
+	}
+	if x.onAliasPath[typ] {
+		markAliasCycle(x, x.aliasPath, typ)
+		// The error is returned at the root of the cycle.
+		return nil
+	}
+
+	x.onAliasPath[typ] = true
+	x.aliasPath = append(x.aliasPath, typ)
+	defer func() {
+		delete(x.onAliasPath, typ)
+		x.aliasPath = x.aliasPath[:len(x.aliasPath)-1]
+	}()
+
+	if err = checkTypeName(x, typ.Alias); err != nil {
+		return err
+	}
+	// checkTypeName can make a recursive call to checkAliasType.
+	// In the case of an alias cycle, that call would have added the error
+	// to the aliasCycles map for the root alias definition.
+	// We return any such error here.
+	return x.aliasCycles[typ]
+}
+
+func markAliasCycle(x *scope, path []*Type, alias *Type) {
+	err := x.err(alias, "type alias cycle")
+	i := len(x.aliasPath) - 1
+	for x.aliasPath[i] != alias {
+		i--
+	}
+	for ; i < len(x.aliasPath); i++ {
+		note(err, "%s at %s", defName(x.aliasPath[i]), x.loc(x.aliasPath[i]))
+		// We only want to report the cycle error for one definition.
+		// Mark all other nodes on the cycle with a nil error.
+		x.aliasCycles[x.aliasPath[i]] = nil
+	}
+	note(err, "%s at %s", defName(alias), x.loc(alias))
+	x.aliasCycles[alias] = err
+}
+
+func checkFields(x *scope, ps []Parm) (errs []checkError) {
+	defer x.tr("checkFields(…)")(&errs)
+	seen := make(map[string]*Parm)
+	for i := range ps {
+		p := &ps[i]
+		if prev := seen[p.Name]; prev != nil {
+			err := x.err(p, "field %s redefined", p.Name)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[p.Name] = p
+		}
+		if err := checkTypeName(x, p.Type); err != nil {
+			errs = append(errs, *err)
+		}
+	}
+	return errs
+}
+
+func checkCases(x *scope, ps []Parm) (errs []checkError) {
+	defer x.tr("checkCases(…)")(&errs)
+	seen := make(map[string]*Parm)
+	for i := range ps {
+		p := &ps[i]
+		lower := strings.ToLower(p.Name)
+		if prev := seen[lower]; prev != nil {
+			err := x.err(p, "case %s redefined", lower)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[lower] = p
+		}
+		if p.Type != nil {
+			if err := checkTypeName(x, p.Type); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+	}
+	return errs
+}
+
+func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
+	defer x.tr("checkVirts(…)")(&errs)
+	seen := make(map[string]*MethSig)
+	for i := range sigs {
+		sig := &sigs[i]
+		if prev, ok := seen[sig.Sel]; ok {
+			err := x.err(sig, "virtual method %s redefined", sig.Sel)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[sig.Sel] = sig
+		}
+		for j := range sig.Parms {
+			if err := checkTypeName(x, &sig.Parms[j]); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+		if sig.Ret != nil {
+			if err := checkTypeName(x, sig.Ret); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+	}
+	return errs
+}
+
+func checkTypeName(x *scope, name *TypeName) (err *checkError) {
+	defer x.tr("checkTypeName(%s)", name)(err)
+
+	if name.Mod == nil {
+		name.Mod = x.modPath()
+	}
+	if err := checkModPath(x, name.Mod); err != nil {
+		return err
+	}
+
+	var def Def
+	path := append([]string{name.Mod.Root}, name.Mod.Path...)
+	defOrImport := x.mods.find(path, name.Name)
+	switch d := defOrImport.(type) {
+	case builtin:
+		def = d.Def
+	case imported:
+		def = d.Def
+	case Def:
+		def = d
+	case nil:
+		return x.err(name, "type %s is undefined", name)
+	}
+
+	typ, ok := def.(*Type)
+	if !ok {
+		err = x.err(name, "got %s, expected a type", def.kind())
+		switch d := defOrImport.(type) {
+		case imported:
+			note(err, "%s is imported at %s", defName(def), x.loc(d.imp))
+		case builtin:
+			note(err, "%s is a built-in definition", defName(def))
+		default:
+			note(err, "%s defined at %s", defName(def), x.loc(def))
+		}
+		return err
+	}
+
+	if len(typ.Sig.Parms) > 0 {
+		var es []checkError
+		if typ, es = typ.inst(x, *name); len(es) > 0 {
+			err = x.err(name, "cannot be instantiated")
+			err.cause = es
+			return err
+		}
+	}
+
+	if typ.Alias != nil {
+		if checkAliasType(x, typ) != nil {
+			// Return nil, because the error is reported
+			// by the call to checkAliasType from its definition.
+			return nil
+		}
+		name.Type = typ.Alias.Type
+	} else {
+		name.Type = typ
+	}
+	return nil
+}
+
+func checkModPath(x *scope, mp *ModPath) (err *checkError) {
+	defer x.tr("checkModPath(%s)", mp)(&err)
+	// TODO: checkModPath is unimplemented.
+	return err
+}
+
 type scope struct {
 	*state
 	parent *scope
-	name   string
-	node   Node
+	def    Def
+	node   Node   // If non-nil, name is the name identifier name for this node.
+	name   string // only valid if node is non-nil
 }
 
 func (x *scope) find(s string) Node {
-	if x.name == s {
-		return x.node
-	}
-	if x.parent == nil {
+	switch {
+	case x == nil:
 		return nil
+	case x.node != nil && x.name == s:
+		return x.node
+	default:
+		return x.parent.find(s)
 	}
-	return x.parent.find(s)
 }
 
 func (x *scope) push(s string, n Node) *scope {
 	return &scope{state: x.state, parent: x, name: s, node: n}
+}
+
+func (x *scope) modPath() *ModPath {
+	switch {
+	case x == nil:
+		return nil
+	case x.def != nil:
+		mp := x.def.Mod()
+		return &mp
+	default:
+		return x.parent.modPath()
+	}
 }
 
 type checkError struct {
@@ -316,8 +587,9 @@ func sortErrors(errs []checkError) []checkError {
 	return dedup
 }
 
-// If non-empty, only the first element of vs is used.
-// It must be either a slice of types convertable to error,
+// The argument to the returned function,
+// if non-empty, only the first element of vs is used.
+// It must be a either pointer to a slice of types convertable to error,
 // or a pointer to a type convertable to error.
 func (x *scope) tr(f string, vs ...interface{}) func(...interface{}) {
 	if !x.trace {
@@ -327,21 +599,15 @@ func (x *scope) tr(f string, vs ...interface{}) func(...interface{}) {
 	olddent := x.ident
 	x.ident += "---"
 	return func(errs ...interface{}) {
+		defer func() { x.ident = olddent }()
 		if len(errs) == 0 {
-			x.ident = olddent
 			return
 		}
-		switch v := reflect.ValueOf(errs[0]); v.Kind() {
-		case reflect.Slice:
-			if v.Len() > 0 {
-				x.log(v.Index(0).Interface().(error).Error())
-			}
-		case reflect.Ptr:
-			if !v.IsNil() {
-				x.log(v.Elem().Interface().(error).Error())
-			}
+		v := reflect.ValueOf(errs[0])
+		if v.IsNil() || v.Elem().Kind() == reflect.Slice && v.Elem().Len() == 0 {
+			return
 		}
-		x.ident = olddent
+		x.log("%v", v.Elem().Interface())
 	}
 }
 
