@@ -417,9 +417,6 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	if name.Mod == nil {
 		name.Mod = x.modPath()
 	}
-	if err := checkModPath(x, name.Mod); err != nil {
-		return err
-	}
 
 	var def Def
 	path := append([]string{name.Mod.Root}, name.Mod.Path...)
@@ -475,12 +472,6 @@ func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
 	case Def:
 		note(err, "%s defined at %s", defName(d), x.loc(d))
 	}
-}
-
-func checkModPath(x *scope, mp *ModPath) (err *checkError) {
-	defer x.tr("checkModPath(%s)", mp)(&err)
-	// TODO: checkModPath is unimplemented.
-	return err
 }
 
 type scope struct {
