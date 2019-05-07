@@ -438,21 +438,14 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	typ, ok := def.(*Type)
 	if !ok {
 		err = x.err(name, "got %s, expected a type", def.kind())
-		switch d := defOrImport.(type) {
-		case imported:
-			note(err, "%s is imported at %s", defName(def), x.loc(d.imp))
-		case builtin:
-			note(err, "%s is a built-in definition", defName(def))
-		default:
-			note(err, "%s defined at %s", defName(def), x.loc(def))
-		}
+		addDefNotes(err, x, defOrImport)
 		return err
 	}
 
 	if len(typ.Sig.Parms) > 0 {
 		var es []checkError
 		if typ, es = typ.inst(x, *name); len(es) > 0 {
-			err = x.err(name, "cannot be instantiated")
+			err = x.err(name, "%s cannot be instantiated", name)
 			err.cause = es
 			return err
 		}
@@ -469,6 +462,19 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 		name.Type = typ
 	}
 	return nil
+}
+
+func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
+	switch d := defOrImport.(type) {
+	case nil:
+		break // shouldn't happen, but whatever.
+	case imported:
+		note(err, "%s is imported at %s", defName(d), x.loc(d.imp))
+	case builtin:
+		note(err, "%s is a built-in definition", defName(d))
+	case Def:
+		note(err, "%s defined at %s", defName(d), x.loc(d))
+	}
 }
 
 func checkModPath(x *scope, mp *ModPath) (err *checkError) {

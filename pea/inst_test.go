@@ -10,6 +10,38 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+func TestCheckInstErrors(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "arg count mismatch",
+			src: `
+				(X, Y, Z) Tuple { x: X y: Y z: Z }
+				Bad := (Int, String) Tuple.
+			`,
+			err: "argument count mismatch",
+		},
+		{
+			name: "imported type arg count mismatch",
+			src: `
+				import "tuple"
+				Bad := (Int, String) Tuple.
+			`,
+			mods: [][2]string{
+				{"tuple", "(X, Y, Z) Tuple { x: X y: Y z: Z }"},
+			},
+			err: "argument count mismatch",
+		},
+		{
+			name: "built-in type arg count mismatch",
+			src:  "Bad := Array.",
+			err:  "argument count mismatch",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestInst(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -37,6 +69,15 @@ func TestInst(t *testing.T) {
 			want: "Pair { x: Int y: Float }",
 		},
 		{
+			name: "sub type constraint",
+			def:  "(X, Y X Container) Foo { x: X y: Y }",
+			typ:  "(Int, IntArray) Foo",
+			// We don't see the substitution,
+			// since the instantiated Args
+			// aren't written in the string output.
+			want: "Foo { x: Int y: IntArray }",
+		},
+		{
 			name: "alias",
 			def:  "T Block1 := (T, Nil) Fun1.",
 			typ:  "Int Block1",
@@ -55,7 +96,7 @@ func TestInst(t *testing.T) {
 			want: "Virt { [ x: Int Array ^String ] [ foo ] }",
 		},
 		{
-			name: "fun sig",
+			name: "meth sig",
 			def:  "(X, Y) Pair (T Y Key) [ foo: x X bar: y Y ^(X, Y) Pair List | ]",
 			typ:  "(Int Array, String) Pair",
 			want: "Pair (T String Key) [ foo: x Int Array bar: y String ^(Int Array, String) Pair List | ]",

@@ -7,7 +7,7 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 	if n.Recv == nil {
 		return &n, nil
 	}
-	sig, errs := instTypeSig(x, *n.Recv, typ)
+	sig, errs := instTypeSig(x, &n, *n.Recv, typ)
 	if len(errs) > 0 {
 		return &n, errs
 	}
@@ -23,7 +23,7 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 
 func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	defer x.tr("Type.inst(%s, %s)", n.Name(), typ)(errs)
-	n.Sig, errs = instTypeSig(x, n.Sig, typ)
+	n.Sig, errs = instTypeSig(x, &n, n.Sig, typ)
 	if len(errs) != 0 {
 		return &n, errs
 	}
@@ -40,11 +40,14 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	return &n, nil
 }
 
-func instTypeSig(x *scope, sig TypeSig, typ TypeName) (_ TypeSig, errs []checkError) {
-	defer x.tr("instTypeSig(%s, %s)", sig, typ)(errs)
+func instTypeSig(x *scope, def Def, sig TypeSig, name TypeName) (_ TypeSig, errs []checkError) {
+	defer x.tr("instTypeSig(%s, %s)", sig, name)(errs)
 	ps := sig.Parms
-	if len(ps) != len(typ.Args) {
-		err := x.err(typ, "expected %d arguments, got %d", len(ps), len(typ.Args))
+	if len(ps) != len(name.Args) {
+		err := x.err(name, "argument count mismatch: got %d, expected %d",
+			len(name.Args), len(ps))
+		path := append([]string{name.Mod.Root}, name.Mod.Path...)
+		addDefNotes(err, x, x.mods.find(path, name.Name))
 		errs = append(errs, *err)
 		return sig, errs
 	}
@@ -61,7 +64,7 @@ func instTypeSig(x *scope, sig TypeSig, typ TypeName) (_ TypeSig, errs []checkEr
 			p.Type = subTypeName(x, sig.Args, *p.Type)
 		}
 		sig.x = sig.x.push(p.Name, p)
-		sig.Args[p] = typ.Args[i]
+		sig.Args[p] = name.Args[i]
 	}
 	return sig, nil
 }
