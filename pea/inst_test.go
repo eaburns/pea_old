@@ -179,6 +179,88 @@ func inst(trace bool, mod *Mod, typ TypeName) (Def, []checkError) {
 	}
 }
 
+func TestMemoizeMethInst(t *testing.T) {
+	mod, err := parseMod("T Array [ foo: _ T | ]")
+	if err != nil {
+		t.Fatalf("parseMod(…)=%v, want nil", err)
+	}
+	intArrayName, err := parseTypeName("Int Array")
+	if err != nil {
+		t.Fatalf("parseTypeName(Int Array)=%v, want nil", err)
+	}
+	stringArrayName, err := parseTypeName("String Array")
+	if err != nil {
+		t.Fatalf("parseTypeName(String Array)=%v, want nil", err)
+	}
+
+	fun := mod.Defs[0].(*Fun)
+	x := &scope{state: newState(mod)}
+
+	intArray0, errs := fun.instRecv(x, intArrayName)
+	if len(errs) > 0 {
+		t.Fatalf("inst(Int Array)=%v, want nil", errs)
+	}
+	stringArray, errs := fun.instRecv(x, stringArrayName)
+	if len(errs) > 0 {
+		t.Fatalf("inst(String Array)=%v, want nil", errs)
+	}
+	intArray1, errs := fun.instRecv(x, intArrayName)
+	if len(errs) > 0 {
+		t.Fatalf("inst(Int Array)=%v, want nil", errs)
+	}
+
+	if intArray0 != intArray1 {
+		t.Error("intArray0 != intArray1")
+	}
+	if intArray0 == stringArray {
+		t.Error("intArray0 == stringArray")
+	}
+	if intArray1 == stringArray {
+		t.Error("intArray1 == stringArray")
+	}
+}
+
+func TestMemoizeTypeInst(t *testing.T) {
+	mod, err := parseMod("X List { x: X }")
+	if err != nil {
+		t.Fatalf("parseMod(…)=%v, want nil", err)
+	}
+	intArrayName, err := parseTypeName("Int Array")
+	if err != nil {
+		t.Fatalf("parseTypeName(Int Array)=%v, want nil", err)
+	}
+	stringArrayName, err := parseTypeName("String Array")
+	if err != nil {
+		t.Fatalf("parseTypeName(String Array)=%v, want nil", err)
+	}
+
+	typ := mod.Defs[0].(*Type)
+	x := &scope{state: newState(mod)}
+
+	intArray0, errs := typ.inst(x, intArrayName)
+	if len(errs) > 0 {
+		t.Fatalf("inst(Int Array)=%v, want nil", errs)
+	}
+	stringArray, errs := typ.inst(x, stringArrayName)
+	if len(errs) > 0 {
+		t.Fatalf("inst(String Array)=%v, want nil", errs)
+	}
+	intArray1, errs := typ.inst(x, intArrayName)
+	if len(errs) > 0 {
+		t.Fatalf("inst(Int Array)=%v, want nil", errs)
+	}
+
+	if intArray0 != intArray1 {
+		t.Error("intArray0 != intArray1")
+	}
+	if intArray0 == stringArray {
+		t.Error("intArray0 == stringArray")
+	}
+	if intArray1 == stringArray {
+		t.Error("intArray1 == stringArray")
+	}
+}
+
 func parseMod(str string) (*Mod, error) {
 	p := NewParser("#test")
 	if err := p.Parse("", strings.NewReader(str)); err != nil {

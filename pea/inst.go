@@ -7,8 +7,19 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 	if n.Recv == nil {
 		return &n, nil
 	}
+
+	switch funOrErrs := x.methInsts[typ.String()].(type) {
+	case nil:
+		break
+	case *Fun:
+		return funOrErrs, nil
+	case []checkError:
+		return nil, funOrErrs
+	}
+
 	sig, errs := instTypeSig(x, &n, *n.Recv, typ)
 	if len(errs) > 0 {
+		x.methInsts[typ.String()] = errs
 		return &n, errs
 	}
 	n.Recv = &sig
@@ -18,13 +29,25 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 		n.Ret = subTypeName(n.Recv.x, n.Recv.Args, *n.Ret)
 	}
 	n.Stmts = subStmts(n.Recv.x, n.Recv.Args, n.Stmts)
+	x.methInsts[typ.String()] = &n
 	return &n, nil
 }
 
 func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	defer x.tr("Type.inst(%s, %s)", n.Name(), typ)(errs)
+
+	switch typeOrErrs := x.typeInsts[typ.String()].(type) {
+	case nil:
+		break
+	case *Type:
+		return typeOrErrs, nil
+	case []checkError:
+		return nil, typeOrErrs
+	}
+
 	n.Sig, errs = instTypeSig(x, &n, n.Sig, typ)
 	if len(errs) != 0 {
+		x.typeInsts[typ.String()] = errs
 		return &n, errs
 	}
 	switch {
@@ -37,6 +60,7 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	case n.Virts != nil:
 		n.Virts = subMethSigs(n.Sig.x, n.Sig.Args, n.Virts)
 	}
+	x.typeInsts[typ.String()] = &n
 	return &n, nil
 }
 

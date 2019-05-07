@@ -53,6 +53,9 @@ type state struct {
 	onAliasPath map[*Type]bool
 	aliasCycles map[*Type]*checkError
 
+	methInsts map[string]interface{}
+	typeInsts map[string]interface{}
+
 	trace bool
 	ident string
 }
@@ -64,6 +67,8 @@ func newState(mod *Mod) *state {
 		importer:    defaultImporter,
 		onAliasPath: make(map[*Type]bool),
 		aliasCycles: make(map[*Type]*checkError),
+		methInsts:   make(map[string]interface{}),
+		typeInsts:   make(map[string]interface{}),
 		wordSize:    64,
 	}
 }
