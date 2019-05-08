@@ -257,9 +257,9 @@ func checkDef(x *scope, def Def) (errs []checkError) {
 	x = &scope{state: x.state, parent: x, def: def}
 	switch def := def.(type) {
 	case *Import:
-		return nil
+		return nil // handled elsewhere
 	case *Fun:
-		// TODO: checkDef(*Fun) is unimplemented.
+		return checkFun(x, def)
 	case *Var:
 		// TODO: checkDef(*Var) is unimplemented.
 	case *Type:
@@ -270,10 +270,53 @@ func checkDef(x *scope, def Def) (errs []checkError) {
 	return errs
 }
 
+func checkFun(x *scope, fun *Fun) (errs []checkError) {
+	defer x.tr("checkFun(%s)", fun)(&errs)
+	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
+		// TODO: checkFun for parameterized receivers is unimplemented.
+		// We should create stub type arguments, instantiate the fun,
+		// then check the instance.
+		return nil
+	}
+	if len(fun.TypeParms) > 0 {
+		// TODO: checkFun for parameterized funs is unimplemented.
+		// We should create stub type arguments, instantiate the fun,
+		// then check the instance.
+		return nil
+	}
+
+	// TODO: checkFun checking Fun.Recv is unimplemented.
+
+	seen := make(map[string]*Parm)
+	for i := range fun.Parms {
+		p := &fun.Parms[i]
+		switch prev := seen[p.Name]; {
+		case prev != nil:
+			err := x.err(p, "parameter %s is redefined", p.Name)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+		case p.Name == "_":
+			break
+		default:
+			seen[p.Name] = p
+		}
+		if err := checkTypeName(x, p.Type); err != nil {
+			errs = append(errs, *err)
+		}
+	}
+	if fun.Ret != nil {
+		if err := checkTypeName(x, fun.Ret); err != nil {
+			errs = append(errs, *err)
+		}
+	}
+
+	// TODO: checkFun checking statements is unimplemented.
+
+	return errs
+}
+
 func checkType(x *scope, typ *Type) (errs []checkError) {
 	defer x.tr("checkType(%s)", typ)(&errs)
-	// We don't check ModPath. Def ModPaths are defining; they needn't be resolved.
-
 	if len(typ.Sig.Parms) > 0 {
 		// TODO: checkType for parameterized types is unimplemented.
 		// We should create stub type arguments, instantiate the type,

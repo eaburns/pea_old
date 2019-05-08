@@ -181,6 +181,34 @@ func TestRedefError(t *testing.T) {
 	}
 }
 
+func TestCheckFun(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "redefined param",
+			src:  "[foo: x Int bar: x Int |]",
+			err:  "x is redefined",
+		},
+		{
+			name: "_ is not redefined",
+			src:  "[foo: _ Int bar: _ Int |]",
+			err:  "",
+		},
+		{
+			name: "bad parameter type",
+			src:  "[foo: _ Undef |]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "bad return type",
+			src:  "[foo ^Undef |]",
+			err:  "Undef is undefined",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestCheckTypeAlias(t *testing.T) {
 	tests := []checkTest{
 		{
