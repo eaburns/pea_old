@@ -203,6 +203,58 @@ func TestCheckFun(t *testing.T) {
 			src:  "[foo ^Undef |]",
 			err:  "Undef is undefined",
 		},
+		{
+			name: "undef recv type",
+			src:  "Undef [foo |]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "non-type receiver",
+			src: `
+				Var [foo |]
+				Var := [5]
+			`,
+			err: "got variable, expected a type",
+		},
+		{
+			name: "undef recv type constraint",
+			src:  "(T Undef) Array [foo |]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "non-type recv type constraint",
+			src: `
+				(X Var) Array [foo |]
+				Var := [5]
+			`,
+			err: "got variable, expected a type",
+		},
+		{
+			name: "bad recv param count",
+			src:  "(T, U) Array [foo |]",
+			err:  "parameter count mismatch",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestCheckTypeSig(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "undef constraint",
+			src:  "(T Undef) Foo { x: T }",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "non-type constraint",
+			src: `
+				(T Var) Foo { x: T }
+				Var := [5]
+			`,
+			err: "got variable, expected a type",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

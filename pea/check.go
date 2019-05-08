@@ -272,20 +272,23 @@ func checkDef(x *scope, def Def) (errs []checkError) {
 
 func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	defer x.tr("checkFun(%s)", fun)(&errs)
-	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
-		// TODO: checkFun for parameterized receivers is unimplemented.
-		// We should create stub type arguments, instantiate the fun,
-		// then check the instance.
-		return nil
+
+	if fun.Recv != nil {
+		errs = append(errs, checkRecvSig(x, fun.Mod(), fun.Recv)...)
+
+		if len(fun.Recv.Parms) > 0 {
+			// TODO: checkFun for param receivers is only partially implemented.
+			// We should create stub type arguments, instantiate the fun,
+			// then check the instance.
+			return errs
+		}
 	}
 	if len(fun.TypeParms) > 0 {
 		// TODO: checkFun for parameterized funs is unimplemented.
 		// We should create stub type arguments, instantiate the fun,
 		// then check the instance.
-		return nil
+		return errs
 	}
-
-	// TODO: checkFun checking Fun.Recv is unimplemented.
 
 	seen := make(map[string]*Parm)
 	for i := range fun.Parms {
@@ -315,35 +318,87 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	return errs
 }
 
-func checkType(x *scope, typ *Type) (errs []checkError) {
-	defer x.tr("checkType(%s)", typ)(&errs)
-	if len(typ.Sig.Parms) > 0 {
-		// TODO: checkType for parameterized types is unimplemented.
-		// We should create stub type arguments, instantiate the type,
-		// then check the instance.
-		return nil
+func checkRecvSig(x *scope, mod ModPath, sig *TypeSig) (errs []checkError) {
+	defer x.tr("checkTypeSig(%s)", sig)(&errs)
+
+	var def Def
+	path := append([]string{mod.Root}, mod.Path...)
+	defOrImport := x.mods.find(path, sig.Name)
+	switch d := defOrImport.(type) {
+	case builtin:
+		def = d.Def
+	case imported:
+		def = d.Def
+	case Def:
+		def = d
+	case nil:
+		err := x.err(sig, "type %s is undefined", sig.Name)
+		errs = append(errs, *err)
 	}
 
-	// TODO: checkType Type.Sig is unimplemented.
+	var typ *Type
+	if def != nil {
+		var ok bool
+		if typ, ok = def.(*Type); !ok {
+			err := x.err(sig, "got %s, expected a type", def.kind())
+			addDefNotes(err, x, defOrImport)
+			errs = append(errs, *err)
+		}
+	}
+
+	if typ != nil {
+		if len(sig.Parms) != len(typ.Sig.Parms) {
+			err := x.err(sig, "parameter count mismatch: got %d, expected %d",
+				len(sig.Parms), len(typ.Sig.Parms))
+			addDefNotes(err, x, defOrImport)
+			errs = append(errs, *err)
+		}
+	}
+
+	for i := range sig.Parms {
+		p := &sig.Parms[i]
+		if p.Type == nil {
+			continue
+		}
+		if err := checkTypeName(x, p.Type); err != nil {
+			errs = append(errs, *err)
+		}
+	}
+	return errs
+}
+
+func checkType(x *scope, typ *Type) (errs []checkError) {
+	defer x.tr("checkType(%s)", typ)(&errs)
+
+	if len(typ.Sig.Parms) > 0 {
+		for i := range typ.Sig.Parms {
+			p := &typ.Sig.Parms[i]
+			if p.Type == nil {
+				continue
+			}
+			if err := checkTypeName(x, p.Type); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+		// TODO: checkType for param types is only partially implemented.
+		// We should create stub type arguments, instantiate the type,
+		// then check the instance.
+		return errs
+	}
+
 	switch {
 	case typ.Alias != nil:
 		if err := checkAliasType(x, typ); err != nil {
-			return append(errs, *err)
+			errs = append(errs, *err)
 		}
 	case typ.Fields != nil:
-		if es := checkFields(x, typ.Fields); len(es) > 0 {
-			return append(errs, es...)
-		}
+		errs = append(errs, checkFields(x, typ.Fields)...)
 	case typ.Cases != nil:
-		if es := checkCases(x, typ.Cases); len(es) > 0 {
-			return append(errs, es...)
-		}
+		errs = append(errs, checkCases(x, typ.Cases)...)
 	case typ.Virts != nil:
-		if es := checkVirts(x, typ.Virts); len(es) > 0 {
-			return append(errs, es...)
-		}
+		errs = append(errs, checkVirts(x, typ.Virts)...)
 	}
-	return nil
+	return errs
 }
 
 func checkAliasType(x *scope, typ *Type) (err *checkError) {
@@ -351,12 +406,12 @@ func checkAliasType(x *scope, typ *Type) (err *checkError) {
 	if _, ok := x.aliasCycles[typ]; ok {
 		// This alias is already found to be on a cycle.
 		// The error is returned at the root of the cycle.
-		return nil
+		return err
 	}
 	if x.onAliasPath[typ] {
 		markAliasCycle(x, x.aliasPath, typ)
 		// The error is returned at the root of the cycle.
-		return nil
+		return err
 	}
 
 	x.onAliasPath[typ] = true
