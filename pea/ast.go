@@ -72,6 +72,7 @@ type Fun struct {
 	Stmts     []Stmt
 
 	RecvType *Type
+	Locals   []*Parm
 }
 
 func (n *Fun) Name() string {
@@ -185,7 +186,9 @@ type MethSig struct {
 }
 
 // A Stmt is a statement.
-type Stmt interface{}
+type Stmt interface {
+	Node
+}
 
 // A Ret is a return statement.
 type Ret struct {
@@ -198,17 +201,20 @@ func (n *Ret) End() int   { return n.Val.End() }
 
 // An Assign is an assignment statement.
 type Assign struct {
-	Var []Parm // types may be nil
-	Val Expr
+	// Vars are the target of assignment.
+	// After type checking, these refer to the defining Param,
+	// either a local variable or Fun/Block parameter.
+	Vars []*Parm // types may be nil before successful Check()
+	Val  Expr
 }
 
-func (n *Assign) Start() int { return n.Var[0].Start() }
+func (n *Assign) Start() int { return n.Vars[0].Start() }
 func (n *Assign) End() int   { return n.Val.End() }
 
 // An Expr is an expression
 type Expr interface {
-	Start() int
-	End() int
+	Node
+	ExprType() *Type
 
 	sub(*scope, map[*Parm]TypeName) Expr
 }
@@ -218,13 +224,19 @@ type Call struct {
 	location
 	Recv Node // Expr, ModPath, or nil
 	Msgs []Msg
+
+	Type *Type
 }
+
+func (n Call) ExprType() *Type { return n.Type }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
 	location
 	Sel  string
 	Args []Expr
+
+	Type *Type
 }
 
 // A Ctor type constructor literal.
@@ -234,12 +246,19 @@ type Ctor struct {
 	Args []Expr
 }
 
+func (n Ctor) ExprType() *Type { return n.Type.Type }
+
 // A Block is a block literal.
 type Block struct {
 	location
 	Parms []Parm // if type is nil, it must be inferred
 	Stmts []Stmt
+
+	Locals []*Parm
+	Type   *Type
 }
+
+func (n Block) ExprType() *Type { return n.Type }
 
 // A ModPath is a module name.
 type ModPath struct {
@@ -254,30 +273,50 @@ func (n ModPath) Mod() ModPath { return n }
 type Ident struct {
 	location
 	Text string
+
+	Type *Type
 }
+
+func (n Ident) ExprType() *Type { return n.Type }
 
 // An Int is an integer literal.
 type Int struct {
 	location
 	Text string
+
+	Type *Type
 }
+
+func (n Int) ExprType() *Type { return n.Type }
 
 // A Float is a floating point literal.
 type Float struct {
 	location
 	Text string
+
+	Type *Type
 }
+
+func (n Float) ExprType() *Type { return n.Type }
 
 // A Rune is a rune literal.
 type Rune struct {
 	location
 	Text string
 	Rune rune
+
+	Type *Type
 }
+
+func (n Rune) ExprType() *Type { return n.Type }
 
 // A String is a string literal.
 type String struct {
 	location
 	Text string
 	Data string
+
+	Type *Type
 }
+
+func (n String) ExprType() *Type { return n.Type }

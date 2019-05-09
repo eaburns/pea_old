@@ -172,8 +172,7 @@ func TestRedefError(t *testing.T) {
 				Foo { [bar ^Int] }
 				Foo [bar ^Int | ^ 1]
 			`,
-			err:   "method bar is redefined",
-			trace: true,
+			err: "method bar is redefined",
 		},
 		{
 			name: "multiple redefs",
@@ -443,6 +442,83 @@ func TestCheckVirts(t *testing.T) {
 				}
 			`,
 			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestRet(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src:  "[ foo ^Int | ^5 ]",
+			err:  "",
+		},
+		/*
+			// TODO: test bad return expression when expression checking is implemented.
+			{
+				name: "bad expression",
+				src:  "[ foo ^Int | ^{ Undef | } ]",
+				err:  "Undef is undefined",
+			},
+			// TODO: test return outside of a method error when Var checking is implemented.
+			{
+				name: "outside method",
+				src:  "x := [ ^12 ]",
+				err:  "return outside of a method",
+			},
+		*/
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestAssign(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src: `
+				[ foo: x Int |
+					w := 3.1415.
+					x := 5.
+					y String := "".
+					z Byte Array := {Byte Array | 1}.
+					a, b Int, c := 5 neg, neg, neg.
+				]`,
+			err: "",
+		},
+		{
+			name: "bad type",
+			src:  "[ foo | x Undef := `` ]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "param redef",
+			src:  "[ foo: x Int | x String := `` ]",
+			err:  "x is redefined",
+		},
+		{
+			name: "local redef",
+			src:  "[ foo | x String := ``. x Int := 5 ]",
+			err:  "x is redefined",
+		},
+		{
+			name: "too few vals",
+			src:  "[ foo | x, y := 5 ]",
+			err:  "assignment count mismatch: got 1, expected 2",
+		},
+		{
+			name: "too many vals",
+			src:  "[ foo | x, y := 5 neg, neg, neg ]",
+			err:  "assignment count mismatch: got 3, expected 2",
+		},
+		{
+			name: "assign mismatch still checks type names",
+			src:  "[ foo | x, y Undef := 5 ]",
+			err:  "Undef is undefined",
 		},
 	}
 	for _, test := range tests {

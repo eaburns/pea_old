@@ -26,6 +26,7 @@ func main() {
 		}
 	}
 
+	fmt.Println("----- Parse -----")
 	mod := p.Mod()
 	for _, d := range mod.Defs {
 		fmt.Printf("%s: %s\n", mod.Loc(d), d.String())
@@ -34,13 +35,13 @@ func main() {
 	}
 	fmt.Println("")
 
+	fmt.Println("----- Check -----")
 	if errs := pea.Check(mod, pea.Trace); len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
 		os.Exit(1)
 	}
-
 	fmt.Println("Imports:")
 	for _, m := range mod.Imports {
 		if m.Name != "" {
@@ -50,6 +51,12 @@ func main() {
 			fmt.Println(d.String())
 		}
 	}
+	for _, d := range mod.Defs {
+		fmt.Printf("%s: %s\n", mod.Loc(d), d.String())
+		pretty.Print(d)
+		fmt.Println("")
+	}
+	fmt.Println("")
 }
 
 func die(err error) {

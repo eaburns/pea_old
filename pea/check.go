@@ -56,6 +56,8 @@ type state struct {
 	methInsts map[string]interface{}
 	typeInsts map[string]interface{}
 
+	next int
+
 	trace bool
 	ident string
 }
@@ -302,6 +304,7 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 			break
 		default:
 			seen[p.Name] = p
+			x = x.push(p.Name, p)
 		}
 		if err := checkTypeName(x, p.Type); err != nil {
 			errs = append(errs, *err)
@@ -313,7 +316,11 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 		}
 	}
 
-	// TODO: checkFun checking statements is unimplemented.
+	if ss, es := checkStmts(x, fun.Stmts); len(es) > 0 {
+		errs = append(errs, es...)
+	} else {
+		fun.Stmts = ss
+	}
 
 	return errs
 }
@@ -574,6 +581,217 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	return nil
 }
 
+func checkStmts(x *scope, stmts []Stmt) (_ []Stmt, errs []checkError) {
+	defer x.tr("checkStmts(…)")(&errs)
+
+	var out []Stmt
+	for i := range stmts {
+		switch stmt := stmts[i].(type) {
+		case *Ret:
+			if es := checkRet(x, stmt); len(es) > 0 {
+				errs = append(errs, es...)
+			}
+			out = append(out, stmt)
+		case *Assign:
+			var ss []Stmt
+			var es []checkError
+			if x, ss, es = checkAssign(x, stmt); len(es) > 0 {
+				out = append(out, stmt)
+				errs = append(errs, es...)
+			} else {
+				out = append(out, ss...)
+			}
+		case Expr:
+			if expr, es := checkExpr(x, stmt, nil); len(es) > 0 {
+				out = append(out, stmt)
+				errs = append(errs, es...)
+			} else {
+				out = append(out, expr)
+			}
+		}
+	}
+
+	return out, errs
+}
+
+func checkRet(x *scope, ret *Ret) (errs []checkError) {
+	defer x.tr("checkRet(…)")(&errs)
+	fun := x.fun()
+	var infer *Type
+	switch {
+	case fun == nil:
+		err := x.err(ret, "return outside of a method")
+		errs = append(errs, *err)
+	case fun.Ret != nil:
+		infer = fun.Ret.Type
+	}
+	if expr, es := checkExpr(x, ret.Val, infer); len(es) > 0 {
+		errs = append(errs, es...)
+	} else {
+		ret.Val = expr
+	}
+	return errs
+}
+
+func checkAssign(x *scope, as *Assign) (_ *scope, _ []Stmt, errs []checkError) {
+	defer x.tr("checkAssign(…)")(&errs)
+
+	if es := checkAssignCount(x, as); len(es) > 0 {
+		errs = append(errs, es...)
+		return x, []Stmt{as}, errs
+	}
+	ss, ass, es := splitAssign(x, as)
+	if len(es) > 0 {
+		errs = append(errs, es...)
+	}
+	x1 := x
+	for _, as := range ass {
+		if x1, es = checkAssign1(x, x1, as); len(es) > 0 {
+			errs = append(errs, es...)
+		}
+	}
+	return x1, ss, errs
+}
+
+func checkAssignCount(x *scope, as *Assign) (errs []checkError) {
+	defer x.tr("checkAssignCount(…)")(&errs)
+	if len(as.Vars) == 1 {
+		return nil
+	}
+	c, ok := as.Val.(Call)
+	if ok && len(c.Msgs) == len(as.Vars) {
+		return nil
+	}
+	got := 1
+	if ok {
+		got = len(c.Msgs)
+	}
+	// This is best-effort to report any errors,
+	// but since the assignment mismatches
+	// the infer type must always be nil.
+	if _, es := checkExpr(x, as.Val, nil); len(es) > 0 {
+		errs = append(errs, es...)
+	}
+	for _, p := range as.Vars {
+		if p.Type != nil {
+			if err := checkTypeName(x, p.Type); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+	}
+	err := x.err(as, "assignment count mismatch: got %d, expected %d",
+		got, len(as.Vars))
+	errs = append(errs, *err)
+	return errs
+}
+
+func splitAssign(x *scope, as *Assign) (ss []Stmt, ass []*Assign, errs []checkError) {
+	defer x.tr("splitAssign(…)")(&errs)
+
+	if len(as.Vars) == 1 {
+		return []Stmt{as}, []*Assign{as}, nil
+	}
+
+	call := as.Val.(Call) // must, because checkAssignCount was OK
+	recv := call.Recv
+	if expr, ok := recv.(Expr); ok {
+		tmp := x.newID()
+		loc := location{start: expr.Start(), end: expr.End()}
+		p := &Parm{location: loc, Name: tmp}
+		a := &Assign{Vars: []*Parm{p}, Val: expr}
+		if e, es := checkExpr(x, expr, nil); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			a.Val = e
+		}
+		ss = append(ss, a)
+		locals := x.locals() // cannot be nil
+		*locals = append(*locals, p)
+		x = x.push(tmp, p)
+		recv = Ident{location: loc, Text: tmp}
+	}
+	for i, p := range as.Vars {
+		as := &Assign{
+			Vars: []*Parm{p},
+			Val: Call{
+				location: call.Msgs[i].location,
+				Recv:     recv,
+				Msgs:     []Msg{call.Msgs[i]},
+			},
+		}
+		ss = append(ss, as)
+		ass = append(ass, as)
+	}
+	return ss, ass, errs
+}
+
+func checkAssign1(x, x1 *scope, as *Assign) (_ *scope, errs []checkError) {
+	defer x.tr("checkAssign1(%s)", as.Vars[0].Name)(&errs)
+
+	vr := as.Vars[0]
+	def, _ := x.find(vr.Name).(*Parm)
+	if def == nil {
+		locals := x.locals() // cannot be nil
+		*locals = append(*locals, vr)
+		x1 = x1.push(vr.Name, vr)
+		def = vr
+	}
+	if vr.Type != nil {
+		if err := checkTypeName(x, vr.Type); err != nil {
+			errs = append(errs, *err)
+		}
+		if vr != def {
+			err := x.err(vr, "%s is redefined", vr.Name)
+			note(err, "previous definition is at %s", x.loc(def))
+			errs = append(errs, *err)
+		}
+	}
+	as.Vars[0] = def
+
+	var infer *Type
+	if vr.Type != nil {
+		infer = vr.Type.Type
+	}
+
+	if expr, es := checkExpr(x, as.Val, infer); len(es) > 0 {
+		errs = append(errs, es...)
+	} else {
+		as.Val = expr
+	}
+	switch got := as.Val.ExprType(); {
+	case vr.Type == nil && got != nil:
+		vr.Type = typeName(got)
+	case vr.Type != nil && vr.Type.Type != nil &&
+		got != nil && vr.Type.Type != got:
+		// TODO: checkAssign error on type mismatch is unimplemented.
+	}
+
+	return x1, errs
+}
+
+func typeName(typ *Type) *TypeName {
+	mp := typ.Mod()
+	var args []TypeName
+	if typ.Sig.Args != nil {
+		for i := range typ.Sig.Parms {
+			args = append(args, typ.Sig.Args[&typ.Sig.Parms[i]])
+		}
+	}
+	return &TypeName{
+		location: typ.location,
+		Mod:      &mp,
+		Name:     typ.Sig.Name,
+		Args:     args,
+		Type:     typ,
+	}
+}
+
+func checkExpr(x *scope, expr Expr, infer *Type) (_ Expr, errs []checkError) {
+	defer x.tr("checkExpr(…)")(&errs)
+	// TODO: checkExpr is unimplemented.
+	return expr, errs
+}
+
 func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
 	switch d := defOrImport.(type) {
 	case nil:
@@ -591,6 +809,7 @@ type scope struct {
 	*state
 	parent *scope
 	def    Def
+	block  *Block
 	node   Node   // If non-nil, name is the name identifier name for this node.
 	name   string // only valid if node is non-nil
 }
@@ -622,6 +841,29 @@ func (x *scope) modPath() *ModPath {
 	}
 }
 
+func (x *scope) fun() *Fun {
+	if x == nil {
+		return nil
+	}
+	if f, ok := x.def.(*Fun); ok {
+		return f
+	}
+	return x.parent.fun()
+}
+
+func (x *scope) locals() *[]*Parm {
+	if x == nil {
+		return nil
+	}
+	if x.block != nil {
+		return &x.block.Locals
+	}
+	if f, ok := x.def.(*Fun); ok {
+		return &f.Locals
+	}
+	return x.parent.locals()
+}
+
 type checkError struct {
 	loc   Loc
 	msg   string
@@ -630,6 +872,11 @@ type checkError struct {
 }
 
 func (s *state) loc(n Node) Loc { return s.mod.Loc(n) }
+
+func (s *state) newID() string {
+	s.next++
+	return fmt.Sprintf("$%d", s.next-1)
+}
 
 func (x *scope) err(n Node, f string, vs ...interface{}) *checkError {
 	return &checkError{loc: x.mod.Loc(n), msg: fmt.Sprintf(f, vs...)}

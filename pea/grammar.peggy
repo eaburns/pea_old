@@ -391,7 +391,7 @@ Return <- _ r:(
 	return Stmt(r)
 }
 
-Assign <- l:Lhs _ ":=" r:Expr { return Stmt(&Assign{Var: l, Val: r}) }
+Assign <- l:Lhs _ ":=" r:Expr { return Stmt(&Assign{Vars: l, Val: r}) }
 
 Lhs <- id:(
 		i0:Ident t0:TypeName? {
@@ -399,7 +399,7 @@ Lhs <- id:(
 			if t0 != nil {
 				e = t0.end
 			}
-			return Parm{
+			return &Parm{
 				location: location{i0.start, e},
 				Name: i0.Text,
 				Type: t0,
@@ -411,14 +411,14 @@ Lhs <- id:(
 			if t1 != nil {
 				e = t1.end
 			}
-			return Parm{
+			return &Parm{
 				location: location{i1.start, e},
 				Name: i1.Text,
 				Type: t1,
 			}
 		}
 	)* {
-	return []Parm(append([]Parm{id}, is...))
+	return []*Parm(append([]*Parm{id}, is...))
 }
 
 Expr <- Call / Primary

@@ -10411,7 +10411,7 @@ fail:
 func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 	var labels [2]string
 	use(labels)
-	var label0 []Parm
+	var label0 []*Parm
 	var label1 Expr
 	dp := parser.deltaPos[start][_Assign]
 	if dp < 0 {
@@ -10465,8 +10465,8 @@ func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 			labels[1] = parser.text[pos3:pos]
 		}
 		node = func(
-			start, end int, l []Parm, r Expr) Stmt {
-			return Stmt(&Assign{Var: l, Val: r})
+			start, end int, l []*Parm, r Expr) Stmt {
+			return Stmt(&Assign{Vars: l, Val: r})
 		}(
 			start0, pos, label0, label1)
 	}
@@ -10815,15 +10815,15 @@ fail:
 	return -1, failure
 }
 
-func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
+func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
 	var labels [6]string
 	use(labels)
 	var label0 Ident
 	var label1 *TypeName
-	var label2 Parm
+	var label2 *Parm
 	var label3 Ident
 	var label4 *TypeName
-	var label5 []Parm
+	var label5 []*Parm
 	dp := parser.deltaPos[start][_Lhs]
 	if dp < 0 {
 		return -1, nil
@@ -10831,10 +10831,10 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
 	key := _key{start: start, rule: _Lhs}
 	n := parser.act[key]
 	if n != nil {
-		n := n.([]Parm)
+		n := n.([]*Parm)
 		return start + int(dp-1), &n
 	}
-	var node []Parm
+	var node []*Parm
 	pos := start
 	// action
 	{
@@ -10883,12 +10883,12 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
 					labels[1] = parser.text[pos6:pos]
 				}
 				label2 = func(
-					start, end int, i0 Ident, t0 *TypeName) Parm {
+					start, end int, i0 Ident, t0 *TypeName) *Parm {
 					e := i0.end
 					if t0 != nil {
 						e = t0.end
 					}
-					return Parm{
+					return &Parm{
 						location: location{i0.start, e},
 						Name:     i0.Text,
 						Type:     t0,
@@ -10904,7 +10904,7 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
 			// (_ "," i1:Ident t1:TypeName? {…})*
 			for {
 				pos13 := pos
-				var node14 Parm
+				var node14 *Parm
 				// (_ "," i1:Ident t1:TypeName? {…})
 				// action
 				{
@@ -10956,12 +10956,12 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
 						labels[4] = parser.text[pos19:pos]
 					}
 					node14 = func(
-						start, end int, i0 Ident, i1 Ident, id Parm, t0 *TypeName, t1 *TypeName) Parm {
+						start, end int, i0 Ident, i1 Ident, id *Parm, t0 *TypeName, t1 *TypeName) *Parm {
 						e := i1.end
 						if t1 != nil {
 							e = t1.end
 						}
-						return Parm{
+						return &Parm{
 							location: location{i1.start, e},
 							Name:     i1.Text,
 							Type:     t1,
@@ -10978,8 +10978,8 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Parm) {
 			labels[5] = parser.text[pos11:pos]
 		}
 		node = func(
-			start, end int, i0 Ident, i1 Ident, id Parm, is []Parm, t0 *TypeName, t1 *TypeName) []Parm {
-			return []Parm(append([]Parm{id}, is...))
+			start, end int, i0 Ident, i1 Ident, id *Parm, is []*Parm, t0 *TypeName, t1 *TypeName) []*Parm {
+			return []*Parm(append([]*Parm{id}, is...))
 		}(
 			start0, pos, label0, label3, label2, label5, label1, label4)
 	}
