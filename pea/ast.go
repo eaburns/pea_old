@@ -70,6 +70,8 @@ type Fun struct {
 	Parms     []Parm // types cannot be nil
 	Ret       *TypeName
 	Stmts     []Stmt
+
+	RecvType *Type
 }
 
 func (n *Fun) Name() string {

@@ -274,7 +274,7 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	defer x.tr("checkFun(%s)", fun)(&errs)
 
 	if fun.Recv != nil {
-		errs = append(errs, checkRecvSig(x, fun.Mod(), fun.Recv)...)
+		errs = append(errs, checkRecvSig(x, fun)...)
 
 		if len(fun.Recv.Parms) > 0 {
 			// TODO: checkFun for param receivers is only partially implemented.
@@ -318,12 +318,12 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	return errs
 }
 
-func checkRecvSig(x *scope, mod ModPath, sig *TypeSig) (errs []checkError) {
-	defer x.tr("checkTypeSig(%s)", sig)(&errs)
+func checkRecvSig(x *scope, fun *Fun) (errs []checkError) {
+	defer x.tr("checkTypeSig(%s)", fun)(&errs)
 
 	var def Def
-	path := append([]string{mod.Root}, mod.Path...)
-	defOrImport := x.mods.find(path, sig.Name)
+	path := append([]string{fun.Mod().Root}, fun.Mod().Path...)
+	defOrImport := x.mods.find(path, fun.Recv.Name)
 	switch d := defOrImport.(type) {
 	case builtin:
 		def = d.Def
@@ -332,7 +332,7 @@ func checkRecvSig(x *scope, mod ModPath, sig *TypeSig) (errs []checkError) {
 	case Def:
 		def = d
 	case nil:
-		err := x.err(sig, "type %s is undefined", sig.Name)
+		err := x.err(fun, "type %s is undefined", fun.Recv.Name)
 		errs = append(errs, *err)
 	}
 
@@ -340,23 +340,33 @@ func checkRecvSig(x *scope, mod ModPath, sig *TypeSig) (errs []checkError) {
 	if def != nil {
 		var ok bool
 		if typ, ok = def.(*Type); !ok {
-			err := x.err(sig, "got %s, expected a type", def.kind())
+			err := x.err(fun, "got %s, expected a type", def.kind())
 			addDefNotes(err, x, defOrImport)
 			errs = append(errs, *err)
 		}
 	}
 
 	if typ != nil {
-		if len(sig.Parms) != len(typ.Sig.Parms) {
-			err := x.err(sig, "parameter count mismatch: got %d, expected %d",
-				len(sig.Parms), len(typ.Sig.Parms))
+		if len(fun.Recv.Parms) != len(typ.Sig.Parms) {
+			err := x.err(fun, "parameter count mismatch: got %d, expected %d",
+				len(fun.Recv.Parms), len(typ.Sig.Parms))
 			addDefNotes(err, x, defOrImport)
 			errs = append(errs, *err)
 		}
+		for i := range typ.Virts {
+			v := &typ.Virts[i]
+			if v.Sel == fun.Sel {
+				err := x.err(fun, "method %s is redefined", fun.Sel)
+				note(err, "previous definition is a virtual method")
+				addDefNotes(err, x, defOrImport)
+				errs = append(errs, *err)
+			}
+		}
+		fun.RecvType = typ
 	}
 
-	for i := range sig.Parms {
-		p := &sig.Parms[i]
+	for i := range fun.Recv.Parms {
+		p := &fun.Recv.Parms[i]
 		if p.Type == nil {
 			continue
 		}

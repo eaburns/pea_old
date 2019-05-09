@@ -167,6 +167,15 @@ func TestRedefError(t *testing.T) {
 			err: "Xyz is redefined",
 		},
 		{
+			name: "virtual method redef",
+			src: `
+				Foo { [bar ^Int] }
+				Foo [bar ^Int | ^ 1]
+			`,
+			err:   "method bar is redefined",
+			trace: true,
+		},
+		{
 			name: "multiple redefs",
 			src: `
 				Xyz{} Abc{} Xyz{} Abc{}
