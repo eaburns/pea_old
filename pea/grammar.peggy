@@ -430,7 +430,10 @@ Call <- c:( Nary / Binary / Unary ) cs:(
 	return Expr(c)
 }
 
-Unary <- r:( Primary / n:ModPath { return Expr(n) } ) ms:UnaryMsg+ {
+Unary <- r:(
+	p:Primary { return Node(p) } /
+	n:ModPath { return Node(n) }
+) ms:UnaryMsg+ {
 	c := Call{
 		location: location{r.Start(), ms[0].end},
 		Recv: r,
@@ -451,9 +454,9 @@ UnaryMsg <- i:Ident {
 }
 
 Binary <- r:(
-	u:Unary { return Expr(u) } /
-	Primary /
-	n:ModPath { return Expr(n) }
+	u:Unary { return Node(u) } /
+	p:Primary { return Node(p) } /
+	n:ModPath { return Node(n) }
 ) m:BinMsg {
 	return Call{
 		location: location{r.Start(), loc1(parser, end)},
@@ -476,13 +479,13 @@ BinMsg <-
 }
 
 Nary <- r:(
-	b:Binary { return Expr(b) } /
-	u:Unary { return Expr(u) } /
-	Primary /
-	n:ModPath { return Expr(n) }
+	b:Binary { return Node(b) } /
+	u:Unary { return Node(u) } /
+	p:Primary { return Node(p) } /
+	n:ModPath { return Node(n) }
 )? m:NaryMsg {
 	s := m.start
-	var recv Expr
+	var recv Node
 	if r != nil {
 		s = (*r).Start()
 		recv = *r

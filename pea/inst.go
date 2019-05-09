@@ -95,8 +95,13 @@ func instTypeSig(x *scope, def Def, sig TypeSig, name TypeName) (_ TypeSig, errs
 
 func (n Call) sub(x *scope, sub map[*Parm]TypeName) Expr {
 	defer x.tr("Call.sub(…)")()
-	if n.Recv != nil {
-		n.Recv = n.Recv.sub(x, sub)
+	switch r := n.Recv.(type) {
+	case nil:
+		break
+	case Expr:
+		n.Recv = r.sub(x, sub)
+	case ModPath:
+		n.Recv = r.sub(x, sub)
 	}
 	var msgs []Msg
 	for _, m := range n.Msgs {
@@ -121,7 +126,7 @@ func (n Block) sub(x *scope, sub map[*Parm]TypeName) Expr {
 	return n
 }
 
-func (n ModPath) sub(*scope, map[*Parm]TypeName) Expr { return n }
+func (n ModPath) sub(*scope, map[*Parm]TypeName) Node { return n }
 
 func (n Ident) sub(x *scope, sub map[*Parm]TypeName) Expr { return n }
 

@@ -216,7 +216,7 @@ type Expr interface {
 // A Call is a method call or a cascade.
 type Call struct {
 	location
-	Recv Expr // nil for module-less function calls
+	Recv Node // Expr, ModPath, or nil
 	Msgs []Msg
 }
 
