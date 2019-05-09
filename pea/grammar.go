@@ -10193,7 +10193,7 @@ func _ReturnAction(parser *_Parser, start int) (int, *Stmt) {
 	var labels [2]string
 	use(labels)
 	var label0 Expr
-	var label1 Ret
+	var label1 *Ret
 	dp := parser.deltaPos[start][_Return]
 	if dp < 0 {
 		return -1, nil
@@ -10242,15 +10242,15 @@ func _ReturnAction(parser *_Parser, start int) (int, *Stmt) {
 					labels[0] = parser.text[pos5:pos]
 				}
 				label1 = func(
-					start, end int, e Expr) Ret {
-					return Ret{start: loc1(parser, start), Val: e}
+					start, end int, e Expr) *Ret {
+					return &Ret{start: loc1(parser, start), Val: e}
 				}(
 					start3, pos, label0)
 			}
 			labels[1] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, e Expr, r Ret) Stmt {
+			start, end int, e Expr, r *Ret) Stmt {
 			return Stmt(r)
 		}(
 			start0, pos, label0, label1)
@@ -10466,7 +10466,7 @@ func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 		}
 		node = func(
 			start, end int, l []Parm, r Expr) Stmt {
-			return Stmt(Assign{Var: l, Val: r})
+			return Stmt(&Assign{Var: l, Val: r})
 		}(
 			start0, pos, label0, label1)
 	}

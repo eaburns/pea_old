@@ -208,12 +208,12 @@ func subStmts(x *scope, sub map[*Parm]TypeName, in []Stmt) []Stmt {
 	out := make([]Stmt, len(in))
 	for i := range in {
 		switch s := in[i].(type) {
-		case Ret:
+		case *Ret:
 			up := x.tr("sub ret")
 			s.Val = s.Val.sub(x, sub)
 			out[i] = s
 			up()
-		case Assign:
+		case *Assign:
 			up := x.tr("sub assign")
 			s.Val = s.Val.sub(x, sub)
 			out[i] = s

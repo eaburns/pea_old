@@ -386,12 +386,12 @@ Stmt <-
 	e:Expr { return Stmt(e) }
 
 Return <- _ r:(
-	"^" e:Expr { return Ret{start: loc1(parser, start), Val: e} }
+	"^" e:Expr { return &Ret{start: loc1(parser, start), Val: e} }
 ) {
 	return Stmt(r)
 }
 
-Assign <- l:Lhs _ ":=" r:Expr { return Stmt(Assign{Var: l, Val: r}) }
+Assign <- l:Lhs _ ":=" r:Expr { return Stmt(&Assign{Var: l, Val: r}) }
 
 Lhs <- id:(
 		i0:Ident t0:TypeName? {
