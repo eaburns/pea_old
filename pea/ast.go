@@ -1,5 +1,7 @@
 package pea
 
+import "math/big"
+
 //go:generate peggy -o grammar.go -t grammar.peggy
 
 // A Mod is a module: the unit of compilation.
@@ -217,6 +219,7 @@ type Expr interface {
 	ExprType() *Type
 
 	sub(*scope, map[*Parm]TypeName) Expr
+	check(*scope, *TypeName) (Expr, []checkError)
 }
 
 // A Call is a method call or a cascade.
@@ -284,7 +287,10 @@ type Int struct {
 	location
 	Text string
 
-	Type *Type
+	Type   *Type
+	Val    *big.Int
+	BitLen int
+	Signed bool
 }
 
 func (n Int) ExprType() *Type { return n.Type }
@@ -295,6 +301,7 @@ type Float struct {
 	Text string
 
 	Type *Type
+	Val  *big.Float
 }
 
 func (n Float) ExprType() *Type { return n.Type }

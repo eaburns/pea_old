@@ -2,6 +2,7 @@ package pea
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -31,6 +32,9 @@ func Check(mod *Mod, opts ...Opt) []error {
 	}
 	x := &scope{state: s}
 	mod.Imports = append(mod.Imports, builtinMod(x.wordSize))
+	if es := collect(x, nil, []string{}, mod.Imports[0]); len(es) > 0 {
+		panic("impossible")
+	}
 	if es := collect(x, nil, []string{mod.Name}, mod.Imports[0]); len(es) > 0 {
 		panic("impossible")
 	}
@@ -539,7 +543,10 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	}
 
 	var def Def
-	path := append([]string{name.Mod.Root}, name.Mod.Path...)
+	path := name.Mod.Path
+	if name.Mod.Root != "" {
+		path = append([]string{name.Mod.Root}, path...)
+	}
 	defOrImport := x.mods.find(path, name.Name)
 	switch d := defOrImport.(type) {
 	case builtin:
@@ -581,6 +588,19 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	return nil
 }
 
+func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
+	switch d := defOrImport.(type) {
+	case nil:
+		break // shouldn't happen, but whatever.
+	case imported:
+		note(err, "%s is imported at %s", defName(d), x.loc(d.imp))
+	case builtin:
+		note(err, "%s is a built-in definition", defName(d))
+	case Def:
+		note(err, "%s defined at %s", defName(d), x.loc(d))
+	}
+}
+
 func checkStmts(x *scope, stmts []Stmt) (_ []Stmt, errs []checkError) {
 	defer x.tr("checkStmts(…)")(&errs)
 
@@ -616,14 +636,13 @@ func checkStmts(x *scope, stmts []Stmt) (_ []Stmt, errs []checkError) {
 
 func checkRet(x *scope, ret *Ret) (errs []checkError) {
 	defer x.tr("checkRet(…)")(&errs)
-	fun := x.fun()
-	var infer *Type
-	switch {
-	case fun == nil:
+
+	var infer *TypeName
+	if fun := x.fun(); fun == nil {
 		err := x.err(ret, "return outside of a method")
 		errs = append(errs, *err)
-	case fun.Ret != nil:
-		infer = fun.Ret.Type
+	} else {
+		infer = fun.Ret
 	}
 	if expr, es := checkExpr(x, ret.Val, infer); len(es) > 0 {
 		errs = append(errs, es...)
@@ -748,9 +767,9 @@ func checkAssign1(x, x1 *scope, as *Assign) (_ *scope, errs []checkError) {
 	}
 	as.Vars[0] = def
 
-	var infer *Type
+	var infer *TypeName
 	if vr.Type != nil {
-		infer = vr.Type.Type
+		infer = vr.Type
 	}
 
 	if expr, es := checkExpr(x, as.Val, infer); len(es) > 0 {
@@ -758,14 +777,9 @@ func checkAssign1(x, x1 *scope, as *Assign) (_ *scope, errs []checkError) {
 	} else {
 		as.Val = expr
 	}
-	switch got := as.Val.ExprType(); {
-	case vr.Type == nil && got != nil:
-		vr.Type = typeName(got)
-	case vr.Type != nil && vr.Type.Type != nil &&
-		got != nil && vr.Type.Type != got:
-		// TODO: checkAssign error on type mismatch is unimplemented.
+	if vr.Type == nil && as.Val.ExprType() != nil {
+		vr.Type = typeName(as.Val.ExprType())
 	}
-
 	return x1, errs
 }
 
@@ -786,23 +800,152 @@ func typeName(typ *Type) *TypeName {
 	}
 }
 
-func checkExpr(x *scope, expr Expr, infer *Type) (_ Expr, errs []checkError) {
+// checkExpr checks the expression.
+// If infer is non-nil, and the expression type is convertable to infer,
+// a conversion node is added.
+// If infer is non-nil, and the experssion type is not convertable to infer,
+// a type-mismatch error is returned.
+func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("checkExpr(…)")(&errs)
-	// TODO: checkExpr is unimplemented.
-	return expr, errs
+	// TODO: implement type conversion in checkExpr.
+	// TODO: implement type-mismatch checking in checkExpr.
+	return expr.check(x, infer)
 }
 
-func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
-	switch d := defOrImport.(type) {
-	case nil:
-		break // shouldn't happen, but whatever.
-	case imported:
-		note(err, "%s is imported at %s", defName(d), x.loc(d.imp))
-	case builtin:
-		note(err, "%s is a built-in definition", defName(d))
-	case Def:
-		note(err, "%s defined at %s", defName(d), x.loc(d))
+func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Call.check(…)")(&errs)
+	// TODO: Call.check is unimplemented.
+	return n, nil
+}
+
+func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Ctor.check(…)")(&errs)
+	// TODO: Ctor.check is unimplemented.
+	return n, nil
+}
+
+func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Block.check(…)")(&errs)
+	// TODO: Block.check is unimplemented.
+	return n, nil
+}
+
+func (n Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Ident.check(…)")(&errs)
+	// TODO: Ident.check is unimplemented.
+	return n, nil
+}
+
+func (n Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Int.check(…)")(&errs)
+
+	n.Val = big.NewInt(0)
+	if _, ok := n.Val.SetString(n.Text, 10); !ok {
+		// If the int is syntactiacally valid,
+		// it should be a valid Go int too.
+		panic("impossible")
 	}
+
+	n.Type = builtInType(x, "Int")
+	if ok, signed, bits := isInt(infer); ok {
+		x.log("isInt(%s): signed=%v, bits=%v", infer.Type.Sig.Name, signed, bits)
+		n.Type = infer.Type
+		n.BitLen = bits
+		n.Signed = signed
+
+		var zero big.Int
+		if !signed && n.Val.Cmp(&zero) < 0 {
+			err := x.err(n, "%s cannot represent %s: negative unsigned", infer.Name, n.Text)
+			errs = append(errs, *err)
+			return n, errs
+		}
+		if signed {
+			bits-- // sign bit
+		}
+		min := big.NewInt(-(1 << uint(bits)))
+		x.log("bits=%d, val.BitLen()=%d, val=%v, min=%v",
+			bits, n.Val.BitLen(), n.Val, min)
+		if n.Val.BitLen() > bits && (!signed || n.Val.Cmp(min) != 0) {
+			err := x.err(n, "%s cannot represent %s: overflow", infer.Name, n.Text)
+			errs = append(errs, *err)
+			return n, errs
+		}
+		return n, nil
+	}
+	if isFloat(infer) {
+		return Float{location: n.location, Text: n.Text}.check(x, infer)
+	}
+	return n, nil
+}
+
+func (n Float) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Float.check(…)")(&errs)
+
+	n.Val = big.NewFloat(0)
+	if _, _, err := n.Val.Parse(n.Text, 10); err != nil {
+		// If the float is syntactiacally valid,
+		// it should be a valid Go float too.
+		panic("impossible: " + err.Error())
+	}
+
+	n.Type = builtInType(x, "Float")
+	if isFloat(infer) {
+		x.log("isFloat(%s)", infer.Type.Sig.Name)
+		n.Type = infer.Type
+		return n, nil
+	}
+	if ok, _, _ := isInt(infer); ok {
+		x.log("isInt(%s)", infer.Type.Sig.Name)
+		var i big.Int
+		if _, acc := n.Val.Int(&i); acc != big.Exact {
+			err := x.err(n, "%s cannot represent %s: truncation", infer.Name, n.Text)
+			errs = append(errs, *err)
+			return n, errs
+		}
+		return Int{location: n.location, Text: i.String()}.check(x, infer)
+	}
+	return n, nil
+}
+
+func isFloat(t *TypeName) bool {
+	if t == nil || t.Type == nil || t.Type.ModPath.Root != "" {
+		return false
+	}
+	return t.Type.Sig.Name == "Float32" || t.Type.Sig.Name == "Float64"
+}
+
+func isInt(t *TypeName) (ok bool, signed bool, bits int) {
+	if t == nil || t.Type == nil || t.Type.ModPath.Root != "" {
+		return false, false, 0
+	}
+	if n, _ := fmt.Sscanf(t.Type.Sig.Name, "Uint%d", &bits); n == 1 {
+		return true, false, bits
+	}
+	if n, _ := fmt.Sscanf(t.Type.Sig.Name, "Int%d", &bits); n == 1 {
+		return true, true, bits
+	}
+	return false, false, 0
+}
+
+func (n Rune) check(x *scope, _ *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Rune.check(…)")(&errs)
+	// TODO: Rune.check should error on invalid unicode codepoints.
+	n.Type = builtInType(x, "Rune")
+	return n, nil
+}
+
+func (n String) check(x *scope, _ *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("String.check(…)")(&errs)
+	n.Type = builtInType(x, "String")
+	return n, nil
+}
+
+func builtInType(x *scope, name string) *Type {
+	tn := TypeName{Mod: &ModPath{}, Name: name}
+	if err := checkTypeName(x, &tn); err != nil {
+		panic(fmt.Sprintf("impossible error: %s", err))
+	}
+	return tn.Type
 }
 
 type scope struct {

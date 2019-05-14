@@ -526,6 +526,214 @@ func TestAssign(t *testing.T) {
 	}
 }
 
+func TestIntLit(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src: `[ foo |
+					a := 3.
+					b Int := 3.
+					c Int8 := 3.
+					d Int16 := 3.
+					e Int32 := 3.
+					f Int64 := 3.
+					g := -3.
+					h Int := -3.
+					i Int8 := -3.
+					j Int16 := -3.
+					k Int32 := -3.
+					l Int64 := -3.
+					m Uint := 3.
+					n Uint8 := 3.
+					o Uint16 := 3.
+					p Uint32 := 3.
+					q Uint64 := 3.
+					r Float := 3.
+					s Float32 := 3.
+					t Float64 := 3.
+				]`,
+			err: "",
+		},
+		{
+			name: "Int8 ok",
+			src: `[foo |
+					a Int8 := -128.
+					b Int8 := -127.
+					c Int8 := -1.
+					d Int8 := 0.
+					e Int8 := -1.
+					f Int8 := 126.
+					g Int8 := 127.
+				]`,
+			err: "",
+		},
+		overflowTest("Int8", "-1000"),
+		overflowTest("Int8", "-129"),
+		overflowTest("Int8", "128"),
+		overflowTest("Int8", "1000"),
+		{
+			name: "Int16 ok",
+			src: `[foo |
+					a Int16 := -32768.
+					b Int16 := -32767.
+					c Int16 := -1.
+					d Int16 := 0.
+					e Int16 := -1.
+					f Int16 := 32766.
+					g Int16 := 32767.
+				]`,
+			err: "",
+		},
+		overflowTest("Int16", "-10000000"),
+		overflowTest("Int16", "-32769"),
+		overflowTest("Int16", "32768"),
+		overflowTest("Int16", "10000000"),
+		{
+			name: "Int32 ok",
+			src: `[foo |
+					a Int32 := -2147483648.
+					b Int32 := -2147483647.
+					c Int32 := -1.
+					d Int32 := 0.
+					e Int32 := -1.
+					f Int32 := 2147483646.
+					g Int32 := 2147483647.
+				]`,
+			err: "",
+		},
+		overflowTest("Int32", "-100000000000000"),
+		overflowTest("Int32", "-2147483649"),
+		overflowTest("Int32", "2147483648"),
+		overflowTest("Int32", "100000000000000"),
+		{
+			name: "Int64 ok",
+			src: `[foo |
+					a Int64 := -9223372036854775808.
+					b Int64 := -9223372036854775807.
+					c Int64 := -1.
+					d Int64 := 0.
+					e Int64 := -1.
+					f Int64 := 9223372036854775806.
+					g Int64 := 9223372036854775807.
+				]`,
+			err: "",
+		},
+		overflowTest("Int64", "-100000000000000000000000"),
+		overflowTest("Int64", "-9223372036854775809"),
+		overflowTest("Int64", "9223372036854775808"),
+		overflowTest("Int64", "100000000000000000000000"),
+		{
+			name: "Uint8 ok",
+			src: `[foo |
+					a Uint8 := 0.
+					b Uint8 := 1.
+					c Uint8 := 100.
+					d Uint8 := 254.
+					e Uint8 := 255.
+				]`,
+			err: "",
+		},
+		{
+			name: "Uint8 negative",
+			src:  "[foo | x Uint8 := -1 ]",
+			err:  "Uint8 cannot represent -1: negative unsigned",
+		},
+		overflowTest("Uint8", "256"),
+		overflowTest("Uint8", "10000"),
+		{
+			name: "Uint16 ok",
+			src: `[foo |
+					a Uint16 := 0.
+					b Uint16 := 1.
+					c Uint16 := 100.
+					d Uint16 := 65534.
+					e Uint16 := 65535.
+				]`,
+			err: "",
+		},
+		{
+			name: "Uint16 negative",
+			src:  "[foo | x Uint16 := -1 ]",
+			err:  "Uint16 cannot represent -1: negative unsigned",
+		},
+		overflowTest("Uint16", "65536"),
+		overflowTest("Uint16", "1000000"),
+		{
+			name: "Uint32 ok",
+			src: `[foo |
+					a Uint32 := 0.
+					b Uint32 := 1.
+					c Uint32 := 100.
+					d Uint32 := 4294967294.
+					e Uint32 := 4294967295.
+				]`,
+			err: "",
+		},
+		{
+			name: "Uint32 negative",
+			src:  "[foo | x Uint32 := -1 ]",
+			err:  "Uint32 cannot represent -1: negative unsigned",
+		},
+		overflowTest("Uint32", "4294967296"),
+		overflowTest("Uint32", "10000000000000"),
+		{
+			name: "Uint64 ok",
+			src: `[foo |
+					a Uint64 := 0.
+					b Uint64 := 1.
+					c Uint64 := 100.
+					d Uint64 := 18446744073709551615.
+					e Uint64 := 18446744073709551615.
+				]`,
+			err: "",
+		},
+		{
+			name: "Uint64 negative",
+			src:  "[foo | x Uint64 := -1 ]",
+			err:  "Uint64 cannot represent -1: negative unsigned",
+		},
+		overflowTest("Uint64", "18446744073709551616"),
+		overflowTest("Uint64", "100000000000000000000000"),
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func overflowTest(typ, val string) checkTest {
+	return checkTest{
+		name: fmt.Sprintf("%s %s overflow", typ, val),
+		src:  fmt.Sprintf("[foo | x %s := %s]", typ, val),
+		err:  fmt.Sprintf("%s cannot represent %s: overflow", typ, val),
+	}
+}
+
+func TestFloatLit(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src: `[ foo |
+					w := 3.1415.
+					x Float := 3.1415.
+					y Float32 := 3.1415.
+					z Float64 := 3.1415.
+					a Int := 3.00000.
+					b Int := -3.00000.
+					c Uint := 3.00000.
+				]`,
+			err: "",
+		},
+		{
+			name: "bad truncation",
+			src:  "[foo | x Int := 3.14]",
+			err:  "Int cannot represent 3.14: truncation",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 type checkTest struct {
 	name  string
 	src   string
