@@ -320,7 +320,7 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 		}
 	}
 
-	if ss, es := checkStmts(x, fun.Stmts); len(es) > 0 {
+	if ss, es := checkStmts(x, fun.Stmts, nil); len(es) > 0 {
 		errs = append(errs, es...)
 	} else {
 		fun.Stmts = ss
@@ -601,7 +601,7 @@ func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
 	}
 }
 
-func checkStmts(x *scope, stmts []Stmt) (_ []Stmt, errs []checkError) {
+func checkStmts(x *scope, stmts []Stmt, blockRes *TypeName) (_ []Stmt, errs []checkError) {
 	defer x.tr("checkStmts(…)")(&errs)
 
 	var out []Stmt
@@ -622,7 +622,11 @@ func checkStmts(x *scope, stmts []Stmt) (_ []Stmt, errs []checkError) {
 				out = append(out, ss...)
 			}
 		case Expr:
-			if expr, es := checkExpr(x, stmt, nil); len(es) > 0 {
+			var infer *TypeName
+			if i == len(stmts)-1 {
+				infer = blockRes
+			}
+			if expr, es := checkExpr(x, stmt, infer); len(es) > 0 {
 				out = append(out, stmt)
 				errs = append(errs, es...)
 			} else {
@@ -826,8 +830,70 @@ func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 
 func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("Block.check(…)")(&errs)
-	// TODO: Block.check is unimplemented.
-	return n, nil
+
+	var resInfer *TypeName
+	if infer != nil && infer.Type != nil && infer.Type.ModPath.Root == "" &&
+		strings.HasPrefix(infer.Type.Sig.Name, "Fun") &&
+		len(n.Parms) == len(infer.Type.Sig.Parms)-1 {
+		sig := infer.Type.Sig
+		for i := range n.Parms {
+			if n.Parms[i].Type == nil {
+				p := &sig.Parms[i]
+				t := sig.Args[p]
+				n.Parms[i].Type = &t
+			}
+		}
+		p := &sig.Parms[len(sig.Parms)-1]
+		t := sig.Args[p]
+		resInfer = &t
+	}
+
+	x = &scope{state: x.state, parent: x, block: &n}
+	resultType := builtInType(x, "Nil")
+	if ss, es := checkStmts(x, n.Stmts, resInfer); es != nil {
+		errs = append(errs, es...)
+	} else {
+		n.Stmts = ss
+		if t := lastStmtExprType(n.Stmts); t != nil {
+			resultType = t
+		}
+	}
+
+	var typeArgs []TypeName
+	for _, p := range n.Parms {
+		if p.Type == nil {
+			err := x.err(p, "cannot infer block parameter type")
+			errs = append(errs, *err)
+			continue
+		}
+		typeArgs = append(typeArgs, *p.Type)
+	}
+	typeArgs = append(typeArgs, *typeName(resultType))
+
+	if max := len(funTypeParms); len(n.Parms) > max {
+		err := x.err(n, "too many block parameters (max %d)", max)
+		errs = append(errs, *err)
+		return n, errs
+	}
+
+	// The following condition can only be true
+	// if there were un-inferable parameter types,
+	// thus len(errs)>0, so it's OK for n.Type to be nil;
+	// the type check will not be error-free.
+	if len(typeArgs) == len(n.Parms)+1 {
+		n.Type = builtInType(x, fmt.Sprintf("Fun%d", len(n.Parms)), typeArgs...)
+	}
+	return n, errs
+}
+
+func lastStmtExprType(ss []Stmt) *Type {
+	if len(ss) == 0 {
+		return nil
+	}
+	if e, ok := ss[len(ss)-1].(Expr); ok {
+		return e.ExprType()
+	}
+	return nil
 }
 
 func (n Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
@@ -940,8 +1006,12 @@ func (n String) check(x *scope, _ *TypeName) (_ Expr, errs []checkError) {
 	return n, nil
 }
 
-func builtInType(x *scope, name string) *Type {
-	tn := TypeName{Mod: &ModPath{}, Name: name}
+func builtInType(x *scope, name string, args ...TypeName) *Type {
+	tn := TypeName{
+		Mod:  &ModPath{},
+		Name: name,
+		Args: args,
+	}
 	if err := checkTypeName(x, &tn); err != nil {
 		panic(fmt.Sprintf("impossible error: %s", err))
 	}

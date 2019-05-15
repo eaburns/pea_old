@@ -526,6 +526,44 @@ func TestAssign(t *testing.T) {
 	}
 }
 
+func TestBlock(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok no parms",
+			src:  `[ foo | x := [ 5 ] ]`,
+			err:  "",
+		},
+		{
+			name: "ok type-specified parm",
+			src:  `[ foo | x := [ :n Int | n + 3 ] ]`,
+			err:  "",
+		},
+		{
+			name: "ok type-inferred parm",
+			src:  `[ foo | x (Int, Nil) Fun1 := [ :n | n + 3 ] ]`,
+			err:  "",
+		},
+		{
+			name: "param count mismatch",
+			src:  `[ foo | x Int Fun0 := [ :n | n + 3 ] ]`,
+			err:  "cannot infer block parameter type",
+		},
+		{
+			name: "too many parameters",
+			src:  `[ foo | x := [ :n Int :o Int :p Int :q Int :r Int :s Int | n + 3 ] ]`,
+			err:  "too many block parameters",
+		},
+		{
+			name: "bad statement",
+			src:  `[ foo | x := [ y Int := 3.14 ] ]`,
+			err:  "Int cannot represent 3.14: truncation",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestIntLit(t *testing.T) {
 	tests := []checkTest{
 		{
