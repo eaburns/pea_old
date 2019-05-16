@@ -116,27 +116,28 @@ const (
 	_NaryMsg      int = 32
 	_Primary      int = 33
 	_Ctor         int = 34
-	_Ary          int = 35
-	_Block        int = 36
-	_Int          int = 37
-	_Float        int = 38
-	_Rune         int = 39
-	_String       int = 40
-	_Esc          int = 41
-	_X            int = 42
-	_Op           int = 43
-	_TypeOp       int = 44
-	_ModName      int = 45
-	_IdentC       int = 46
-	_CIdent       int = 47
-	_Ident        int = 48
-	_TypeVar      int = 49
-	__            int = 50
-	_Cmnt         int = 51
-	_Space        int = 52
-	_EOF          int = 53
+	_Struct       int = 35
+	_Ary          int = 36
+	_Block        int = 37
+	_Int          int = 38
+	_Float        int = 39
+	_Rune         int = 40
+	_String       int = 41
+	_Esc          int = 42
+	_X            int = 43
+	_Op           int = 44
+	_TypeOp       int = 45
+	_ModName      int = 46
+	_IdentC       int = 47
+	_CIdent       int = 48
+	_Ident        int = 49
+	_TypeVar      int = 50
+	__            int = 51
+	_Cmnt         int = 52
+	_Space        int = 53
+	_EOF          int = 54
 
-	_N int = 54
+	_N int = 55
 )
 
 type _Parser struct {
@@ -14724,13 +14725,13 @@ func _CtorAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 	}
 	pos, perr := start, -1
 	// action
-	// _ ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
+	// _ ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
 	// _
 	if !_accept(parser, __Accepts, &pos, &perr) {
 		goto fail
 	}
-	// ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
-	// "{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}"
+	// ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
+	// "{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}"
 	// "{"
 	if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "{" {
 		perr = _max(perr, pos)
@@ -14756,73 +14757,50 @@ func _CtorAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		goto fail
 	}
 	pos++
-	// as:((IdentC e0:Expr {…})+/a:Ary? {…})
+	// as:(Struct/id:Ident {…}/a:Ary? {…})
 	{
 		pos3 := pos
-		// ((IdentC e0:Expr {…})+/a:Ary? {…})
-		// (IdentC e0:Expr {…})+/a:Ary? {…}
+		// (Struct/id:Ident {…}/a:Ary? {…})
+		// Struct/id:Ident {…}/a:Ary? {…}
 		{
 			pos7 := pos
-			// (IdentC e0:Expr {…})+
-			// (IdentC e0:Expr {…})
-			// action
-			// IdentC e0:Expr
-			// IdentC
-			if !_accept(parser, _IdentCAccepts, &pos, &perr) {
+			// Struct
+			if !_accept(parser, _StructAccepts, &pos, &perr) {
 				goto fail8
-			}
-			// e0:Expr
-			{
-				pos14 := pos
-				// Expr
-				if !_accept(parser, _ExprAccepts, &pos, &perr) {
-					goto fail8
-				}
-				labels[1] = parser.text[pos14:pos]
-			}
-			for {
-				pos10 := pos
-				// (IdentC e0:Expr {…})
-				// action
-				// IdentC e0:Expr
-				// IdentC
-				if !_accept(parser, _IdentCAccepts, &pos, &perr) {
-					goto fail12
-				}
-				// e0:Expr
-				{
-					pos16 := pos
-					// Expr
-					if !_accept(parser, _ExprAccepts, &pos, &perr) {
-						goto fail12
-					}
-					labels[1] = parser.text[pos16:pos]
-				}
-				continue
-			fail12:
-				pos = pos10
-				break
 			}
 			goto ok4
 		fail8:
 			pos = pos7
 			// action
+			// id:Ident
+			{
+				pos10 := pos
+				// Ident
+				if !_accept(parser, _IdentAccepts, &pos, &perr) {
+					goto fail9
+				}
+				labels[1] = parser.text[pos10:pos]
+			}
+			goto ok4
+		fail9:
+			pos = pos7
+			// action
 			// a:Ary?
 			{
-				pos18 := pos
+				pos12 := pos
 				// Ary?
 				{
-					pos20 := pos
+					pos14 := pos
 					// Ary
 					if !_accept(parser, _AryAccepts, &pos, &perr) {
-						goto fail21
+						goto fail15
 					}
-					goto ok22
-				fail21:
-					pos = pos20
-				ok22:
+					goto ok16
+				fail15:
+					pos = pos14
+				ok16:
 				}
-				labels[2] = parser.text[pos18:pos]
+				labels[2] = parser.text[pos12:pos]
 			}
 		ok4:
 		}
@@ -14858,16 +14836,16 @@ func _CtorNode(parser *_Parser, start int) (int, *peg.Node) {
 	pos := start
 	node = &peg.Node{Name: "Ctor"}
 	// action
-	// _ ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
+	// _ ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
 	// _
 	if !_node(parser, __Node, node, &pos) {
 		goto fail
 	}
-	// ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
+	// ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
 	{
 		nkids1 := len(node.Kids)
 		pos02 := pos
-		// "{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}"
+		// "{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}"
 		// "{"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "{" {
 			goto fail
@@ -14893,94 +14871,58 @@ func _CtorNode(parser *_Parser, start int) (int, *peg.Node) {
 		}
 		node.Kids = append(node.Kids, _leaf(parser, pos, pos+1))
 		pos++
-		// as:((IdentC e0:Expr {…})+/a:Ary? {…})
+		// as:(Struct/id:Ident {…}/a:Ary? {…})
 		{
 			pos5 := pos
-			// ((IdentC e0:Expr {…})+/a:Ary? {…})
+			// (Struct/id:Ident {…}/a:Ary? {…})
 			{
 				nkids6 := len(node.Kids)
 				pos07 := pos
-				// (IdentC e0:Expr {…})+/a:Ary? {…}
+				// Struct/id:Ident {…}/a:Ary? {…}
 				{
 					pos11 := pos
 					nkids9 := len(node.Kids)
-					// (IdentC e0:Expr {…})+
-					// (IdentC e0:Expr {…})
-					{
-						nkids17 := len(node.Kids)
-						pos018 := pos
-						// action
-						// IdentC e0:Expr
-						// IdentC
-						if !_node(parser, _IdentCNode, node, &pos) {
-							goto fail12
-						}
-						// e0:Expr
-						{
-							pos20 := pos
-							// Expr
-							if !_node(parser, _ExprNode, node, &pos) {
-								goto fail12
-							}
-							labels[1] = parser.text[pos20:pos]
-						}
-						sub := _sub(parser, pos018, pos, node.Kids[nkids17:])
-						node.Kids = append(node.Kids[:nkids17], sub)
-					}
-					for {
-						nkids13 := len(node.Kids)
-						pos14 := pos
-						// (IdentC e0:Expr {…})
-						{
-							nkids21 := len(node.Kids)
-							pos022 := pos
-							// action
-							// IdentC e0:Expr
-							// IdentC
-							if !_node(parser, _IdentCNode, node, &pos) {
-								goto fail16
-							}
-							// e0:Expr
-							{
-								pos24 := pos
-								// Expr
-								if !_node(parser, _ExprNode, node, &pos) {
-									goto fail16
-								}
-								labels[1] = parser.text[pos24:pos]
-							}
-							sub := _sub(parser, pos022, pos, node.Kids[nkids21:])
-							node.Kids = append(node.Kids[:nkids21], sub)
-						}
-						continue
-					fail16:
-						node.Kids = node.Kids[:nkids13]
-						pos = pos14
-						break
+					// Struct
+					if !_node(parser, _StructNode, node, &pos) {
+						goto fail12
 					}
 					goto ok8
 				fail12:
 					node.Kids = node.Kids[:nkids9]
 					pos = pos11
 					// action
+					// id:Ident
+					{
+						pos14 := pos
+						// Ident
+						if !_node(parser, _IdentNode, node, &pos) {
+							goto fail13
+						}
+						labels[1] = parser.text[pos14:pos]
+					}
+					goto ok8
+				fail13:
+					node.Kids = node.Kids[:nkids9]
+					pos = pos11
+					// action
 					// a:Ary?
 					{
-						pos26 := pos
+						pos16 := pos
 						// Ary?
 						{
-							nkids27 := len(node.Kids)
-							pos28 := pos
+							nkids17 := len(node.Kids)
+							pos18 := pos
 							// Ary
 							if !_node(parser, _AryNode, node, &pos) {
-								goto fail29
+								goto fail19
 							}
-							goto ok30
-						fail29:
-							node.Kids = node.Kids[:nkids27]
-							pos = pos28
-						ok30:
+							goto ok20
+						fail19:
+							node.Kids = node.Kids[:nkids17]
+							pos = pos18
+						ok20:
 						}
-						labels[2] = parser.text[pos26:pos]
+						labels[2] = parser.text[pos16:pos]
 					}
 				ok8:
 				}
@@ -15022,13 +14964,13 @@ func _CtorFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Ctor}
 	// action
-	// _ ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
+	// _ ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
 	// _
 	if !_fail(parser, __Fail, errPos, failure, &pos) {
 		goto fail
 	}
-	// ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
-	// "{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}"
+	// ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
+	// "{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}"
 	// "{"
 	if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "{" {
 		if pos >= errPos {
@@ -15064,73 +15006,50 @@ func _CtorFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		goto fail
 	}
 	pos++
-	// as:((IdentC e0:Expr {…})+/a:Ary? {…})
+	// as:(Struct/id:Ident {…}/a:Ary? {…})
 	{
 		pos3 := pos
-		// ((IdentC e0:Expr {…})+/a:Ary? {…})
-		// (IdentC e0:Expr {…})+/a:Ary? {…}
+		// (Struct/id:Ident {…}/a:Ary? {…})
+		// Struct/id:Ident {…}/a:Ary? {…}
 		{
 			pos7 := pos
-			// (IdentC e0:Expr {…})+
-			// (IdentC e0:Expr {…})
-			// action
-			// IdentC e0:Expr
-			// IdentC
-			if !_fail(parser, _IdentCFail, errPos, failure, &pos) {
+			// Struct
+			if !_fail(parser, _StructFail, errPos, failure, &pos) {
 				goto fail8
-			}
-			// e0:Expr
-			{
-				pos14 := pos
-				// Expr
-				if !_fail(parser, _ExprFail, errPos, failure, &pos) {
-					goto fail8
-				}
-				labels[1] = parser.text[pos14:pos]
-			}
-			for {
-				pos10 := pos
-				// (IdentC e0:Expr {…})
-				// action
-				// IdentC e0:Expr
-				// IdentC
-				if !_fail(parser, _IdentCFail, errPos, failure, &pos) {
-					goto fail12
-				}
-				// e0:Expr
-				{
-					pos16 := pos
-					// Expr
-					if !_fail(parser, _ExprFail, errPos, failure, &pos) {
-						goto fail12
-					}
-					labels[1] = parser.text[pos16:pos]
-				}
-				continue
-			fail12:
-				pos = pos10
-				break
 			}
 			goto ok4
 		fail8:
 			pos = pos7
 			// action
+			// id:Ident
+			{
+				pos10 := pos
+				// Ident
+				if !_fail(parser, _IdentFail, errPos, failure, &pos) {
+					goto fail9
+				}
+				labels[1] = parser.text[pos10:pos]
+			}
+			goto ok4
+		fail9:
+			pos = pos7
+			// action
 			// a:Ary?
 			{
-				pos18 := pos
+				pos12 := pos
 				// Ary?
 				{
-					pos20 := pos
+					pos14 := pos
 					// Ary
 					if !_fail(parser, _AryFail, errPos, failure, &pos) {
-						goto fail21
+						goto fail15
 					}
-					goto ok22
-				fail21:
-					pos = pos20
-				ok22:
+					goto ok16
+				fail15:
+					pos = pos14
+				ok16:
 				}
-				labels[2] = parser.text[pos18:pos]
+				labels[2] = parser.text[pos12:pos]
 			}
 		ok4:
 		}
@@ -15162,9 +15081,9 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [4]string
 	use(labels)
 	var label0 TypeName
-	var label1 Expr
-	var label2 *[]Expr
-	var label3 []Expr
+	var label1 Ident
+	var label2 *[]arg
+	var label3 []arg
 	dp := parser.deltaPos[start][_Ctor]
 	if dp < 0 {
 		return -1, nil
@@ -15180,15 +15099,15 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 	// action
 	{
 		start0 := pos
-		// _ ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
+		// _ ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
 		// _
 		if p, n := __Action(parser, pos); n == nil {
 			goto fail
 		} else {
 			pos = p
 		}
-		// ("{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}")
-		// "{" t:TypeName _ "|" as:((IdentC e0:Expr {…})+/a:Ary? {…}) _ "}"
+		// ("{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}")
+		// "{" t:TypeName _ "|" as:(Struct/id:Ident {…}/a:Ary? {…}) _ "}"
 		// "{"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "{" {
 			goto fail
@@ -15217,85 +15136,20 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 			goto fail
 		}
 		pos++
-		// as:((IdentC e0:Expr {…})+/a:Ary? {…})
+		// as:(Struct/id:Ident {…}/a:Ary? {…})
 		{
 			pos4 := pos
-			// ((IdentC e0:Expr {…})+/a:Ary? {…})
-			// (IdentC e0:Expr {…})+/a:Ary? {…}
+			// (Struct/id:Ident {…}/a:Ary? {…})
+			// Struct/id:Ident {…}/a:Ary? {…}
 			{
 				pos8 := pos
-				var node7 []Expr
-				// (IdentC e0:Expr {…})+
-				{
-					var node12 Expr
-					// (IdentC e0:Expr {…})
-					// action
-					{
-						start14 := pos
-						// IdentC e0:Expr
-						// IdentC
-						if p, n := _IdentCAction(parser, pos); n == nil {
-							goto fail9
-						} else {
-							pos = p
-						}
-						// e0:Expr
-						{
-							pos16 := pos
-							// Expr
-							if p, n := _ExprAction(parser, pos); n == nil {
-								goto fail9
-							} else {
-								label1 = *n
-								pos = p
-							}
-							labels[1] = parser.text[pos16:pos]
-						}
-						node12 = func(
-							start, end int, e0 Expr, t TypeName) Expr {
-							return Expr(e0)
-						}(
-							start14, pos, label1, label0)
-					}
-					label3 = append(label3, node12)
-				}
-				for {
-					pos11 := pos
-					var node12 Expr
-					// (IdentC e0:Expr {…})
-					// action
-					{
-						start17 := pos
-						// IdentC e0:Expr
-						// IdentC
-						if p, n := _IdentCAction(parser, pos); n == nil {
-							goto fail13
-						} else {
-							pos = p
-						}
-						// e0:Expr
-						{
-							pos19 := pos
-							// Expr
-							if p, n := _ExprAction(parser, pos); n == nil {
-								goto fail13
-							} else {
-								label1 = *n
-								pos = p
-							}
-							labels[1] = parser.text[pos19:pos]
-						}
-						node12 = func(
-							start, end int, e0 Expr, t TypeName) Expr {
-							return Expr(e0)
-						}(
-							start17, pos, label1, label0)
-					}
-					label3 = append(label3, node12)
-					continue
-				fail13:
-					pos = pos11
-					break
+				var node7 []arg
+				// Struct
+				if p, n := _StructAction(parser, pos); n == nil {
+					goto fail9
+				} else {
+					label3 = *n
+					pos = p
 				}
 				goto ok5
 			fail9:
@@ -15303,37 +15157,62 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 				pos = pos8
 				// action
 				{
-					start21 := pos
+					start11 := pos
+					// id:Ident
+					{
+						pos12 := pos
+						// Ident
+						if p, n := _IdentAction(parser, pos); n == nil {
+							goto fail10
+						} else {
+							label1 = *n
+							pos = p
+						}
+						labels[1] = parser.text[pos12:pos]
+					}
+					label3 = func(
+						start, end int, id Ident, t TypeName) []arg {
+						return []arg{{name: id}}
+					}(
+						start11, pos, label1, label0)
+				}
+				goto ok5
+			fail10:
+				label3 = node7
+				pos = pos8
+				// action
+				{
+					start14 := pos
 					// a:Ary?
 					{
-						pos22 := pos
+						pos15 := pos
 						// Ary?
 						{
-							pos24 := pos
-							label2 = new([]Expr)
+							pos17 := pos
+							label2 = new([]arg)
 							// Ary
 							if p, n := _AryAction(parser, pos); n == nil {
-								goto fail25
+								goto fail18
 							} else {
 								*label2 = *n
 								pos = p
 							}
-							goto ok26
-						fail25:
+							goto ok19
+						fail18:
 							label2 = nil
-							pos = pos24
-						ok26:
+							pos = pos17
+						ok19:
 						}
-						labels[2] = parser.text[pos22:pos]
+						labels[2] = parser.text[pos15:pos]
 					}
 					label3 = func(
-						start, end int, a *[]Expr, e0 Expr, t TypeName) []Expr {
+						start, end int, a *[]arg, id Ident, t TypeName) []arg {
 						if a != nil {
 							return *a
 						}
-						return []Expr{}
+						return []arg{}
 					}(
-						start21, pos, label2, label1, label0)
+						start14, pos, label2, label1, label0)
 				}
 			ok5:
 			}
@@ -15351,14 +15230,489 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 		}
 		pos++
 		node = func(
-			start, end int, a *[]Expr, as []Expr, e0 Expr, t TypeName) Expr {
-			return Expr(Ctor{
-				location: loc(parser, start, end),
-				Type:     t,
-				Args:     as,
-			})
+			start, end int, a *[]arg, as []arg, id Ident, t TypeName) Expr {
+			ctor := Ctor{location: loc(parser, start, end), Type: t}
+			for _, a := range as {
+				ctor.Sel += a.name.Text
+				if a.val != nil {
+					ctor.Args = append(ctor.Args, a.val)
+				}
+			}
+			return Expr(ctor)
 		}(
 			start0, pos, label2, label3, label1, label0)
+	}
+	parser.act[key] = node
+	return pos, &node
+fail:
+	return -1, nil
+}
+
+func _StructAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
+	var labels [5]string
+	use(labels)
+	if dp, de, ok := _memo(parser, _Struct, start); ok {
+		return dp, de
+	}
+	pos, perr := start, -1
+	// action
+	// i0:IdentC e0:Expr args:(_ ";" i1:IdentC e1:Expr {…})* (_ ";")?
+	// i0:IdentC
+	{
+		pos1 := pos
+		// IdentC
+		if !_accept(parser, _IdentCAccepts, &pos, &perr) {
+			goto fail
+		}
+		labels[0] = parser.text[pos1:pos]
+	}
+	// e0:Expr
+	{
+		pos2 := pos
+		// Expr
+		if !_accept(parser, _ExprAccepts, &pos, &perr) {
+			goto fail
+		}
+		labels[1] = parser.text[pos2:pos]
+	}
+	// args:(_ ";" i1:IdentC e1:Expr {…})*
+	{
+		pos3 := pos
+		// (_ ";" i1:IdentC e1:Expr {…})*
+		for {
+			pos5 := pos
+			// (_ ";" i1:IdentC e1:Expr {…})
+			// action
+			// _ ";" i1:IdentC e1:Expr
+			// _
+			if !_accept(parser, __Accepts, &pos, &perr) {
+				goto fail7
+			}
+			// ";"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+				perr = _max(perr, pos)
+				goto fail7
+			}
+			pos++
+			// i1:IdentC
+			{
+				pos9 := pos
+				// IdentC
+				if !_accept(parser, _IdentCAccepts, &pos, &perr) {
+					goto fail7
+				}
+				labels[2] = parser.text[pos9:pos]
+			}
+			// e1:Expr
+			{
+				pos10 := pos
+				// Expr
+				if !_accept(parser, _ExprAccepts, &pos, &perr) {
+					goto fail7
+				}
+				labels[3] = parser.text[pos10:pos]
+			}
+			continue
+		fail7:
+			pos = pos5
+			break
+		}
+		labels[4] = parser.text[pos3:pos]
+	}
+	// (_ ";")?
+	{
+		pos12 := pos
+		// (_ ";")
+		// _ ";"
+		// _
+		if !_accept(parser, __Accepts, &pos, &perr) {
+			goto fail13
+		}
+		// ";"
+		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+			perr = _max(perr, pos)
+			goto fail13
+		}
+		pos++
+		goto ok15
+	fail13:
+		pos = pos12
+	ok15:
+	}
+	return _memoize(parser, _Struct, start, pos, perr)
+fail:
+	return _memoize(parser, _Struct, start, -1, perr)
+}
+
+func _StructNode(parser *_Parser, start int) (int, *peg.Node) {
+	var labels [5]string
+	use(labels)
+	dp := parser.deltaPos[start][_Struct]
+	if dp < 0 {
+		return -1, nil
+	}
+	key := _key{start: start, rule: _Struct}
+	node := parser.node[key]
+	if node != nil {
+		return start + int(dp-1), node
+	}
+	pos := start
+	node = &peg.Node{Name: "Struct"}
+	// action
+	// i0:IdentC e0:Expr args:(_ ";" i1:IdentC e1:Expr {…})* (_ ";")?
+	// i0:IdentC
+	{
+		pos1 := pos
+		// IdentC
+		if !_node(parser, _IdentCNode, node, &pos) {
+			goto fail
+		}
+		labels[0] = parser.text[pos1:pos]
+	}
+	// e0:Expr
+	{
+		pos2 := pos
+		// Expr
+		if !_node(parser, _ExprNode, node, &pos) {
+			goto fail
+		}
+		labels[1] = parser.text[pos2:pos]
+	}
+	// args:(_ ";" i1:IdentC e1:Expr {…})*
+	{
+		pos3 := pos
+		// (_ ";" i1:IdentC e1:Expr {…})*
+		for {
+			nkids4 := len(node.Kids)
+			pos5 := pos
+			// (_ ";" i1:IdentC e1:Expr {…})
+			{
+				nkids8 := len(node.Kids)
+				pos09 := pos
+				// action
+				// _ ";" i1:IdentC e1:Expr
+				// _
+				if !_node(parser, __Node, node, &pos) {
+					goto fail7
+				}
+				// ";"
+				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+					goto fail7
+				}
+				node.Kids = append(node.Kids, _leaf(parser, pos, pos+1))
+				pos++
+				// i1:IdentC
+				{
+					pos11 := pos
+					// IdentC
+					if !_node(parser, _IdentCNode, node, &pos) {
+						goto fail7
+					}
+					labels[2] = parser.text[pos11:pos]
+				}
+				// e1:Expr
+				{
+					pos12 := pos
+					// Expr
+					if !_node(parser, _ExprNode, node, &pos) {
+						goto fail7
+					}
+					labels[3] = parser.text[pos12:pos]
+				}
+				sub := _sub(parser, pos09, pos, node.Kids[nkids8:])
+				node.Kids = append(node.Kids[:nkids8], sub)
+			}
+			continue
+		fail7:
+			node.Kids = node.Kids[:nkids4]
+			pos = pos5
+			break
+		}
+		labels[4] = parser.text[pos3:pos]
+	}
+	// (_ ";")?
+	{
+		nkids13 := len(node.Kids)
+		pos14 := pos
+		// (_ ";")
+		{
+			nkids16 := len(node.Kids)
+			pos017 := pos
+			// _ ";"
+			// _
+			if !_node(parser, __Node, node, &pos) {
+				goto fail15
+			}
+			// ";"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+				goto fail15
+			}
+			node.Kids = append(node.Kids, _leaf(parser, pos, pos+1))
+			pos++
+			sub := _sub(parser, pos017, pos, node.Kids[nkids16:])
+			node.Kids = append(node.Kids[:nkids16], sub)
+		}
+		goto ok19
+	fail15:
+		node.Kids = node.Kids[:nkids13]
+		pos = pos14
+	ok19:
+	}
+	node.Text = parser.text[start:pos]
+	parser.node[key] = node
+	return pos, node
+fail:
+	return -1, nil
+}
+
+func _StructFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
+	var labels [5]string
+	use(labels)
+	pos, failure := _failMemo(parser, _Struct, start, errPos)
+	if failure != nil {
+		return pos, failure
+	}
+	failure = &peg.Fail{
+		Name: "Struct",
+		Pos:  int(start),
+	}
+	key := _key{start: start, rule: _Struct}
+	// action
+	// i0:IdentC e0:Expr args:(_ ";" i1:IdentC e1:Expr {…})* (_ ";")?
+	// i0:IdentC
+	{
+		pos1 := pos
+		// IdentC
+		if !_fail(parser, _IdentCFail, errPos, failure, &pos) {
+			goto fail
+		}
+		labels[0] = parser.text[pos1:pos]
+	}
+	// e0:Expr
+	{
+		pos2 := pos
+		// Expr
+		if !_fail(parser, _ExprFail, errPos, failure, &pos) {
+			goto fail
+		}
+		labels[1] = parser.text[pos2:pos]
+	}
+	// args:(_ ";" i1:IdentC e1:Expr {…})*
+	{
+		pos3 := pos
+		// (_ ";" i1:IdentC e1:Expr {…})*
+		for {
+			pos5 := pos
+			// (_ ";" i1:IdentC e1:Expr {…})
+			// action
+			// _ ";" i1:IdentC e1:Expr
+			// _
+			if !_fail(parser, __Fail, errPos, failure, &pos) {
+				goto fail7
+			}
+			// ";"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+				if pos >= errPos {
+					failure.Kids = append(failure.Kids, &peg.Fail{
+						Pos:  int(pos),
+						Want: "\";\"",
+					})
+				}
+				goto fail7
+			}
+			pos++
+			// i1:IdentC
+			{
+				pos9 := pos
+				// IdentC
+				if !_fail(parser, _IdentCFail, errPos, failure, &pos) {
+					goto fail7
+				}
+				labels[2] = parser.text[pos9:pos]
+			}
+			// e1:Expr
+			{
+				pos10 := pos
+				// Expr
+				if !_fail(parser, _ExprFail, errPos, failure, &pos) {
+					goto fail7
+				}
+				labels[3] = parser.text[pos10:pos]
+			}
+			continue
+		fail7:
+			pos = pos5
+			break
+		}
+		labels[4] = parser.text[pos3:pos]
+	}
+	// (_ ";")?
+	{
+		pos12 := pos
+		// (_ ";")
+		// _ ";"
+		// _
+		if !_fail(parser, __Fail, errPos, failure, &pos) {
+			goto fail13
+		}
+		// ";"
+		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+			if pos >= errPos {
+				failure.Kids = append(failure.Kids, &peg.Fail{
+					Pos:  int(pos),
+					Want: "\";\"",
+				})
+			}
+			goto fail13
+		}
+		pos++
+		goto ok15
+	fail13:
+		pos = pos12
+	ok15:
+	}
+	parser.fail[key] = failure
+	return pos, failure
+fail:
+	parser.fail[key] = failure
+	return -1, failure
+}
+
+func _StructAction(parser *_Parser, start int) (int, *[]arg) {
+	var labels [5]string
+	use(labels)
+	var label0 Ident
+	var label1 Expr
+	var label2 Ident
+	var label3 Expr
+	var label4 []arg
+	dp := parser.deltaPos[start][_Struct]
+	if dp < 0 {
+		return -1, nil
+	}
+	key := _key{start: start, rule: _Struct}
+	n := parser.act[key]
+	if n != nil {
+		n := n.([]arg)
+		return start + int(dp-1), &n
+	}
+	var node []arg
+	pos := start
+	// action
+	{
+		start0 := pos
+		// i0:IdentC e0:Expr args:(_ ";" i1:IdentC e1:Expr {…})* (_ ";")?
+		// i0:IdentC
+		{
+			pos2 := pos
+			// IdentC
+			if p, n := _IdentCAction(parser, pos); n == nil {
+				goto fail
+			} else {
+				label0 = *n
+				pos = p
+			}
+			labels[0] = parser.text[pos2:pos]
+		}
+		// e0:Expr
+		{
+			pos3 := pos
+			// Expr
+			if p, n := _ExprAction(parser, pos); n == nil {
+				goto fail
+			} else {
+				label1 = *n
+				pos = p
+			}
+			labels[1] = parser.text[pos3:pos]
+		}
+		// args:(_ ";" i1:IdentC e1:Expr {…})*
+		{
+			pos4 := pos
+			// (_ ";" i1:IdentC e1:Expr {…})*
+			for {
+				pos6 := pos
+				var node7 arg
+				// (_ ";" i1:IdentC e1:Expr {…})
+				// action
+				{
+					start9 := pos
+					// _ ";" i1:IdentC e1:Expr
+					// _
+					if p, n := __Action(parser, pos); n == nil {
+						goto fail8
+					} else {
+						pos = p
+					}
+					// ";"
+					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+						goto fail8
+					}
+					pos++
+					// i1:IdentC
+					{
+						pos11 := pos
+						// IdentC
+						if p, n := _IdentCAction(parser, pos); n == nil {
+							goto fail8
+						} else {
+							label2 = *n
+							pos = p
+						}
+						labels[2] = parser.text[pos11:pos]
+					}
+					// e1:Expr
+					{
+						pos12 := pos
+						// Expr
+						if p, n := _ExprAction(parser, pos); n == nil {
+							goto fail8
+						} else {
+							label3 = *n
+							pos = p
+						}
+						labels[3] = parser.text[pos12:pos]
+					}
+					node7 = func(
+						start, end int, e0 Expr, e1 Expr, i0 Ident, i1 Ident) arg {
+						return arg{name: i1, val: e1}
+					}(
+						start9, pos, label1, label3, label0, label2)
+				}
+				label4 = append(label4, node7)
+				continue
+			fail8:
+				pos = pos6
+				break
+			}
+			labels[4] = parser.text[pos4:pos]
+		}
+		// (_ ";")?
+		{
+			pos14 := pos
+			// (_ ";")
+			// _ ";"
+			// _
+			if p, n := __Action(parser, pos); n == nil {
+				goto fail15
+			} else {
+				pos = p
+			}
+			// ";"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ";" {
+				goto fail15
+			}
+			pos++
+			goto ok17
+		fail15:
+			pos = pos14
+		ok17:
+		}
+		node = func(
+			start, end int, args []arg, e0 Expr, e1 Expr, i0 Ident, i1 Ident) []arg {
+			return []arg(append([]arg{{name: i0, val: e0}}, args...))
+		}(
+			start0, pos, label4, label1, label3, label0, label2)
 	}
 	parser.act[key] = node
 	return pos, &node
@@ -15642,12 +15996,12 @@ fail:
 	return -1, failure
 }
 
-func _AryAction(parser *_Parser, start int) (int, *[]Expr) {
+func _AryAction(parser *_Parser, start int) (int, *[]arg) {
 	var labels [3]string
 	use(labels)
 	var label0 Expr
 	var label1 Expr
-	var label2 []Expr
+	var label2 []arg
 	dp := parser.deltaPos[start][_Ary]
 	if dp < 0 {
 		return -1, nil
@@ -15655,10 +16009,10 @@ func _AryAction(parser *_Parser, start int) (int, *[]Expr) {
 	key := _key{start: start, rule: _Ary}
 	n := parser.act[key]
 	if n != nil {
-		n := n.([]Expr)
+		n := n.([]arg)
 		return start + int(dp-1), &n
 	}
-	var node []Expr
+	var node []arg
 	pos := start
 	// action
 	{
@@ -15682,7 +16036,7 @@ func _AryAction(parser *_Parser, start int) (int, *[]Expr) {
 			// (_ ";" e:Expr {…})*
 			for {
 				pos5 := pos
-				var node6 Expr
+				var node6 arg
 				// (_ ";" e:Expr {…})
 				// action
 				{
@@ -15712,8 +16066,8 @@ func _AryAction(parser *_Parser, start int) (int, *[]Expr) {
 						labels[1] = parser.text[pos10:pos]
 					}
 					node6 = func(
-						start, end int, e Expr, e0 Expr) Expr {
-						return Expr(e)
+						start, end int, e Expr, e0 Expr) arg {
+						return arg{val: e}
 					}(
 						start8, pos, label1, label0)
 				}
@@ -15747,8 +16101,8 @@ func _AryAction(parser *_Parser, start int) (int, *[]Expr) {
 		ok15:
 		}
 		node = func(
-			start, end int, e Expr, e0 Expr, es []Expr) []Expr {
-			return []Expr(append([]Expr{e0}, es...))
+			start, end int, e Expr, e0 Expr, es []arg) []arg {
+			return []arg(append([]arg{{val: e0}}, es...))
 		}(
 			start0, pos, label1, label0, label2)
 	}

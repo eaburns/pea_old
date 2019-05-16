@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/eaburns/pretty"
 )
 
 func TestImportError(t *testing.T) {
@@ -539,6 +541,110 @@ func TestAssign(t *testing.T) {
 	}
 }
 
+func TestCtor(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "bad type",
+			src:  "[foo | { Undef | 5; 6 } ]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "empty array",
+			src:  "[foo | { Int Array | } ]",
+			err:  "",
+		},
+		{
+			name: "bad array expression",
+			src:  "[foo | { Int8 Array | 257 } ]",
+			err:  "Int8 cannot represent 257: overflow",
+		},
+		{
+			name: "good and-type selector",
+			src: `
+				[foo| { Point | x: 5; y: 6 }]
+				Point { x: Int y: Int }
+			`,
+			err: "",
+		},
+		{
+			name: "bad and-type selector",
+			src: `
+				[foo| { Point | a: 5; b: 6 }]
+				Point { x: Int y: Int }
+			`,
+			err: "bad and-type constructor: got a:b:, expected x:y:",
+		},
+		{
+			name: "bad and-type expression",
+			src: `
+				[foo| { Point | x: 257; y: 6 }]
+				Point { x: Int8 y: Int8 }
+			`,
+			err: "Int8 cannot represent 257: overflow",
+		},
+		{
+			name: "good or-type typeless selector",
+			src: `
+				[foo| { IntOpt | none }]
+				// TODO: change enum , to ; to be consistent with arrays?
+				IntOpt { none, some: Int }
+			`,
+			err: "",
+		},
+		{
+			name: "good or-type typeed selector",
+			src: `
+				[foo| { IntOpt | some: 5 }]
+				IntOpt { none, some: Int }
+			`,
+			err: "",
+		},
+		{
+			name: "bad or-type selector",
+			src: `
+				[foo| { IntOpt | oopsy: 5 }]
+				IntOpt { none, some: Int }
+			`,
+			err: "bad or-type constructor: no case oopsy:",
+		},
+		{
+			name: "bad or-type expression",
+			src: `
+				[foo| { IntOpt | some: 257 }]
+				IntOpt { none, some: Int8 }
+			`,
+			err: "Int8 cannot represent 257: overflow",
+		},
+		{
+			name: "conversion with a selector",
+			src: `
+				[foo| { Reader | some: 257 }]
+				Reader { [read ^Byte Array] }
+			`,
+			err: "a virtual conversion cannot have a selector",
+		},
+		{
+			name: "conversion with a multiple args",
+			src: `
+				[foo| { Reader | 257; 258 }]
+				Reader { [read ^Byte Array] }
+			`,
+			err: "a virtual conversion must have exactly one argument",
+		},
+		{
+			name: "bad conversion expression",
+			src: `
+					[foo| { Reader | { Int8 Array | 257 } }]
+					Reader { [read ^Byte Array] }
+				`,
+			err: "Int8 cannot represent 257: overflow",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestBlock(t *testing.T) {
 	tests := []checkTest{
 		{
@@ -791,12 +897,16 @@ type checkTest struct {
 	mods  [][2]string
 	err   string // regexp, "" means no error
 	trace bool
+	dump  bool
 }
 
 func (test checkTest) run(t *testing.T) {
 	mod, err := parseString(test.src)
 	if err != nil {
 		t.Fatalf("failed to parse %q: %v", test.src, err)
+	}
+	if test.dump {
+		t.Log("mod:\n", pretty.String(mod))
 	}
 	opts := []Opt{testImporter(test.mods)}
 	if test.trace {

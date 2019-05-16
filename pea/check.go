@@ -40,8 +40,18 @@ func Check(mod *Mod, opts ...Opt) []error {
 	}
 	errs := collect(x, nil, []string{mod.Name}, mod)
 
+	// First check types, since expression checking assumes
+	// that type definitions have been fully checked
+	// and have non-nil TypeName.Type values.
 	for _, def := range mod.Defs {
-		errs = append(errs, checkDef(x, def)...)
+		if _, ok := def.(*Type); ok {
+			errs = append(errs, checkDef(x, def)...)
+		}
+	}
+	for _, def := range mod.Defs {
+		if _, ok := def.(*Type); !ok {
+			errs = append(errs, checkDef(x, def)...)
+		}
 	}
 
 	return convertErrors(errs)
@@ -797,7 +807,7 @@ func typeName(typ *Type) *TypeName {
 // If infer is non-nil, and the experssion type is not convertable to infer,
 // a type-mismatch error is returned.
 func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("checkExpr(…)")(&errs)
+	defer x.tr("checkExpr(infer=%s)", infer)(&errs)
 	// TODO: implement type conversion in checkExpr.
 	// TODO: implement type-mismatch checking in checkExpr.
 	return expr.check(x, infer)
@@ -810,9 +820,135 @@ func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 }
 
 func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Ctor.check(…)")(&errs)
-	// TODO: Ctor.check is unimplemented.
-	return n, nil
+	defer x.tr("Ctor.check(infer=%s)", infer)(&errs)
+
+	errs = append(errs, checkTypeName(x, &n.Type)...)
+	switch typ := n.Type.Type; {
+	case typ == nil:
+		break
+	case typ.Alias != nil:
+		panic("impossible") // aliases should already be forwarded
+	case isAry(typ):
+		errs = append(errs, checkAryCtor(x, &n)...)
+	case len(typ.Cases) > 0:
+		errs = append(errs, checkOrCtor(x, &n)...)
+	case len(typ.Virts) > 0:
+		errs = append(errs, checkVirtCtor(x, &n)...)
+	default:
+		errs = append(errs, checkAndCtor(x, &n)...)
+	}
+
+	return n, errs
+}
+
+func isAry(t *Type) bool {
+	return t.ModPath.Root == "" && t.Sig.Name == "Array"
+}
+
+func checkAryCtor(x *scope, n *Ctor) (errs []checkError) {
+	defer x.tr("checkAryCtor(%s)", n.Type.Type.Sig.Name)(&errs)
+
+	typ := n.Type.Type
+	t := typ.Sig.Args[&typ.Sig.Parms[0]]
+	elmType := &t
+	x.log("elmType=%s", elmType)
+
+	for i := range n.Args {
+		if expr, es := checkExpr(x, n.Args[i], elmType); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			n.Args[i] = expr
+		}
+	}
+	return errs
+}
+
+func checkAndCtor(x *scope, n *Ctor) (errs []checkError) {
+	defer x.tr("checkAndCtor(%s)", n.Type.Type.Sig.Name)(&errs)
+
+	typ := n.Type.Type
+	var sel string
+	var inferTypes []*TypeName
+	for _, p := range typ.Fields {
+		sel += p.Name + ":"
+		inferTypes = append(inferTypes, p.Type)
+	}
+	if sel != n.Sel {
+		inferTypes = make([]*TypeName, len(n.Args))
+		err := x.err(n, "bad and-type constructor: got %s, expected %s", n.Sel, sel)
+		errs = append(errs, *err)
+	}
+	for i := range n.Args {
+		if expr, es := checkExpr(x, n.Args[i], inferTypes[i]); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			n.Args[i] = expr
+		}
+	}
+	return errs
+}
+
+func checkOrCtor(x *scope, n *Ctor) (errs []checkError) {
+	defer x.tr("checkOrCtor(%s)", n.Type.Type.Sig.Name)(&errs)
+	typ := n.Type.Type
+	var cas *Parm
+	for i := range typ.Cases {
+		c := &typ.Cases[i]
+		name := c.Name
+		if c.Type != nil {
+			name += ":"
+		}
+		if name == n.Sel {
+			cas = c
+		}
+	}
+	if cas == nil {
+		err := x.err(n, "bad or-type constructor: no case %s", n.Sel)
+		errs = append(errs, *err)
+	}
+	// Currently n.Args can never be >1 if cas != nil,
+	// (cas.Name can contain no more than one :, and n.Sel has one : per-arg).
+	// but we still want to check all args to at least report their errors.
+	for i := range n.Args {
+		var inferType *TypeName
+		if i == 0 && cas != nil && cas.Type != nil {
+			inferType = cas.Type
+		}
+		if expr, es := checkExpr(x, n.Args[i], inferType); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			n.Args[i] = expr
+		}
+	}
+	return errs
+}
+
+func checkVirtCtor(x *scope, n *Ctor) (errs []checkError) {
+	defer x.tr("checkVirtCtor(%s)", n.Type.Type.Sig.Name)(&errs)
+
+	infer := &n.Type
+	if n.Sel != "" {
+		infer = nil
+		err := x.err(n, "a virtual conversion cannot have a selector")
+		errs = append(errs, *err)
+	}
+	if len(n.Args) != 1 {
+		infer = nil
+		err := x.err(n, "a virtual conversion must have exactly one argument")
+		errs = append(errs, *err)
+	}
+
+	for i := range n.Args {
+		if expr, es := checkExpr(x, n.Args[i], infer); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			n.Args[i] = expr
+		}
+	}
+
+	// TODO: checkVirtCtor should verify that the type is convertable.
+
+	return errs
 }
 
 func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
@@ -890,7 +1026,7 @@ func (n Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 }
 
 func (n Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Int.check(…)")(&errs)
+	defer x.tr("Int.check(%s, infer=%s)", n.Text, infer)(&errs)
 
 	n.Val = big.NewInt(0)
 	if _, ok := n.Val.SetString(n.Text, 10); !ok {
