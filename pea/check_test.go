@@ -269,6 +269,19 @@ func TestCheckTypeSig(t *testing.T) {
 	}
 }
 
+func TestCheckTypeName(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "undefined type name arg",
+			src:  "[foo ^Undef Array | ]",
+			err:  "Undef is undefined",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestCheckTypeAlias(t *testing.T) {
 	tests := []checkTest{
 		{

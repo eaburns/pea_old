@@ -310,14 +310,10 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 			seen[p.Name] = p
 			x = x.push(p.Name, p)
 		}
-		if err := checkTypeName(x, p.Type); err != nil {
-			errs = append(errs, *err)
-		}
+		errs = append(errs, checkTypeName(x, p.Type)...)
 	}
 	if fun.Ret != nil {
-		if err := checkTypeName(x, fun.Ret); err != nil {
-			errs = append(errs, *err)
-		}
+		errs = append(errs, checkTypeName(x, fun.Ret)...)
 	}
 
 	if ss, es := checkStmts(x, fun.Stmts, nil); len(es) > 0 {
@@ -381,9 +377,7 @@ func checkRecvSig(x *scope, fun *Fun) (errs []checkError) {
 		if p.Type == nil {
 			continue
 		}
-		if err := checkTypeName(x, p.Type); err != nil {
-			errs = append(errs, *err)
-		}
+		errs = append(errs, checkTypeName(x, p.Type)...)
 	}
 	return errs
 }
@@ -397,9 +391,7 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 			if p.Type == nil {
 				continue
 			}
-			if err := checkTypeName(x, p.Type); err != nil {
-				errs = append(errs, *err)
-			}
+			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
 		// TODO: checkType for param types is only partially implemented.
 		// We should create stub type arguments, instantiate the type,
@@ -409,9 +401,7 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 
 	switch {
 	case typ.Alias != nil:
-		if err := checkAliasType(x, typ); err != nil {
-			errs = append(errs, *err)
-		}
+		errs = append(errs, checkAliasType(x, typ)...)
 	case typ.Fields != nil:
 		errs = append(errs, checkFields(x, typ.Fields)...)
 	case typ.Cases != nil:
@@ -422,17 +412,17 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 	return errs
 }
 
-func checkAliasType(x *scope, typ *Type) (err *checkError) {
-	defer x.tr("checkAliasType(%s)", typ)(&err)
+func checkAliasType(x *scope, typ *Type) (errs []checkError) {
+	defer x.tr("checkAliasType(%s)", typ)(&errs)
 	if _, ok := x.aliasCycles[typ]; ok {
 		// This alias is already found to be on a cycle.
 		// The error is returned at the root of the cycle.
-		return err
+		return errs
 	}
 	if x.onAliasPath[typ] {
 		markAliasCycle(x, x.aliasPath, typ)
 		// The error is returned at the root of the cycle.
-		return err
+		return errs
 	}
 
 	x.onAliasPath[typ] = true
@@ -442,14 +432,17 @@ func checkAliasType(x *scope, typ *Type) (err *checkError) {
 		x.aliasPath = x.aliasPath[:len(x.aliasPath)-1]
 	}()
 
-	if err = checkTypeName(x, typ.Alias); err != nil {
-		return err
+	if errs = checkTypeName(x, typ.Alias); len(errs) > 0 {
+		return errs
 	}
 	// checkTypeName can make a recursive call to checkAliasType.
 	// In the case of an alias cycle, that call would have added the error
 	// to the aliasCycles map for the root alias definition.
 	// We return any such error here.
-	return x.aliasCycles[typ]
+	if err := x.aliasCycles[typ]; err != nil {
+		errs = append(errs, *err)
+	}
+	return errs
 }
 
 func markAliasCycle(x *scope, path []*Type, alias *Type) {
@@ -480,9 +473,7 @@ func checkFields(x *scope, ps []Parm) (errs []checkError) {
 		} else {
 			seen[p.Name] = p
 		}
-		if err := checkTypeName(x, p.Type); err != nil {
-			errs = append(errs, *err)
-		}
+		errs = append(errs, checkTypeName(x, p.Type)...)
 	}
 	return errs
 }
@@ -501,9 +492,7 @@ func checkCases(x *scope, ps []Parm) (errs []checkError) {
 			seen[lower] = p
 		}
 		if p.Type != nil {
-			if err := checkTypeName(x, p.Type); err != nil {
-				errs = append(errs, *err)
-			}
+			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
 	}
 	return errs
@@ -522,21 +511,21 @@ func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
 			seen[sig.Sel] = sig
 		}
 		for j := range sig.Parms {
-			if err := checkTypeName(x, &sig.Parms[j]); err != nil {
-				errs = append(errs, *err)
-			}
+			errs = append(errs, checkTypeName(x, &sig.Parms[j])...)
 		}
 		if sig.Ret != nil {
-			if err := checkTypeName(x, sig.Ret); err != nil {
-				errs = append(errs, *err)
-			}
+			errs = append(errs, checkTypeName(x, sig.Ret)...)
 		}
 	}
 	return errs
 }
 
-func checkTypeName(x *scope, name *TypeName) (err *checkError) {
-	defer x.tr("checkTypeName(%s)", name)(err)
+func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
+	defer x.tr("checkTypeName(%s)", name)(&errs)
+
+	for i := range name.Args {
+		errs = append(errs, checkTypeName(x, &name.Args[i])...)
+	}
 
 	if name.Mod == nil {
 		name.Mod = x.modPath()
@@ -556,22 +545,24 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	case Def:
 		def = d
 	case nil:
-		return x.err(name, "type %s is undefined", name)
+		err := x.err(name, "type %s is undefined", name)
+		errs = append(errs, *err)
+		return errs
 	}
 
 	typ, ok := def.(*Type)
 	if !ok {
-		err = x.err(name, "got %s, expected a type", def.kind())
+		err := x.err(name, "got %s, expected a type", def.kind())
 		addDefNotes(err, x, defOrImport)
-		return err
+		return append(errs, *err)
 	}
 
 	if len(typ.Sig.Parms) > 0 {
 		var es []checkError
 		if typ, es = typ.inst(x, *name); len(es) > 0 {
-			err = x.err(name, "%s cannot be instantiated", name)
+			err := x.err(name, "%s cannot be instantiated", name)
 			err.cause = es
-			return err
+			return append(errs, *err)
 		}
 	}
 
@@ -585,7 +576,7 @@ func checkTypeName(x *scope, name *TypeName) (err *checkError) {
 	} else {
 		name.Type = typ
 	}
-	return nil
+	return errs
 }
 
 func addDefNotes(err *checkError, x *scope, defOrImport interface{}) {
@@ -697,9 +688,7 @@ func checkAssignCount(x *scope, as *Assign) (errs []checkError) {
 	}
 	for _, p := range as.Vars {
 		if p.Type != nil {
-			if err := checkTypeName(x, p.Type); err != nil {
-				errs = append(errs, *err)
-			}
+			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
 	}
 	err := x.err(as, "assignment count mismatch: got %d, expected %d",
@@ -760,9 +749,7 @@ func checkAssign1(x, x1 *scope, as *Assign) (_ *scope, errs []checkError) {
 		def = vr
 	}
 	if vr.Type != nil {
-		if err := checkTypeName(x, vr.Type); err != nil {
-			errs = append(errs, *err)
-		}
+		errs = append(errs, checkTypeName(x, vr.Type)...)
 		if vr != def {
 			err := x.err(vr, "%s is redefined", vr.Name)
 			note(err, "previous definition is at %s", x.loc(def))
@@ -1012,8 +999,8 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 		Name: name,
 		Args: args,
 	}
-	if err := checkTypeName(x, &tn); err != nil {
-		panic(fmt.Sprintf("impossible error: %s", err))
+	if errs := checkTypeName(x, &tn); len(errs) > 0 {
+		panic(fmt.Sprintf("impossible error: %v", errs))
 	}
 	return tn.Type
 }
