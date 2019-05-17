@@ -587,6 +587,13 @@ func TestCtor(t *testing.T) {
 			err:  "Int8 cannot represent 257: overflow",
 		},
 		{
+			name: "bad built-in type selector",
+			src: `
+				[foo| { Int | 123 }]
+			`,
+			err: "built-in type Int64 cannot be constructed",
+		},
+		{
 			name: "good and-type selector",
 			src: `
 				[foo| { Point | x: 5; y: 6 }]

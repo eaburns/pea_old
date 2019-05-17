@@ -886,6 +886,9 @@ func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		errs = append(errs, checkOrCtor(x, &n)...)
 	case len(typ.Virts) > 0:
 		errs = append(errs, checkVirtCtor(x, &n)...)
+	case isBuiltInType(typ):
+		err := x.err(n, "built-in type %s cannot be constructed", typ.Name())
+		errs = append(errs, *err)
 	default:
 		errs = append(errs, checkAndCtor(x, &n)...)
 	}
@@ -894,7 +897,11 @@ func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 }
 
 func isAry(t *Type) bool {
-	return t.ModPath.Root == "" && t.Sig.Name == "Array"
+	return isBuiltInType(t) && t.Sig.Name == "Array"
+}
+
+func isBuiltInType(t *Type) bool {
+	return t.ModPath.Root == ""
 }
 
 func checkAryCtor(x *scope, n *Ctor) (errs []checkError) {
