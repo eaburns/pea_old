@@ -74,6 +74,7 @@ type Fun struct {
 	Stmts     []Stmt
 
 	RecvType *Type
+	Self     *Parm // non-nil if RecvType is non-nil
 	Locals   []*Parm
 }
 
@@ -279,10 +280,18 @@ type Ident struct {
 	location
 	Text string
 
-	Type *Type
+	// Def is the Parm defining the variable.
+	Def *Parm
+	// RecvType is non-nil if the Ident is a method receiver field.
+	RecvType *Type
 }
 
-func (n Ident) ExprType() *Type { return n.Type }
+func (n Ident) ExprType() *Type {
+	if n.Def != nil && n.Def.Type != nil {
+		return n.Def.Type.Type
+	}
+	return nil
+}
 
 // An Int is an integer literal.
 type Int struct {

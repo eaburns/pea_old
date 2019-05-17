@@ -337,6 +337,7 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 			// then check the instance.
 			return errs
 		}
+
 	}
 	if len(fun.TypeParms) > 0 {
 		// TODO: checkFun for parameterized funs is unimplemented.
@@ -346,6 +347,16 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	}
 
 	seen := make(map[string]*Parm)
+	if fun.Recv != nil && fun.RecvType != nil {
+		fun.Self = &Parm{
+			location: fun.Recv.location,
+			Name:     "self",
+			Type:     typeName(fun.RecvType),
+		}
+		seen[fun.Self.Name] = fun.Self
+		x = x.push(fun.Self.Name, fun.Self)
+	}
+
 	for i := range fun.Parms {
 		p := &fun.Parms[i]
 		switch prev := seen[p.Name]; {
@@ -372,6 +383,10 @@ func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
 	defer x.tr("checkFunStmts(%s)", fun)(&errs)
 
 	seen := make(map[string]*Parm)
+	if fun.Self != nil {
+		seen[fun.Self.Name] = fun.Self
+		x = x.push(fun.Self.Name, fun.Self)
+	}
 	for i := range fun.Parms {
 		p := &fun.Parms[i]
 		if seen[p.Name] == nil && p.Name != "_" {
@@ -1085,9 +1100,29 @@ func lastStmtExprType(ss []Stmt) *Type {
 }
 
 func (n Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Ident.check(…)")(&errs)
-	// TODO: Ident.check is unimplemented.
-	return n, nil
+	defer x.tr("Ident.check(%s, infer=%s)", n.Text, infer)(&errs)
+	switch def := x.find(n.Text).(type) {
+	case *Parm:
+		x.log("found parm")
+		n.Def = def
+		return n, errs
+	case nil:
+		fun := x.fun()
+		if fun == nil || fun.RecvType == nil {
+			break
+		}
+		for i := range fun.RecvType.Fields {
+			f := &fun.RecvType.Fields[i]
+			if f.Name == n.Text {
+				n.Def = f
+				n.RecvType = fun.RecvType
+				return n, errs
+			}
+		}
+	}
+	err := x.err(n, "undefined: %s", n.Text)
+	errs = append(errs, *err)
+	return n, errs
 }
 
 func (n Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {

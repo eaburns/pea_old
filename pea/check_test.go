@@ -227,6 +227,11 @@ func TestCheckFun(t *testing.T) {
 			err:  "x is redefined",
 		},
 		{
+			name: "redefined self",
+			src:  "Int [foo: self Int |]",
+			err:  "self is redefined",
+		},
+		{
 			name: "_ is not redefined",
 			src:  "[foo: _ Int bar: _ Int |]",
 			err:  "",
@@ -727,6 +732,50 @@ func TestBlock(t *testing.T) {
 			name: "bad statement",
 			src:  `[ foo | x := [ y Int := 3.14 ] ]`,
 			err:  "Int cannot represent 3.14: truncation",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestIdent(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok parm",
+			src: `
+				[foo: x Int | x + 3]
+			`,
+			err: "",
+		},
+		{
+			name: "ok local",
+			src: `
+				[foo | x Int := 5. x]
+			`,
+			err: "",
+		},
+		{
+			name: "ok field",
+			src: `
+				Point [foo | x]
+				Point { x: Int y: Int }
+			`,
+			err: "",
+		},
+		{
+			name: "ok self",
+			src: `
+				Int [foo | self]
+			`,
+			err: "",
+		},
+		{
+			name: "undefined",
+			src: `
+				[foo | z]
+			`,
+			err: "undefined: z",
 		},
 	}
 	for _, test := range tests {
