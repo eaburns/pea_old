@@ -107,6 +107,7 @@ type Var struct {
 	Priv bool
 	ModPath
 	Ident string
+	Type  *TypeName
 	Val   []Stmt
 }
 

@@ -200,10 +200,11 @@ Ret <- _ "^" t:TypeName {
 	return TypeName(t)
 }
 
-Var <- n:Ident _":=" _"[" ss:Stmts _"]" {
+Var <- n:Ident tn:TypeName? _":=" _"[" ss:Stmts _"]" {
 	return &Var{
 		location: location{n.start, loc1(parser, end)},
 		Ident: n.Text,
+		Type: tn,
 		Val: ss,
 	}
 }

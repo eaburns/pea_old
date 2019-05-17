@@ -273,13 +273,12 @@ func checkDef(x *scope, def Def) (errs []checkError) {
 	case *Fun:
 		return checkFun(x, def)
 	case *Var:
-		// TODO: checkDef(*Var) is unimplemented.
+		return checkVar(x, def)
 	case *Type:
 		return checkType(x, def)
 	default:
 		panic(fmt.Sprintf("impossible Def type %T", def))
 	}
-	return errs
 }
 
 func checkDefStmts(x *scope, def Def) (errs []checkError) {
@@ -295,12 +294,33 @@ func checkDefStmts(x *scope, def Def) (errs []checkError) {
 	return errs
 }
 
+func checkVar(x *scope, vr *Var) (errs []checkError) {
+	defer x.tr("checkVar(%s)", vr.Ident)(&errs)
+	if vr.Type != nil {
+		errs = append(errs, checkTypeName(x, vr.Type)...)
+	}
+	// TODO: checkVar only checks the type if the name is explicit.
+	// There should be a pass after all checkDefs
+	// to check the var def statements in topological order,
+	// setting the inferred types.
+	return errs
+}
+
 func checkVarStmts(x *scope, vr *Var) (errs []checkError) {
 	defer x.tr("checkVarStmts(%s)", vr.Ident)(&errs)
-	if ss, es := checkStmts(x, vr.Val, nil); len(es) > 0 {
+	if ss, es := checkStmts(x, vr.Val, vr.Type); len(es) > 0 {
 		errs = append(errs, es...)
 	} else {
 		vr.Val = ss
+	}
+	if vr.Type == nil {
+		typ := builtInType(x, "Nil")
+		if len(vr.Val) > 0 {
+			if expr, ok := vr.Val[len(vr.Val)-1].(Expr); ok && expr.ExprType() != nil {
+				typ = expr.ExprType()
+			}
+		}
+		vr.Type = typeName(typ)
 	}
 	return errs
 }

@@ -191,6 +191,34 @@ func TestRedefError(t *testing.T) {
 	}
 }
 
+func TestCheckVar(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src:  "v Int32 := [5]",
+			err:  "",
+		},
+		{
+			name: "ok nil",
+			src:  "v := []",
+			err:  "",
+		},
+		{
+			name: "undef type",
+			src:  "v Undef := [5]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "bad statement",
+			src:  "v Undef := [{Int8 Array | 257}]",
+			err:  "Int8 cannot represent 257: overflow",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestCheckFun(t *testing.T) {
 	tests := []checkTest{
 		{
