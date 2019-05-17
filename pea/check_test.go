@@ -602,6 +602,22 @@ func TestCtor(t *testing.T) {
 			err: "",
 		},
 		{
+			name: "and-type nil",
+			src: `
+				[foo| { Empty | }]
+				Empty { }
+			`,
+			err: "",
+		},
+		{
+			name: "and-type array args",
+			src: `
+				[foo| { Empty | 123 }]
+				Empty { }
+			`,
+			err: "bad and-type constructor: Nil with non-nil expression",
+		},
+		{
 			name: "bad and-type selector",
 			src: `
 				[foo| { Point | a: 5; b: 6 }]

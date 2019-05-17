@@ -933,9 +933,15 @@ func checkAndCtor(x *scope, n *Ctor) (errs []checkError) {
 		inferTypes = append(inferTypes, p.Type)
 	}
 	if sel != n.Sel {
-		inferTypes = make([]*TypeName, len(n.Args))
 		err := x.err(n, "bad and-type constructor: got %s, expected %s", n.Sel, sel)
 		errs = append(errs, *err)
+	}
+	if n.Sel == "" && len(n.Args) > 0 {
+		err := x.err(n, "bad and-type constructor: Nil with non-nil expression")
+		errs = append(errs, *err)
+	}
+	if len(inferTypes) != len(n.Args) {
+		inferTypes = make([]*TypeName, len(n.Args))
 	}
 	for i := range n.Args {
 		if expr, es := checkExpr(x, n.Args[i], inferTypes[i]); len(es) > 0 {
