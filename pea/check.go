@@ -44,14 +44,10 @@ func Check(mod *Mod, opts ...Opt) []error {
 	// that type definitions have been fully checked
 	// and have non-nil TypeName.Type values.
 	for _, def := range mod.Defs {
-		if _, ok := def.(*Type); ok {
-			errs = append(errs, checkDef(x, def)...)
-		}
+		errs = append(errs, checkDef(x, def)...)
 	}
 	for _, def := range mod.Defs {
-		if _, ok := def.(*Type); !ok {
-			errs = append(errs, checkDef(x, def)...)
-		}
+		errs = append(errs, checkDefStmts(x, def)...)
 	}
 
 	return convertErrors(errs)
@@ -286,6 +282,29 @@ func checkDef(x *scope, def Def) (errs []checkError) {
 	return errs
 }
 
+func checkDefStmts(x *scope, def Def) (errs []checkError) {
+	defer x.tr("checkDefStmts(%s)", def.Name())(&errs)
+
+	x = &scope{state: x.state, parent: x, def: def}
+	switch def := def.(type) {
+	case *Fun:
+		errs = append(errs, checkFunStmts(x, def)...)
+	case *Var:
+		errs = append(errs, checkVarStmts(x, def)...)
+	}
+	return errs
+}
+
+func checkVarStmts(x *scope, vr *Var) (errs []checkError) {
+	defer x.tr("checkVarStmts(%s)", vr.Ident)(&errs)
+	if ss, es := checkStmts(x, vr.Val, nil); len(es) > 0 {
+		errs = append(errs, es...)
+	} else {
+		vr.Val = ss
+	}
+	return errs
+}
+
 func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	defer x.tr("checkFun(%s)", fun)(&errs)
 
@@ -326,12 +345,25 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 		errs = append(errs, checkTypeName(x, fun.Ret)...)
 	}
 
+	return errs
+}
+
+func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
+	defer x.tr("checkFunStmts(%s)", fun)(&errs)
+
+	seen := make(map[string]*Parm)
+	for i := range fun.Parms {
+		p := &fun.Parms[i]
+		if seen[p.Name] == nil && p.Name != "_" {
+			seen[p.Name] = p
+			x = x.push(p.Name, p)
+		}
+	}
 	if ss, es := checkStmts(x, fun.Stmts, nil); len(es) > 0 {
 		errs = append(errs, es...)
 	} else {
 		fun.Stmts = ss
 	}
-
 	return errs
 }
 
