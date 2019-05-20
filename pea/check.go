@@ -382,6 +382,19 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
 	defer x.tr("checkFunStmts(%s)", fun)(&errs)
 
+	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
+		// TODO: checkFunStmts for param receivers is only partially implemented.
+		// We should create stub type arguments, instantiate the fun,
+		// then check the instance.
+		return errs
+	}
+	if len(fun.TypeParms) > 0 {
+		// TODO: checkFunStmts for parameterized funs is unimplemented.
+		// We should create stub type arguments, instantiate the fun,
+		// then check the instance.
+		return errs
+	}
+
 	seen := make(map[string]*Parm)
 	if fun.Self != nil {
 		seen[fun.Self.Name] = fun.Self
