@@ -613,6 +613,14 @@ func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
 func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	defer x.tr("checkTypeName(%s)", name)(&errs)
 
+	if name.Var {
+		x.log("type variable")
+		// TODO: checkTypeName on var should go away,
+		// once we fully instantiate Type and Fun before checking,
+		// it should be impossible to hit this case.
+		return nil
+	}
+
 	for i := range name.Args {
 		errs = append(errs, checkTypeName(x, &name.Args[i])...)
 	}
