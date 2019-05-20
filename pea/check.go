@@ -1034,22 +1034,15 @@ func checkVirtCtor(x *scope, n *Ctor) (errs []checkError) {
 func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("Block.check(…)")(&errs)
 
-	var resInfer *TypeName
-	if infer != nil && infer.Type != nil && infer.Type.ModPath.Root == "" &&
-		strings.HasPrefix(infer.Type.Sig.Name, "Fun") &&
-		len(n.Parms) == len(infer.Type.Sig.Parms)-1 {
-		sig := infer.Type.Sig
-		for i := range n.Parms {
-			if n.Parms[i].Type == nil {
-				p := &sig.Parms[i]
-				t := sig.Args[p]
-				n.Parms[i].Type = &t
-			}
+	for i := range n.Parms {
+		p := &n.Parms[i]
+		if p.Type != nil {
+			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
-		p := &sig.Parms[len(sig.Parms)-1]
-		t := sig.Args[p]
-		resInfer = &t
+		x = x.push(p.Name, p)
 	}
+
+	resInfer := inferBlock(x, &n, infer)
 
 	x = &scope{state: x.state, parent: x, block: &n}
 	resultType := builtInType(x, "Nil")
@@ -1087,6 +1080,25 @@ func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		n.Type = builtInType(x, fmt.Sprintf("Fun%d", len(n.Parms)), typeArgs...)
 	}
 	return n, errs
+}
+
+func inferBlock(x *scope, n *Block, infer *TypeName) *TypeName {
+	if infer == nil || infer.Type == nil || infer.Type.ModPath.Root != "" ||
+		!strings.HasPrefix(infer.Type.Sig.Name, "Fun") ||
+		len(n.Parms) != len(infer.Type.Sig.Parms)-1 {
+		return nil
+	}
+	sig := infer.Type.Sig
+	for i := range n.Parms {
+		if n.Parms[i].Type == nil {
+			p := &sig.Parms[i]
+			t := sig.Args[p]
+			n.Parms[i].Type = &t
+		}
+	}
+	p := &sig.Parms[len(sig.Parms)-1]
+	t := sig.Args[p]
+	return &t
 }
 
 func lastStmtExprType(ss []Stmt) *Type {
