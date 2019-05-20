@@ -731,7 +731,7 @@ func checkAssign(x *scope, as *Assign) (_ *scope, _ []Stmt, errs []checkError) {
 		errs = append(errs, es...)
 		return x, []Stmt{as}, errs
 	}
-	ss, ass, es := splitAssign(x, as)
+	x, ss, ass, es := splitAssign(x, as)
 	if len(es) > 0 {
 		errs = append(errs, es...)
 	}
@@ -774,11 +774,11 @@ func checkAssignCount(x *scope, as *Assign) (errs []checkError) {
 	return errs
 }
 
-func splitAssign(x *scope, as *Assign) (ss []Stmt, ass []*Assign, errs []checkError) {
+func splitAssign(x *scope, as *Assign) (_ *scope, ss []Stmt, ass []*Assign, errs []checkError) {
 	defer x.tr("splitAssign(…)")(&errs)
 
 	if len(as.Vars) == 1 {
-		return []Stmt{as}, []*Assign{as}, nil
+		return x, []Stmt{as}, []*Assign{as}, nil
 	}
 
 	call := as.Val.(Call) // must, because checkAssignCount was OK
@@ -811,7 +811,7 @@ func splitAssign(x *scope, as *Assign) (ss []Stmt, ass []*Assign, errs []checkEr
 		ss = append(ss, as)
 		ass = append(ass, as)
 	}
-	return ss, ass, errs
+	return x, ss, ass, errs
 }
 
 func checkAssign1(x, x1 *scope, as *Assign) (_ *scope, errs []checkError) {
