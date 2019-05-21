@@ -771,6 +771,30 @@ func TestIdent(t *testing.T) {
 			err: "",
 		},
 		{
+			name: "ok module variable",
+			src: `
+				[foo | xyz]
+				xyz := [ 5 ]
+			`,
+			err: "",
+		},
+		{
+			name: "ok unary function",
+			src: `
+				[foo | bar]
+				[bar | ]
+			`,
+			err: "",
+		},
+		{
+			name: "bad def type",
+			src: `
+				[foo | someType]
+				someType {}
+			`,
+			err: "got type, expected a variable or 0-ary function",
+		},
+		{
 			name: "undefined",
 			src: `
 				[foo | z]

@@ -1134,28 +1134,78 @@ func lastStmtExprType(ss []Stmt) *Type {
 
 func (n Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("Ident.check(%s, infer=%s)", n.Text, infer)(&errs)
-	switch def := x.find(n.Text).(type) {
-	case *Parm:
-		x.log("found parm")
-		n.Def = def
+	if parm, ok := x.find(n.Text).(*Parm); ok {
+		n.Parm = parm
 		return n, errs
-	case nil:
-		fun := x.fun()
-		if fun == nil || fun.RecvType == nil {
-			break
-		}
-		for i := range fun.RecvType.Fields {
-			f := &fun.RecvType.Fields[i]
-			if f.Name == n.Text {
-				n.Def = f
-				n.RecvType = fun.RecvType
-				return n, errs
-			}
+	}
+
+	if fun := x.fun(); fun != nil && fun.RecvType != nil {
+		if f := findField(fun.RecvType, n.Text); f != nil {
+			n.Parm = f
+			n.RecvType = fun.RecvType
+			return n, errs
 		}
 	}
-	err := x.err(n, "undefined: %s", n.Text)
+
+	def, defOrImport := findDef(x, n.Text)
+	if def == nil {
+		err := x.err(n, "undefined: %s", n.Text)
+		errs = append(errs, *err)
+		return n, errs
+	}
+
+	if v, ok := def.(*Var); ok {
+		n.Var = v
+		return n, errs
+	}
+
+	if fun, ok := def.(*Fun); ok {
+		if len(fun.Parms) > 0 || fun.Recv != nil {
+			// The name is just an ident,
+			// it cannot have a receiver or params.
+			panic("impossible")
+		}
+		loc := n.location
+		call := &Call{
+			location: loc,
+			Msgs:     []Msg{{location: loc, Sel: n.Text}},
+		}
+		expr, es := call.check(x, infer)
+		return expr, append(errs, es...)
+	}
+
+	err := x.err(n, "got %s, expected a variable or 0-ary function", def.kind())
+	addDefNotes(err, x, defOrImport)
 	errs = append(errs, *err)
 	return n, errs
+}
+
+func findDef(x *scope, name string) (def Def, defOrImport interface{}) {
+	mp := x.modPath()
+	path := append([]string{mp.Root}, mp.Path...)
+	defOrImport = x.mods.find(path, name)
+	switch d := defOrImport.(type) {
+	case nil:
+		return nil, nil
+	case builtin:
+		return d.Def, defOrImport
+	case imported:
+		return d.Def, defOrImport
+	case Def:
+		return d, defOrImport
+	default:
+		panic(fmt.Sprintf("impossible definition type %T", def))
+	}
+}
+
+func findField(typ *Type, name string) *Parm {
+	for i := range typ.Fields {
+		f := &typ.Fields[i]
+		if f.Name == name {
+			return f
+		}
+	}
+	return nil
 }
 
 func (n Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {

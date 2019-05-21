@@ -107,6 +107,7 @@ type Var struct {
 	location
 	Priv bool
 	ModPath
+	Var   *Parm
 	Ident string
 	Type  *TypeName
 	Val   []Stmt
@@ -280,17 +281,26 @@ type Ident struct {
 	location
 	Text string
 
-	// Def is the Parm defining the variable.
-	Def *Parm
+	// Var is non-nil if the Ident is a module-level value.
+	// Otherwise Parm is non-nil.
+	Var *Var
+	// Parm is non-nil if the Ident is a Fun parameter, local,
+	// or the Field of a Fun receiver
+	// (in which case RecvType is non-nil too).
+	Parm *Parm
 	// RecvType is non-nil if the Ident is a method receiver field.
 	RecvType *Type
 }
 
 func (n Ident) ExprType() *Type {
-	if n.Def != nil && n.Def.Type != nil {
-		return n.Def.Type.Type
+	switch {
+	case n.Var != nil && n.Var.Type != nil:
+		return n.Var.Type.Type
+	case n.Parm != nil && n.Parm.Type != nil:
+		return n.Parm.Type.Type
+	default:
+		return nil
 	}
-	return nil
 }
 
 // An Int is an integer literal.
