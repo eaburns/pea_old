@@ -16762,7 +16762,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 						}
 						node11 = func(
 							start, end int, n Ident, t *TypeName) Parm {
-							return Parm{Name: n.Text, Type: t}
+							return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
 						}(
 							start13, pos, label0, label1)
 					}
@@ -16812,7 +16812,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 						}
 						node11 = func(
 							start, end int, n Ident, t *TypeName) Parm {
-							return Parm{Name: n.Text, Type: t}
+							return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
 						}(
 							start21, pos, label0, label1)
 					}

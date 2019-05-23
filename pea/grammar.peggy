@@ -554,7 +554,9 @@ Ary <- e0:Expr  es:( _ ";" e:Expr { return arg{val: e} } )* ( _";" )? {
 }
 
 Block <- _ ( "[" (
-	( ps:( n:CIdent t:TypeName? { return Parm{Name: n.Text, Type: t} } )+ _ "|" )? ss:Stmts
+	( ps:( n:CIdent t:TypeName? {
+		return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
+	} )+ _ "|" )? ss:Stmts
 ) _ "]" ) {
 	return Expr(Block{
 		location: loc(parser, start, end),
