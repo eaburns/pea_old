@@ -213,9 +213,9 @@ func numDefs(t string) []Def {
 		builtinUnary(t, "asInt16", "Int16"),
 		builtinUnary(t, "asInt32", "Int32"),
 		builtinUnary(t, "asInt64", "Int64"),
-		builtinUnary(t, "asFloat", "asFloat"),
-		builtinUnary(t, "asFloat32", "asFloat32"),
-		builtinUnary(t, "asFloat64", "asFloat64"),
+		builtinUnary(t, "asFloat", "Float"),
+		builtinUnary(t, "asFloat32", "Float32"),
+		builtinUnary(t, "asFloat64", "Float64"),
 	}
 }
 
