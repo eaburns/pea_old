@@ -76,11 +76,17 @@ type Fun struct {
 	RecvType *Type
 	Self     *Parm // non-nil if RecvType is non-nil
 	Locals   []*Parm
+
+	// For instatiated type-parameterized methods.
+	TypeArgs map[*Parm]TypeName
+	// x is non-nil for an instantiated type.
+	// It is the scope that encompases the type parameters.
+	x *scope
 }
 
 func (n *Fun) Name() string {
 	if n.Recv != nil {
-		return n.Recv.String() + " " + n.Sel
+		return n.Recv.Name + " " + n.Sel
 	}
 	return n.Sel
 }
@@ -230,11 +236,9 @@ type Call struct {
 	location
 	Recv Node // Expr, ModPath, or nil
 	Msgs []Msg
-
-	Type *Type
 }
 
-func (n Call) ExprType() *Type { return n.Type }
+func (n Call) ExprType() *Type { return n.Msgs[len(n.Msgs)-1].Type }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
@@ -243,6 +247,7 @@ type Msg struct {
 	Args []Expr
 
 	Type *Type
+	Fun  *Fun
 }
 
 // A Ctor type constructor literal.

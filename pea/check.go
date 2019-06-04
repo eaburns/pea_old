@@ -60,8 +60,9 @@ type state struct {
 	onAliasPath map[*Type]bool
 	aliasCycles map[*Type]*checkError
 
-	methInsts map[string]interface{}
 	typeInsts map[string]interface{}
+	methInsts map[string]interface{} // receiver reified
+	funInsts  map[string]*Fun        // receiver + type parms reified
 
 	next int
 
@@ -76,8 +77,9 @@ func newState(mod *Mod, opts ...Opt) *state {
 		importer:    defaultImporter,
 		onAliasPath: make(map[*Type]bool),
 		aliasCycles: make(map[*Type]*checkError),
-		methInsts:   make(map[string]interface{}),
 		typeInsts:   make(map[string]interface{}),
+		methInsts:   make(map[string]interface{}),
+		funInsts:    make(map[string]*Fun),
 		wordSize:    64,
 	}
 	for _, opt := range opts {
@@ -136,7 +138,7 @@ func dump(m *module, ident string) {
 		return defs[i].Name() < defs[j].Name()
 	})
 	for _, d := range defs {
-		fmt.Printf("%s %s\n", ident, d)
+		fmt.Printf("%s [%s]: %s\n", ident, d.Name(), d)
 	}
 	for _, k := range m.kids {
 		dump(k, ident)
@@ -222,7 +224,7 @@ func collect(x *scope, imp *Import, path []string, mod *Mod) (errs []checkError)
 				def = imported{imp, def}
 			}
 			p := append(path, def.Mod().Path...)
-			x.log("adding %v %v", p, def)
+			x.log("adding %v %v", p, def.Name())
 			prev := x.mods.add(p, def)
 			if prev != nil {
 				errs = append(errs, *redefError(x, def, prev))
@@ -378,16 +380,23 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 			// TODO: checkFun for param receivers is only partially implemented.
 			// We should create stub type arguments, instantiate the fun,
 			// then check the instance.
-			return errs
 		}
-
+		for i := range fun.Recv.Parms {
+			p := &fun.Recv.Parms[i]
+			x = x.push(p.Name, p)
+		}
+		fun.Recv.x = x
 	}
 	if len(fun.TypeParms) > 0 {
 		// TODO: checkFun for parameterized funs is unimplemented.
 		// We should create stub type arguments, instantiate the fun,
 		// then check the instance.
-		return errs
 	}
+	for i := range fun.TypeParms {
+		p := &fun.TypeParms[i]
+		x = x.push(p.Name, p)
+	}
+	fun.x = x
 
 	seen := make(map[string]*Parm)
 	if fun.Recv != nil && fun.RecvType != nil {
@@ -520,15 +529,16 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 	if len(typ.Sig.Parms) > 0 {
 		for i := range typ.Sig.Parms {
 			p := &typ.Sig.Parms[i]
+			x = x.push(p.Name, p)
 			if p.Type == nil {
 				continue
 			}
 			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
+		typ.Sig.x = x
 		// TODO: checkType for param types is only partially implemented.
 		// We should create stub type arguments, instantiate the type,
 		// then check the instance.
-		return errs
 	}
 
 	switch {
@@ -941,8 +951,367 @@ func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError)
 
 func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("Call.check(…)")(&errs)
-	// TODO: Call.check is unimplemented.
-	return n, nil
+
+	switch recv := n.Recv.(type) {
+	case Expr:
+		if expr, es := recv.check(x, nil); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			n.Recv = expr
+		}
+	case nil:
+		n.Recv = *x.modPath()
+	case ModPath:
+		// nothing to do
+	}
+
+	if n.Recv == nil {
+		// We can't find the messages,
+		// so just do best-effort error reporting
+		// by checking the message arguments.
+		for _, msg := range n.Msgs {
+			for _, arg := range msg.Args {
+				_, es := checkExpr(x, arg, nil)
+				errs = append(errs, es...)
+			}
+		}
+		return n, errs
+	}
+
+	for i := range n.Msgs {
+		var in *TypeName
+		if i == len(n.Msgs)-1 {
+			in = infer
+		}
+		errs = append(errs, checkMsg(x, &n, &n.Msgs[i], in)...)
+	}
+
+	return n, errs
+}
+
+func checkMsg(x *scope, call *Call, msg *Msg, infer *TypeName) (errs []checkError) {
+	defer x.tr("checkMsg(%s, infer=%s)", msg.Sel, infer)(&errs)
+
+	fun, es := findFun(x, call, msg)
+	if fun == nil || len(es) > 0 {
+		// Best-effort checking of the arguments.
+		for i := range msg.Args {
+			if arg, es := msg.Args[i].check(x, nil); len(es) > 0 {
+				errs = append(errs, es...)
+			} else {
+				msg.Args[i] = arg
+			}
+		}
+		return append(errs, es...)
+	}
+	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
+		if recv, ok := call.Recv.(Expr); ok && recv.ExprType() != nil {
+			name := *typeName(recv.ExprType())
+			if fun, es = fun.instRecv(x, name); len(es) > 0 {
+				err := x.err(name, "%s cannot be instantiated", name)
+				err.cause = es
+				return append(errs, *err)
+			}
+		}
+	}
+	if len(fun.TypeParms) == 0 {
+		return checkGroundedMsg(x, msg, fun, infer)
+	}
+	return checkLiftedMsg(x, msg, fun, infer)
+}
+
+func checkGroundedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []checkError) {
+	defer x.tr("checkGroundedMsg(%s, infer=%s)", msg.Sel, infer)(&errs)
+
+	for i := range msg.Args {
+		var in *TypeName
+		if i < len(fun.Parms) {
+			in = fun.Parms[i].Type
+		}
+		if arg, es := msg.Args[i].check(x, in); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			msg.Args[i] = arg
+		}
+	}
+	msg.Fun = fun
+	return errs
+}
+
+func checkLiftedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []checkError) {
+	defer x.tr("checkLiftedMsg(%s, infer=%s)", msg.Sel, infer)(&errs)
+
+	if errs = inferArgTypes(x, msg, fun, infer); len(errs) > 0 {
+		// This is terminal; do best-effort checking
+		// of all yet-to-be-checked arguments.
+		for i := range fun.Parms {
+			if hasVar(*fun.Parms[i].Type) {
+				continue
+			}
+			arg, es := checkExpr(x, msg.Args[i], fun.Parms[i].Type)
+			if len(es) > 0 {
+				errs = append(errs, es...)
+			} else {
+				msg.Args[i] = arg
+			}
+		}
+		return errs
+	}
+
+	fun = fun.sub(fun.x, fun.TypeArgs)
+	if prev := x.funInsts[fun.String()]; prev == nil {
+		x.funInsts[fun.String()] = fun
+	} else {
+		fun = prev
+	}
+	msg.Fun = fun
+
+	for i := range fun.Parms {
+		arg, es := checkExpr(x, msg.Args[i], fun.Parms[i].Type)
+		if len(es) > 0 {
+			errs = append(errs, es...)
+			continue
+		}
+		msg.Args[i] = arg
+	}
+
+	return errs
+}
+
+// inferArgTypes checks the argument for any parameter with a type variable,
+// unifies the type variables with the resulting expression types,
+// and populates fun.TypeArgs with a *Parm→TypeName mapping,
+// and fun.x with a scope from type variable names to *Parm.
+func inferArgTypes(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []checkError) {
+	defer x.tr("inferArgTypes(%s, infer=%s)", msg.Sel, infer)(&errs)
+
+	bind := make(map[string]TypeName)
+	if fun.Ret != nil && hasVar(*fun.Ret) {
+		in := infer
+		if in == nil {
+			in = typeName(builtInType(x, "Nil"))
+		}
+		if err := unify(x, fun.Ret, in, bind); err != nil {
+			errs = append(errs, *err)
+		}
+	}
+	for i := range fun.Parms {
+		p := &fun.Parms[i]
+		if !hasVar(*p.Type) {
+			continue
+		}
+		arg, es := msg.Args[i].check(x, nil)
+		if len(es) > 0 {
+			errs = append(errs, es...)
+			continue
+		}
+		msg.Args[i] = arg
+		if arg.ExprType() != nil {
+			typ := typeName(arg.ExprType())
+			typ.location = location{start: arg.Start(), end: arg.End()}
+			for i := range typ.Args {
+				typ.Args[i].location = typ.location
+			}
+			if err := unify(x, p.Type, typ, bind); err != nil {
+				errs = append(errs, *err)
+			}
+		}
+	}
+	fun.x = x
+	fun.TypeArgs = make(map[*Parm]TypeName)
+	for i := range fun.TypeParms {
+		p := &fun.TypeParms[i]
+		n, ok := bind[p.Name]
+		if !ok {
+			x.log("p=%#v\n", p)
+			x.log("bind=%v\n", bind)
+			err := x.err(msg, "cannot infer type of type variable %s", p.Name)
+			errs = append(errs, *err)
+			continue
+		}
+		fun.x = fun.x.push(p.Name, p)
+		fun.TypeArgs[p] = n
+
+	}
+	return errs
+}
+
+func unify(x *scope, pat, typ *TypeName, bind map[string]TypeName) (err *checkError) {
+	defer x.tr("unify(pat=%s, typ=%s)", pat, typ)(err)
+
+	// The caller ensures this.
+	if !pat.Var && pat.Type == nil || typ.Var || typ.Type == nil {
+		panic(fmt.Sprintf("impossible: "+
+			"pat.Var=%v, pat.Type=%p, typ.Var=%v, typ.Type=%p",
+			pat.Var, pat.Type, typ.Var, typ.Type))
+	}
+
+	if pat.Var {
+		x.log("type variable %s", pat.Name)
+		prev, ok := bind[pat.Name]
+		if !ok {
+			x.log("binding %s=%s", pat.Name, typ)
+			bind[pat.Name] = *typ
+			return nil
+		}
+		x.log("prev=%s (%p), typ=%s (%p)", prev, prev.Type, typ, typ.Type)
+		if typ.Type != prev.Type {
+			err = unifyError(x, &prev, typ)
+			note(err, "%s bound to %s at %s", pat.Name, prev, x.loc(prev))
+			return err
+		}
+		return nil
+	}
+	if !modEq(&typ.Type.ModPath, &pat.Type.ModPath) ||
+		typ.Type.Sig.Name != pat.Type.Sig.Name {
+		// TODO: unify could implement interface inference.
+		return unifyError(x, pat, typ)
+	}
+	if len(pat.Args) != len(typ.Args) {
+		// They are the same Mod and same Name;
+		// they must have the same number of args.
+		panic("impossible")
+	}
+	var errs []checkError
+	for i := range pat.Args {
+		if err := unify(x, &pat.Args[i], &typ.Args[i], bind); err != nil {
+			errs = append(errs, *err)
+		}
+	}
+	if len(errs) > 0 {
+		return unifyError(x, pat, typ, errs...)
+	}
+	return nil
+}
+
+func modEq(a, b *ModPath) bool {
+	return a == nil && b == nil || a != nil && b != nil && a.String() == b.String()
+}
+
+func unifyError(x *scope, pat, typ *TypeName, cause ...checkError) *checkError {
+	var t, p strings.Builder
+	typeStringForUser(typ, &t)
+	typeStringForUser(pat, &p)
+	err := x.err(typ, "type %s cannot unify with %s", t.String(), p.String())
+	if len(cause) > 0 {
+		err.cause = cause
+	}
+	return err
+}
+
+// TODO: typeStringForUser should go away; all the .String methods should be for the user.
+func typeStringForUser(n *TypeName, s *strings.Builder) {
+	if n.Var {
+		s.WriteString(n.Name)
+		return
+	}
+	sig := n.Type.Sig
+	if len(sig.Parms) > 1 {
+		s.WriteRune('(')
+	}
+	for i := range sig.Parms {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		p := &sig.Parms[i]
+		if a, ok := sig.Args[p]; ok {
+			typeStringForUser(&a, s)
+		} else {
+			s.WriteString(p.Name)
+		}
+	}
+	switch len(sig.Parms) {
+	case 0:
+		break
+	case 1:
+		s.WriteString(" ")
+	default:
+		s.WriteString(") ")
+	}
+	s.WriteString(sig.Name)
+}
+
+func hasVar(name TypeName) bool {
+	if name.Var {
+		return true
+	}
+	for _, a := range name.Args {
+		if hasVar(a) {
+			return true
+		}
+	}
+	return false
+}
+
+func findFun(x *scope, call *Call, msg *Msg) (_ *Fun, errs []checkError) {
+	defer x.tr("findFun(%s)", msg.Sel)(&errs)
+
+	var mps []*ModPath
+	var name string
+	var funMeth string
+	switch recv := call.Recv.(type) {
+	case ModPath:
+		mps = []*ModPath{&recv}
+		name = msg.Sel
+		funMeth = "function"
+	case Expr:
+		typ := recv.ExprType()
+		if typ == nil {
+			return nil, nil
+		}
+		mps = []*ModPath{&typ.ModPath, x.modPath()}
+		name = typ.Sig.Name + " " + msg.Sel
+		funMeth = "method"
+	default:
+		panic(fmt.Sprintf("impossible receiver type: %T", recv))
+	}
+	var defOrImports []interface{}
+	seen := make(map[interface{}]bool)
+	for _, mp := range mps {
+		x.log("looking for %s: [%s] %s", funMeth, mp, name)
+		switch d := x.mods.find(*mp, name); {
+		case d == nil:
+			continue
+		case seen[d]:
+			continue
+		default:
+			x.log("found")
+			seen[d] = true
+			defOrImports = append(defOrImports, d)
+		}
+	}
+	switch len(defOrImports) {
+	case 1:
+		break // good
+	case 0:
+		err := x.err(msg, "%s undefined", name)
+		return nil, append(errs, *err)
+	default:
+		err := x.err(msg, "ambiguous call")
+		for _, d := range defOrImports {
+			addDefNotes(err, x, d)
+		}
+		return nil, append(errs, *err)
+	}
+	var def Def
+	switch d := defOrImports[0].(type) {
+	case builtin:
+		def = d.Def
+	case imported:
+		def = d.Def
+	case Def:
+		def = d
+	default:
+		panic(fmt.Sprintf("bad definition type: %T", d))
+	}
+	fun, ok := def.(*Fun)
+	if !ok {
+		err := x.err(msg, "got %s, expected a %s", def.kind(), funMeth)
+		addDefNotes(err, x, defOrImports[0])
+		errs = append(errs, *err)
+		return nil, errs
+	}
+	return fun, errs
 }
 
 func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
@@ -1382,6 +1751,13 @@ func (x *scope) find(s string) Node {
 
 func (x *scope) push(s string, n Node) *scope {
 	return &scope{state: x.state, parent: x, name: s, node: n}
+}
+
+func (x *scope) root() *scope {
+	if x.parent == nil {
+		return x
+	}
+	return x.parent.root()
 }
 
 func (x *scope) modPath() *ModPath {

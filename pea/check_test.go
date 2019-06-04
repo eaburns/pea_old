@@ -3,7 +3,9 @@ package pea
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -579,6 +581,186 @@ func TestAssign(t *testing.T) {
 	}
 }
 
+func TestCall(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "unary meth ok",
+			src: `
+				x := [ 5 asFloat64 ]
+			`,
+			err: "",
+		},
+		{
+			name: "binary meth ok",
+			src: `
+				x := [ 5 + 6 ]
+			`,
+			err: "",
+		},
+		/*
+			// TODO: adding a method to a type alias is broken.
+			{
+				name: "n-ary meth ok",
+				src: `
+					x := [ 5 foo: 6 bar: "Hello" ]
+					Int [foo: i Int bar: s String ^Int | ^5]
+				`,
+				err:   "",
+				trace: true,
+			},
+		*/
+		{
+			name: "n-ary meth ok",
+			src: `
+				x := [ 5 foo: 6 bar: "Hello" ]
+				Int64 [foo: i Int bar: s String ^Int | ^5]
+			`,
+			err: "",
+		},
+		{
+			name: "param type method ok",
+			src: `
+				x := [ {Float Array | } foo: 6 ]
+				T Array [ foo: i Int ^Int | ^i ]
+			`,
+			err: "",
+		},
+		{
+			name: "param type method with constraint ok",
+			src: `
+				x := [ {Int Array | } foo ]
+				(T AsFloater) Array [ foo ^Float | (self at: 0) asFloat ]
+				AsFloater { [asFloat ^Float] }
+			`,
+			err: "",
+		},
+		{
+			name: "param method ok",
+			src: `
+				x String := [ 23 foo: "Hello" ]
+				Int64 T [ foo: t T ^T | ^t ]
+			`,
+			err: "",
+		},
+		{
+			name: "cascade method ok",
+			src: `
+				x := [ 5 + 6, asFloat, + 3 ]
+			`,
+			err: "",
+		},
+		{
+			name: "unary fun ok",
+			src: `
+				x := [ foo ]
+				[foo ^Int | ^5]
+			`,
+			err: "",
+		},
+		{
+			name: "nary fun ok",
+			src: `
+				x := [ foo: 5 bar: "Hello" ]
+				[foo: i Int bar: s String ^Int | ^5]
+			`,
+			err: "",
+		},
+		{
+			name: "param fun ok",
+			src: `
+				x String := [ foo: 5 bar: "Hello" baz: 3.14 ]
+				(T, U, V) [ foo: t T bar: u U baz: v V | ^u ]
+			`,
+			err: "",
+		},
+		{
+			name: "cascade fun ok",
+			// TODO: cascades need a receiver if the first msg is unary; fix this.
+			src: `
+				x := [ #m foo, bar, baz: 6 ]
+				#m (
+					[foo |]
+					[bar |]
+					[baz: i Int ^Int | ^i]
+				)
+			`,
+			err: "",
+		},
+		/*
+			{
+				// TODO: test bad receiver inst when we check type constraints
+				name: "cannot instantiate receiver",
+				src: `
+					x := [ {Int Array|} foo ]
+					Fooer { [ foo ] }
+					(T Fooer) Array [foo | self do: [ :t | t foo ]]
+				`,
+				err:   `TODO(.|\n)*undefined: undef`,
+			},
+		*/
+		{
+			name: "bad receiver expr",
+			src: `
+				x := [ notFound foo: 5 bar: undef ]
+			`,
+			// We expect two errors: 1) the bad receiver,
+			// and 2) the bad argument that we should still check.
+			err: `undefined: notFound(.|\n)*undefined: undef`,
+		},
+		{
+			name: "bad grounded fun argument",
+			src: `
+				x := [ 6 + {undef | } ]
+			`,
+			err: `undef is undefined`,
+		},
+		{
+			name: "bad lifted fun non-lifted argument",
+			src: `
+				x := [ foo: 1 bar: {undef|}]
+				T [ foo: t0 T bar: i Int| ]
+			`,
+			err: `undef is undefined`,
+		},
+		{
+			name: "bad lifted fun lifted argument",
+			src: `
+				x := [ foo: {undef|} bar: 1]
+				T [ foo: t0 T bar: i Int| ]
+			`,
+			err: `undef is undefined`,
+		},
+		{
+			name: "different types for same type variable",
+			src: `
+				x := [ foo: 1 bar: "Hello" baz: {undef|}]
+				T [ foo: t0 T bar: t1 T baz: i Int| ]
+			`,
+			err: `type String cannot unify with Int64(.|\n)*undef is undefined`,
+		},
+		{
+			name: "infer return type first",
+			src: `
+				x Int := [ foo: 3.14 ]
+				T [ foo: t T ^T| t ]
+			`,
+			err: `type Float64 cannot unify with Int64`,
+		},
+		{
+			name: "infer ifTrue:ifFalse: return type",
+			src: `
+				x Int := [
+					{Bool|true} ifTrue: [ 5 ] ifFalse: [ 6 ]
+				]
+			`,
+			err: ``,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestCtor(t *testing.T) {
 	tests := []checkTest{
 		{
@@ -1066,5 +1248,137 @@ func testImporter(mods [][2]string) Opt {
 			}
 			return nil, errors.New("not found")
 		}
+	}
+}
+
+func TestUnify(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		pat, typ string
+		bind     [][2]string
+		err      string
+		trace    bool
+	}{
+		{
+			name: "same simple type",
+			pat:  "Nil",
+			typ:  "Nil",
+			err:  "",
+		},
+		{
+			name: "different simple type",
+			pat:  "Nil",
+			typ:  "Int",
+			err:  "Int64 cannot unify with Nil",
+		},
+		{
+			name: "same complex types",
+			pat:  "Int Array Array",
+			typ:  "Int Array Array",
+			err:  "",
+		},
+		{
+			name: "different complex types",
+			pat:  "Int Array Array",
+			typ:  "Float Array Array",
+			err:  "Float64 Array Array cannot unify with Int64 Array Array",
+		},
+		{
+			name: "simple binding",
+			src:  "(X, Y) Pair { x: X y: Y }",
+			pat:  "(X, Y) Pair",
+			typ:  "(Int, String Array) Pair)",
+			bind: [][2]string{
+				{"X", "Int64"},
+				{"Y", "String Array"},
+			},
+			err: "",
+		},
+		{
+			name: "same variable referenced twice",
+			src:  "(X, Y) Pair { x: X y: Y }",
+			pat:  "(X, X) Pair",
+			typ:  "(Int, Int) Pair)",
+			bind: [][2]string{
+				{"X", "Int64"},
+			},
+			err: "",
+		},
+		{
+			name: "same variable bad rebinding",
+			src:  "(X, Y) Pair { x: X y: Y }",
+			pat:  "(X, X) Pair",
+			typ:  "(Int, String Array) Pair)",
+			bind: [][2]string{
+				{"X", "Int64"},
+			},
+			err: `\(Int64, String Array\) Pair cannot unify with \(X, X\) Pair`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// We add the "unnused" def so that the module is not empty.
+			// It must be non-empty for later def lookups to succeed.
+			mod, err := parseMod(test.src + "unused := [5]")
+			if err != nil {
+				t.Fatalf("failed to parse the source: %s", err)
+			}
+			var opts []Opt
+			if test.trace {
+				opts = append(opts, Trace)
+			}
+			x := newScope(mod, opts...)
+			if es := checkMod(x, mod); len(es) > 0 {
+				t.Fatalf("failed to check the source: %v", es)
+			}
+			x = &scope{state: x.state, parent: x, def: &Fun{
+				ModPath: ModPath{Root: mod.Name},
+			}}
+
+			pat, err := parseTypeName(test.pat)
+			if err != nil {
+				t.Fatalf("failed to parse the pattern: %s", err)
+			}
+			if es := checkTypeName(x, &pat); len(es) > 0 {
+				t.Fatalf("failed to check the pattern: %v", es)
+			}
+
+			typ, err := parseTypeName(test.typ)
+			if err != nil {
+				t.Fatalf("failed to parse the type: %s", err)
+			}
+			if es := checkTypeName(x, &typ); len(es) > 0 {
+				t.Fatalf("failed to check the type: %v", es)
+			}
+
+			bind := make(map[string]TypeName)
+			switch err := unify(x, &pat, &typ, bind); {
+			case test.err == "" && err != nil:
+				t.Errorf("got err=%s, wanted nil", err)
+			case test.err != "" && err != nil:
+				if !regexp.MustCompile(test.err).MatchString(err.Error()) {
+					t.Errorf("got err=%s, want matching %q", err, test.err)
+				}
+			case test.err == "" && err == nil:
+				var got [][2]string
+				for k, v := range bind {
+					var t strings.Builder
+					typeStringForUser(&v, &t)
+					got = append(got, [2]string{k, t.String()})
+				}
+				sort.Slice(got, func(i, j int) bool {
+					return got[i][0] < got[j][0]
+				})
+				sort.Slice(test.bind, func(i, j int) bool {
+					return test.bind[i][0] < test.bind[j][0]
+				})
+				if !reflect.DeepEqual(got, test.bind) {
+					t.Errorf("got bind=%v, want %v", got, test.bind)
+				}
+			case test.err != "" && err == nil:
+				t.Errorf("got err=nil, want matching %q", test.err)
+			}
+		})
 	}
 }

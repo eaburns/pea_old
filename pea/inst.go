@@ -1,9 +1,12 @@
 package pea
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 	defer x.tr("Fun.instRecv(%s, %s)", n.Name(), typ)(errs)
+	x = x.root()
 	if n.Recv == nil {
 		return &n, nil
 	}
@@ -23,18 +26,24 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 		return &n, errs
 	}
 	n.Recv = &sig
-	n.TypeParms = subParms(n.Recv.x, n.Recv.Args, n.TypeParms)
-	n.Parms = subParms(n.Recv.x, n.Recv.Args, n.Parms)
+	nInst := n.sub(n.Recv.x, n.Recv.Args)
+	x.methInsts[typ.String()] = nInst
+	return nInst, nil
+}
+
+func (n Fun) sub(x *scope, sub map[*Parm]TypeName) *Fun {
+	n.TypeParms = subParms(x, sub, n.TypeParms)
+	n.Parms = subParms(x, sub, n.Parms)
 	if n.Ret != nil {
-		n.Ret = subTypeName(n.Recv.x, n.Recv.Args, *n.Ret)
+		n.Ret = subTypeName(x, sub, *n.Ret)
 	}
-	n.Stmts = subStmts(n.Recv.x, n.Recv.Args, n.Stmts)
-	x.methInsts[typ.String()] = &n
-	return &n, nil
+	n.Stmts = subStmts(x, sub, n.Stmts)
+	return &n
 }
 
 func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	defer x.tr("Type.inst(%s, %s)", n.Name(), typ)(errs)
+	x = x.root()
 
 	switch typeOrErrs := x.typeInsts[typ.String()].(type) {
 	case nil:
@@ -201,6 +210,15 @@ func subTypeName(x *scope, sub map[*Parm]TypeName, n TypeName) *TypeName {
 		args[i] = *subTypeName(x, sub, n.Args[i])
 	}
 	n.Args = args
+
+	if n.Type != nil {
+		if typ, es := n.Type.inst(x, n); len(es) > 0 {
+			panic(fmt.Sprintf("impossible: %v", es))
+		} else {
+			n.Type = typ
+		}
+	}
+
 	return &n
 }
 
