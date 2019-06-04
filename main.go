@@ -42,15 +42,6 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	fmt.Println("Imports:")
-	for _, m := range mod.Imports {
-		if m.Name != "" {
-			fmt.Println("---- module", m.Name)
-		}
-		for _, d := range m.Defs {
-			fmt.Println(d.String())
-		}
-	}
 	for _, d := range mod.Defs {
 		fmt.Printf("%s: %s\n", mod.Loc(d), d.String())
 		pretty.Print(d)

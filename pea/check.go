@@ -39,6 +39,9 @@ func Check(mod *Mod, opts ...Opt) []error {
 		panic("impossible")
 	}
 	errs := collect(x, nil, []string{mod.Name}, mod)
+	if x.state.trace {
+		dump(x.state.mods, "")
+	}
 
 	// First check types, since expression checking assumes
 	// that type definitions have been fully checked
@@ -105,6 +108,24 @@ func newModule(name string) *module {
 		name: name,
 		defs: make(map[string]Def),
 		kids: make(map[string]*module),
+	}
+}
+
+func dump(m *module, ident string) {
+	fmt.Printf("%s [%s]\n", ident, m.name)
+	ident += "	"
+	var defs []Def
+	for _, d := range m.defs {
+		defs = append(defs, d)
+	}
+	sort.Slice(defs, func(i, j int) bool {
+		return defs[i].Name() < defs[j].Name()
+	})
+	for _, d := range defs {
+		fmt.Printf("%s %s\n", ident, d)
+	}
+	for _, k := range m.kids {
+		dump(k, ident)
 	}
 }
 
