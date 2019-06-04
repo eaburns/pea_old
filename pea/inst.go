@@ -70,8 +70,7 @@ func instTypeSig(x *scope, def Def, sig TypeSig, name TypeName) (_ TypeSig, errs
 	if len(ps) != len(name.Args) {
 		err := x.err(name, "argument count mismatch: got %d, expected %d",
 			len(name.Args), len(ps))
-		path := append([]string{name.Mod.Root}, name.Mod.Path...)
-		addDefNotes(err, x, x.mods.find(path, name.Name))
+		addDefNotes(err, x, x.mods.find(*name.Mod, name.Name))
 		errs = append(errs, *err)
 		return sig, errs
 	}

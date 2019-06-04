@@ -26,22 +26,17 @@ var (
 // Check modifies its arugment, performing some simplifications on the AST
 // and populating several fields not set by parsing.
 func Check(mod *Mod, opts ...Opt) []error {
-	s := newState(mod)
-	for _, opt := range opts {
-		opt(s)
-	}
-	x := &scope{state: s}
-	mod.Imports = append(mod.Imports, builtinMod(x.wordSize))
-	if es := collect(x, nil, []string{}, mod.Imports[0]); len(es) > 0 {
-		panic("impossible")
-	}
-	if es := collect(x, nil, []string{mod.Name}, mod.Imports[0]); len(es) > 0 {
-		panic("impossible")
-	}
-	errs := collect(x, nil, []string{mod.Name}, mod)
+	x := newScope(mod, opts...)
+	errs := checkMod(x, mod)
 	if x.state.trace {
 		dump(x.state.mods, "")
 	}
+	return convertErrors(errs)
+}
+
+func checkMod(x *scope, mod *Mod) (errs []checkError) {
+	defer x.tr("checkMod(%s)", mod.Name)(errs)
+	errs = collect(x, nil, []string{mod.Name}, mod)
 
 	// First check types, since expression checking assumes
 	// that type definitions have been fully checked
@@ -52,8 +47,7 @@ func Check(mod *Mod, opts ...Opt) []error {
 	for _, def := range mod.Defs {
 		errs = append(errs, checkDefStmts(x, def)...)
 	}
-
-	return convertErrors(errs)
+	return errs
 }
 
 type state struct {
@@ -75,8 +69,8 @@ type state struct {
 	ident string
 }
 
-func newState(mod *Mod) *state {
-	return &state{
+func newState(mod *Mod, opts ...Opt) *state {
+	s := &state{
 		mod:         mod,
 		mods:        newModule(""),
 		importer:    defaultImporter,
@@ -86,6 +80,26 @@ func newState(mod *Mod) *state {
 		typeInsts:   make(map[string]interface{}),
 		wordSize:    64,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func newScope(mod *Mod, opts ...Opt) *scope {
+	s := newState(mod, opts...)
+	x := &scope{state: s}
+	builtin := builtinMod(x.wordSize)
+	mod.Imports = append(mod.Imports, builtin)
+	if es := collect(x, nil, nil, mod.Imports[0]); len(es) > 0 {
+		panic("impossible")
+	}
+	for _, def := range builtin.Defs {
+		if es := checkDef(x, def); len(es) > 0 {
+			panic(fmt.Sprintf("impossible: %v", es))
+		}
+	}
+	return x
 }
 
 type module struct {
@@ -130,7 +144,15 @@ func dump(m *module, ident string) {
 }
 
 // The return is an imported, a builtin, a Def, or nil.
-func (t *module) find(path []string, name string) interface{} {
+func (t *module) find(mp ModPath, name string) interface{} {
+	path := mp.Path
+	if mp.Root != "" {
+		path = append([]string{mp.Root}, path...)
+	}
+	return t._find(path, name)
+}
+
+func (t *module) _find(path []string, name string) interface{} {
 	switch {
 	case t == nil:
 		return nil
@@ -139,7 +161,7 @@ func (t *module) find(path []string, name string) interface{} {
 	case t.kids[path[0]] == nil:
 		return nil
 	default:
-		def := t.kids[path[0]].find(path[1:], name)
+		def := t.kids[path[0]]._find(path[1:], name)
 		if def == nil {
 			return t.defs[name]
 		}
@@ -258,8 +280,8 @@ func importMod(x *scope, n *Import) (m *Mod, err *checkError) {
 	x.log("returning new module: %s, %s", n.Path, m.Name)
 	x.mod.Imports = append(x.mod.Imports, m)
 
-	if es := collect(x, nil, []string{m.Name}, m); len(es) > 0 {
-		panic(fmt.Sprintf("error collecting imported module: %v", es))
+	if es := checkMod(x, m); len(es) > 0 {
+		panic(fmt.Sprintf("imported module contains errors: %v", es))
 	}
 
 	return m, nil
@@ -385,7 +407,7 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 			err := x.err(p, "parameter %s is redefined", p.Name)
 			note(err, "previous definition is at %s", x.loc(prev))
 			errs = append(errs, *err)
-		case p.Name == "_":
+		case p.Name == "_" || p.Name == "":
 			break
 		default:
 			seen[p.Name] = p
@@ -437,11 +459,10 @@ func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
 }
 
 func checkRecvSig(x *scope, fun *Fun) (errs []checkError) {
-	defer x.tr("checkTypeSig(%s)", fun)(&errs)
+	defer x.tr("checkRecvSig(%s)", fun)(&errs)
 
 	var def Def
-	path := append([]string{fun.Mod().Root}, fun.Mod().Path...)
-	defOrImport := x.mods.find(path, fun.Recv.Name)
+	defOrImport := x.mods.find(fun.Mod(), fun.Recv.Name)
 	switch d := defOrImport.(type) {
 	case builtin:
 		def = d.Def
@@ -651,11 +672,7 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	}
 
 	var def Def
-	path := name.Mod.Path
-	if name.Mod.Root != "" {
-		path = append([]string{name.Mod.Root}, path...)
-	}
-	defOrImport := x.mods.find(path, name.Name)
+	defOrImport := x.mods.find(*name.Mod, name.Name)
 	switch d := defOrImport.(type) {
 	case builtin:
 		def = d.Def
@@ -1202,9 +1219,7 @@ func (n Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 }
 
 func findDef(x *scope, name string) (def Def, defOrImport interface{}) {
-	mp := x.modPath()
-	path := append([]string{mp.Root}, mp.Path...)
-	defOrImport = x.mods.find(path, name)
+	defOrImport = x.mods.find(*x.modPath(), name)
 	switch d := defOrImport.(type) {
 	case nil:
 		return nil, nil
