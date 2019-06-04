@@ -14,7 +14,7 @@ func builtinDefs(wordSize int) []Def {
 		&Fun{
 			Sel:  "deref",
 			Recv: &TypeSig{Name: "&", Parms: []Parm{{Name: "T"}}},
-			Ret:  &TypeName{Name: "T"},
+			Ret:  &TypeName{Name: "T", Var: true},
 		},
 
 		&Type{
@@ -29,17 +29,17 @@ func builtinDefs(wordSize int) []Def {
 				{
 					Type: &TypeName{
 						Name: "Fun0",
-						Args: []TypeName{{Name: "R"}},
+						Args: []TypeName{{Name: "R", Var: true}},
 					},
 				},
 				{
 					Type: &TypeName{
 						Name: "Fun0",
-						Args: []TypeName{{Name: "R"}},
+						Args: []TypeName{{Name: "R", Var: true}},
 					},
 				},
 			},
-			Ret: &TypeName{Name: "R"},
+			Ret: &TypeName{Name: "R", Var: true},
 		},
 
 		&Type{Sig: TypeSig{Name: "String"}},
@@ -86,7 +86,7 @@ func builtinDefs(wordSize int) []Def {
 			},
 			Ret: &TypeName{
 				Name: "&",
-				Args: []TypeName{{Name: "T"}},
+				Args: []TypeName{{Name: "T", Var: true}},
 			},
 		},
 		&Fun{
@@ -97,9 +97,9 @@ func builtinDefs(wordSize int) []Def {
 			},
 			Parms: []Parm{
 				{Type: &TypeName{Name: "Int"}},
-				{Type: &TypeName{Name: "T"}},
+				{Type: &TypeName{Name: "T", Var: true}},
 			},
-			Ret: &TypeName{Name: "T"},
+			Ret: &TypeName{Name: "T", Var: true},
 		},
 		&Fun{
 			Sel: "from:to:",
@@ -113,7 +113,7 @@ func builtinDefs(wordSize int) []Def {
 			},
 			Ret: &TypeName{
 				Name: "Array",
-				Args: []TypeName{{Name: "T"}},
+				Args: []TypeName{{Name: "T", Var: true}},
 			},
 		},
 
@@ -157,7 +157,12 @@ func funDefs(arity int) []Def {
 
 	ps := make([]Parm, 0, arity+1)
 	for i := 0; i < arity; i++ {
-		ps = append(ps, Parm{Type: &TypeName{Name: funTypeParms[i]}})
+		ps = append(ps, Parm{
+			Type: &TypeName{
+				Name: funTypeParms[i],
+				Var:  true,
+			},
+		})
 	}
 
 	return []Def{
@@ -166,7 +171,7 @@ func funDefs(arity int) []Def {
 			Sel:   sel,
 			Recv:  sig,
 			Parms: ps,
-			Ret:   &TypeName{Name: "R"},
+			Ret:   &TypeName{Name: "R", Var: true},
 		},
 	}
 }
