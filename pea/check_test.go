@@ -213,6 +213,11 @@ func TestCheckVar(t *testing.T) {
 			src:  "v Undef := [{Int8 Array | 257}]",
 			err:  "Int8 cannot represent 257: overflow",
 		},
+		{
+			name: "bad return",
+			src:  "v := [^5]",
+			err:  "return outside of a method",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
