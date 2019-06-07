@@ -553,17 +553,17 @@ Ary <- e0:Expr  es:( _ ";" e:Expr { return arg{val: e} } )* ( _";" )? {
 	return []arg(append([]arg{{val: e0}}, es...))
 }
 
-Block <- _ ( "[" (
+Block <- _ b:( "[" (
 	( ps:( n:CIdent t:TypeName? {
 		return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
 	} )+ _ "|" )? ss:Stmts
-) _ "]" ) {
-	return Expr(Block{
+) _ "]"  {
+	return Block{
 		location: loc(parser, start, end),
 		Parms: ps,
 		Stmts: ss,
-	})
-}
+	}
+} ) { return Expr(b) }
 
 # Tokens
 
