@@ -1,4 +1,4 @@
-package pea
+package ast
 
 import (
 	"strconv"

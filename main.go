@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/eaburns/pea/pea"
+	"github.com/eaburns/pea/ast"
 	"github.com/eaburns/peggy/peg"
 	"github.com/eaburns/pretty"
 )
@@ -12,7 +12,7 @@ import (
 func main() {
 	pretty.Indent = "    "
 
-	p := pea.NewParser("#main")
+	p := ast.NewParser("#main")
 
 	if len(os.Args) == 1 {
 		if err := p.Parse("", os.Stdin); err != nil {
@@ -36,7 +36,7 @@ func main() {
 	fmt.Println("")
 
 	fmt.Println("----- Check -----")
-	if errs := pea.Check(mod, pea.Trace); len(errs) > 0 {
+	if errs := ast.Check(mod, ast.Trace); len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
