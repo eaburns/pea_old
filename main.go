@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -9,45 +10,59 @@ import (
 	"github.com/eaburns/pretty"
 )
 
+var (
+	printParsed  = flag.Bool("parsed", false, "whether to print the parsed AST")
+	printChecked = flag.Bool("checked", false, "whether to print checked AST")
+	trace        = flag.Bool("trace", false, "whether to enable check tracing")
+)
+
 func main() {
+	flag.Parse()
 	pretty.Indent = "    "
 
-	p := ast.NewParser("#main")
+	parser := ast.NewParser("#main")
 
-	if len(os.Args) == 1 {
-		if err := p.Parse("", os.Stdin); err != nil {
+	if len(flag.Args()) == 0 {
+		if err := parser.Parse("", os.Stdin); err != nil {
 			die(err)
 		}
 	} else {
-		for _, file := range os.Args[1:] {
-			if err := p.ParseFile(file); err != nil {
+		for _, file := range flag.Args() {
+			if err := parser.ParseFile(file); err != nil {
 				die(err)
 			}
 		}
 	}
 
-	fmt.Println("----- Parse -----")
-	mod := p.Mod()
-	for _, d := range mod.Defs {
-		fmt.Printf("%s: %s\n", mod.Loc(d), d.String())
-		pretty.Print(d)
+	mod := parser.Mod()
+
+	if *printParsed {
+		fmt.Println("----- Parsed -----")
+		pretty.Print(mod)
 		fmt.Println("")
 	}
-	fmt.Println("")
 
-	fmt.Println("----- Check -----")
-	if errs := ast.Check(mod, ast.Trace); len(errs) > 0 {
+	var opts []ast.Opt
+	if *trace {
+		opts = append(opts, ast.Trace)
+	}
+
+	if errs := ast.Check(mod, opts...); len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
 		os.Exit(1)
 	}
-	for _, d := range mod.Defs {
-		fmt.Printf("%s: %s\n", mod.Loc(d), d.String())
-		pretty.Print(d)
+
+	if *printChecked {
+		fmt.Println("----- Checked -----")
+		// Don't print imports — too noisy.
+		saved := mod.Imports
+		mod.Imports = nil
+		pretty.Print(mod)
 		fmt.Println("")
+		mod.Imports = saved
 	}
-	fmt.Println("")
 }
 
 func die(err error) {
