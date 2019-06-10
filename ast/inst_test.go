@@ -70,8 +70,12 @@ func TestInst(t *testing.T) {
 		},
 		{
 			name: "sub type constraint",
-			def:  "(X, Y X Container) Foo { x: X y: Y }",
-			typ:  "(Int, IntArray) Foo",
+			def: `
+				(X, Y X Container) Foo { x: X y: Y }
+				T Container { [do] }
+				IntArray {}
+			`,
+			typ: "(Int, IntArray) Foo",
 			// We don't see the substitution,
 			// since the instantiated Args
 			// aren't written in the string output.
@@ -97,39 +101,59 @@ func TestInst(t *testing.T) {
 		},
 		{
 			name: "meth sig",
-			def:  "(X, Y) Pair (T Y Key) [ foo: x X bar: y Y ^(X, Y) Pair List | ]",
+			def: `
+				(X, Y) Pair (T Y Key) [ foo: x X bar: y Y ^(X, Y) Pair List | ]
+				Key{ [hash ^Int64] }
+				(X, Y) Pair{}
+				T List{}
+			`,
 			typ:  "(Int Array, String) Pair",
 			want: "Pair (T String Key) [ foo: x Int Array bar: y String ^(Int Array, String) Pair List | ]",
 		},
 		{
 			name: "ret",
-			def:  "X List [ toArray ^X Array | ^{ X Array | 5; 6; 6 } ]",
+			def: `
+				X List [ toArray ^X Array | ^{ X Array | 5; 6; 6 } ]
+				T List {}
+			`,
 			typ:  "Int List",
 			want: "List [ toArray ^Int Array | ^{ Int Array | 5; 6; 6 } ]",
 		},
 		{
 			name: "assign",
-			def:  "X List [ toArray ^X Array | x := { X Array | 5; 6; 6 }. ^x ]",
+			def: `
+				X List [ toArray ^X Array | x := { X Array | 5; 6; 6 }. ^x ]
+				T List {}
+			`,
 			typ:  "Int List",
 			want: "List [ toArray ^Int Array | x := { Int Array | 5; 6; 6 }. ^x ]",
 		},
 		{
 			name: "call",
-			def:  "X List [ foo | y bar: {X Array|} baz: {X Array|}, qux: {X Array|} ]",
+			def: `
+				X List [ foo | y bar: {X Array|} baz: {X Array|}, qux: {X Array|} ]
+				T List {}
+			`,
 			typ:  "Int List",
 			want: "List [ foo | y bar: {Int Array|} baz: {Int Array|}, qux: {Int Array|} ]",
 		},
 		{
 			name: "block",
-			def:  "X List [ foo | [ :x X | {X Array|} ]  ]",
+			def: `
+				X List [ foo | [ :x X | {X Array|} ]  ]
+				T List {}
+			`,
 			typ:  "Int List",
 			want: "List [ foo | [ :x Int | {Int Array|} ]  ]",
 		},
 		{
 			name: "primitives",
-			def:  "X List [ foo | id. 123. 3.14. 'a'. `string`. #xyz foo ]",
+			def: `
+				X List [ foo | id. 123. 3.14. 'a'. "string". #xyz foo ]
+				T List {}
+			`,
 			typ:  "Int List",
-			want: "List [ foo | id. 123. 3.14. 'a'. `string`. #xyz foo ]",
+			want: `List [ foo | id. 123. 3.14. 'a'. "string". #xyz foo ]`,
 		},
 	}
 	for _, test := range tests {
@@ -139,14 +163,27 @@ func TestInst(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse mod: %s", err)
 			}
+			x := newScope(mod)
+			if es := checkMod(x, mod); len(es) > 0 {
+				t.Fatalf("failed to check the source: %v", es)
+			}
+
+			x = &scope{state: x.state, parent: x, def: &Fun{
+				ModPath: ModPath{Root: mod.Name},
+			}}
 			typ, err := parseTypeName(test.typ)
 			if err != nil {
 				t.Fatalf("failed to parse type name: %s", err)
 			}
+			if es := checkTypeName(x, &typ); len(es) > 0 {
+				t.Fatalf("failed to check the type: %v", es)
+			}
+
 			want, err := parseDef(test.want)
 			if err != nil {
 				t.Fatalf("failed to parse expected def: %s", err)
 			}
+
 			got, errs := inst(test.trace, mod, typ)
 			if len(errs) > 0 {
 				t.Fatalf("failed to inst: %v", convertErrors(errs))
@@ -156,6 +193,13 @@ func TestInst(t *testing.T) {
 				// Ignore the type signature.
 				// We just want to compare the body of the type/fun.
 				cmpopts.IgnoreTypes(TypeSig{}),
+				// Ignore TypeName.Type, as it can be recursive.
+				cmpopts.IgnoreFields(TypeName{}, "Type"),
+				// Fields set by check and not by parsing want.
+				cmpopts.IgnoreFields(Fun{},
+					"RecvType",
+					"Self"),
+				cmpopts.IgnoreFields(TypeName{}, "Mod"),
 			)
 			if diff != "" {
 				t.Errorf("got %s, wanted %s\n%s", got, want, diff)
@@ -225,17 +269,31 @@ func TestMemoizeTypeInst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseMod(…)=%v, want nil", err)
 	}
+	x := newScope(mod)
+	if es := checkMod(x, mod); len(es) > 0 {
+		t.Fatalf("failed to check the source: %v", es)
+	}
+	x = &scope{state: x.state, parent: x, def: &Fun{
+		ModPath: ModPath{Root: mod.Name},
+	}}
+
 	intArrayName, err := parseTypeName("Int Array")
 	if err != nil {
 		t.Fatalf("parseTypeName(Int Array)=%v, want nil", err)
+	}
+	if es := checkTypeName(x, &intArrayName); len(es) > 0 {
+		t.Fatalf("failed to check intArrayName: %v", es)
 	}
 	stringArrayName, err := parseTypeName("String Array")
 	if err != nil {
 		t.Fatalf("parseTypeName(String Array)=%v, want nil", err)
 	}
+	if es := checkTypeName(x, &stringArrayName); len(es) > 0 {
+		t.Fatalf("failed to check stringArrayName: %v", es)
+	}
 
 	typ := mod.Defs[0].(*Type)
-	x := &scope{state: newState(mod)}
+	x.trace = true
 
 	intArray0, errs := typ.inst(x, intArrayName)
 	if len(errs) > 0 {

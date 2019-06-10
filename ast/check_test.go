@@ -1202,6 +1202,46 @@ func TestFloatLit(t *testing.T) {
 	}
 }
 
+func TestTypeMismatch(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "ok",
+			src: `
+				[foo | 1 + 1]
+			`,
+			err: "",
+		},
+		{
+			name: "want Int64 got String",
+			src: `
+				[foo | 1 + "string"]
+			`,
+			err: "got type String, wanted Int64",
+		},
+		{
+			name: "bad subexpr, no extra error",
+			src: `
+				[foo | 3 + (1 + "string") + 12]
+			`,
+			// Just emit one type mismatch.
+			err: "[:[0-9.\\-]+: got type String, wanted Int64]",
+		},
+		{
+			name: "bad expected type",
+			src: `
+				[foo | 3 +++ 4]
+				Int64 [+++ x Undef | x]
+			`,
+			// Don't emit a type mismatch;
+			// just print the undefined type.
+			err: "[:[0-9.\\-]+: type #main Undef is undefined]",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 type checkTest struct {
 	name  string
 	src   string
@@ -1313,7 +1353,10 @@ func TestUnify(t *testing.T) {
 			bind: [][2]string{
 				{"X", "Int64"},
 			},
-			err: `\(Int64, String Array\) Pair cannot unify with \(X, X\) Pair`,
+			// TODO: don't print redundant module name in unify error pattern name.
+			// For example, here, we should just say (X, X) Pair,
+			// not (X, X) #test Pair.
+			err: `\(Int64, String Array\) Pair cannot unify with \(X, X\) #test Pair`,
 		},
 	}
 	for _, test := range tests {
@@ -1332,10 +1375,10 @@ func TestUnify(t *testing.T) {
 			if es := checkMod(x, mod); len(es) > 0 {
 				t.Fatalf("failed to check the source: %v", es)
 			}
+
 			x = &scope{state: x.state, parent: x, def: &Fun{
 				ModPath: ModPath{Root: mod.Name},
 			}}
-
 			pat, err := parseTypeName(test.pat)
 			if err != nil {
 				t.Fatalf("failed to parse the pattern: %s", err)

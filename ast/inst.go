@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"strings"
 )
 
 func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
@@ -45,18 +46,35 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	defer x.tr("Type.inst(%s, %s)", n.Name(), typ)(errs)
 	x = x.root()
 
-	switch typeOrErrs := x.typeInsts[typ.String()].(type) {
+	key, ok := typeNameKey(typ)
+	if !ok {
+		x.log("bad key")
+		// Error should be reported elsewhere.
+		return nil, nil
+	}
+	x.log("looking for memoized type [%s]", key)
+	switch typeOrErrs := x.typeInsts[key].(type) {
 	case nil:
+		x.log("not found")
 		break
 	case *Type:
+		x.log("found %p", typeOrErrs)
 		return typeOrErrs, nil
 	case []checkError:
+		x.log("found errors")
 		return nil, typeOrErrs
 	}
 
+	// Memoize the type before substituting,
+	// so that recursive calls to inst within substitution
+	// will simply refer to this type.
+	x.log("memoizing %p", &n)
+	x.typeInsts[key] = &n
+
 	n.Sig, errs = instTypeSig(x, &n, n.Sig, typ)
 	if len(errs) != 0 {
-		x.typeInsts[typ.String()] = errs
+		x.log("memoizing errors")
+		x.typeInsts[key] = errs
 		return &n, errs
 	}
 	switch {
@@ -69,8 +87,44 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	case n.Virts != nil:
 		n.Virts = subMethSigs(n.Sig.x, n.Sig.Args, n.Virts)
 	}
-	x.typeInsts[typ.String()] = &n
 	return &n, nil
+}
+
+func typeNameKey(n TypeName) (string, bool) {
+	var s strings.Builder
+	if !buildTypeNameKey(n, &s) {
+		return "", false
+	}
+	return s.String(), true
+}
+
+func buildTypeNameKey(n TypeName, s *strings.Builder) bool {
+	if n.Type == nil || n.Var {
+		return false
+	}
+	if len(n.Args) > 0 {
+		s.WriteRune('(')
+		for _, a := range n.Args {
+			if !buildTypeNameKey(a, s) {
+				return false
+			}
+		}
+		s.WriteRune(')')
+	}
+	s.WriteString(n.Type.Name())
+	return true
+}
+
+func typeOK(n TypeName) bool {
+	if n.Type == nil {
+		return false
+	}
+	for _, a := range n.Args {
+		if !typeOK(a) {
+			return false
+		}
+	}
+	return true
 }
 
 func instTypeSig(x *scope, def Def, sig TypeSig, name TypeName) (_ TypeSig, errs []checkError) {

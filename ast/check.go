@@ -702,8 +702,10 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 		addDefNotes(err, x, defOrImport)
 		return append(errs, *err)
 	}
+	x.log("found type %s (%p)", typ, typ)
 
 	if len(typ.Sig.Parms) > 0 {
+		name.Type = typ
 		var es []checkError
 		if typ, es = typ.inst(x, *name); len(es) > 0 {
 			err := x.err(name, "%s cannot be instantiated", name)
@@ -712,14 +714,17 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 		}
 	}
 
-	if typ.Alias != nil {
+	if typ != nil && typ.Alias != nil {
 		if checkAliasType(x, typ) != nil {
 			// Return nil, because the error is reported
 			// by the call to checkAliasType from its definition.
 			return nil
 		}
+		x.log("setting type of %s to alias %s (%p) of %s",
+			name, typ.Alias.Type, typ.Alias.Type, typ.Alias)
 		name.Type = typ.Alias.Type
 	} else {
+		x.log("setting type of %s to %s (%p) ", name, typ, typ)
 		name.Type = typ
 	}
 	return errs
@@ -942,11 +947,50 @@ func typeName(typ *Type) *TypeName {
 // a conversion node is added.
 // If infer is non-nil, and the experssion type is not convertable to infer,
 // a type-mismatch error is returned.
-func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("checkExpr(infer=%s)", infer)(&errs)
-	// TODO: implement type conversion in checkExpr.
-	// TODO: implement type-mismatch checking in checkExpr.
-	return expr.check(x, infer)
+func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("checkExpr(got=%s, want=%s)", debugExprTypeString(expr), want)(&errs)
+	if expr, errs = expr.check(x, want); len(errs) > 0 {
+		return expr, errs
+	}
+	got := expr.ExprType()
+	if want == nil || want.Type == nil || got == nil {
+		return expr, errs
+	}
+	if want.Type == got {
+		return expr, errs
+	}
+	x.log("want.Type=%p, got=%p", want.Type, got)
+	var gotString, wantString strings.Builder
+	typeStringForUser(typeName(got), &gotString)
+	typeStringForUser(want, &wantString)
+	err := x.err(expr, "got type %s, wanted %s", &gotString, &wantString)
+	if len(want.Type.Virts) > 0 {
+		convert, es := inferVirtual(x, expr, want)
+		if len(es) == 0 {
+			return convert, errs
+		}
+		note(err, "%s does not implement %s", &gotString, &wantString)
+		err.cause = es
+	}
+	return expr, append(errs, *err)
+}
+
+func inferVirtual(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("inferVirtual(got=%s, want=%s)", debugExprTypeString(expr), want)(&errs)
+	// TODO: implement infer virtual.
+	return expr, errs
+}
+
+func debugExprTypeString(expr Expr) string {
+	if expr == nil {
+		return "expr=nil"
+	}
+	if expr.ExprType() == nil {
+		return "type=nil"
+	}
+	var s strings.Builder
+	typeStringForUser(typeName(expr.ExprType()), &s)
+	return s.String()
 }
 
 func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
@@ -1028,7 +1072,8 @@ func checkGroundedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []che
 		if i < len(fun.Parms) {
 			in = fun.Parms[i].Type
 		}
-		if arg, es := msg.Args[i].check(x, in); len(es) > 0 {
+
+		if arg, es := checkExpr(x, msg.Args[i], in); len(es) > 0 {
 			errs = append(errs, es...)
 		} else {
 			msg.Args[i] = arg
@@ -1140,10 +1185,8 @@ func unify(x *scope, pat, typ *TypeName, bind map[string]TypeName) (err *checkEr
 	defer x.tr("unify(pat=%s, typ=%s)", pat, typ)(err)
 
 	// The caller ensures this.
-	if !pat.Var && pat.Type == nil || typ.Var || typ.Type == nil {
-		panic(fmt.Sprintf("impossible: "+
-			"pat.Var=%v, pat.Type=%p, typ.Var=%v, typ.Type=%p",
-			pat.Var, pat.Type, typ.Var, typ.Type))
+	if typ.Var || typ.Type == nil {
+		panic(fmt.Sprintf("impossible: typ.Var=%v, typ.Type=%p", typ.Var, typ.Type))
 	}
 
 	if pat.Var {
@@ -1162,8 +1205,9 @@ func unify(x *scope, pat, typ *TypeName, bind map[string]TypeName) (err *checkEr
 		}
 		return nil
 	}
-	if !modEq(&typ.Type.ModPath, &pat.Type.ModPath) ||
-		typ.Type.Sig.Name != pat.Type.Sig.Name {
+	typRoot := rootUninstTypeDef(x, typ)
+	patRoot := rootUninstTypeDef(x, pat)
+	if typRoot != patRoot {
 		// TODO: unify could implement interface inference.
 		return unifyError(x, pat, typ)
 	}
@@ -1184,6 +1228,41 @@ func unify(x *scope, pat, typ *TypeName, bind map[string]TypeName) (err *checkEr
 	return nil
 }
 
+// rootUninstTypeDef returns the type definition, following aliases.
+// This is the uninstantiated definition.
+// If there are errors looking up the Type, nil is returned;
+// it is assumed that errors are reported elsewhere.
+func rootUninstTypeDef(x *scope, name *TypeName) *Type {
+	seen := make(map[Def]bool)
+	for {
+		var def Def
+		defOrImport := x.mods.find(*name.Mod, name.Name)
+		switch d := defOrImport.(type) {
+		case builtin:
+			def = d.Def
+		case imported:
+			def = d.Def
+		case Def:
+			def = d
+		case nil:
+			return nil
+		}
+		typ, ok := def.(*Type)
+		if !ok {
+			return nil
+		}
+		if typ.Alias != nil {
+			if seen[def] {
+				return nil // alias cycle
+			}
+			seen[def] = true
+			name = typ.Alias
+			continue
+		}
+		return typ
+	}
+}
+
 func modEq(a, b *ModPath) bool {
 	return a == nil && b == nil || a != nil && b != nil && a.String() == b.String()
 }
@@ -1201,6 +1280,10 @@ func unifyError(x *scope, pat, typ *TypeName, cause ...checkError) *checkError {
 
 // TODO: typeStringForUser should go away; all the .String methods should be for the user.
 func typeStringForUser(n *TypeName, s *strings.Builder) {
+	if n.Type == nil {
+		buildTypeNameString(*n, s)
+		return
+	}
 	if n.Var {
 		s.WriteString(n.Name)
 		return
@@ -1460,7 +1543,7 @@ func checkVirtCtor(x *scope, n *Ctor) (errs []checkError) {
 }
 
 func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Block.check(…)")(&errs)
+	defer x.tr("Block.check(infer=%s)", infer)(&errs)
 
 	for i := range n.Parms {
 		p := &n.Parms[i]
