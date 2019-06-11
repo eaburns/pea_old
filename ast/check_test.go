@@ -400,15 +400,6 @@ func TestCheckFields(t *testing.T) {
 			`,
 			err: "got function, expected a type",
 		},
-		/* // TODO: test a built-in non-type error if there is ever a built-in that is not a type.
-		{
-			name: "built-in non-type",
-			src: `
-				Point { x: someBuiltin }
-			`,
-			err: "got function, expected a type",
-		},
-		*/
 		{
 			name: "imported non-type",
 			src: `
@@ -511,20 +502,16 @@ func TestRet(t *testing.T) {
 			src:  "[ foo ^Int | ^5 ]",
 			err:  "",
 		},
-		/*
-			// TODO: test bad return expression when expression checking is implemented.
-			{
-				name: "bad expression",
-				src:  "[ foo ^Int | ^{ Undef | } ]",
-				err:  "Undef is undefined",
-			},
-			// TODO: test return outside of a method error when Var checking is implemented.
-			{
-				name: "outside method",
-				src:  "x := [ ^12 ]",
-				err:  "return outside of a method",
-			},
-		*/
+		{
+			name: "bad expression",
+			src:  "[ foo ^Int | ^{ Undef | } ]",
+			err:  "Undef is undefined",
+		},
+		{
+			name: "outside method",
+			src:  "x := [ ^12 ]",
+			err:  "return outside of a method",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
