@@ -1340,10 +1340,7 @@ func TestUnify(t *testing.T) {
 			bind: [][2]string{
 				{"X", "Int64"},
 			},
-			// TODO: don't print redundant module name in unify error pattern name.
-			// For example, here, we should just say (X, X) Pair,
-			// not (X, X) #test Pair.
-			err: `\(Int64, String Array\) Pair cannot unify with \(X, X\) #test Pair`,
+			err: `\(Int64, String Array\) Pair cannot unify with \(X, X\) Pair`,
 		},
 	}
 	for _, test := range tests {
@@ -1370,7 +1367,7 @@ func TestUnify(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse the pattern: %s", err)
 			}
-			if es := checkTypeName(x, &pat); len(es) > 0 {
+			if es := checkTypeName(defTypeVars(x, pat), &pat); len(es) > 0 {
 				t.Fatalf("failed to check the pattern: %v", es)
 			}
 
@@ -1378,7 +1375,8 @@ func TestUnify(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse the type: %s", err)
 			}
-			if es := checkTypeName(x, &typ); len(es) > 0 {
+
+			if es := checkTypeName(defTypeVars(x, typ), &typ); len(es) > 0 {
 				t.Fatalf("failed to check the type: %v", es)
 			}
 
@@ -1410,5 +1408,25 @@ func TestUnify(t *testing.T) {
 				t.Errorf("got err=nil, want matching %q", test.err)
 			}
 		})
+	}
+}
+
+func defTypeVars(x *scope, n TypeName) *scope {
+	vars := make(map[string]bool)
+	getTypeVarNames(n, vars)
+	for n := range vars {
+		p := &Parm{}
+		x = x.push(n, p)
+		x.typeVars[p] = &Type{}
+	}
+	return x
+}
+
+func getTypeVarNames(n TypeName, names map[string]bool) {
+	if n.Var {
+		names[n.Name] = true
+	}
+	for _, a := range n.Args {
+		getTypeVarNames(a, names)
 	}
 }

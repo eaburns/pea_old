@@ -19,6 +19,7 @@ type state struct {
 	onAliasPath map[*Type]bool
 	aliasCycles map[*Type]*checkError
 
+	typeVars  map[*Parm]*Type
 	typeInsts map[string]interface{}
 	methInsts map[string]interface{} // receiver reified
 	funInsts  map[string]*Fun        // receiver + type parms reified
@@ -36,6 +37,7 @@ func newState(mod *Mod, opts ...Opt) *state {
 		importer:    defaultImporter,
 		onAliasPath: make(map[*Type]bool),
 		aliasCycles: make(map[*Type]*checkError),
+		typeVars:    make(map[*Parm]*Type),
 		typeInsts:   make(map[string]interface{}),
 		methInsts:   make(map[string]interface{}),
 		funInsts:    make(map[string]*Fun),

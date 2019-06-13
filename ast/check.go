@@ -112,17 +112,13 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 
 	if fun.Recv != nil {
 		errs = append(errs, checkRecvSig(x, fun)...)
+		x = fun.Recv.x
 
 		if len(fun.Recv.Parms) > 0 {
 			// TODO: checkFun for param receivers is only partially implemented.
 			// We should create stub type arguments, instantiate the fun,
 			// then check the instance.
 		}
-		for i := range fun.Recv.Parms {
-			p := &fun.Recv.Parms[i]
-			x = x.push(p.Name, p)
-		}
-		fun.Recv.x = x
 	}
 	if len(fun.TypeParms) > 0 {
 		// TODO: checkFun for parameterized funs is unimplemented.
@@ -132,6 +128,10 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 	for i := range fun.TypeParms {
 		p := &fun.TypeParms[i]
 		x = x.push(p.Name, p)
+		x.typeVars[p] = makeTypeVarType(p)
+		if p.Type != nil {
+			errs = append(errs, checkTypeName(x, p.Type)...)
+		}
 	}
 	fun.x = x
 
@@ -165,42 +165,6 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 		errs = append(errs, checkTypeName(x, fun.Ret)...)
 	}
 
-	return errs
-}
-
-func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
-	defer x.tr("checkFunStmts(%s)", fun)(&errs)
-
-	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
-		// TODO: checkFunStmts for param receivers is only partially implemented.
-		// We should create stub type arguments, instantiate the fun,
-		// then check the instance.
-		return errs
-	}
-	if len(fun.TypeParms) > 0 {
-		// TODO: checkFunStmts for parameterized funs is unimplemented.
-		// We should create stub type arguments, instantiate the fun,
-		// then check the instance.
-		return errs
-	}
-
-	seen := make(map[string]*Parm)
-	if fun.Self != nil {
-		seen[fun.Self.Name] = fun.Self
-		x = x.push(fun.Self.Name, fun.Self)
-	}
-	for i := range fun.Parms {
-		p := &fun.Parms[i]
-		if seen[p.Name] == nil && p.Name != "_" {
-			seen[p.Name] = p
-			x = x.push(p.Name, p)
-		}
-	}
-	if ss, es := checkStmts(x, fun.Stmts, nil); len(es) > 0 {
-		errs = append(errs, es...)
-	} else {
-		fun.Stmts = ss
-	}
 	return errs
 }
 
@@ -252,10 +216,59 @@ func checkRecvSig(x *scope, fun *Fun) (errs []checkError) {
 
 	for i := range fun.Recv.Parms {
 		p := &fun.Recv.Parms[i]
-		if p.Type == nil {
-			continue
+		x = x.push(p.Name, p)
+		x.typeVars[p] = makeTypeVarType(p)
+		if p.Type != nil {
+			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
-		errs = append(errs, checkTypeName(x, p.Type)...)
+	}
+	fun.Recv.x = x
+	return errs
+}
+
+func makeTypeVarType(p *Parm) *Type {
+	var virts []MethSig
+	// TODO: makeTypeVar should set virtuals from the constraint, if any.
+	loc := location{start: p.Start(), end: p.End()}
+	return &Type{
+		location: loc,
+		Sig:      TypeSig{location: loc, Name: p.Name},
+		Virts:    virts,
+	}
+}
+
+func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
+	defer x.tr("checkFunStmts(%s)", fun)(&errs)
+
+	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
+		// TODO: checkFunStmts for param receivers is only partially implemented.
+		// We should create stub type arguments, instantiate the fun,
+		// then check the instance.
+		return errs
+	}
+	if len(fun.TypeParms) > 0 {
+		// TODO: checkFunStmts for parameterized funs is unimplemented.
+		// We should create stub type arguments, instantiate the fun,
+		// then check the instance.
+		return errs
+	}
+
+	seen := make(map[string]*Parm)
+	if fun.Self != nil {
+		seen[fun.Self.Name] = fun.Self
+		x = x.push(fun.Self.Name, fun.Self)
+	}
+	for i := range fun.Parms {
+		p := &fun.Parms[i]
+		if seen[p.Name] == nil && p.Name != "_" {
+			seen[p.Name] = p
+			x = x.push(p.Name, p)
+		}
+	}
+	if ss, es := checkStmts(x, fun.Stmts, nil); len(es) > 0 {
+		errs = append(errs, es...)
+	} else {
+		fun.Stmts = ss
 	}
 	return errs
 }
@@ -267,10 +280,10 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 		for i := range typ.Sig.Parms {
 			p := &typ.Sig.Parms[i]
 			x = x.push(p.Name, p)
-			if p.Type == nil {
-				continue
+			x.typeVars[p] = makeTypeVarType(p)
+			if p.Type != nil {
+				errs = append(errs, checkTypeName(x, p.Type)...)
 			}
-			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
 		typ.Sig.x = x
 		// TODO: checkType for param types is only partially implemented.
@@ -403,11 +416,18 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	defer x.tr("checkTypeName(%s)", name)(&errs)
 
 	if name.Var {
-		x.log("type variable")
-		// TODO: checkTypeName on var should go away,
-		// once we fully instantiate Type and Fun before checking,
-		// it should be impossible to hit this case.
-		return nil
+		def := x.find(name.Name)
+		if def == nil {
+			err := x.err(name, "type variable %s is undefined", name.Name)
+			errs = append(errs, *err)
+			return errs
+		}
+		p, ok := def.(*Parm)
+		if !ok || x.typeVars[p] == nil {
+			panic(fmt.Sprintf("impossible: %s not a type var", name.Name))
+		}
+		name.Type = x.typeVars[p]
+		return errs
 	}
 
 	for i := range name.Args {
@@ -898,8 +918,12 @@ func inferArgTypes(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []checkE
 			errs = append(errs, *err)
 			continue
 		}
+		x.typeVars[p] = makeTypeVarType(p)
 		fun.x = fun.x.push(p.Name, p)
 		fun.TypeArgs[p] = n
+		if p.Type != nil {
+			errs = append(errs, checkTypeName(x, p.Type)...)
+		}
 
 	}
 	return errs

@@ -49,8 +49,7 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 	key, ok := typeNameKey(typ)
 	if !ok {
 		x.log("bad key")
-		// Error should be reported elsewhere.
-		return nil, nil
+		return nil, nil // error reported elsewhere
 	}
 	x.log("looking for memoized type [%s]", key)
 	switch typeOrErrs := x.typeInsts[key].(type) {
@@ -99,7 +98,7 @@ func typeNameKey(n TypeName) (string, bool) {
 }
 
 func buildTypeNameKey(n TypeName, s *strings.Builder) bool {
-	if n.Type == nil || n.Var {
+	if n.Type == nil {
 		return false
 	}
 	if len(n.Args) > 0 {
@@ -267,7 +266,7 @@ func subTypeName(x *scope, sub map[*Parm]TypeName, n TypeName) *TypeName {
 
 	if n.Type != nil {
 		if typ, es := n.Type.inst(x, n); len(es) > 0 {
-			panic(fmt.Sprintf("impossible: %v", es))
+			panic(fmt.Sprintf("impossible: %s, %s, %v", n.Type, n, es))
 		} else {
 			n.Type = typ
 		}

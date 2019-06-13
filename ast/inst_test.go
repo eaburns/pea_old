@@ -103,7 +103,7 @@ func TestInst(t *testing.T) {
 			name: "meth sig",
 			def: `
 				(X, Y) Pair (T Y Key) [ foo: x X bar: y Y ^(X, Y) Pair List | ]
-				Key{ [hash ^Int64] }
+				T Key{ [= T& ^Bool] [hash ^Int64] }
 				(X, Y) Pair{}
 				T List{}
 			`,
