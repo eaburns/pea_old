@@ -225,3 +225,39 @@ func buildMethSigString(n MethSig, s *strings.Builder) {
 	}
 	s.WriteRune(']')
 }
+
+// TODO: typeStringForUser should go away; all the .String methods should be for the user.
+func typeStringForUser(n *TypeName, s *strings.Builder) {
+	if n.Type == nil {
+		buildTypeNameString(*n, s)
+		return
+	}
+	if n.Var {
+		s.WriteString(n.Name)
+		return
+	}
+	sig := n.Type.Sig
+	if len(sig.Parms) > 1 {
+		s.WriteRune('(')
+	}
+	for i := range sig.Parms {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		p := &sig.Parms[i]
+		if a, ok := sig.Args[p]; ok {
+			typeStringForUser(&a, s)
+		} else {
+			s.WriteString(p.Name)
+		}
+	}
+	switch len(sig.Parms) {
+	case 0:
+		break
+	case 1:
+		s.WriteString(" ")
+	default:
+		s.WriteString(") ")
+	}
+	s.WriteString(sig.Name)
+}
