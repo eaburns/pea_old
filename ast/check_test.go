@@ -1211,7 +1211,7 @@ func TestTypeMismatch(t *testing.T) {
 				[foo | 3 + (1 + "string") + 12]
 			`,
 			// Just emit one type mismatch.
-			err: "[:[0-9.\\-]+: got type String, wanted Int64]",
+			err: "[:[0-9.\\-]+: got type String, wanted Int64 &]",
 		},
 		{
 			name: "bad expected type",
@@ -1222,6 +1222,81 @@ func TestTypeMismatch(t *testing.T) {
 			// Don't emit a type mismatch;
 			// just print the undefined type.
 			err: "[:[0-9.\\-]+: type #main Undef is undefined]",
+		},
+		{
+			name: "ok reference conversion",
+			src: `
+				x Int& & & := [5]
+			`,
+			err: "",
+		},
+		{
+			name: "ok de-reference conversion",
+			src: `
+				x Int := [intref]
+				[intref ^Int & & & | ^5]
+			`,
+			err: "",
+		},
+		{
+			name: "ok interface conversion",
+			src: `
+				T Eq { [= T& ^Bool] }
+				x Int Eq := [5]
+			`,
+			err: "",
+		},
+		{
+			name: "ok interface conversion — other order",
+			src: `
+				x Int Eq := [5]
+				T Eq { [= T& ^Bool] }
+			`,
+			err: "",
+		},
+		{
+			name: "missing interface method",
+			src: `
+				x Fooer := [5]
+				Fooer { [foo] }
+			`,
+			err: "Int64 does not implement Fooer(.|\n)*foo undefined",
+		},
+		{
+			name: "interface method expected return got none",
+			src: `
+				x Fooer := [5]
+				Int64 [foo | ]
+				Fooer { [foo ^Bool] }
+			`,
+			err: "Int64 does not implement Fooer(.|\n)*foo has the wrong type",
+		},
+		{
+			name: "interface method expected no return got return",
+			src: `
+				x Fooer := [5]
+				Int64 [foo ^Bool | ]
+				Fooer { [foo] }
+			`,
+			err: "Int64 does not implement Fooer(.|\n)*foo has the wrong type",
+		},
+		{
+			name: "interface method return mismatch",
+			src: `
+				x Fooer := [5]
+				Int64 [foo ^Int | ]
+				Fooer { [foo ^Bool] }
+			`,
+			err: "Int64 does not implement Fooer(.|\n)*foo has the wrong type",
+		},
+		{
+			name: "interface method param mismatch",
+			src: `
+				x Fooer := [5]
+				Int64 [foo: x Bool | ]
+				Fooer { [foo: Int] }
+			`,
+			err: "Int64 does not implement Fooer(.|\n)*foo: has the wrong type",
 		},
 	}
 	for _, test := range tests {

@@ -2,8 +2,6 @@ package ast
 
 import (
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 func (n ModPath) String() string {
@@ -92,9 +90,7 @@ func buildTypeSigString(n TypeSig, s *strings.Builder) {
 	switch {
 	case len(n.Parms) == 1 && n.Parms[0].Type == nil:
 		s.WriteString(n.Parms[0].Name)
-		if r, _ := utf8.DecodeRuneInString(n.Name); !unicode.IsPunct(r) {
-			s.WriteRune(' ')
-		}
+		s.WriteRune(' ')
 		fallthrough
 	case len(n.Parms) == 0:
 		s.WriteString(n.Name)
@@ -202,6 +198,12 @@ func (n *Type) String() string {
 	return s.String()
 }
 
+func (n MethSig) String() string {
+	var s strings.Builder
+	buildMethSigString(n, &s)
+	return s.String()
+}
+
 func buildMethSigString(n MethSig, s *strings.Builder) {
 	s.WriteRune('[')
 	if len(n.Parms) == 0 {
@@ -224,6 +226,32 @@ func buildMethSigString(n MethSig, s *strings.Builder) {
 		buildTypeNameString(*n.Ret, s)
 	}
 	s.WriteRune(']')
+}
+
+func methSigStringForUser(n MethSig) string {
+	var s strings.Builder
+	s.WriteRune('[')
+	if len(n.Parms) == 0 {
+		s.WriteString(n.Sel)
+	} else {
+		for i, sel := range strings.SplitAfter(n.Sel, ":") {
+			if sel == "" {
+				break
+			}
+			if i > 0 {
+				s.WriteRune(' ')
+			}
+			s.WriteString(sel)
+			s.WriteRune(' ')
+			buildTypeStringForUser(&n.Parms[i], &s)
+		}
+	}
+	if n.Ret != nil {
+		s.WriteString(" ^")
+		buildTypeStringForUser(n.Ret, &s)
+	}
+	s.WriteRune(']')
+	return s.String()
 }
 
 func typeStringForUser(n *TypeName) string {
@@ -261,7 +289,7 @@ func buildTypeStringForUser(n *TypeName, s *strings.Builder) {
 	case 0:
 		break
 	case 1:
-		s.WriteString(" ")
+		s.WriteRune(' ')
 	default:
 		s.WriteString(") ")
 	}

@@ -88,7 +88,8 @@ func TestString(t *testing.T) {
 		},
 		{
 			"T! { error: String, ok: T }",
-			"#main T! {error: String, ok: T}",
+			// TODO: if the type arg isn't an operator type, elide the space: T!, not T !.
+			"#main T ! {error: String, ok: T}",
 		},
 		{
 			"T Ord { [= T& ^Bool] [< T& ^Bool] }",

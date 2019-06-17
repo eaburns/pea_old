@@ -256,6 +256,10 @@ type Ctor struct {
 	Type TypeName
 	Sel  string
 	Args []Expr
+
+	// Virts are the virtual methods
+	// if this is a virtual conversion.
+	Virts []*Fun
 }
 
 func (n Ctor) ExprType() *Type { return n.Type.Type }

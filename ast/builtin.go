@@ -11,11 +11,6 @@ func builtinDefs(wordSize int) []Def {
 		&Type{
 			Sig: TypeSig{Name: "&", Parms: []Parm{{Name: "T"}}},
 		},
-		&Fun{
-			Sel:  "deref",
-			Recv: &TypeSig{Name: "&", Parms: []Parm{{Name: "T"}}},
-			Ret:  &TypeName{Name: "T", Var: true},
-		},
 
 		&Type{
 			Sig:   TypeSig{Name: "Bool"},
@@ -229,9 +224,15 @@ func builtinUnary(recv, op, ret string) *Fun {
 
 func builtinBinary(recv, op, parm, ret string) *Fun {
 	return &Fun{
-		Sel:   op,
-		Recv:  &TypeSig{Name: recv},
-		Parms: []Parm{{Name: "_", Type: &TypeName{Name: parm}}},
-		Ret:   &TypeName{Name: ret},
+		Sel:  op,
+		Recv: &TypeSig{Name: recv},
+		Parms: []Parm{{
+			Name: "_",
+			Type: &TypeName{
+				Name: "&",
+				Args: []TypeName{{Name: parm}},
+			},
+		}},
+		Ret: &TypeName{Name: ret},
 	}
 }

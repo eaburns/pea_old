@@ -40,9 +40,32 @@ func checkMod(x *scope, mod *Mod) (errs []checkError) {
 	for _, def := range mod.Defs {
 		errs = append(errs, checkDef(x, def)...)
 	}
+
+	// Check instantiated defs too.
+	// However, here we ignore the errors,
+	// because any errors must have already
+	// been reported above.
+	for _, def := range x.typeInsts {
+		if typ, ok := def.(*Type); ok {
+			checkDef(x, typ)
+		}
+	}
+	for _, def := range x.methInsts {
+		if fun, ok := def.(*Fun); ok {
+			checkDef(x, fun)
+		}
+	}
+
 	for _, def := range mod.Defs {
 		errs = append(errs, checkDefStmts(x, def)...)
 	}
+	// Check instantiated fun statements too.
+	// Again, ignore errors, since they must have
+	// been reported above already.
+	for _, fun := range x.funInsts {
+		checkDef(x, fun)
+	}
+
 	return errs
 }
 
@@ -704,13 +727,41 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 		return expr, errs
 	}
 	x.log("want.Type=%p, got=%p", want.Type, got)
+
+	gotRefs, gotBase := refBaseType(got)
+	wantRefs, wantBase := refBaseType(want.Type)
+	if gotBase == wantBase {
+		for gotRefs > wantRefs {
+			t := got.Sig.Args[&got.Sig.Parms[0]]
+			expr = Ctor{
+				location: location{start: expr.Start(), end: expr.End()},
+				Type:     t,
+				Sel:      t.Name,
+				Args:     []Expr{expr},
+			}
+			gotRefs--
+		}
+		t := typeName(got)
+		for gotRefs < wantRefs {
+			t = typeName(builtInType(x, "&", *t))
+			expr = Ctor{
+				location: location{start: expr.Start(), end: expr.End()},
+				Type:     *t,
+				Sel:      t.Name,
+				Args:     []Expr{expr},
+			}
+			gotRefs++
+		}
+		return expr, errs
+	}
+
 	err := x.err(expr, "got type %s, wanted %s",
 		typeStringForUser(typeName(got)),
 		typeStringForUser(want))
 	if len(want.Type.Virts) > 0 {
-		convert, es := inferVirtual(x, expr, want)
+		expr, es := convertVirtual(x, expr, want)
 		if len(es) == 0 {
-			return convert, errs
+			return expr, errs
 		}
 		note(err, "%s does not implement %s",
 			typeStringForUser(typeName(got)),
@@ -720,10 +771,78 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 	return expr, append(errs, *err)
 }
 
-func inferVirtual(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("inferVirtual(got=%s, want=%s)", debugExprTypeString(expr), want)(&errs)
-	// TODO: implement infer virtual.
-	return expr, errs
+func refBaseType(typ *Type) (int, *Type) {
+	var i int
+	for isRefType(typ) {
+		i++
+		typ = typ.Sig.Args[&typ.Sig.Parms[0]].Type
+	}
+	return i, typ
+}
+
+func isRefType(typ *Type) bool {
+	return isBuiltInType(typ) && typ.Sig.Name == "&"
+}
+
+func convertVirtual(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("convertVirtual(got=%s, want=%s)", debugExprTypeString(expr), want)(&errs)
+	ctor := Ctor{
+		location: location{start: expr.Start(), end: expr.End()},
+		Type:     *want,
+		Args:     []Expr{expr},
+	}
+	for _, v := range want.Type.Virts {
+		fun, err := findFun(x, expr, expr, v.Sel)
+		if err != nil {
+			errs = append(errs, *err)
+			continue
+		}
+		x.log("found %v\n", fun)
+		x.log("want %v\n", v)
+		if !parmsMatch(x, fun, v) {
+			err := x.err(expr, "%s has the wrong type", v.Sel)
+			funForString := *fun
+			funForString.Recv = nil
+			note(err, "got  %s", &funForString)
+			note(err, "want %s", methSigStringForUser(v))
+			errs = append(errs, *err)
+			continue
+		}
+		ctor.Virts = append(ctor.Virts, fun)
+	}
+	if len(errs) > 0 {
+		return expr, errs
+	}
+	return ctor, nil
+}
+
+func parmsMatch(x *scope, got *Fun, want MethSig) bool {
+	defer x.tr("checkParmMatch(got=%s, want=%s)", got, want)()
+	switch {
+	case got.Ret == nil && want.Ret == nil:
+		// ok
+	case got.Ret != nil && want.Ret != nil:
+		if got.Ret.Type != want.Ret.Type {
+			x.log("different return types (%v != %v)",
+				got.Ret.Type, want.Ret.Type)
+			return false
+		}
+	default:
+		x.log("one returns, one does not")
+		return false
+	}
+	if len(want.Parms) != len(got.Parms) {
+		panic("impossible") // same selector, same number of parms
+	}
+	for i := range want.Parms {
+		w := &want.Parms[i]
+		g := &got.Parms[i]
+		if w.Type != g.Type.Type {
+			x.log("parameter %d type mismatch", i)
+			return false
+		}
+	}
+	return true
 }
 
 func debugExprTypeString(expr Expr) string {
@@ -825,6 +944,11 @@ func checkGroundedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []che
 		} else {
 			msg.Args[i] = arg
 		}
+	}
+	if fun.Ret == nil {
+		msg.Type = builtInType(x, "Nil")
+	} else {
+		msg.Type = fun.Ret.Type
 	}
 	msg.Fun = fun
 	return errs
@@ -1037,7 +1161,7 @@ func hasVar(name TypeName) bool {
 }
 
 func findFun(x *scope, loc, recv Node, sel string) (_ *Fun, err *checkError) {
-	defer x.tr("findFun(%s %s)", recv, sel)(err)
+	defer x.tr("findFun(%s)", sel)(err)
 
 	var mps []*ModPath
 	var name string
@@ -1262,16 +1386,26 @@ func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	}
 
 	resInfer := inferBlock(x, &n, infer)
+	var resultType *Type
+	if resInfer != nil {
+		resultType = resInfer.Type
+	}
+	if isNil(resInfer) {
+		resInfer = nil
+	}
 
 	x = &scope{state: x.state, parent: x, block: &n}
-	resultType := builtInType(x, "Nil")
-	if ss, es := checkStmts(x, n.Stmts, resInfer); es != nil {
+	switch ss, es := checkStmts(x, n.Stmts, resInfer); {
+	case es != nil:
 		errs = append(errs, es...)
-	} else {
+	case resultType == nil:
 		n.Stmts = ss
 		if t := lastStmtExprType(n.Stmts); t != nil {
 			resultType = t
 		}
+	}
+	if resultType == nil { // still nil?
+		resultType = builtInType(x, "Nil")
 	}
 
 	var typeArgs []TypeName
@@ -1299,6 +1433,10 @@ func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		n.Type = builtInType(x, fmt.Sprintf("Fun%d", len(n.Parms)), typeArgs...)
 	}
 	return n, errs
+}
+
+func isNil(t *TypeName) bool {
+	return t != nil && t.Type != nil && isBuiltInType(t.Type) && t.Type.Sig.Name == "Nil"
 }
 
 func inferBlock(x *scope, n *Block, infer *TypeName) *TypeName {
