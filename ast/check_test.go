@@ -1391,9 +1391,7 @@ func TestUnify(t *testing.T) {
 			case test.err == "" && err == nil:
 				var got [][2]string
 				for k, v := range bind {
-					var t strings.Builder
-					typeStringForUser(&v, &t)
-					got = append(got, [2]string{k, t.String()})
+					got = append(got, [2]string{k, typeStringForUser(&v)})
 				}
 				sort.Slice(got, func(i, j int) bool {
 					return got[i][0] < got[j][0]

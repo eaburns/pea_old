@@ -704,16 +704,17 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 		return expr, errs
 	}
 	x.log("want.Type=%p, got=%p", want.Type, got)
-	var gotString, wantString strings.Builder
-	typeStringForUser(typeName(got), &gotString)
-	typeStringForUser(want, &wantString)
-	err := x.err(expr, "got type %s, wanted %s", &gotString, &wantString)
+	err := x.err(expr, "got type %s, wanted %s",
+		typeStringForUser(typeName(got)),
+		typeStringForUser(want))
 	if len(want.Type.Virts) > 0 {
 		convert, es := inferVirtual(x, expr, want)
 		if len(es) == 0 {
 			return convert, errs
 		}
-		note(err, "%s does not implement %s", &gotString, &wantString)
+		note(err, "%s does not implement %s",
+			typeStringForUser(typeName(got)),
+			typeStringForUser(want))
 		err.cause = es
 	}
 	return expr, append(errs, *err)
@@ -732,9 +733,7 @@ func debugExprTypeString(expr Expr) string {
 	if expr.ExprType() == nil {
 		return "type=nil"
 	}
-	var s strings.Builder
-	typeStringForUser(typeName(expr.ExprType()), &s)
-	return s.String()
+	return typeStringForUser(typeName(expr.ExprType()))
 }
 
 func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
@@ -1016,10 +1015,9 @@ func rootUninstTypeDef(x *scope, name *TypeName) *Type {
 }
 
 func unifyError(x *scope, pat, typ *TypeName, cause ...checkError) *checkError {
-	var t, p strings.Builder
-	typeStringForUser(typ, &t)
-	typeStringForUser(pat, &p)
-	err := x.err(typ, "type %s cannot unify with %s", t.String(), p.String())
+	err := x.err(typ, "type %s cannot unify with %s",
+		typeStringForUser(typ),
+		typeStringForUser(pat))
 	if len(cause) > 0 {
 		err.cause = cause
 	}
