@@ -780,8 +780,11 @@ func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 func checkMsg(x *scope, call *Call, msg *Msg, infer *TypeName) (errs []checkError) {
 	defer x.tr("checkMsg(%s, infer=%s)", msg.Sel, infer)(&errs)
 
-	fun, es := findFun(x, call, msg)
-	if fun == nil || len(es) > 0 {
+	fun, err := findFun(x, call, call.Recv, msg.Sel)
+	if fun == nil || err != nil {
+		if err != nil {
+			errs = append(errs, *err)
+		}
 		// Best-effort checking of the arguments.
 		for i := range msg.Args {
 			if arg, es := msg.Args[i].check(x, nil); len(es) > 0 {
@@ -790,11 +793,12 @@ func checkMsg(x *scope, call *Call, msg *Msg, infer *TypeName) (errs []checkErro
 				msg.Args[i] = arg
 			}
 		}
-		return append(errs, es...)
+		return errs
 	}
 	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
 		if recv, ok := call.Recv.(Expr); ok && recv.ExprType() != nil {
 			name := *typeName(recv.ExprType())
+			var es []checkError
 			if fun, es = fun.instRecv(x, name); len(es) > 0 {
 				err := x.err(name, "%s cannot be instantiated", name)
 				err.cause = es
@@ -1034,16 +1038,16 @@ func hasVar(name TypeName) bool {
 	return false
 }
 
-func findFun(x *scope, call *Call, msg *Msg) (_ *Fun, errs []checkError) {
-	defer x.tr("findFun(%s)", msg.Sel)(&errs)
+func findFun(x *scope, loc, recv Node, sel string) (_ *Fun, err *checkError) {
+	defer x.tr("findFun(%s %s)", recv, sel)(err)
 
 	var mps []*ModPath
 	var name string
 	var funMeth string
-	switch recv := call.Recv.(type) {
+	switch recv := recv.(type) {
 	case ModPath:
 		mps = []*ModPath{&recv}
-		name = msg.Sel
+		name = sel
 		funMeth = "function"
 	case Expr:
 		typ := recv.ExprType()
@@ -1051,7 +1055,7 @@ func findFun(x *scope, call *Call, msg *Msg) (_ *Fun, errs []checkError) {
 			return nil, nil
 		}
 		mps = []*ModPath{&typ.ModPath, x.modPath()}
-		name = typ.Sig.Name + " " + msg.Sel
+		name = typ.Sig.Name + " " + sel
 		funMeth = "method"
 	default:
 		panic(fmt.Sprintf("impossible receiver type: %T", recv))
@@ -1075,14 +1079,13 @@ func findFun(x *scope, call *Call, msg *Msg) (_ *Fun, errs []checkError) {
 	case 1:
 		break // good
 	case 0:
-		err := x.err(msg, "%s undefined", name)
-		return nil, append(errs, *err)
+		return nil, x.err(loc, "%s undefined", name)
 	default:
-		err := x.err(msg, "ambiguous call")
+		err := x.err(loc, "ambiguous call")
 		for _, d := range defOrImports {
 			addDefNotes(err, x, d)
 		}
-		return nil, append(errs, *err)
+		return nil, err
 	}
 	var def Def
 	switch d := defOrImports[0].(type) {
@@ -1097,12 +1100,11 @@ func findFun(x *scope, call *Call, msg *Msg) (_ *Fun, errs []checkError) {
 	}
 	fun, ok := def.(*Fun)
 	if !ok {
-		err := x.err(msg, "got %s, expected a %s", def.kind(), funMeth)
+		err := x.err(loc, "got %s, expected a %s", def.kind(), funMeth)
 		addDefNotes(err, x, defOrImports[0])
-		errs = append(errs, *err)
-		return nil, errs
+		return nil, err
 	}
-	return fun, errs
+	return fun, nil
 }
 
 func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
