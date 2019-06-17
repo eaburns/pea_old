@@ -128,7 +128,7 @@ func buildTypeNameString(n TypeName, s *strings.Builder) {
 		s.WriteRune(' ')
 		fallthrough
 	case len(n.Args) == 0:
-		if n.Mod != nil {
+		if n.Mod != nil && (n.Mod.Root != "" || len(n.Mod.Path) > 0) {
 			buildModPathString(*n.Mod, s)
 			s.WriteRune(' ')
 		}
