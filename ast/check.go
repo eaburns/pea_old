@@ -1315,12 +1315,14 @@ func checkOrCtor(x *scope, n *Ctor) (errs []checkError) {
 	defer x.tr("checkOrCtor(%s)", n.Type.Type.Sig.Name)(&errs)
 	typ := n.Type.Type
 	var cas *Parm
+	x.log("selector: [%s]", n.Sel)
 	for i := range typ.Cases {
 		c := &typ.Cases[i]
 		name := c.Name
 		if c.Type != nil {
 			name += ":"
 		}
+		x.log("considering case: [%s]", name)
 		if name == n.Sel {
 			cas = c
 		}
@@ -1329,6 +1331,11 @@ func checkOrCtor(x *scope, n *Ctor) (errs []checkError) {
 		err := x.err(n, "bad or-type constructor: no case %s", n.Sel)
 		errs = append(errs, *err)
 	}
+	if cas != nil && cas.Type == nil {
+		// The arg was just the case label.
+		n.Args = nil
+	}
+
 	// Currently n.Args can never be >1 if cas != nil,
 	// (cas.Name can contain no more than one :, and n.Sel has one : per-arg).
 	// but we still want to check all args to at least report their errors.

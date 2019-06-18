@@ -1,5 +1,5 @@
 {
-package pea
+package ast
 
 import (
 	"strconv"
@@ -530,7 +530,7 @@ Primary <-
 
 Ctor <- _ ( "{" t:TypeName _"|" as:(
 	Struct /
-	id:Ident { return []arg{{name: id}} } /
+	id:Ident { return []arg{{name: id, val: id}} } /
 	a:Ary? { if a != nil { return *a }; return []arg{} }
 ) _"}" ) {
 	ctor := Ctor{location: loc(parser, start, end), Type: t}

@@ -15249,7 +15249,7 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 					}
 					label3 = func(
 						start, end int, id Ident, t TypeName) []arg {
-						return []arg{{name: id}}
+						return []arg{{name: id, val: id}}
 					}(
 						start11, pos, label1, label0)
 				}
