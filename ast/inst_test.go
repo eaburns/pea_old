@@ -293,7 +293,6 @@ func TestMemoizeTypeInst(t *testing.T) {
 	}
 
 	typ := mod.Defs[0].(*Type)
-	x.trace = true
 
 	intArray0, errs := typ.inst(x, intArrayName)
 	if len(errs) > 0 {
