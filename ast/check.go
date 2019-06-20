@@ -20,9 +20,10 @@ var (
 	Word32 = func(x *state) { x.wordSize = 32 }
 )
 
-// Check type-checks the module.
-// Check modifies its arugment, performing some simplifications on the AST
-// and populating several fields not set by parsing.
+// Check type-checks the module:
+// It imports definitions from imported modules,
+// sets fields on the AST with the resolution of references,
+// and instantiates uses of type-parameterized definitions.
 func Check(mod *Mod, opts ...Opt) []error {
 	x := newScope(mod, opts...)
 	errs := checkMod(x, mod)
