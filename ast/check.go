@@ -773,19 +773,6 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 	return expr, append(errs, *err)
 }
 
-func refBaseType(typ *Type) (int, *Type) {
-	var i int
-	for isRefType(typ) {
-		i++
-		typ = typ.Sig.Args[&typ.Sig.Parms[0]].Type
-	}
-	return i, typ
-}
-
-func isRefType(typ *Type) bool {
-	return isBuiltInType(typ) && typ.Sig.Name == "&"
-}
-
 func convertVirtual(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("convertVirtual(got=%s, want=%s)", debugExprTypeString(expr), want)(&errs)
 	ctor := Ctor{
@@ -1240,6 +1227,8 @@ func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		break
 	case typ.Alias != nil:
 		panic("impossible") // aliases should already be forwarded
+	case checkRefConvert(x, &n):
+		break // ok
 	case isAry(typ):
 		errs = append(errs, checkAryCtor(x, &n)...)
 	case len(typ.Cases) > 0:
@@ -1247,13 +1236,61 @@ func (n Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	case len(typ.Virts) > 0:
 		errs = append(errs, checkVirtCtor(x, &n)...)
 	case isBuiltInType(typ):
-		err := x.err(n, "built-in type %s cannot be constructed", typ.Name())
-		errs = append(errs, *err)
+		switch {
+		case !isRefType(typ):
+			err := x.err(n, "built-in type %s cannot be constructed", typ.Name())
+			errs = append(errs, *err)
+		case len(n.Args) > 1 || strings.ContainsRune(n.Sel, ':'):
+			err := x.err(n, "malformed reference conversion")
+			errs = append(errs, *err)
+		}
+		for _, expr := range n.Args {
+			_, es := checkExpr(x, expr, nil)
+			errs = append(errs, es...)
+		}
 	default:
 		errs = append(errs, checkAndCtor(x, &n)...)
 	}
 
 	return n, errs
+}
+
+func checkRefConvert(x *scope, n *Ctor) bool {
+	defer x.tr("isRefConvert(…)")()
+
+	if n.Type.Type == nil || len(n.Args) != 1 || strings.ContainsRune(n.Sel, ':') {
+		x.log("n.Type.Type=%p, len(n.Args)=%d", n.Type.Type, len(n.Args))
+		return false
+	}
+	expr, es := checkExpr(x, n.Args[0], nil)
+	if len(es) > 0 {
+		x.log("errors in checkExpr; not ref convert")
+		return false
+	}
+	if expr.ExprType() == nil {
+		x.log("expr type is nil; not ref convert")
+		return false
+	}
+	_, wantBase := refBaseType(n.Type.Type)
+	_, gotBase := refBaseType(expr.ExprType())
+	if wantBase != gotBase {
+		return false
+	}
+	n.Args[0] = expr
+	return true
+}
+
+func refBaseType(typ *Type) (int, *Type) {
+	var i int
+	for isRefType(typ) {
+		i++
+		typ = typ.Sig.Args[&typ.Sig.Parms[0]].Type
+	}
+	return i, typ
+}
+
+func isRefType(typ *Type) bool {
+	return isBuiltInType(typ) && typ.Sig.Name == "&"
 }
 
 func isAry(t *Type) bool {

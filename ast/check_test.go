@@ -768,7 +768,7 @@ func TestCtor(t *testing.T) {
 		{
 			name: "bad built-in type selector",
 			src: `
-				[foo| { Int | 123 }]
+				[foo| { Int | 123; 234 }]
 			`,
 			err: "built-in type Int64 cannot be constructed",
 		},
@@ -868,6 +868,56 @@ func TestCtor(t *testing.T) {
 					Reader { [read ^Byte Array] }
 				`,
 			err: "Int8 cannot represent 257: overflow",
+		},
+		{
+			name: "ok reference conversion",
+			src:  "x := [{ Int & & | 5 }]",
+			err:  "",
+		},
+		{
+			name: "ok de-reference conversion",
+			src: `
+				x := [{ Int | ref }]
+				[ref ^Int & & | 5]
+			`,
+			err: "",
+		},
+		{
+			name: "ok array de-reference conversion",
+			src: `
+				x := [{ Int Array | ref }]
+				[ref ^Int Array & & | ]
+			`,
+			err: "",
+		},
+		{
+			name: "bad reference conversion expression ",
+			src: `
+				x := [{ Int & | undef }]
+			`,
+			err: "undefined: undef",
+		},
+		{
+			name: "too many arguments for reference conversion",
+			src: `
+				x := [{ Int & | 1; 5 }]
+			`,
+			err: "malformed reference conversion",
+		},
+		{
+			name: "case-style constructor for reference conversion",
+			src: `
+				x := [{ Int & | some: 5}]
+			`,
+			err: "malformed reference conversion",
+		},
+		{
+			name: "ok interface conversion",
+			src: `
+				x := [{ Int Eq | 5 }]
+				T Eq { [= T& ^Bool] }
+			`,
+			err: "",
 		},
 	}
 	for _, test := range tests {
