@@ -12,6 +12,8 @@ type Opt func(*state)
 var (
 	// Trace enables tracing of the type checker.
 	Trace Opt = func(x *state) { x.trace = true }
+	// Dump writes the definition tree to stdout after checking.
+	Dump = func(x *state) { x.dump = true }
 	// Word64 makes Word and Uint aliases to Uint64, and Int an alias to Int64.
 	Word64 = func(x *state) { x.wordSize = 64 }
 	// Word32 makes Word and Uint aliases to Uint32, and Int an alias to Int32.
@@ -24,7 +26,7 @@ var (
 func Check(mod *Mod, opts ...Opt) []error {
 	x := newScope(mod, opts...)
 	errs := checkMod(x, mod)
-	if x.state.trace {
+	if x.state.dump {
 		dump(x.state.mods, "")
 	}
 	return convertErrors(errs)

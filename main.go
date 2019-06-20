@@ -14,6 +14,7 @@ var (
 	printParsed  = flag.Bool("parsed", false, "whether to print the parsed AST")
 	printChecked = flag.Bool("checked", false, "whether to print checked AST")
 	trace        = flag.Bool("trace", false, "whether to enable check tracing")
+	dump         = flag.Bool("dump", false, "whether to dump the definition tree after checking")
 )
 
 func main() {
@@ -45,6 +46,9 @@ func main() {
 	var opts []ast.Opt
 	if *trace {
 		opts = append(opts, ast.Trace)
+	}
+	if *dump {
+		opts = append(opts, ast.Dump)
 	}
 
 	if errs := ast.Check(mod, opts...); len(errs) > 0 {

@@ -27,6 +27,7 @@ type state struct {
 	next int
 
 	trace bool
+	dump  bool
 	ident string
 }
 
