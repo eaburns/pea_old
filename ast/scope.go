@@ -21,8 +21,7 @@ type state struct {
 
 	typeVars  map[*Parm]*Type
 	typeInsts map[string]interface{}
-	methInsts map[string]interface{} // receiver reified
-	funInsts  map[string]*Fun        // receiver + type parms reified
+	funInsts  map[[2]string]*Fun // receiver + type parms reified
 
 	next int
 
@@ -40,8 +39,7 @@ func newState(mod *Mod, opts ...Opt) *state {
 		aliasCycles: make(map[*Type]*checkError),
 		typeVars:    make(map[*Parm]*Type),
 		typeInsts:   make(map[string]interface{}),
-		methInsts:   make(map[string]interface{}),
-		funInsts:    make(map[string]*Fun),
+		funInsts:    make(map[[2]string]*Fun),
 		wordSize:    64,
 	}
 	for _, opt := range opts {

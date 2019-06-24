@@ -55,11 +55,6 @@ func checkMod(x *scope, mod *Mod) (errs []checkError) {
 			checkDef(x, typ)
 		}
 	}
-	for _, def := range x.methInsts {
-		if fun, ok := def.(*Fun); ok {
-			checkDef(x, fun)
-		}
-	}
 
 	for _, def := range mod.Defs {
 		errs = append(errs, checkDefStmts(x, def)...)
@@ -444,6 +439,10 @@ func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
 
 func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	defer x.tr("checkTypeName(%s)", name)(&errs)
+	if name.Type != nil {
+		x.log("already checked")
+		return nil // already checked.
+	}
 
 	if name.Var {
 		def := x.find(name.Name)
@@ -514,6 +513,7 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 		x.log("setting type of %s to %s (%p) ", name, typ, typ)
 		name.Type = typ
 	}
+	name.x = x
 	return errs
 }
 
@@ -968,8 +968,19 @@ func checkLiftedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []check
 	}
 
 	fun = fun.sub(fun.x, fun.TypeArgs)
-	if prev := x.funInsts[fun.String()]; prev == nil {
-		x.funInsts[fun.String()] = fun
+	// The key for a function instance is the modpath of the caller
+	// plus the signature of the function itself. The caller modpath
+	// ensures that each unique set of available methods on the
+	// type arguments will get a unique instance. Currently,
+	// the method set in the same modpath is unique.
+	//
+	// TODO: fun inst keys should be computed using the type parameter methods, not the modpath.
+	// Modpath is sufficient, but not necessary to determine unique sets of type argument methods. Two different modpaths could (and likely will) have the same set of methods; with the current approach, they will get different instances. This is wasteful. We should do the lookups to see, for each constraint method, which Fun* is actually going to be used. Then make the key unique based on this information. Then we will only have different instances if the actual methods will differ.
+	key := [2]string{x.modPath().String(), fun.String()}
+	if prev := x.funInsts[key]; prev == nil {
+		x.funInsts[key] = fun
+		x.log("adding a function inst")
+		x.mod.Insts = append(x.mod.Insts, fun)
 	} else {
 		fun = prev
 	}
@@ -1169,7 +1180,7 @@ func findFun(x *scope, loc, recv Node, sel string) (_ *Fun, err *checkError) {
 		if typ == nil || typ.Type == nil {
 			return nil, nil
 		}
-		mps = []*ModPath{&typ.Type.ModPath, x.modPath()}
+		mps = []*ModPath{typ.x.modPath(), &typ.Type.ModPath}
 		name = typ.Type.Sig.Name + " " + sel
 		funMeth = "method"
 	default:

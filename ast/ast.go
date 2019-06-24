@@ -10,6 +10,7 @@ type Mod struct {
 	files   []file
 	Defs    []Def
 	Imports []*Mod
+	Insts   []Def
 }
 
 type file struct {
@@ -145,6 +146,8 @@ type TypeName struct {
 	Args []TypeName
 
 	Type *Type
+	// x is the scoped used for method lookup.
+	x *scope
 }
 
 // A Type defines a type.

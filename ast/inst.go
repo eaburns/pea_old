@@ -12,23 +12,12 @@ func (n Fun) instRecv(x *scope, typ TypeName) (_ *Fun, errs []checkError) {
 		return &n, nil
 	}
 
-	switch funOrErrs := x.methInsts[typ.String()].(type) {
-	case nil:
-		break
-	case *Fun:
-		return funOrErrs, nil
-	case []checkError:
-		return nil, funOrErrs
-	}
-
 	sig, errs := instTypeSig(x, &n, *n.Recv, typ)
 	if len(errs) > 0 {
-		x.methInsts[typ.String()] = errs
 		return &n, errs
 	}
 	n.Recv = &sig
 	nInst := n.sub(n.Recv.x, n.Recv.Args)
-	x.methInsts[typ.String()] = nInst
 	return nInst, nil
 }
 
@@ -76,6 +65,7 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 		x.typeInsts[key] = errs
 		return &n, errs
 	}
+	x.mod.Insts = append(x.mod.Insts, &n)
 	switch {
 	case n.Alias != nil:
 		n.Alias = subTypeName(n.Sig.x, n.Sig.Args, *n.Alias)
