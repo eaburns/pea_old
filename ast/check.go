@@ -128,7 +128,7 @@ func checkVarStmts(x *scope, vr *Var) (errs []checkError) {
 				typ = expr.ExprType()
 			}
 		}
-		vr.Type = typeName(typ)
+		vr.Type = typ
 	}
 	return errs
 }
@@ -690,7 +690,7 @@ func checkAssign1(x, x1 *scope, as *Assign) (_ *scope, errs []checkError) {
 		as.Val = expr
 	}
 	if vr.Type == nil && as.Val.ExprType() != nil {
-		vr.Type = typeName(as.Val.ExprType())
+		vr.Type = as.Val.ExprType()
 	}
 	return x1, errs
 }
@@ -723,19 +723,19 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 		return expr, errs
 	}
 	got := expr.ExprType()
-	if want == nil || want.Type == nil || got == nil {
+	if want == nil || want.Type == nil || got == nil || got.Type == nil {
 		return expr, errs
 	}
-	if want.Type == got {
+	if want.Type == got.Type {
 		return expr, errs
 	}
 	x.log("want.Type=%p, got=%p", want.Type, got)
 
-	gotRefs, gotBase := refBaseType(got)
+	gotRefs, gotBase := refBaseType(got.Type)
 	wantRefs, wantBase := refBaseType(want.Type)
 	if gotBase == wantBase {
 		for gotRefs > wantRefs {
-			t := got.Sig.Args[&got.Sig.Parms[0]]
+			t := got.Type.Sig.Args[&got.Type.Sig.Parms[0]]
 			expr = Ctor{
 				location: location{start: expr.Start(), end: expr.End()},
 				Type:     t,
@@ -744,13 +744,12 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 			}
 			gotRefs--
 		}
-		t := typeName(got)
 		for gotRefs < wantRefs {
-			t = typeName(builtInType(x, "&", *t))
+			got = builtInType(x, "&", *got)
 			expr = Ctor{
 				location: location{start: expr.Start(), end: expr.End()},
-				Type:     *t,
-				Sel:      t.Name,
+				Type:     *got,
+				Sel:      got.Name,
 				Args:     []Expr{expr},
 			}
 			gotRefs++
@@ -759,7 +758,7 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 	}
 
 	err := x.err(expr, "got type %s, wanted %s",
-		typeStringForUser(typeName(got)),
+		typeStringForUser(got),
 		typeStringForUser(want))
 	if len(want.Type.Virts) > 0 {
 		expr, es := convertVirtual(x, expr, want)
@@ -767,7 +766,7 @@ func checkExpr(x *scope, expr Expr, want *TypeName) (_ Expr, errs []checkError) 
 			return expr, errs
 		}
 		note(err, "%s does not implement %s",
-			typeStringForUser(typeName(got)),
+			typeStringForUser(got),
 			typeStringForUser(want))
 		err.cause = es
 	}
@@ -842,7 +841,7 @@ func debugExprTypeString(expr Expr) string {
 	if expr.ExprType() == nil {
 		return "type=nil"
 	}
-	return typeStringForUser(typeName(expr.ExprType()))
+	return typeStringForUser(expr.ExprType())
 }
 
 func (n Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
@@ -905,10 +904,10 @@ func checkMsg(x *scope, call *Call, msg *Msg, infer *TypeName) (errs []checkErro
 	}
 	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
 		if recv, ok := call.Recv.(Expr); ok && recv.ExprType() != nil {
-			name := *typeName(recv.ExprType())
 			var es []checkError
-			if fun, es = fun.instRecv(x, name); len(es) > 0 {
-				err := x.err(name, "%s cannot be instantiated", name)
+			recvType := *recv.ExprType()
+			if fun, es = fun.instRecv(x, recvType); len(es) > 0 {
+				err := x.err(recvType, "%s cannot be instantiated", recvType)
 				err.cause = es
 				return append(errs, *err)
 			}
@@ -938,7 +937,7 @@ func checkGroundedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []che
 	if fun.Ret == nil {
 		msg.Type = builtInType(x, "Nil")
 	} else {
-		msg.Type = fun.Ret.Type
+		msg.Type = fun.Ret
 	}
 	msg.Fun = fun
 	return errs
@@ -995,7 +994,7 @@ func inferArgTypes(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []checkE
 	if fun.Ret != nil && hasVar(*fun.Ret) {
 		in := infer
 		if in == nil {
-			in = typeName(builtInType(x, "Nil"))
+			in = builtInType(x, "Nil")
 		}
 		if err := unify(x, fun.Ret, in, bind); err != nil {
 			errs = append(errs, *err)
@@ -1013,7 +1012,7 @@ func inferArgTypes(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []checkE
 		}
 		msg.Args[i] = arg
 		if arg.ExprType() != nil {
-			typ := typeName(arg.ExprType())
+			typ := arg.ExprType()
 			typ.location = location{start: arg.Start(), end: arg.End()}
 			for i := range typ.Args {
 				typ.Args[i].location = typ.location
@@ -1163,11 +1162,11 @@ func findFun(x *scope, loc, recv Node, sel string) (_ *Fun, err *checkError) {
 		funMeth = "function"
 	case Expr:
 		typ := recv.ExprType()
-		if typ == nil {
+		if typ == nil || typ.Type == nil {
 			return nil, nil
 		}
-		mps = []*ModPath{&typ.ModPath, x.modPath()}
-		name = typ.Sig.Name + " " + sel
+		mps = []*ModPath{&typ.Type.ModPath, x.modPath()}
+		name = typ.Type.Sig.Name + " " + sel
 		funMeth = "method"
 	default:
 		panic(fmt.Sprintf("impossible receiver type: %T", recv))
@@ -1268,12 +1267,13 @@ func checkRefConvert(x *scope, n *Ctor) bool {
 		x.log("errors in checkExpr; not ref convert")
 		return false
 	}
-	if expr.ExprType() == nil {
+	exprType := expr.ExprType()
+	if exprType == nil || exprType.Type == nil {
 		x.log("expr type is nil; not ref convert")
 		return false
 	}
 	_, wantBase := refBaseType(n.Type.Type)
-	_, gotBase := refBaseType(expr.ExprType())
+	_, gotBase := refBaseType(exprType.Type)
 	if wantBase != gotBase {
 		return false
 	}
@@ -1433,9 +1433,9 @@ func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	}
 
 	resInfer := inferBlock(x, &n, infer)
-	var resultType *Type
+	var resultType *TypeName
 	if resInfer != nil {
-		resultType = resInfer.Type
+		resultType = resInfer
 	}
 	if isNil(resInfer) {
 		resInfer = nil
@@ -1447,7 +1447,7 @@ func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		errs = append(errs, es...)
 	case resultType == nil:
 		n.Stmts = ss
-		if t := lastStmtExprType(n.Stmts); t != nil {
+		if t := lastStmtExprType(n.Stmts); t != nil && t.Type != nil {
 			resultType = t
 		}
 	}
@@ -1464,7 +1464,7 @@ func (n Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		}
 		typeArgs = append(typeArgs, *p.Type)
 	}
-	typeArgs = append(typeArgs, *typeName(resultType))
+	typeArgs = append(typeArgs, *resultType)
 
 	if max := len(funTypeParms); len(n.Parms) > max {
 		err := x.err(n, "too many block parameters (max %d)", max)
@@ -1505,7 +1505,7 @@ func inferBlock(x *scope, n *Block, infer *TypeName) *TypeName {
 	return &t
 }
 
-func lastStmtExprType(ss []Stmt) *Type {
+func lastStmtExprType(ss []Stmt) *TypeName {
 	if len(ss) == 0 {
 		return nil
 	}
@@ -1599,10 +1599,10 @@ func (n Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		panic("impossible")
 	}
 
-	n.Type = builtInType(x, "Int")
+	n.Type = *builtInType(x, "Int")
 	if ok, signed, bits := isInt(infer); ok {
 		x.log("isInt(%s): signed=%v, bits=%v", infer.Type.Sig.Name, signed, bits)
-		n.Type = infer.Type
+		n.Type = *infer
 		n.BitLen = bits
 		n.Signed = signed
 
@@ -1641,10 +1641,10 @@ func (n Float) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 		panic("impossible: " + err.Error())
 	}
 
-	n.Type = builtInType(x, "Float")
+	n.Type = *builtInType(x, "Float")
 	if isFloat(infer) {
 		x.log("isFloat(%s)", infer.Type.Sig.Name)
-		n.Type = infer.Type
+		n.Type = *infer
 		return n, nil
 	}
 	if ok, _, _ := isInt(infer); ok {
@@ -1683,17 +1683,17 @@ func isInt(t *TypeName) (ok bool, signed bool, bits int) {
 func (n Rune) check(x *scope, _ *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("Rune.check(…)")(&errs)
 	// TODO: Rune.check should error on invalid unicode codepoints.
-	n.Type = builtInType(x, "Rune")
+	n.Type = *builtInType(x, "Rune")
 	return n, nil
 }
 
 func (n String) check(x *scope, _ *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("String.check(…)")(&errs)
-	n.Type = builtInType(x, "String")
+	n.Type = *builtInType(x, "String")
 	return n, nil
 }
 
-func builtInType(x *scope, name string, args ...TypeName) *Type {
+func builtInType(x *scope, name string, args ...TypeName) *TypeName {
 	tn := TypeName{
 		Mod:  &ModPath{},
 		Name: name,
@@ -1702,5 +1702,5 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 	if errs := checkTypeName(x, &tn); len(errs) > 0 {
 		panic(fmt.Sprintf("impossible error: %v", errs))
 	}
-	return tn.Type
+	return &tn
 }

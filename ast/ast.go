@@ -225,7 +225,7 @@ func (n *Assign) End() int   { return n.Val.End() }
 // An Expr is an expression
 type Expr interface {
 	Node
-	ExprType() *Type
+	ExprType() *TypeName
 
 	sub(*scope, map[*Parm]TypeName) Expr
 	check(*scope, *TypeName) (Expr, []checkError)
@@ -238,7 +238,7 @@ type Call struct {
 	Msgs []Msg
 }
 
-func (n Call) ExprType() *Type { return n.Msgs[len(n.Msgs)-1].Type }
+func (n Call) ExprType() *TypeName { return n.Msgs[len(n.Msgs)-1].Type }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
@@ -246,7 +246,7 @@ type Msg struct {
 	Sel  string
 	Args []Expr
 
-	Type *Type
+	Type *TypeName
 	Fun  *Fun
 }
 
@@ -262,7 +262,12 @@ type Ctor struct {
 	Virts []*Fun
 }
 
-func (n Ctor) ExprType() *Type { return n.Type.Type }
+func (n Ctor) ExprType() *TypeName {
+	if n.Type.Type != nil {
+		return &n.Type
+	}
+	return nil
+}
 
 // A Block is a block literal.
 type Block struct {
@@ -271,10 +276,10 @@ type Block struct {
 	Stmts []Stmt
 
 	Locals []*Parm
-	Type   *Type
+	Type   *TypeName
 }
 
-func (n Block) ExprType() *Type { return n.Type }
+func (n Block) ExprType() *TypeName { return n.Type }
 
 // A ModPath is a module name.
 type ModPath struct {
@@ -301,12 +306,12 @@ type Ident struct {
 	RecvType *Type
 }
 
-func (n Ident) ExprType() *Type {
+func (n Ident) ExprType() *TypeName {
 	switch {
 	case n.Var != nil && n.Var.Type != nil:
-		return n.Var.Type.Type
+		return n.Var.Type
 	case n.Parm != nil && n.Parm.Type != nil:
-		return n.Parm.Type.Type
+		return n.Parm.Type
 	default:
 		return nil
 	}
@@ -317,24 +322,24 @@ type Int struct {
 	location
 	Text string
 
-	Type   *Type
+	Type   TypeName
 	Val    *big.Int
 	BitLen int
 	Signed bool
 }
 
-func (n Int) ExprType() *Type { return n.Type }
+func (n Int) ExprType() *TypeName { return &n.Type }
 
 // A Float is a floating point literal.
 type Float struct {
 	location
 	Text string
 
-	Type *Type
+	Type TypeName
 	Val  *big.Float
 }
 
-func (n Float) ExprType() *Type { return n.Type }
+func (n Float) ExprType() *TypeName { return &n.Type }
 
 // A Rune is a rune literal.
 type Rune struct {
@@ -342,10 +347,10 @@ type Rune struct {
 	Text string
 	Rune rune
 
-	Type *Type
+	Type TypeName
 }
 
-func (n Rune) ExprType() *Type { return n.Type }
+func (n Rune) ExprType() *TypeName { return &n.Type }
 
 // A String is a string literal.
 type String struct {
@@ -353,7 +358,7 @@ type String struct {
 	Text string
 	Data string
 
-	Type *Type
+	Type TypeName
 }
 
-func (n String) ExprType() *Type { return n.Type }
+func (n String) ExprType() *TypeName { return &n.Type }
