@@ -48,6 +48,8 @@ func checkMod(x *scope, mod *Mod) (errs []checkError) {
 	// However, here we ignore the errors,
 	// because any errors must have already
 	// been reported above.
+	//
+	// TODO: checking insts needs to be recursive; currently it just curses once.
 	for _, def := range x.typeInsts {
 		if typ, ok := def.(*Type); ok {
 			checkDef(x, typ)
