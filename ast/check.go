@@ -66,7 +66,7 @@ func checkMod(x *scope, mod *Mod) (errs []checkError) {
 	// Again, ignore errors, since they must have
 	// been reported above already.
 	for _, fun := range x.funInsts {
-		checkDef(x, fun)
+		checkDefStmts(x, fun)
 	}
 
 	return errs
@@ -140,13 +140,13 @@ func checkFun(x *scope, fun *Fun) (errs []checkError) {
 		errs = append(errs, checkRecvSig(x, fun)...)
 		x = fun.Recv.x
 
-		if len(fun.Recv.Parms) > 0 {
+		if len(fun.Recv.Parms) > 0 && len(fun.Recv.Args) == 0 {
 			// TODO: checkFun for param receivers is only partially implemented.
 			// We should create stub type arguments, instantiate the fun,
 			// then check the instance.
 		}
 	}
-	if len(fun.TypeParms) > 0 {
+	if len(fun.TypeParms) > 0 && len(fun.TypeArgs) == 0 {
 		// TODO: checkFun for parameterized funs is unimplemented.
 		// We should create stub type arguments, instantiate the fun,
 		// then check the instance.
@@ -266,16 +266,18 @@ func makeTypeVarType(p *Parm) *Type {
 func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
 	defer x.tr("checkFunStmts(%s)", fun)(&errs)
 
-	if fun.Recv != nil && len(fun.Recv.Parms) > 0 {
+	if fun.Recv != nil && len(fun.Recv.Parms) > 0 && len(fun.Recv.Args) == 0 {
 		// TODO: checkFunStmts for param receivers is only partially implemented.
 		// We should create stub type arguments, instantiate the fun,
 		// then check the instance.
+		x.log("skipping lifted function")
 		return errs
 	}
-	if len(fun.TypeParms) > 0 {
+	if len(fun.TypeParms) > 0 && len(fun.TypeArgs) == 0 {
 		// TODO: checkFunStmts for parameterized funs is unimplemented.
 		// We should create stub type arguments, instantiate the fun,
 		// then check the instance.
+		x.log("skipping lifted function")
 		return errs
 	}
 
@@ -302,7 +304,7 @@ func checkFunStmts(x *scope, fun *Fun) (errs []checkError) {
 func checkType(x *scope, typ *Type) (errs []checkError) {
 	defer x.tr("checkType(%s)", typ)(&errs)
 
-	if len(typ.Sig.Parms) > 0 {
+	if len(typ.Sig.Parms) > 0 && len(typ.Sig.Args) == 0 {
 		for i := range typ.Sig.Parms {
 			p := &typ.Sig.Parms[i]
 			x = x.push(p.Name, p)

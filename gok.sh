@@ -34,6 +34,7 @@ gocyclo -over 15 .\
 	| grep -v "grammar.go:" \
 	| grep -v "findFun ast/check.go"\
 	| grep -v "TestUnify ast/check_test.go"\
+	| grep -v "16 ast checkFun ast/check.go"\
 	| grep -v "17 ast checkTypeName ast/check.go"\
 	> $o 2>&1
 e=$(mktemp tmp.XXXXXXXXXX)
