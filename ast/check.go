@@ -979,8 +979,10 @@ func checkLiftedMsg(x *scope, msg *Msg, fun *Fun, infer *TypeName) (errs []check
 	key := [2]string{x.modPath().String(), fun.String()}
 	if prev := x.funInsts[key]; prev == nil {
 		x.funInsts[key] = fun
-		x.log("adding a function inst")
-		x.mod.Insts = append(x.mod.Insts, fun)
+		if x.discardInsts == 0 {
+			x.log("adding a function inst")
+			x.mod.Insts = append(x.mod.Insts, fun)
+		}
 	} else {
 		fun = prev
 	}

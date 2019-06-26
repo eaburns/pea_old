@@ -23,6 +23,15 @@ type state struct {
 	typeInsts map[string]interface{}
 	funInsts  map[[2]string]*Fun // receiver + type parms reified
 
+	// discardInsts determines whether def insts
+	// should be added to the Mod.Insts slice.
+	// If discardInsts==0, then the defs are concrete
+	// and they should be added to the slice.
+	// Otherwise, we are either checking a def in an import
+	// or we are checking some non-reified template definition,
+	// and we should not be populating Insts.
+	discardInsts int
+
 	next int
 
 	trace bool
@@ -56,11 +65,16 @@ func newScope(mod *Mod, opts ...Opt) *scope {
 	if es := collect(x, nil, nil, mod.Imports[0]); len(es) > 0 {
 		panic("impossible")
 	}
+	// Don't add to the current module
+	// the instances of lifted types or funs
+	// that are created while checking builtins.
+	x.discardInsts++
 	for _, def := range builtin.Defs {
 		if es := checkDef(x, def); len(es) > 0 {
 			panic(fmt.Sprintf("impossible: %v", es))
 		}
 	}
+	x.discardInsts--
 	return x
 }
 
@@ -242,9 +256,14 @@ func importMod(x *scope, n *Import) (m *Mod, err *checkError) {
 	x.log("returning new module: %s, %s", n.Path, m.Name)
 	x.mod.Imports = append(x.mod.Imports, m)
 
+	// Don't add to the current module
+	// the instances of lifted types or funs
+	// that are created while checking this import.
+	x.discardInsts++
 	if es := checkMod(x, m); len(es) > 0 {
 		panic(fmt.Sprintf("imported module contains errors: %v", es))
 	}
+	x.discardInsts--
 
 	return m, nil
 }

@@ -65,7 +65,10 @@ func (n Type) inst(x *scope, typ TypeName) (_ *Type, errs []checkError) {
 		x.typeInsts[key] = errs
 		return &n, errs
 	}
-	x.mod.Insts = append(x.mod.Insts, &n)
+	if x.discardInsts == 0 {
+		x.log("adding a type inst")
+		x.mod.Insts = append(x.mod.Insts, &n)
+	}
 	switch {
 	case n.Alias != nil:
 		n.Alias = subTypeName(n.Sig.x, n.Sig.Args, *n.Alias)
