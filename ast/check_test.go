@@ -187,6 +187,22 @@ func TestRedefError(t *testing.T) {
 			`,
 			err: "Xyz is redefined(.|\n)*Abc is redefined(.|\n)*Cde is redefined",
 		},
+		{
+			name: "virtual method redefined",
+			src: `
+				Fooer { [foo] }
+				Fooer [foo |]
+			`,
+			err: "method foo is redefined",
+		},
+		{
+			name: "virtual method redefines",
+			src: `
+				Fooer [foo |]
+				Fooer { [foo] }
+			`,
+			err: "method foo is redefined",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -739,6 +755,14 @@ func TestCall(t *testing.T) {
 				x Int := [
 					{Bool|true} ifTrue: [ 5 ] ifFalse: [ 6 ]
 				]
+			`,
+			err: ``,
+		},
+		{
+			name: "virtual call",
+			src: `
+				[callFoo: f Fooer ^String | ^f foo]
+				Fooer { [foo ^String] }
 			`,
 			err: ``,
 		},

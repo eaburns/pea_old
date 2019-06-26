@@ -324,7 +324,7 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 	case typ.Cases != nil:
 		errs = append(errs, checkCases(x, typ.Cases)...)
 	case typ.Virts != nil:
-		errs = append(errs, checkVirts(x, typ.Virts)...)
+		errs = append(errs, checkVirts(x, typ)...)
 	}
 	return errs
 }
@@ -415,11 +415,11 @@ func checkCases(x *scope, ps []Parm) (errs []checkError) {
 	return errs
 }
 
-func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
+func checkVirts(x *scope, typ *Type) (errs []checkError) {
 	defer x.tr("checkVirts(…)")(&errs)
 	seen := make(map[string]*MethSig)
-	for i := range sigs {
-		sig := &sigs[i]
+	for i := range typ.Virts {
+		sig := &typ.Virts[i]
 		if prev, ok := seen[sig.Sel]; ok {
 			err := x.err(sig, "virtual method %s is redefined", sig.Sel)
 			note(err, "previous definition is at %s", x.loc(prev))
@@ -427,12 +427,38 @@ func checkVirts(x *scope, sigs []MethSig) (errs []checkError) {
 		} else {
 			seen[sig.Sel] = sig
 		}
+		var parms []Parm
 		for j := range sig.Parms {
 			errs = append(errs, checkTypeName(x, &sig.Parms[j])...)
+			parms = append(parms, Parm{
+				location: sig.Parms[j].location,
+				Name:     "_",
+				Type:     &sig.Parms[j],
+			})
 		}
 		if sig.Ret != nil {
 			errs = append(errs, checkTypeName(x, sig.Ret)...)
 		}
+
+		mp := x.modPath()
+		fun := &Fun{
+			location: sig.location,
+			ModPath:  *mp,
+			Sel:      sig.Sel,
+			Recv:     &typ.Sig,
+			Parms:    parms,
+			Ret:      sig.Ret,
+			RecvType: typ,
+			// I don't think that Self is used,
+			// but ast.go says that Self != nil whenever Recv != nil,
+			// so it seems safest to populate it.
+			Self: &Parm{
+				location: sig.location,
+				Name:     "self",
+				Type:     typeName(typ),
+			},
+		}
+		x.mods.add(append([]string{mp.Root}, mp.Path...), fun)
 	}
 	return errs
 }
