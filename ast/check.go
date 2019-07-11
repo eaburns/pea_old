@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // An Opt is an option to the type checker.
@@ -322,7 +324,7 @@ func checkType(x *scope, typ *Type) (errs []checkError) {
 	case typ.Fields != nil:
 		errs = append(errs, checkFields(x, typ.Fields)...)
 	case typ.Cases != nil:
-		errs = append(errs, checkCases(x, typ.Cases)...)
+		errs = append(errs, checkCases(x, typ)...)
 	case typ.Virts != nil:
 		errs = append(errs, checkVirts(x, typ)...)
 	}
@@ -395,11 +397,18 @@ func checkFields(x *scope, ps []Parm) (errs []checkError) {
 	return errs
 }
 
-func checkCases(x *scope, ps []Parm) (errs []checkError) {
+func checkCases(x *scope, typ *Type) (errs []checkError) {
 	defer x.tr("checkCases(…)")(&errs)
+
+	var methParms []Parm
+	var methSel strings.Builder
+	// This must use an illegal name to ensure it does not collide
+	// with any type variables on typ.
+	retType := &TypeName{Var: true, Name: "$R"}
+
 	seen := make(map[string]*Parm)
-	for i := range ps {
-		p := &ps[i]
+	for i := range typ.Cases {
+		p := &typ.Cases[i]
 		lower := strings.ToLower(p.Name)
 		if prev := seen[lower]; prev != nil {
 			err := x.err(p, "case %s is redefined", lower)
@@ -411,7 +420,59 @@ func checkCases(x *scope, ps []Parm) (errs []checkError) {
 		if p.Type != nil {
 			errs = append(errs, checkTypeName(x, p.Type)...)
 		}
+
+		methParm := Parm{Name: "_"}
+		if p.Type == nil {
+			// We don't all builtInType here,
+			// because builtInType
+			// calls checkTypeName
+			// on the returned type,
+			// but we can't check the arguments,
+			// because retType isn't a real type,
+			// but a type variable.
+			methParm.Type = &TypeName{
+				Mod:  &ModPath{},
+				Name: "Fun0",
+				Args: []TypeName{*retType},
+			}
+		} else {
+			// We don't call builtInType here
+			// for the same reason as above.
+			methParm.Type = &TypeName{
+				Mod:  &ModPath{},
+				Name: "Fun11",
+				Args: []TypeName{*p.Type, *retType},
+			}
+		}
+		methParms = append(methParms, methParm)
+
+		methSel.WriteString("if")
+		r, w := utf8.DecodeRuneInString(p.Name)
+		methSel.WriteRune(unicode.ToUpper(r))
+		methSel.WriteString(p.Name[w:])
+		methSel.WriteRune(':')
 	}
+
+	mp := x.modPath()
+	fun := &Fun{
+		location:  typ.location,
+		ModPath:   *mp,
+		Sel:       methSel.String(),
+		Recv:      &typ.Sig,
+		Parms:     methParms,
+		TypeParms: []Parm{{Name: retType.Name}},
+		Ret:       retType,
+		RecvType:  typ,
+		// I don't think that Self is used,
+		// but ast.go says that Self != nil whenever Recv != nil,
+		// so it seems safest to populate it.
+		Self: &Parm{
+			location: typ.location,
+			Name:     "self",
+			Type:     typeName(typ),
+		},
+	}
+	x.mods.add(append([]string{mp.Root}, mp.Path...), fun)
 	return errs
 }
 

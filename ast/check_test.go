@@ -766,6 +766,15 @@ func TestCall(t *testing.T) {
 			`,
 			err: ``,
 		},
+		{
+			name: "case method call",
+			src: `
+				[foo: d Dir ^Int | ^d ifLeft: [5] ifRight: [6]]
+				Dir { left, right }
+			`,
+			trace: true,
+			err:   ``,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
