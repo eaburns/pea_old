@@ -20,7 +20,7 @@ func (l Loc) String() string {
 
 // Loc returns the Loc for a node in the module AST.
 func (m *Mod) Loc(n Node) Loc {
-	if len(m.files) == 0 {
+	if len(m.Files) == 0 {
 		return Loc{}
 	}
 	var l Loc
@@ -35,8 +35,8 @@ func (m *Mod) Loc(n Node) Loc {
 }
 
 func (m *Mod) loc1(p int) (string, int, int) {
-	file := m.files[0]
-	for _, f := range m.files {
+	file := m.Files[0]
+	for _, f := range m.Files {
 		if f.offs > p {
 			break
 		}
@@ -50,5 +50,5 @@ func (m *Mod) loc1(p int) (string, int, int) {
 		col1 = nl
 		line++
 	}
-	return file.path, line, p - col1
+	return file.Path, line, p - col1
 }

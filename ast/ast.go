@@ -5,14 +5,15 @@ package ast
 // A Mod is a module: the unit of compilation.
 type Mod struct {
 	Name  string
-	files []file
-	Defs  []Def
+	Files []File
 }
 
-type file struct {
-	path  string
+// File is a single source code file.
+type File struct {
+	Path  string
 	offs  int   // offset of the start of the file
 	lines []int // offset of newlines
+	Defs  []Def
 }
 
 // A Node is a node of the AST with location information.

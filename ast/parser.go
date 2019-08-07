@@ -10,7 +10,7 @@ import (
 
 // A Parser parses source code files.
 type Parser struct {
-	files []file
+	files []File
 	defs  []Def
 	offs  int
 	mod   string
@@ -23,7 +23,7 @@ func NewParser(mod string) *Parser {
 
 // Mod returns the module built from the parsed files.
 func (p *Parser) Mod() *Mod {
-	return &Mod{Name: p.mod, files: p.files, Defs: p.defs}
+	return &Mod{Name: p.mod, Files: p.files}
 }
 
 // Parse parses a *File from an io.Reader.
@@ -47,9 +47,9 @@ func (p *Parser) Parse(path string, r io.Reader) error {
 			lines = append(lines, p.offs+i)
 		}
 	}
-	p.files = append(p.files, file{path: path, offs: p.offs, lines: lines})
+	file := File{Path: path, offs: p.offs, lines: lines, Defs: *defs}
+	p.files = append(p.files, file)
 	p.offs += len(_p.text)
-	p.defs = append(p.defs, *defs...)
 	return nil
 }
 
