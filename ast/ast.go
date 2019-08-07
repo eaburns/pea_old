@@ -1,16 +1,12 @@
 package ast
 
-import "math/big"
-
 //go:generate peggy -o grammar.go -t grammar.peggy
 
 // A Mod is a module: the unit of compilation.
 type Mod struct {
-	Name    string
-	files   []file
-	Defs    []Def
-	Imports []*Mod
-	Insts   []Def
+	Name  string
+	files []file
+	Defs  []Def
 }
 
 type file struct {
@@ -28,17 +24,7 @@ type Node interface {
 // A Def is a module-level definition.
 type Def interface {
 	Node
-	// String returns a human-readable, 1-line summary of the Def.
-	String() string
 
-	// Name returns the definition's name,
-	// which must be unique within its module.
-	Name() string
-
-	// Mod returns the module path of the definition.
-	Mod() ModPath
-
-	kind() string // human-readable string describing definition type
 	addMod(ModPath) Def
 	setPriv(bool) Def
 	setStart(int) Def
@@ -59,9 +45,6 @@ type Import struct {
 	Path string
 }
 
-func (n *Import) Name() string { return n.Path }
-func (n *Import) kind() string { return "import" }
-
 // A Fun is a function or method definition.
 type Fun struct {
 	location
@@ -73,16 +56,6 @@ type Fun struct {
 	Parms     []Parm // types cannot be nil
 	Ret       *TypeName
 	Stmts     []Stmt
-
-	RecvType *Type
-	Self     *Parm // non-nil if RecvType is non-nil
-	Locals   []*Parm
-
-	// For instatiated type-parameterized methods.
-	TypeArgs map[*Parm]TypeName
-	// x is non-nil for an instantiated type.
-	// It is the scope that encompases the type parameters.
-	x *scope
 }
 
 func (n *Fun) Name() string {
@@ -90,13 +63,6 @@ func (n *Fun) Name() string {
 		return n.Recv.Name + " " + n.Sel
 	}
 	return n.Sel
-}
-
-func (n *Fun) kind() string {
-	if n.Recv == nil {
-		return "function"
-	}
-	return "method"
 }
 
 // A Parm is a name and a type.
@@ -120,21 +86,11 @@ type Var struct {
 	Val   []Stmt
 }
 
-func (n *Var) Name() string { return n.Ident }
-
-func (n *Var) kind() string { return "variable" }
-
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
 	location
 	Name  string
 	Parms []Parm // types may be nil
-
-	// Args is non-nil for an instantiated type.
-	Args map[*Parm]TypeName
-	// x is non-nil for an instantiated type.
-	// It is the scope that encompases the type parameters.
-	x *scope
 }
 
 // A TypeName is the name of a concrete type.
@@ -144,10 +100,6 @@ type TypeName struct {
 	Mod  *ModPath
 	Name string
 	Args []TypeName
-
-	Type *Type
-	// x is the scoped used for method lookup.
-	x *scope
 }
 
 // A Type defines a type.
@@ -187,10 +139,6 @@ type Type struct {
 	Virts []MethSig
 }
 
-func (n *Type) Name() string { return n.Sig.Name }
-
-func (n *Type) kind() string { return "type" }
-
 // A MethSig is the signature of a method.
 type MethSig struct {
 	location
@@ -228,10 +176,7 @@ func (n *Assign) End() int   { return n.Val.End() }
 // An Expr is an expression
 type Expr interface {
 	Node
-	ExprType() *TypeName
-
-	sub(*scope, map[*Parm]TypeName) Expr
-	check(*scope, *TypeName) (Expr, []checkError)
+	isExpr()
 }
 
 // A Call is a method call or a cascade.
@@ -241,16 +186,13 @@ type Call struct {
 	Msgs []Msg
 }
 
-func (n Call) ExprType() *TypeName { return n.Msgs[len(n.Msgs)-1].Type }
+func (Call) isExpr() {}
 
 // A Msg is a message, sent to a value.
 type Msg struct {
 	location
 	Sel  string
 	Args []Expr
-
-	Type *TypeName
-	Fun  *Fun
 }
 
 // A Ctor type constructor literal.
@@ -259,30 +201,18 @@ type Ctor struct {
 	Type TypeName
 	Sel  string
 	Args []Expr
-
-	// Virts are the virtual methods
-	// if this is a virtual conversion.
-	Virts []*Fun
 }
 
-func (n Ctor) ExprType() *TypeName {
-	if n.Type.Type != nil {
-		return &n.Type
-	}
-	return nil
-}
+func (Ctor) isExpr() {}
 
 // A Block is a block literal.
 type Block struct {
 	location
 	Parms []Parm // if type is nil, it must be inferred
 	Stmts []Stmt
-
-	Locals []*Parm
-	Type   *TypeName
 }
 
-func (n Block) ExprType() *TypeName { return n.Type }
+func (Block) isExpr() {}
 
 // A ModPath is a module name.
 type ModPath struct {
@@ -297,71 +227,40 @@ func (n ModPath) Mod() ModPath { return n }
 type Ident struct {
 	location
 	Text string
-
-	// Var is non-nil if the Ident is a module-level value.
-	// Otherwise Parm is non-nil.
-	Var *Var
-	// Parm is non-nil if the Ident is a Fun parameter, local,
-	// or the Field of a Fun receiver
-	// (in which case RecvType is non-nil too).
-	Parm *Parm
-	// RecvType is non-nil if the Ident is a method receiver field.
-	RecvType *Type
 }
 
-func (n Ident) ExprType() *TypeName {
-	switch {
-	case n.Var != nil && n.Var.Type != nil:
-		return n.Var.Type
-	case n.Parm != nil && n.Parm.Type != nil:
-		return n.Parm.Type
-	default:
-		return nil
-	}
-}
+func (Ident) isExpr() {}
 
 // An Int is an integer literal.
 type Int struct {
 	location
 	Text string
-
-	Type   TypeName
-	Val    *big.Int
-	BitLen int
-	Signed bool
 }
 
-func (n Int) ExprType() *TypeName { return &n.Type }
+func (Int) isExpr() {}
 
 // A Float is a floating point literal.
 type Float struct {
 	location
 	Text string
-
-	Type TypeName
-	Val  *big.Float
 }
 
-func (n Float) ExprType() *TypeName { return &n.Type }
+func (Float) isExpr() {}
 
 // A Rune is a rune literal.
 type Rune struct {
 	location
 	Text string
 	Rune rune
-
-	Type TypeName
 }
 
-func (n Rune) ExprType() *TypeName { return &n.Type }
+func (Rune) isExpr() {}
 
 // A String is a string literal.
 type String struct {
 	location
 	Text string
 	Data string
-
-	Type TypeName
 }
 
-func (n String) ExprType() *TypeName { return &n.Type }
+func (String) isExpr() {}
