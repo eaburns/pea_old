@@ -58,13 +58,6 @@ type Fun struct {
 	Stmts     []Stmt
 }
 
-func (n *Fun) Name() string {
-	if n.Recv != nil {
-		return n.Recv.Name + " " + n.Sel
-	}
-	return n.Sel
-}
-
 // A Parm is a name and a type.
 // Parms are used in several AST nodes.
 // In some cases, the type must be non-nil.
