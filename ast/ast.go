@@ -25,8 +25,6 @@ type Node interface {
 type Def interface {
 	Node
 
-	addMod(ModPath) Def
-	setPriv(bool) Def
 	setStart(int) Def
 }
 
@@ -36,19 +34,22 @@ type location struct {
 
 func (n location) loc() (int, int) { return n.start, n.end }
 
+// Sub is a sub-module definition.
+type Sub struct {
+	location
+	Name string
+	Defs []Def
+}
+
 // Import is an import statement.
 type Import struct {
 	location
-	Priv bool
-	ModPath
 	Path string
 }
 
 // A Fun is a function or method definition.
 type Fun struct {
 	location
-	Priv bool
-	ModPath
 	Sel       string
 	Recv      *TypeSig
 	TypeParms []Parm // types may be nil
@@ -77,8 +78,6 @@ type Parm struct {
 // A Var is a module-level variable definition.
 type Var struct {
 	location
-	Priv bool
-	ModPath
 	Var   *Parm
 	Ident string
 	Type  *TypeName
@@ -117,8 +116,6 @@ type TypeName struct {
 // 	   convertable to the virtual type.
 type Type struct {
 	location
-	Priv bool
-	ModPath
 	Sig TypeSig
 
 	// Alias, Fields, Cases, and Virts
@@ -224,8 +221,6 @@ type ModPath struct {
 	Root string // current or imported module name
 	Path []string
 }
-
-func (n ModPath) Mod() ModPath { return n }
 
 // An Ident is a variable name as an expression.
 type Ident struct {

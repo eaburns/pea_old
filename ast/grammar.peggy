@@ -17,16 +17,7 @@ func (n *ModPath) prepend(m ModPath) {
 	n.Path = append(m.Path[:len(m.Path):len(m.Path)], n.Path...)
 }
 
-func (n Import) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-func (n Fun) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-func (n Var) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-func (n Type) addMod(m ModPath) Def { n.ModPath.prepend(m); return &n }
-
-func (n Import) setPriv(b bool) Def { n.Priv = b; return &n }
-func (n Fun) setPriv(b bool) Def { n.Priv = b; return &n }
-func (n Var) setPriv(b bool) Def { n.Priv = b; return &n }
-func (n Type) setPriv(b bool) Def { n.Priv = b; return &n }
-
+func (n Sub) setStart(s int) Def { n.start = s; return &n }
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def { n.start = s; return &n }
 func (n Var) setStart(s int) Def { n.start = s; return &n }
@@ -82,7 +73,7 @@ func loc(p *_Parser, start, end int) location {
 func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
 }
 
-File <- defss:Def* _ EOF {
+File <- defss:Defs* _ EOF {
 	var out []Def
 	for _, defs := range defss {
 		for _, def := range defs {
@@ -92,64 +83,37 @@ File <- defss:Def* _ EOF {
 	return []Def(out)
 }
 
-Def <- mp:ModPath? defs:(
-	_ i:( "import" p:String  {
-		return []Def{&Import{location: loc(parser, start, end), Path: p.Data}}
-	} ) { return []Def(i) } /
-	_ ( "(" defss:Def+ _ ")" ) {
-		var out []Def
-		for _, defs := range defss {
+Defs <-
+	i:Import { return []Def{i} } /
+	f:Fun { return []Def{f} } /
+	v:Var { return []Def{v} } /
+	a:Alias { return []Def{a} } /
+	s0:TypeSig t:Type { t0 := *t.(*Type); t0.Sig = s0; return []Def{&t0} } /
+	s1:TypeSig m:Fun { m0 := *m.(*Fun); m0.Recv = &s1; return []Def{&m0} } /
+	sig:TypeSig _"(" ds3:( Type / Fun )+ _")"  { return []Def(distSig(sig, ds3)) } /
+	n0:ModName? _ "(" ds1:Defs+ _ ")" {
+		sub := &Sub{location: loc(parser, start, end)}
+		if n0 != nil {
+			sub.start = n0.start
+			sub.Name = n0.Text
+		}
+		for _, defs := range ds1 {
 			for _, def := range defs {
-				out = append(out, def.setPriv(mp == nil))
+				sub.Defs = append(sub.Defs, def)
 			}
 		}
-		return []Def(out)
+		return []Def{sub}
 	} /
-	f:Fun {
-		return []Def{f}
-	} /
-	v:Var {
-		return []Def{v}
-	} /
-	a:Alias {
-		return []Def{a}
-	} /
-	sig:TypeSig ds1:(
-		t0:Type { return []Def{t0} } /
-		m0:Fun { return []Def{m0} } /
-		_"(" ds2:( Type / Fun )+ _")" { return []Def(ds2) }
-	) {
-		return []Def(distSig(sig, ds1))
+	n1:ModName ds2:Defs {
+		return []Def{&Sub{
+			location: loc(parser, n1.start, end),
+			Name: n1.Text,
+			Defs: ds2,
+		}}
 	}
-) {
-	if mp == nil {
-		s, _ := defs[0].loc()
-		mp = &ModPath{
-			location: loc(parser, s, s), // empty location
-			Root: parser.data.(*Parser).mod,
-		}
-	}
-	var out []Def
-	for _, d := range defs {
-		out = append(out, d.addMod(*mp))
-	}
-	if mp.start != mp.end && len(out) == 1 {
-		out[0] = out[0].setStart(mp.start)
-	}
-	return []Def(out)
-}
 
-ModPath <- ns:ModName+ {
-	s, _ := ns[0].loc()
-	_, e := ns[len(ns)-1].loc()
-	mp := ModPath{
-		location: location{start: s, end: e},
-		Root: parser.data.(*Parser).mod,
-	}
-	for _, n := range ns {
-		mp.Path = append(mp.Path, n.Text)
-	}
-	return ModPath(mp)
+Import <- "import" p:String  {
+	return &Import{location: loc(parser, start, end), Path: p.Data}
 }
 
 Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
@@ -295,6 +259,19 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 }
 
 TName <- mp:ModPath? n:( TypeOp / Ident ) { return tname{mod: mp, name: n} }
+
+ModPath <- ns:ModName+ {
+	s, _ := ns[0].loc()
+	_, e := ns[len(ns)-1].loc()
+	mp := ModPath{
+		location: location{start: s, end: e},
+		Root: parser.data.(*Parser).mod,
+	}
+	for _, n := range ns {
+		mp.Path = append(mp.Path, n.Text)
+	}
+	return ModPath(mp)
+}
 
 Alias <- sig:TypeSig _ ":=" n:TypeName _ "." {
 	return Def(&Type{
