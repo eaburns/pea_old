@@ -1942,8 +1942,9 @@ func _DefAction(parser *_Parser, start int) (int, *[]Def) {
 		node = func(
 			start, end int, a Def, defs []Def, defss [][]Def, ds1 []Def, ds2 []Def, f Def, i []Def, m0 Def, mp *ModPath, p String, sig TypeSig, t0 Def, v *Var) []Def {
 			if mp == nil {
+				s, _ := defs[0].loc()
 				mp = &ModPath{
-					location: loc(parser, defs[0].Start(), defs[0].Start()), // empty location
+					location: loc(parser, s, s), // empty location
 					Root:     parser.data.(*Parser).mod,
 				}
 			}
@@ -1952,7 +1953,7 @@ func _DefAction(parser *_Parser, start int) (int, *[]Def) {
 				out = append(out, d.addMod(*mp))
 			}
 			if mp.start != mp.end && len(out) == 1 {
-				out[0] = out[0].setStart(mp.Start())
+				out[0] = out[0].setStart(mp.start)
 			}
 			return []Def(out)
 		}(
@@ -2138,8 +2139,10 @@ func _ModPathAction(parser *_Parser, start int) (int, *ModPath) {
 		}
 		node = func(
 			start, end int, ns []Ident) ModPath {
+			s, _ := ns[0].loc()
+			_, e := ns[len(ns)-1].loc()
 			mp := ModPath{
-				location: location{start: ns[0].Start(), end: ns[len(ns)-1].End()},
+				location: location{start: s, end: e},
 				Root:     parser.data.(*Parser).mod,
 			}
 			for _, n := range ns {
@@ -12122,14 +12125,15 @@ func _UnaryAction(parser *_Parser, start int) (int, *Call) {
 		}
 		node = func(
 			start, end int, ms []Msg, n ModPath, p Expr, r Node) Call {
+			s, _ := r.loc()
 			c := Call{
-				location: location{r.Start(), ms[0].end},
+				location: location{s, ms[0].end},
 				Recv:     r,
 				Msgs:     []Msg{ms[0]},
 			}
 			for _, m := range ms[1:] {
 				c = Call{
-					location: location{r.Start(), m.end},
+					location: location{s, m.end},
 					Recv:     c,
 					Msgs:     []Msg{m},
 				}
@@ -12643,8 +12647,9 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 		}
 		node = func(
 			start, end int, m Msg, n ModPath, p Expr, r Node, u Call) Call {
+			s, _ := r.loc()
 			return Call{
-				location: location{r.Start(), loc1(parser, end)},
+				location: location{s, loc1(parser, end)},
 				Recv:     r,
 				Msgs:     []Msg{m},
 			}
@@ -13491,7 +13496,7 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 			s := m.start
 			var recv Node
 			if r != nil {
-				s = (*r).Start()
+				s, _ = (*r).loc()
 				recv = *r
 			}
 			return Call{

@@ -18,8 +18,7 @@ type File struct {
 
 // A Node is a node of the AST with location information.
 type Node interface {
-	Start() int
-	End() int
+	loc() (int, int)
 }
 
 // A Def is a module-level definition.
@@ -35,8 +34,7 @@ type location struct {
 	start, end int
 }
 
-func (n location) Start() int { return n.start }
-func (n location) End() int   { return n.end }
+func (n location) loc() (int, int) { return n.start, n.end }
 
 // Import is an import statement.
 type Import struct {
@@ -159,8 +157,10 @@ type Ret struct {
 	Val   Expr
 }
 
-func (n *Ret) Start() int { return n.start }
-func (n *Ret) End() int   { return n.Val.End() }
+func (n *Ret) loc() (int, int) {
+	_, end := n.Val.loc()
+	return n.start, end
+}
 
 // An Assign is an assignment statement.
 type Assign struct {
@@ -171,8 +171,11 @@ type Assign struct {
 	Val  Expr
 }
 
-func (n *Assign) Start() int { return n.Vars[0].Start() }
-func (n *Assign) End() int   { return n.Val.End() }
+func (n *Assign) loc() (int, int) {
+	start, _ := n.Vars[0].loc()
+	_, end := n.Val.loc()
+	return start, end
+}
 
 // An Expr is an expression
 type Expr interface {

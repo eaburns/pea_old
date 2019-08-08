@@ -25,8 +25,9 @@ func (m *Mod) Loc(n Node) Loc {
 	}
 	var l Loc
 	var spath, epath string
-	spath, l.Line[0], l.Col[0] = m.loc1(n.Start())
-	epath, l.Line[1], l.Col[1] = m.loc1(n.End())
+	start, end := n.loc()
+	spath, l.Line[0], l.Col[0] = m.loc1(start)
+	epath, l.Line[1], l.Col[1] = m.loc1(end)
 	if spath != epath {
 		panic("impossible")
 	}
