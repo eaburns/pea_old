@@ -52,36 +52,35 @@ type Fun struct {
 	location
 	Sel       string
 	Recv      *TypeSig
-	TypeParms []Parm // types may be nil
-	Parms     []Parm // types cannot be nil
+	TypeParms []Var // types may be nil
+	Parms     []Var // types cannot be nil
 	Ret       *TypeName
 	Stmts     []Stmt
 }
 
-// A Parm is a name and a type.
-// Parms are used in several AST nodes.
+// A Var is a name and a type.
+// Var are used in several AST nodes.
 // In some cases, the type must be non-nil.
 // In others, the type may be nil.
-type Parm struct {
+type Var struct {
 	location
 	Name string
 	Type *TypeName
 }
 
-// A Var is a module-level variable definition.
-type Var struct {
+// A Val is a module-level value definition.
+type Val struct {
 	location
-	Var   *Parm
 	Ident string
 	Type  *TypeName
-	Val   []Stmt
+	Init  []Stmt
 }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
 	location
 	Name  string
-	Parms []Parm // types may be nil
+	Parms []Var // types may be nil
 }
 
 // A TypeName is the name of a concrete type.
@@ -119,10 +118,10 @@ type Type struct {
 	Alias *TypeName
 
 	// Fields is non-nil for an And type.
-	Fields []Parm // types cannot be nil
+	Fields []Var // types cannot be nil
 
 	// Cases is non-nil for an Or type.
-	Cases []Parm // types can be nil
+	Cases []Var // types can be nil
 
 	// Virts is non-nil for a Virtual type.
 	Virts []MethSig
@@ -157,7 +156,7 @@ type Assign struct {
 	// Vars are the target of assignment.
 	// After type checking, these refer to the defining Param,
 	// either a local variable or Fun/Block parameter.
-	Vars []*Parm // types may be nil before successful Check()
+	Vars []*Var // types may be nil before successful Check()
 	Val  Expr
 }
 
@@ -202,7 +201,7 @@ func (Ctor) isExpr() {}
 // A Block is a block literal.
 type Block struct {
 	location
-	Parms []Parm // if type is nil, it must be inferred
+	Parms []Var // if type is nil, it must be inferred
 	Stmts []Stmt
 }
 

@@ -19,7 +19,7 @@ func (n *ModPath) prepend(m ModPath) {
 func (n Sub) setStart(s int) Def    { n.start = s; return &n }
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def    { n.start = s; return &n }
-func (n Var) setStart(s int) Def    { n.start = s; return &n }
+func (n Val) setStart(s int) Def    { n.start = s; return &n }
 func (n Type) setStart(s int) Def   { n.start = s; return &n }
 
 type setSiger interface {
@@ -78,7 +78,7 @@ const (
 	_Fun          int = 3
 	_FunSig       int = 4
 	_Ret          int = 5
-	_Var          int = 6
+	_Val          int = 6
 	_TypeSig      int = 7
 	_TypeParms    int = 8
 	_TypeParm     int = 9
@@ -480,7 +480,7 @@ func _DefsAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		return dp, de
 	}
 	pos, perr := start, -1
-	// i:Import {…}/f:Fun {…}/v:Var {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
+	// i:Import {…}/f:Fun {…}/v:Val {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
 	{
 		pos3 := pos
 		// action
@@ -510,11 +510,11 @@ func _DefsAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 	fail6:
 		pos = pos3
 		// action
-		// v:Var
+		// v:Val
 		{
 			pos9 := pos
-			// Var
-			if !_accept(parser, _VarAccepts, &pos, &perr) {
+			// Val
+			if !_accept(parser, _ValAccepts, &pos, &perr) {
 				goto fail8
 			}
 			labels[2] = parser.text[pos9:pos]
@@ -778,7 +778,7 @@ func _DefsNode(parser *_Parser, start int) (int, *peg.Node) {
 	}
 	pos := start
 	node = &peg.Node{Name: "Defs"}
-	// i:Import {…}/f:Fun {…}/v:Var {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
+	// i:Import {…}/f:Fun {…}/v:Val {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
 	{
 		pos3 := pos
 		nkids1 := len(node.Kids)
@@ -811,11 +811,11 @@ func _DefsNode(parser *_Parser, start int) (int, *peg.Node) {
 		node.Kids = node.Kids[:nkids1]
 		pos = pos3
 		// action
-		// v:Var
+		// v:Val
 		{
 			pos9 := pos
-			// Var
-			if !_node(parser, _VarNode, node, &pos) {
+			// Val
+			if !_node(parser, _ValNode, node, &pos) {
 				goto fail8
 			}
 			labels[2] = parser.text[pos9:pos]
@@ -1110,7 +1110,7 @@ func _DefsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _Defs}
-	// i:Import {…}/f:Fun {…}/v:Var {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
+	// i:Import {…}/f:Fun {…}/v:Val {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
 	{
 		pos3 := pos
 		// action
@@ -1140,11 +1140,11 @@ func _DefsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	fail6:
 		pos = pos3
 		// action
-		// v:Var
+		// v:Val
 		{
 			pos9 := pos
-			// Var
-			if !_fail(parser, _VarFail, errPos, failure, &pos) {
+			// Val
+			if !_fail(parser, _ValFail, errPos, failure, &pos) {
 				goto fail8
 			}
 			labels[2] = parser.text[pos9:pos]
@@ -1421,7 +1421,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 	use(labels)
 	var label0 *Import
 	var label1 Def
-	var label2 *Var
+	var label2 *Val
 	var label3 Def
 	var label4 TypeSig
 	var label5 Def
@@ -1445,7 +1445,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 	}
 	var node []Def
 	pos := start
-	// i:Import {…}/f:Fun {…}/v:Var {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
+	// i:Import {…}/f:Fun {…}/v:Val {…}/a:Alias {…}/s0:TypeSig t:Type {…}/s1:TypeSig m:Fun {…}/sig:TypeSig _ "(" ds3:(Type/Fun)+ _ ")" {…}/n0:ModName? _ "(" ds1:Defs+ _ ")" {…}/n1:ModName ds2:Defs {…}
 	{
 		pos3 := pos
 		var node2 []Def
@@ -1502,11 +1502,11 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 		// action
 		{
 			start11 := pos
-			// v:Var
+			// v:Val
 			{
 				pos12 := pos
-				// Var
-				if p, n := _VarAction(parser, pos); n == nil {
+				// Val
+				if p, n := _ValAction(parser, pos); n == nil {
 					goto fail10
 				} else {
 					label2 = *n
@@ -1515,7 +1515,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 				labels[2] = parser.text[pos12:pos]
 			}
 			node = func(
-				start, end int, f Def, i *Import, v *Var) []Def {
+				start, end int, f Def, i *Import, v *Val) []Def {
 				return []Def{v}
 			}(
 				start11, pos, label1, label0, label2)
@@ -1540,7 +1540,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 				labels[3] = parser.text[pos15:pos]
 			}
 			node = func(
-				start, end int, a Def, f Def, i *Import, v *Var) []Def {
+				start, end int, a Def, f Def, i *Import, v *Val) []Def {
 				return []Def{a}
 			}(
 				start14, pos, label3, label1, label0, label2)
@@ -1578,7 +1578,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 				labels[5] = parser.text[pos20:pos]
 			}
 			node = func(
-				start, end int, a Def, f Def, i *Import, s0 TypeSig, t Def, v *Var) []Def {
+				start, end int, a Def, f Def, i *Import, s0 TypeSig, t Def, v *Val) []Def {
 				t0 := *t.(*Type)
 				t0.Sig = s0
 				return []Def{&t0}
@@ -1618,7 +1618,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 				labels[7] = parser.text[pos25:pos]
 			}
 			node = func(
-				start, end int, a Def, f Def, i *Import, m Def, s0 TypeSig, s1 TypeSig, t Def, v *Var) []Def {
+				start, end int, a Def, f Def, i *Import, m Def, s0 TypeSig, s1 TypeSig, t Def, v *Val) []Def {
 				m0 := *m.(*Fun)
 				m0.Recv = &s1
 				return []Def{&m0}
@@ -1747,7 +1747,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 			}
 			pos++
 			node = func(
-				start, end int, a Def, ds3 []Def, f Def, i *Import, m Def, s0 TypeSig, s1 TypeSig, sig TypeSig, t Def, v *Var) []Def {
+				start, end int, a Def, ds3 []Def, f Def, i *Import, m Def, s0 TypeSig, s1 TypeSig, sig TypeSig, t Def, v *Val) []Def {
 				return []Def(distSig(sig, ds3))
 			}(
 				start27, pos, label3, label9, label1, label0, label7, label4, label6, label8, label5, label2)
@@ -1838,7 +1838,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 			}
 			pos++
 			node = func(
-				start, end int, a Def, ds1 [][]Def, ds3 []Def, f Def, i *Import, m Def, n0 *Ident, s0 TypeSig, s1 TypeSig, sig TypeSig, t Def, v *Var) []Def {
+				start, end int, a Def, ds1 [][]Def, ds3 []Def, f Def, i *Import, m Def, n0 *Ident, s0 TypeSig, s1 TypeSig, sig TypeSig, t Def, v *Val) []Def {
 				sub := &Sub{location: loc(parser, start, end)}
 				if n0 != nil {
 					sub.start = n0.start
@@ -1886,7 +1886,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 				labels[13] = parser.text[pos64:pos]
 			}
 			node = func(
-				start, end int, a Def, ds1 [][]Def, ds2 []Def, ds3 []Def, f Def, i *Import, m Def, n0 *Ident, n1 Ident, s0 TypeSig, s1 TypeSig, sig TypeSig, t Def, v *Var) []Def {
+				start, end int, a Def, ds1 [][]Def, ds2 []Def, ds3 []Def, f Def, i *Import, m Def, n0 *Ident, n1 Ident, s0 TypeSig, s1 TypeSig, sig TypeSig, t Def, v *Val) []Def {
 				return []Def{&Sub{
 					location: loc(parser, n1.start, end),
 					Name:     n1.Text,
@@ -2368,7 +2368,7 @@ fail:
 func _FunAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
-	var label0 *[]Parm
+	var label0 *[]Var
 	var label1 *Fun
 	var label2 []Stmt
 	var label3 (*Fun)
@@ -2394,7 +2394,7 @@ func _FunAction(parser *_Parser, start int) (int, *Def) {
 			// TypeParms?
 			{
 				pos4 := pos
-				label0 = new([]Parm)
+				label0 = new([]Var)
 				// TypeParms
 				if p, n := _TypeParmsAction(parser, pos); n == nil {
 					goto fail5
@@ -2476,7 +2476,7 @@ func _FunAction(parser *_Parser, start int) (int, *Def) {
 				}
 				pos++
 				label3 = func(
-					start, end int, sig *Fun, ss []Stmt, tps *[]Parm) *Fun {
+					start, end int, sig *Fun, ss []Stmt, tps *[]Var) *Fun {
 					copy := *sig
 					copy.location = loc(parser, start, end)
 					copy.Stmts = ss
@@ -2487,7 +2487,7 @@ func _FunAction(parser *_Parser, start int) (int, *Def) {
 			labels[3] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, f *Fun, sig *Fun, ss []Stmt, tps *[]Parm) Def {
+			start, end int, f *Fun, sig *Fun, ss []Stmt, tps *[]Var) Def {
 			if tps != nil {
 				copy := *f
 				copy.TypeParms = *tps
@@ -3283,11 +3283,11 @@ func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
 				}
 			}
 			var sel string
-			var parms []Parm
+			var parms []Var
 			for i := range ps {
 				p := &ps[i]
 				sel += p.key.Text
-				parms = append(parms, Parm{
+				parms = append(parms, Var{
 					location: location{p.key.start, p.typ.end},
 					Name:     p.name.Text,
 					Type:     &p.typ,
@@ -3478,10 +3478,10 @@ fail:
 	return -1, nil
 }
 
-func _VarAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
+func _ValAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 	var labels [3]string
 	use(labels)
-	if dp, de, ok := _memo(parser, _Var, start); ok {
+	if dp, de, ok := _memo(parser, _Val, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
@@ -3552,25 +3552,25 @@ func _VarAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		goto fail
 	}
 	pos++
-	return _memoize(parser, _Var, start, pos, perr)
+	return _memoize(parser, _Val, start, pos, perr)
 fail:
-	return _memoize(parser, _Var, start, -1, perr)
+	return _memoize(parser, _Val, start, -1, perr)
 }
 
-func _VarNode(parser *_Parser, start int) (int, *peg.Node) {
+func _ValNode(parser *_Parser, start int) (int, *peg.Node) {
 	var labels [3]string
 	use(labels)
-	dp := parser.deltaPos[start][_Var]
+	dp := parser.deltaPos[start][_Val]
 	if dp < 0 {
 		return -1, nil
 	}
-	key := _key{start: start, rule: _Var}
+	key := _key{start: start, rule: _Val}
 	node := parser.node[key]
 	if node != nil {
 		return start + int(dp-1), node
 	}
 	pos := start
-	node = &peg.Node{Name: "Var"}
+	node = &peg.Node{Name: "Val"}
 	// action
 	// n:Ident tn:TypeName? _ ":=" _ "[" ss:Stmts _ "]"
 	// n:Ident
@@ -3647,18 +3647,18 @@ fail:
 	return -1, nil
 }
 
-func _VarFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
+func _ValFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	var labels [3]string
 	use(labels)
-	pos, failure := _failMemo(parser, _Var, start, errPos)
+	pos, failure := _failMemo(parser, _Val, start, errPos)
 	if failure != nil {
 		return pos, failure
 	}
 	failure = &peg.Fail{
-		Name: "Var",
+		Name: "Val",
 		Pos:  int(start),
 	}
-	key := _key{start: start, rule: _Var}
+	key := _key{start: start, rule: _Val}
 	// action
 	// n:Ident tn:TypeName? _ ":=" _ "[" ss:Stmts _ "]"
 	// n:Ident
@@ -3748,23 +3748,23 @@ fail:
 	return -1, failure
 }
 
-func _VarAction(parser *_Parser, start int) (int, **Var) {
+func _ValAction(parser *_Parser, start int) (int, **Val) {
 	var labels [3]string
 	use(labels)
 	var label0 Ident
 	var label1 *TypeName
 	var label2 []Stmt
-	dp := parser.deltaPos[start][_Var]
+	dp := parser.deltaPos[start][_Val]
 	if dp < 0 {
 		return -1, nil
 	}
-	key := _key{start: start, rule: _Var}
+	key := _key{start: start, rule: _Val}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(*Var)
+		n := n.(*Val)
 		return start + int(dp-1), &n
 	}
-	var node *Var
+	var node *Val
 	pos := start
 	// action
 	{
@@ -3850,12 +3850,12 @@ func _VarAction(parser *_Parser, start int) (int, **Var) {
 		}
 		pos++
 		node = func(
-			start, end int, n Ident, ss []Stmt, tn *TypeName) *Var {
-			return &Var{
+			start, end int, n Ident, ss []Stmt, tn *TypeName) *Val {
+			return &Val{
 				location: location{n.start, loc1(parser, end)},
 				Ident:    n.Text,
 				Type:     tn,
-				Val:      ss,
+				Init:     ss,
 			}
 		}(
 			start0, pos, label0, label2, label1)
@@ -4067,7 +4067,7 @@ fail:
 func _TypeSigAction(parser *_Parser, start int) (int, *TypeSig) {
 	var labels [2]string
 	use(labels)
-	var label0 *[]Parm
+	var label0 *[]Var
 	var label1 Ident
 	dp := parser.deltaPos[start][_TypeSig]
 	if dp < 0 {
@@ -4091,7 +4091,7 @@ func _TypeSigAction(parser *_Parser, start int) (int, *TypeSig) {
 			// TypeParms?
 			{
 				pos4 := pos
-				label0 = new([]Parm)
+				label0 = new([]Var)
 				// TypeParms
 				if p, n := _TypeParmsAction(parser, pos); n == nil {
 					goto fail5
@@ -4143,7 +4143,7 @@ func _TypeSigAction(parser *_Parser, start int) (int, *TypeSig) {
 			labels[1] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, n Ident, ps *[]Parm) TypeSig {
+			start, end int, n Ident, ps *[]Var) TypeSig {
 			if ps == nil {
 				return TypeSig{location: n.location, Name: n.Text}
 			}
@@ -4576,13 +4576,13 @@ fail:
 	return -1, failure
 }
 
-func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
+func _TypeParmsAction(parser *_Parser, start int) (int, *[]Var) {
 	var labels [4]string
 	use(labels)
 	var label0 Ident
-	var label1 Parm
-	var label2 Parm
-	var label3 []Parm
+	var label1 Var
+	var label2 Var
+	var label3 []Var
 	dp := parser.deltaPos[start][_TypeParms]
 	if dp < 0 {
 		return -1, nil
@@ -4590,15 +4590,15 @@ func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
 	key := _key{start: start, rule: _TypeParms}
 	n := parser.act[key]
 	if n != nil {
-		n := n.([]Parm)
+		n := n.([]Var)
 		return start + int(dp-1), &n
 	}
-	var node []Parm
+	var node []Var
 	pos := start
 	// n:TypeVar {…}/_ "(" p0:TypeParm ps:(_ "," p1:TypeParm {…})* (_ ",")? _ ")" {…}
 	{
 		pos3 := pos
-		var node2 []Parm
+		var node2 []Var
 		// action
 		{
 			start5 := pos
@@ -4615,8 +4615,8 @@ func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
 				labels[0] = parser.text[pos6:pos]
 			}
 			node = func(
-				start, end int, n Ident) []Parm {
-				return []Parm{{location: n.location, Name: n.Text}}
+				start, end int, n Ident) []Var {
+				return []Var{{location: n.location, Name: n.Text}}
 			}(
 				start5, pos, label0)
 		}
@@ -4657,7 +4657,7 @@ func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
 				// (_ "," p1:TypeParm {…})*
 				for {
 					pos13 := pos
-					var node14 Parm
+					var node14 Var
 					// (_ "," p1:TypeParm {…})
 					// action
 					{
@@ -4687,8 +4687,8 @@ func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
 							labels[2] = parser.text[pos18:pos]
 						}
 						node14 = func(
-							start, end int, n Ident, p0 Parm, p1 Parm) Parm {
-							return Parm(p1)
+							start, end int, n Ident, p0 Var, p1 Var) Var {
+							return Var(p1)
 						}(
 							start16, pos, label0, label1, label2)
 					}
@@ -4733,8 +4733,8 @@ func _TypeParmsAction(parser *_Parser, start int) (int, *[]Parm) {
 			}
 			pos++
 			node = func(
-				start, end int, n Ident, p0 Parm, p1 Parm, ps []Parm) []Parm {
-				return []Parm(append([]Parm{p0}, ps...))
+				start, end int, n Ident, p0 Var, p1 Var, ps []Var) []Var {
+				return []Var(append([]Var{p0}, ps...))
 			}(
 				start8, pos, label0, label1, label2, label3)
 		}
@@ -4889,7 +4889,7 @@ fail:
 	return -1, failure
 }
 
-func _TypeParmAction(parser *_Parser, start int) (int, *Parm) {
+func _TypeParmAction(parser *_Parser, start int) (int, *Var) {
 	var labels [2]string
 	use(labels)
 	var label0 Ident
@@ -4901,10 +4901,10 @@ func _TypeParmAction(parser *_Parser, start int) (int, *Parm) {
 	key := _key{start: start, rule: _TypeParm}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Parm)
+		n := n.(Var)
 		return start + int(dp-1), &n
 	}
-	var node Parm
+	var node Var
 	pos := start
 	// action
 	{
@@ -4945,12 +4945,12 @@ func _TypeParmAction(parser *_Parser, start int) (int, *Parm) {
 			labels[1] = parser.text[pos3:pos]
 		}
 		node = func(
-			start, end int, n Ident, t1 *TypeName) Parm {
+			start, end int, n Ident, t1 *TypeName) Var {
 			e := n.end
 			if t1 != nil {
 				e = t1.end
 			}
-			return Parm{
+			return Var{
 				location: location{n.start, e},
 				Name:     n.Text,
 				Type:     t1,
@@ -7439,7 +7439,7 @@ func _AndAction(parser *_Parser, start int) (int, *Def) {
 	use(labels)
 	var label0 Ident
 	var label1 TypeName
-	var label2 []Parm
+	var label2 []Var
 	var label3 *Type
 	dp := parser.deltaPos[start][_And]
 	if dp < 0 {
@@ -7482,7 +7482,7 @@ func _AndAction(parser *_Parser, start int) (int, *Def) {
 					// (n:IdentC t:TypeName {…})*
 					for {
 						pos7 := pos
-						var node8 Parm
+						var node8 Var
 						// (n:IdentC t:TypeName {…})
 						// action
 						{
@@ -7513,8 +7513,8 @@ func _AndAction(parser *_Parser, start int) (int, *Def) {
 								labels[1] = parser.text[pos13:pos]
 							}
 							node8 = func(
-								start, end int, n Ident, t TypeName) Parm {
-								return Parm{
+								start, end int, n Ident, t TypeName) Var {
+								return Var{
 									location: n.location,
 									Name:     strings.TrimSuffix(n.Text, ":"),
 									Type:     &t,
@@ -7542,7 +7542,7 @@ func _AndAction(parser *_Parser, start int) (int, *Def) {
 				}
 				pos++
 				label3 = func(
-					start, end int, fs []Parm, n Ident, t TypeName) *Type {
+					start, end int, fs []Var, n Ident, t TypeName) *Type {
 					return &Type{
 						location: loc(parser, start, end),
 						Fields:   fs,
@@ -7553,7 +7553,7 @@ func _AndAction(parser *_Parser, start int) (int, *Def) {
 			labels[3] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, fs []Parm, n Ident, s *Type, t TypeName) Def {
+			start, end int, fs []Var, n Ident, s *Type, t TypeName) Def {
 			return Def(s)
 		}(
 			start0, pos, label2, label0, label3, label1)
@@ -7943,9 +7943,9 @@ fail:
 func _OrAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
-	var label0 Parm
-	var label1 Parm
-	var label2 []Parm
+	var label0 Var
+	var label1 Var
+	var label2 []Var
 	var label3 *Type
 	dp := parser.deltaPos[start][_Or]
 	if dp < 0 {
@@ -8000,7 +8000,7 @@ func _OrAction(parser *_Parser, start int) (int, *Def) {
 					// (_ "," c1:Case {…})*
 					for {
 						pos8 := pos
-						var node9 Parm
+						var node9 Var
 						// (_ "," c1:Case {…})
 						// action
 						{
@@ -8030,8 +8030,8 @@ func _OrAction(parser *_Parser, start int) (int, *Def) {
 								labels[1] = parser.text[pos13:pos]
 							}
 							node9 = func(
-								start, end int, c Parm, c1 Parm) Parm {
-								return Parm(c1)
+								start, end int, c Var, c1 Var) Var {
+								return Var(c1)
 							}(
 								start11, pos, label0, label1)
 						}
@@ -8076,10 +8076,10 @@ func _OrAction(parser *_Parser, start int) (int, *Def) {
 				}
 				pos++
 				label3 = func(
-					start, end int, c Parm, c1 Parm, cs []Parm) *Type {
+					start, end int, c Var, c1 Var, cs []Var) *Type {
 					return &Type{
 						location: loc(parser, start, end),
-						Cases:    append([]Parm{c}, cs...),
+						Cases:    append([]Var{c}, cs...),
 					}
 				}(
 					start3, pos, label0, label1, label2)
@@ -8087,7 +8087,7 @@ func _OrAction(parser *_Parser, start int) (int, *Def) {
 			labels[3] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, c Parm, c1 Parm, cs []Parm, e *Type) Def {
+			start, end int, c Var, c1 Var, cs []Var, e *Type) Def {
 			return Def(e)
 		}(
 			start0, pos, label0, label1, label2, label3)
@@ -8279,7 +8279,7 @@ fail:
 	return -1, failure
 }
 
-func _CaseAction(parser *_Parser, start int) (int, *Parm) {
+func _CaseAction(parser *_Parser, start int) (int, *Var) {
 	var labels [3]string
 	use(labels)
 	var label0 Ident
@@ -8292,15 +8292,15 @@ func _CaseAction(parser *_Parser, start int) (int, *Parm) {
 	key := _key{start: start, rule: _Case}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Parm)
+		n := n.(Var)
 		return start + int(dp-1), &n
 	}
-	var node Parm
+	var node Var
 	pos := start
 	// id0:Ident {…}/id1:IdentC t:TypeName {…}
 	{
 		pos3 := pos
-		var node2 Parm
+		var node2 Var
 		// action
 		{
 			start5 := pos
@@ -8317,8 +8317,8 @@ func _CaseAction(parser *_Parser, start int) (int, *Parm) {
 				labels[0] = parser.text[pos6:pos]
 			}
 			node = func(
-				start, end int, id0 Ident) Parm {
-				return Parm{
+				start, end int, id0 Ident) Var {
+				return Var{
 					location: id0.location,
 					Name:     id0.Text,
 				}
@@ -8358,8 +8358,8 @@ func _CaseAction(parser *_Parser, start int) (int, *Parm) {
 				labels[2] = parser.text[pos11:pos]
 			}
 			node = func(
-				start, end int, id0 Ident, id1 Ident, t TypeName) Parm {
-				return Parm{
+				start, end int, id0 Ident, id1 Ident, t TypeName) Var {
+				return Var{
 					location: id1.location,
 					Name:     strings.TrimSuffix(id1.Text, ":"),
 					Type:     &t,
@@ -10592,7 +10592,7 @@ fail:
 func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 	var labels [2]string
 	use(labels)
-	var label0 []*Parm
+	var label0 []*Var
 	var label1 Expr
 	dp := parser.deltaPos[start][_Assign]
 	if dp < 0 {
@@ -10646,7 +10646,7 @@ func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 			labels[1] = parser.text[pos3:pos]
 		}
 		node = func(
-			start, end int, l []*Parm, r Expr) Stmt {
+			start, end int, l []*Var, r Expr) Stmt {
 			return Stmt(&Assign{Vars: l, Val: r})
 		}(
 			start0, pos, label0, label1)
@@ -10996,15 +10996,15 @@ fail:
 	return -1, failure
 }
 
-func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
+func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
 	var labels [6]string
 	use(labels)
 	var label0 Ident
 	var label1 *TypeName
-	var label2 *Parm
+	var label2 *Var
 	var label3 Ident
 	var label4 *TypeName
-	var label5 []*Parm
+	var label5 []*Var
 	dp := parser.deltaPos[start][_Lhs]
 	if dp < 0 {
 		return -1, nil
@@ -11012,10 +11012,10 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
 	key := _key{start: start, rule: _Lhs}
 	n := parser.act[key]
 	if n != nil {
-		n := n.([]*Parm)
+		n := n.([]*Var)
 		return start + int(dp-1), &n
 	}
-	var node []*Parm
+	var node []*Var
 	pos := start
 	// action
 	{
@@ -11064,12 +11064,12 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
 					labels[1] = parser.text[pos6:pos]
 				}
 				label2 = func(
-					start, end int, i0 Ident, t0 *TypeName) *Parm {
+					start, end int, i0 Ident, t0 *TypeName) *Var {
 					e := i0.end
 					if t0 != nil {
 						e = t0.end
 					}
-					return &Parm{
+					return &Var{
 						location: location{i0.start, e},
 						Name:     i0.Text,
 						Type:     t0,
@@ -11085,7 +11085,7 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
 			// (_ "," i1:Ident t1:TypeName? {…})*
 			for {
 				pos13 := pos
-				var node14 *Parm
+				var node14 *Var
 				// (_ "," i1:Ident t1:TypeName? {…})
 				// action
 				{
@@ -11137,12 +11137,12 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
 						labels[4] = parser.text[pos19:pos]
 					}
 					node14 = func(
-						start, end int, i0 Ident, i1 Ident, id *Parm, t0 *TypeName, t1 *TypeName) *Parm {
+						start, end int, i0 Ident, i1 Ident, id *Var, t0 *TypeName, t1 *TypeName) *Var {
 						e := i1.end
 						if t1 != nil {
 							e = t1.end
 						}
-						return &Parm{
+						return &Var{
 							location: location{i1.start, e},
 							Name:     i1.Text,
 							Type:     t1,
@@ -11159,8 +11159,8 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Parm) {
 			labels[5] = parser.text[pos11:pos]
 		}
 		node = func(
-			start, end int, i0 Ident, i1 Ident, id *Parm, is []*Parm, t0 *TypeName, t1 *TypeName) []*Parm {
-			return []*Parm(append([]*Parm{id}, is...))
+			start, end int, i0 Ident, i1 Ident, id *Var, is []*Var, t0 *TypeName, t1 *TypeName) []*Var {
+			return []*Var(append([]*Var{id}, is...))
 		}(
 			start0, pos, label0, label3, label2, label5, label1, label4)
 	}
@@ -16800,7 +16800,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 	use(labels)
 	var label0 Ident
 	var label1 *TypeName
-	var label2 []Parm
+	var label2 []Var
 	var label3 []Stmt
 	var label4 Block
 	dp := parser.deltaPos[start][_Block]
@@ -16850,7 +16850,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 						pos10 := pos
 						// (n:CIdent t:TypeName? {…})+
 						{
-							var node13 Parm
+							var node13 Var
 							// (n:CIdent t:TypeName? {…})
 							// action
 							{
@@ -16891,8 +16891,8 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 									labels[1] = parser.text[pos18:pos]
 								}
 								node13 = func(
-									start, end int, n Ident, t *TypeName) Parm {
-									return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
+									start, end int, n Ident, t *TypeName) Var {
+									return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
 								}(
 									start15, pos, label0, label1)
 							}
@@ -16900,7 +16900,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 						}
 						for {
 							pos12 := pos
-							var node13 Parm
+							var node13 Var
 							// (n:CIdent t:TypeName? {…})
 							// action
 							{
@@ -16941,8 +16941,8 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 									labels[1] = parser.text[pos26:pos]
 								}
 								node13 = func(
-									start, end int, n Ident, t *TypeName) Parm {
-									return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
+									start, end int, n Ident, t *TypeName) Var {
+									return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
 								}(
 									start23, pos, label0, label1)
 							}
@@ -16994,7 +16994,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 				}
 				pos++
 				label4 = func(
-					start, end int, n Ident, ps []Parm, ss []Stmt, t *TypeName) Block {
+					start, end int, n Ident, ps []Var, ss []Stmt, t *TypeName) Block {
 					return Block{
 						location: loc(parser, start, end),
 						Parms:    ps,
@@ -17006,7 +17006,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 			labels[4] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, b Block, n Ident, ps []Parm, ss []Stmt, t *TypeName) Expr {
+			start, end int, b Block, n Ident, ps []Var, ss []Stmt, t *TypeName) Expr {
 			return Expr(b)
 		}(
 			start0, pos, label4, label0, label2, label3, label1)

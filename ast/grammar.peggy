@@ -20,7 +20,7 @@ func (n *ModPath) prepend(m ModPath) {
 func (n Sub) setStart(s int) Def { n.start = s; return &n }
 func (n Import) setStart(s int) Def { n.start = s; return &n }
 func (n Fun) setStart(s int) Def { n.start = s; return &n }
-func (n Var) setStart(s int) Def { n.start = s; return &n }
+func (n Val) setStart(s int) Def { n.start = s; return &n }
 func (n Type) setStart(s int) Def { n.start = s; return &n }
 
 type setSiger interface {
@@ -86,7 +86,7 @@ File <- defss:Defs* _ EOF {
 Defs <-
 	i:Import { return []Def{i} } /
 	f:Fun { return []Def{f} } /
-	v:Var { return []Def{v} } /
+	v:Val { return []Def{v} } /
 	a:Alias { return []Def{a} } /
 	s0:TypeSig t:Type { t0 := *t.(*Type); t0.Sig = s0; return []Def{&t0} } /
 	s1:TypeSig m:Fun { m0 := *m.(*Fun); m0.Recv = &s1; return []Def{&m0} } /
@@ -150,11 +150,11 @@ FunSig <- ps:(
 		}
 	}
 	var sel string
-	var parms []Parm
+	var parms []Var
 	for i := range ps {
 		p := &ps[i]
 		sel += p.key.Text
-		parms = append(parms, Parm{
+		parms = append(parms, Var{
 			location: location{p.key.start, p.typ.end},
 			Name: p.name.Text,
 			Type: &p.typ,
@@ -167,12 +167,12 @@ Ret <- _ "^" t:TypeName {
 	return TypeName(t)
 }
 
-Var <- n:Ident tn:TypeName? _":=" _"[" ss:Stmts _"]" {
-	return &Var{
+Val <- n:Ident tn:TypeName? _":=" _"[" ss:Stmts _"]" {
+	return &Val{
 		location: location{n.start, loc1(parser, end)},
 		Ident: n.Text,
 		Type: tn,
-		Val: ss,
+		Init: ss,
 	}
 }
 
@@ -189,10 +189,10 @@ TypeSig <- ps:TypeParms? n:( Ident / Op ) {
 
 TypeParms <-
 	n:TypeVar {
-		return []Parm{{location: n.location, Name: n.Text}}
+		return []Var{{location: n.location, Name: n.Text}}
 	} /
-	_"(" p0:TypeParm ps:( _"," p1:TypeParm { return Parm(p1) } )* ( _ "," )? _")" {
-		return []Parm(append([]Parm{p0}, ps...))
+	_"(" p0:TypeParm ps:( _"," p1:TypeParm { return Var(p1) } )* ( _ "," )? _")" {
+		return []Var(append([]Var{p0}, ps...))
 	}
 
 TypeParm <- n:TypeVar t1:TypeName? {
@@ -200,7 +200,7 @@ TypeParm <- n:TypeVar t1:TypeName? {
 	if t1 != nil {
 		e = t1.end
 	}
-	return Parm{
+	return Var{
 		location: location{n.start, e},
 		Name: n.Text,
 		Type: t1,
@@ -286,7 +286,7 @@ Type <- And / Or / Virt
 And <- _ s:(
 	"{" fs:(
 		n:IdentC t:TypeName {
-			return Parm{
+			return Var{
 				location: n.location,
 				Name: strings.TrimSuffix(n.Text, ":"),
 				Type: &t,
@@ -300,22 +300,22 @@ And <- _ s:(
 } ) { return Def(s) }
 
 Or <- _ e: (
-	"{" c:Case cs:( _ "," c1:Case { return Parm(c1) } )* ( _ "," )? _ "}" {
+	"{" c:Case cs:( _ "," c1:Case { return Var(c1) } )* ( _ "," )? _ "}" {
 	return &Type{
 		location: loc(parser, start, end),
-		Cases: append([]Parm{c}, cs...),
+		Cases: append([]Var{c}, cs...),
 	}
 } ) { return Def(e) }
 
 Case <-
 	id0:Ident {
-		return Parm{
+		return Var{
 			location: id0.location,
 			Name: id0.Text,
 		}
 	} /
 	id1:IdentC t:TypeName {
-		return Parm{
+		return Var{
 			location: id1.location,
 			Name: strings.TrimSuffix(id1.Text, ":"),
 			Type: &t,
@@ -380,7 +380,7 @@ Lhs <- id:(
 			if t0 != nil {
 				e = t0.end
 			}
-			return &Parm{
+			return &Var{
 				location: location{i0.start, e},
 				Name: i0.Text,
 				Type: t0,
@@ -392,14 +392,14 @@ Lhs <- id:(
 			if t1 != nil {
 				e = t1.end
 			}
-			return &Parm{
+			return &Var{
 				location: location{i1.start, e},
 				Name: i1.Text,
 				Type: t1,
 			}
 		}
 	)* {
-	return []*Parm(append([]*Parm{id}, is...))
+	return []*Var(append([]*Var{id}, is...))
 }
 
 Expr <- Call / Primary
@@ -537,7 +537,7 @@ Ary <- e0:Expr  es:( _ ";" e:Expr { return arg{val: e} } )* ( _";" )? {
 
 Block <- _ b:( "[" (
 	( ps:( n:CIdent t:TypeName? {
-		return Parm{location: loc(parser, start, end), Name: n.Text, Type: t}
+		return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
 	} )+ _ "|" )? ss:Stmts
 ) _ "]"  {
 	return Block{
