@@ -27,7 +27,7 @@ type setSiger interface {
 	setSig(TypeSig) Def
 }
 
-func (n Fun) setSig(s TypeSig) Def { n.Recv = &s; return &n }
+func (n Fun) setSig(s TypeSig) Def { n.Sig.Recv = &s; return &n }
 func (n Type) setSig(s TypeSig) Def { n.Sig = s; return &n }
 
 func distSig(s TypeSig, in []Def) []Def {
@@ -89,7 +89,7 @@ Defs <-
 	v:Val { return []Def{v} } /
 	a:Alias { return []Def{a} } /
 	s0:TypeSig t:Type { t0 := *t.(*Type); t0.Sig = s0; return []Def{&t0} } /
-	s1:TypeSig m:Fun { m0 := *m.(*Fun); m0.Recv = &s1; return []Def{&m0} } /
+	s1:TypeSig m:Fun { m0 := *m.(*Fun); m0.Sig.Recv = &s1; return []Def{&m0} } /
 	sig:TypeSig _"(" ds3:( Type / Fun )+ _")"  { return []Def(distSig(sig, ds3)) } /
 	n0:ModName? _ "(" ds1:Defs+ _ ")" {
 		sub := &Sub{location: loc(parser, start, end)}
@@ -117,10 +117,11 @@ Import <- "import" p:String  {
 }
 
 Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
-	copy := *sig
-	copy.location = loc(parser, start, end)
-	copy.Stmts = ss
-	return (*Fun)(&copy)
+	return &Fun{
+		location: loc(parser, start, end),
+		Sig: *sig,
+		Stmts: ss,
+	}
 } ) {
 	if tps != nil {
 		copy := *f
@@ -143,7 +144,7 @@ FunSig <- ps:(
 ) r:Ret? {
 	if len(ps) == 1 && ps[0].name.Text == "" {
 		p := ps[0]
-		return &Fun{
+		return &FunSig{
 			location: location{p.key.start, p.typ.end},
 			Sel: p.key.Text,
 			Ret: r,
@@ -160,7 +161,12 @@ FunSig <- ps:(
 			Type: &p.typ,
 		})
 	}
-	return &Fun{Sel: sel, Parms: parms, Ret: r}
+	return &FunSig{
+		location: loc(parser, start, end),
+		Sel: sel,
+		Parms: parms,
+		Ret: r,
+	}
 }
 
 Ret <- _ "^" t:TypeName {
@@ -335,20 +341,21 @@ MethSig <- _ sig:( "[" ps:(
 	( id1:IdentC t1:TypeName { return parm{name: id1, typ: t1} } )+
 ) r:Ret? _"]" {
 	var s string
-	var ts []TypeName
+	var parms []Var
 	for _, p := range ps {
 		s += p.name.Text
-		if p.typ.Name != "" { // p.typ.Name=="" means unary method
-			ts = append(ts, p.typ)
+		if p.typ.Name != "" { // unary
+			tn := p.typ
+			parms = append(parms, Var{Type: &tn})
 		}
 	}
-	return MethSig{
+	return FunSig{
 		location: loc(parser, start, end),
 		Sel: s,
-		Parms: ts,
+		Parms: parms,
 		Ret: r,
 	}
-} ) { return MethSig(sig) }
+} ) { return FunSig(sig) }
 
 Stmts <- ss:(
 	s0:Stmt s1s:( _"." s1:Stmt { return Stmt(s1) })* ( _ "." )? {

@@ -26,7 +26,7 @@ type setSiger interface {
 	setSig(TypeSig) Def
 }
 
-func (n Fun) setSig(s TypeSig) Def  { n.Recv = &s; return &n }
+func (n Fun) setSig(s TypeSig) Def  { n.Sig.Recv = &s; return &n }
 func (n Type) setSig(s TypeSig) Def { n.Sig = s; return &n }
 
 func distSig(s TypeSig, in []Def) []Def {
@@ -1620,7 +1620,7 @@ func _DefsAction(parser *_Parser, start int) (int, *[]Def) {
 			node = func(
 				start, end int, a Def, f Def, i *Import, m Def, s0 TypeSig, s1 TypeSig, t Def, v *Val) []Def {
 				m0 := *m.(*Fun)
-				m0.Recv = &s1
+				m0.Sig.Recv = &s1
 				return []Def{&m0}
 			}(
 				start22, pos, label3, label1, label0, label7, label4, label6, label5, label2)
@@ -2369,9 +2369,9 @@ func _FunAction(parser *_Parser, start int) (int, *Def) {
 	var labels [4]string
 	use(labels)
 	var label0 *[]Var
-	var label1 *Fun
+	var label1 *FunSig
 	var label2 []Stmt
-	var label3 (*Fun)
+	var label3 *Fun
 	dp := parser.deltaPos[start][_Fun]
 	if dp < 0 {
 		return -1, nil
@@ -2476,18 +2476,19 @@ func _FunAction(parser *_Parser, start int) (int, *Def) {
 				}
 				pos++
 				label3 = func(
-					start, end int, sig *Fun, ss []Stmt, tps *[]Var) *Fun {
-					copy := *sig
-					copy.location = loc(parser, start, end)
-					copy.Stmts = ss
-					return (*Fun)(&copy)
+					start, end int, sig *FunSig, ss []Stmt, tps *[]Var) *Fun {
+					return &Fun{
+						location: loc(parser, start, end),
+						Sig:      *sig,
+						Stmts:    ss,
+					}
 				}(
 					start8, pos, label1, label2, label0)
 			}
 			labels[3] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, f *Fun, sig *Fun, ss []Stmt, tps *[]Var) Def {
+			start, end int, f *Fun, sig *FunSig, ss []Stmt, tps *[]Var) Def {
 			if tps != nil {
 				copy := *f
 				copy.TypeParms = *tps
@@ -3022,7 +3023,7 @@ fail:
 	return -1, failure
 }
 
-func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
+func _FunSigAction(parser *_Parser, start int) (int, **FunSig) {
 	var labels [9]string
 	use(labels)
 	var label0 Ident
@@ -3041,10 +3042,10 @@ func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
 	key := _key{start: start, rule: _FunSig}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(*Fun)
+		n := n.(*FunSig)
 		return start + int(dp-1), &n
 	}
-	var node *Fun
+	var node *FunSig
 	pos := start
 	// action
 	{
@@ -3273,10 +3274,10 @@ func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
 			labels[8] = parser.text[pos31:pos]
 		}
 		node = func(
-			start, end int, c Ident, id0 Ident, id1 Ident, id2 Ident, o Ident, ps []parm, r *TypeName, t0 TypeName, t1 TypeName) *Fun {
+			start, end int, c Ident, id0 Ident, id1 Ident, id2 Ident, o Ident, ps []parm, r *TypeName, t0 TypeName, t1 TypeName) *FunSig {
 			if len(ps) == 1 && ps[0].name.Text == "" {
 				p := ps[0]
-				return &Fun{
+				return &FunSig{
 					location: location{p.key.start, p.typ.end},
 					Sel:      p.key.Text,
 					Ret:      r,
@@ -3293,7 +3294,12 @@ func _FunSigAction(parser *_Parser, start int) (int, **Fun) {
 					Type:     &p.typ,
 				})
 			}
-			return &Fun{Sel: sel, Parms: parms, Ret: r}
+			return &FunSig{
+				location: loc(parser, start, end),
+				Sel:      sel,
+				Parms:    parms,
+				Ret:      r,
+			}
 		}(
 			start0, pos, label4, label0, label2, label5, label1, label7, label8, label3, label6)
 	}
@@ -8606,7 +8612,7 @@ fail:
 func _VirtAction(parser *_Parser, start int) (int, *Def) {
 	var labels [2]string
 	use(labels)
-	var label0 []MethSig
+	var label0 []FunSig
 	var label1 *Type
 	dp := parser.deltaPos[start][_Virt]
 	if dp < 0 {
@@ -8648,7 +8654,7 @@ func _VirtAction(parser *_Parser, start int) (int, *Def) {
 					pos5 := pos
 					// MethSig+
 					{
-						var node8 MethSig
+						var node8 FunSig
 						// MethSig
 						if p, n := _MethSigAction(parser, pos); n == nil {
 							goto fail
@@ -8660,7 +8666,7 @@ func _VirtAction(parser *_Parser, start int) (int, *Def) {
 					}
 					for {
 						pos7 := pos
-						var node8 MethSig
+						var node8 FunSig
 						// MethSig
 						if p, n := _MethSigAction(parser, pos); n == nil {
 							goto fail9
@@ -8688,7 +8694,7 @@ func _VirtAction(parser *_Parser, start int) (int, *Def) {
 				}
 				pos++
 				label1 = func(
-					start, end int, vs []MethSig) *Type {
+					start, end int, vs []FunSig) *Type {
 					return &Type{
 						location: loc(parser, start, end),
 						Virts:    vs,
@@ -8699,7 +8705,7 @@ func _VirtAction(parser *_Parser, start int) (int, *Def) {
 			labels[1] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, v *Type, vs []MethSig) Def {
+			start, end int, v *Type, vs []FunSig) Def {
 			return Def(v)
 		}(
 			start0, pos, label1, label0)
@@ -9248,7 +9254,7 @@ fail:
 	return -1, failure
 }
 
-func _MethSigAction(parser *_Parser, start int) (int, *MethSig) {
+func _MethSigAction(parser *_Parser, start int) (int, *FunSig) {
 	var labels [8]string
 	use(labels)
 	var label0 Ident
@@ -9258,7 +9264,7 @@ func _MethSigAction(parser *_Parser, start int) (int, *MethSig) {
 	var label4 TypeName
 	var label5 []parm
 	var label6 *TypeName
-	var label7 MethSig
+	var label7 FunSig
 	dp := parser.deltaPos[start][_MethSig]
 	if dp < 0 {
 		return -1, nil
@@ -9266,10 +9272,10 @@ func _MethSigAction(parser *_Parser, start int) (int, *MethSig) {
 	key := _key{start: start, rule: _MethSig}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(MethSig)
+		n := n.(FunSig)
 		return start + int(dp-1), &n
 	}
-	var node MethSig
+	var node FunSig
 	pos := start
 	// action
 	{
@@ -9492,19 +9498,20 @@ func _MethSigAction(parser *_Parser, start int) (int, *MethSig) {
 				}
 				pos++
 				label7 = func(
-					start, end int, id0 Ident, id1 Ident, op Ident, ps []parm, r *TypeName, t0 TypeName, t1 TypeName) MethSig {
+					start, end int, id0 Ident, id1 Ident, op Ident, ps []parm, r *TypeName, t0 TypeName, t1 TypeName) FunSig {
 					var s string
-					var ts []TypeName
+					var parms []Var
 					for _, p := range ps {
 						s += p.name.Text
-						if p.typ.Name != "" { // p.typ.Name=="" means unary method
-							ts = append(ts, p.typ)
+						if p.typ.Name != "" { // unary
+							tn := p.typ
+							parms = append(parms, Var{Type: &tn})
 						}
 					}
-					return MethSig{
+					return FunSig{
 						location: loc(parser, start, end),
 						Sel:      s,
-						Parms:    ts,
+						Parms:    parms,
 						Ret:      r,
 					}
 				}(
@@ -9513,8 +9520,8 @@ func _MethSigAction(parser *_Parser, start int) (int, *MethSig) {
 			labels[7] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, id0 Ident, id1 Ident, op Ident, ps []parm, r *TypeName, sig MethSig, t0 TypeName, t1 TypeName) MethSig {
-			return MethSig(sig)
+			start, end int, id0 Ident, id1 Ident, op Ident, ps []parm, r *TypeName, sig FunSig, t0 TypeName, t1 TypeName) FunSig {
+			return FunSig(sig)
 		}(
 			start0, pos, label0, label3, label1, label5, label6, label7, label2, label4)
 	}

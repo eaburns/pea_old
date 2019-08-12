@@ -47,27 +47,6 @@ type Import struct {
 	Path string
 }
 
-// A Fun is a function or method definition.
-type Fun struct {
-	location
-	Sel       string
-	Recv      *TypeSig
-	TypeParms []Var // types may be nil
-	Parms     []Var // types cannot be nil
-	Ret       *TypeName
-	Stmts     []Stmt
-}
-
-// A Var is a name and a type.
-// Var are used in several AST nodes.
-// In some cases, the type must be non-nil.
-// In others, the type may be nil.
-type Var struct {
-	location
-	Name string
-	Type *TypeName
-}
-
 // A Val is a module-level value definition.
 type Val struct {
 	location
@@ -76,20 +55,21 @@ type Val struct {
 	Init  []Stmt
 }
 
-// A TypeSig is a type signature, a pattern defining a type or set o types.
-type TypeSig struct {
+// A Fun is a function or method definition.
+type Fun struct {
 	location
-	Name  string
-	Parms []Var // types may be nil
+	TypeParms []Var // types may be nil
+	Sig       FunSig
+	Stmts     []Stmt
 }
 
-// A TypeName is the name of a concrete type.
-type TypeName struct {
+// A FunSig is the signature of a function.
+type FunSig struct {
 	location
-	Var  bool
-	Mod  *ModPath
-	Name string
-	Args []TypeName
+	Recv  *TypeSig
+	Sel   string
+	Parms []Var // types cannot be nil
+	Ret   *TypeName
 }
 
 // A Type defines a type.
@@ -124,15 +104,33 @@ type Type struct {
 	Cases []Var // types can be nil
 
 	// Virts is non-nil for a Virtual type.
-	Virts []MethSig
+	Virts []FunSig
 }
 
-// A MethSig is the signature of a method.
-type MethSig struct {
+// A TypeName is the name of a concrete type.
+type TypeName struct {
 	location
-	Sel   string
-	Parms []TypeName
-	Ret   *TypeName
+	Var  bool
+	Mod  *ModPath
+	Name string
+	Args []TypeName
+}
+
+// A TypeSig is a type signature, a pattern defining a type or set o types.
+type TypeSig struct {
+	location
+	Name  string
+	Parms []Var // types may be nil
+}
+
+// A Var is a name and a type.
+// Var are used in several AST nodes.
+// In some cases, the type must be non-nil.
+// In others, the type may be nil.
+type Var struct {
+	location
+	Name string
+	Type *TypeName
 }
 
 // A Stmt is a statement.
