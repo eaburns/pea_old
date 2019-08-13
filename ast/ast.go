@@ -25,6 +25,10 @@ type Node interface {
 type Def interface {
 	Node
 
+	// String returns the string representation of the definition signature.
+	// The signature is the definition excluding statements.
+	String() string
+
 	setStart(int) Def
 }
 
