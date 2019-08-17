@@ -25,11 +25,12 @@ type Node interface {
 type Def interface {
 	Node
 
+	// Priv returns whether the definition is private.
+	Priv() bool
+
 	// String returns the string representation of the definition signature.
 	// The signature is the definition excluding statements.
 	String() string
-
-	setStart(int) Def
 }
 
 type location struct {
@@ -38,39 +39,40 @@ type location struct {
 
 func (n location) loc() (int, int) { return n.start, n.end }
 
-// Sub is a sub-module definition.
-type Sub struct {
-	location
-	Name string
-	Defs []Def
-}
-
 // Import is an import statement.
 type Import struct {
 	location
 	Path string
 }
 
+func (n Import) Priv() bool { return true }
+
 // A Val is a module-level value definition.
 type Val struct {
 	location
+	priv  bool
 	Ident string
 	Type  *TypeName
 	Init  []Stmt
 }
 
+func (n *Val) Priv() bool { return n.priv }
+
 // A Fun is a function or method definition.
 type Fun struct {
 	location
-	TypeParms []Var // types may be nil
-	Sig       FunSig
-	Stmts     []Stmt
+	priv   bool
+	Recv   *TypeSig
+	TParms []Var // types may be nil
+	Sig    FunSig
+	Stmts  []Stmt
 }
+
+func (n *Fun) Priv() bool { return n.priv }
 
 // A FunSig is the signature of a function.
 type FunSig struct {
 	location
-	Recv  *TypeSig
 	Sel   string
 	Parms []Var // types cannot be nil
 	Ret   *TypeName
@@ -92,7 +94,8 @@ type FunSig struct {
 // 	   convertable to the virtual type.
 type Type struct {
 	location
-	Sig TypeSig
+	priv bool
+	Sig  TypeSig
 
 	// Alias, Fields, Cases, and Virts
 	// are mutually exclusive.
@@ -111,11 +114,13 @@ type Type struct {
 	Virts []FunSig
 }
 
+func (n Type) Priv() bool { return n.priv }
+
 // A TypeName is the name of a concrete type.
 type TypeName struct {
 	location
 	Var  bool
-	Mod  *ModPath
+	Mod  *Ident
 	Name string
 	Args []TypeName
 }
@@ -177,7 +182,7 @@ type Expr interface {
 // A Call is a method call or a cascade.
 type Call struct {
 	location
-	Recv Node // Expr, ModPath, or nil
+	Recv Node // Expr, ModName (Ident beginning with '#'), or nil
 	Msgs []Msg
 }
 
@@ -208,13 +213,6 @@ type Block struct {
 }
 
 func (Block) isExpr() {}
-
-// A ModPath is a module name.
-type ModPath struct {
-	location
-	Root string // current or imported module name
-	Path []string
-}
 
 // An Ident is a variable name as an expression.
 type Ident struct {

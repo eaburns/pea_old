@@ -9,38 +9,6 @@ import (
 	"github.com/eaburns/peggy/peg"
 )
 
-func (n *ModPath) prepend(m ModPath) {
-	if m.start != m.end {
-		n.start = m.start
-	}
-	n.Root = m.Root
-	n.Path = append(m.Path[:len(m.Path):len(m.Path)], n.Path...)
-}
-
-func (n Sub) setStart(s int) Def { n.start = s; return &n }
-func (n Import) setStart(s int) Def { n.start = s; return &n }
-func (n Fun) setStart(s int) Def { n.start = s; return &n }
-func (n Val) setStart(s int) Def { n.start = s; return &n }
-func (n Type) setStart(s int) Def { n.start = s; return &n }
-
-type setSiger interface {
-	setSig(TypeSig) Def
-}
-
-func (n Fun) setSig(s TypeSig) Def { n.Sig.Recv = &s; return &n }
-func (n Type) setSig(s TypeSig) Def { n.Sig = s; return &n }
-
-func distSig(s TypeSig, in []Def) []Def {
-	var out []Def
-	for i := range in {
-		out = append(out, in[i].(setSiger).setSig(s))
-	}
-	if len(out) == 1 {
-		out[0] = out[0].setStart(s.start)
-	}
-	return out
-}
-
 type parm struct {
 	name Ident
 	typ TypeName
@@ -53,7 +21,7 @@ type arg struct {
 }
 
 type tname struct {
-	mod *ModPath
+	mod *Ident
 	name Ident
 }
 
@@ -73,78 +41,52 @@ func loc(p *_Parser, start, end int) location {
 func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
 }
 
-File <- defss:Defs* _ EOF {
-	var out []Def
-	for _, defs := range defss {
-		for _, def := range defs {
-			out = append(out, def)
-		}
+File <- defs:Def* _ EOF { return []Def(defs) }
+
+Def <- Import / Val / Fun / Meth / Type
+
+Import <- _ i:("import" path:String  {
+	return &Import{
+		location: loc(parser, start, end),
+		Path: path.Data,
 	}
-	return []Def(out)
-}
+}) { return Def(i) }
 
-Defs <-
-	i:Import { return []Def{i} } /
-	f:Fun { return []Def{f} } /
-	v:Val { return []Def{v} } /
-	a:Alias { return []Def{a} } /
-	s0:TypeSig t:Type { t0 := *t.(*Type); t0.Sig = s0; return []Def{&t0} } /
-	s1:TypeSig m:Fun { m0 := *m.(*Fun); m0.Sig.Recv = &s1; return []Def{&m0} } /
-	sig:TypeSig _"(" ds3:( Type / Fun )+ _")"  { return []Def(distSig(sig, ds3)) } /
-	n0:ModName? _ "(" ds1:Defs+ _ ")" {
-		sub := &Sub{location: loc(parser, start, end)}
-		if n0 != nil {
-			sub.start = n0.start
-			sub.Name = n0.Text
-		}
-		for _, defs := range ds1 {
-			for _, def := range defs {
-				sub.Defs = append(sub.Defs, def)
-			}
-		}
-		return []Def{sub}
-	} /
-	n1:ModName ds2:Defs {
-		return []Def{&Sub{
-			location: loc(parser, n1.start, end),
-			Name: n1.Text,
-			Defs: ds2,
-		}}
+Val <- _ v:(key:("val" / "Val") id:Ident typ:TypeName? _":=" _"[" stmts:Stmts _"]" {
+	return &Val{
+		location: loc(parser, start, end),
+		priv: key == "val",
+		Ident: id.Text,
+		Type: typ,
+		Init: stmts,
 	}
+}) { return Def(v) }
 
-Import <- "import" p:String  {
-	return &Import{location: loc(parser, start, end), Path: p.Data}
-}
-
-Fun <- tps:TypeParms? _ f:( "[" sig:FunSig _ "|" ss:Stmts _"]" {
+Fun <- _ f:(key:("func" / "Func") tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts _"]" {
 	return &Fun{
 		location: loc(parser, start, end),
-		Sig: *sig,
-		Stmts: ss,
+		priv: key == "func",
+		TParms: tps,
+		Sig: sig,
+		Stmts: stmts,
 	}
-} ) {
-	if tps != nil {
-		copy := *f
-		copy.TypeParms = *tps
-		return Def(&copy)
-	}
-	return Def(f)
-}
+})   { return Def(f) }
 
-FunSig <- ps:(
-	id0:Ident {
-		return []parm{{key: id0}}
-	} /
-	o:Op id1:Ident t0:TypeName {
-		return []parm{{key: o, name: id1, typ: t0}}
-	} /
-	( c:IdentC id2:Ident t1:TypeName {
-		return parm{key:c, name: id2, typ: t1}
-	} )+
-) r:Ret? {
+Meth <- _ m:(key:("meth" / "Meth") typ:TypeSig tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts _"]" {
+	return &Fun{
+		location: loc(parser, start, end),
+		priv: key == "meth",
+		Recv: &typ,
+		TParms: tps,
+		Sig: sig,
+		Stmts: stmts,
+	}
+}) { return Def(m) }
+
+FunSig <- ps:Parms r:Ret? {
 	if len(ps) == 1 && ps[0].name.Text == "" {
 		p := ps[0]
-		return &FunSig{
+		return FunSig{
 			location: location{p.key.start, p.typ.end},
 			Sel: p.key.Text,
 			Ret: r,
@@ -161,7 +103,7 @@ FunSig <- ps:(
 			Type: &p.typ,
 		})
 	}
-	return &FunSig{
+	return FunSig{
 		location: loc(parser, start, end),
 		Sel: sel,
 		Parms: parms,
@@ -169,39 +111,48 @@ FunSig <- ps:(
 	}
 }
 
+Parms <-
+	id0:Ident {
+		return []parm{{key: id0}}
+	} /
+	o:Op id1:Ident t0:TypeName {
+		return []parm{{key: o, name: id1, typ: t0}}
+	} /
+	( c:IdentC id2:Ident t1:TypeName {
+		return parm{key:c, name: id2, typ: t1}
+	} )+
+
 Ret <- _ "^" t:TypeName {
 	return TypeName(t)
 }
 
-Val <- n:Ident tn:TypeName? _":=" _"[" ss:Stmts _"]" {
-	return &Val{
-		location: location{n.start, loc1(parser, end)},
-		Ident: n.Text,
-		Type: tn,
-		Init: ss,
-	}
-}
-
-TypeSig <- ps:TypeParms? n:( Ident / Op ) {
-	if ps == nil {
-		return TypeSig{location: n.location, Name: n.Text}
+TypeSig <- tps:TParms n:( Ident / Op ) {
+	l := loc(parser, start, end)
+	if len(tps) > 0 {
+		l.start = tps[0].start
 	}
 	return TypeSig{
-		location: location{(*ps)[0].start, n.end},
+		location: l,
 		Name: n.Text,
-		Parms: *ps,
+		Parms: tps,
 	}
 }
 
-TypeParms <-
+TParms <- tps:(
 	n:TypeVar {
 		return []Var{{location: n.location, Name: n.Text}}
 	} /
-	_"(" p0:TypeParm ps:( _"," p1:TypeParm { return Var(p1) } )* ( _ "," )? _")" {
+	_"(" p0:TParm ps:( _"," p1:TParm { return Var(p1) } )* ( _ "," )? _")" {
 		return []Var(append([]Var{p0}, ps...))
 	}
+)? {
+	if tps == nil {
+		return ([]Var)(nil)
+	}
+	return ([]Var)(*tps)
+}
 
-TypeParm <- n:TypeVar t1:TypeName? {
+TParm <- n:TypeVar t1:TypeName? {
 	e := n.end
 	if t1 != nil {
 		e = t1.end
@@ -264,54 +215,30 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 	return []TypeName(append([]TypeName{n0}, ns...))
 }
 
-TName <- mp:ModPath? n:( TypeOp / Ident ) { return tname{mod: mp, name: n} }
+TName <- mod:ModName? n:( TypeOp / Ident ) { return tname{mod: mod, name: n} }
 
-ModPath <- ns:ModName+ {
-	s, _ := ns[0].loc()
-	_, e := ns[len(ns)-1].loc()
-	mp := ModPath{
-		location: location{start: s, end: e},
-		Root: parser.data.(*Parser).mod,
+Type <- _ def:(key:("type"/"Type") sig:TypeSig _ typ:( Alias / And / Or / Virt ) {
+	typ.location = loc(parser, start, end)
+	typ.priv = key == "type"
+	typ.Sig = sig
+	return Def(&typ)
+}) { return Def(def) }
+
+Alias <- _ ":=" n:TypeName _ "." { return Type{Alias: &n} }
+
+And <- _ "{" fs:Field* _ "}" { return Type{Fields: fs} }
+
+Field <- n:IdentC t:TypeName {
+	return Var{
+		location: n.location,
+		Name: strings.TrimSuffix(n.Text, ":"),
+		Type: &t,
 	}
-	for _, n := range ns {
-		mp.Path = append(mp.Path, n.Text)
-	}
-	return ModPath(mp)
 }
 
-Alias <- sig:TypeSig _ ":=" n:TypeName _ "." {
-	return Def(&Type{
-		location: location{sig.start, n.end},
-		Sig: sig,
-		Alias: &n,
-	})
+Or <- _ "{" c:Case cs:( _ "," c1:Case { return Var(c1) } )* ( _ "," )? _ "}" {
+	return Type{Cases: append([]Var{c}, cs...)}
 }
-
-Type <- And / Or / Virt
-
-And <- _ s:(
-	"{" fs:(
-		n:IdentC t:TypeName {
-			return Var{
-				location: n.location,
-				Name: strings.TrimSuffix(n.Text, ":"),
-				Type: &t,
-			}
-		}
-	)* _ "}" {
-	return &Type{
-		location: loc(parser, start, end),
-		Fields: fs,
-	}
-} ) { return Def(s) }
-
-Or <- _ e: (
-	"{" c:Case cs:( _ "," c1:Case { return Var(c1) } )* ( _ "," )? _ "}" {
-	return &Type{
-		location: loc(parser, start, end),
-		Cases: append([]Var{c}, cs...),
-	}
-} ) { return Def(e) }
 
 Case <-
 	id0:Ident {
@@ -328,12 +255,7 @@ Case <-
 		}
 	}
 
-Virt <- _ v:( "{"  vs:MethSig+ _ "}" {
-	return &Type{
-		location: loc(parser, start, end),
-		Virts: vs,
-	}
-} ) { return Def(v) }
+Virt <- _ "{"  vs:MethSig+ _ "}" { return Type{Virts: vs} }
 
 MethSig <- _ sig:( "[" ps:(
 	id0:Ident { return []parm{{name: id0}} } /
@@ -420,7 +342,7 @@ Call <- c:( Nary / Binary / Unary ) cs:(
 
 Unary <- r:(
 	p:Primary { return Node(p) } /
-	n:ModPath { return Node(n) }
+	n:ModName { return Node(n) }
 ) ms:UnaryMsg+ {
 	s, _ := r.loc()
 	c := Call{
@@ -445,7 +367,7 @@ UnaryMsg <- i:Ident {
 Binary <- r:(
 	u:Unary { return Node(u) } /
 	p:Primary { return Node(p) } /
-	n:ModPath { return Node(n) }
+	n:ModName { return Node(n) }
 ) m:BinMsg {
 	s, _ := r.loc()
 	return Call{
@@ -472,7 +394,7 @@ Nary <- r:(
 	b:Binary { return Node(b) } /
 	u:Unary { return Node(u) } /
 	p:Primary { return Node(p) } /
-	n:ModPath { return Node(n) }
+	n:ModName { return Node(n) }
 )? m:NaryMsg {
 	s := m.start
 	var recv Node

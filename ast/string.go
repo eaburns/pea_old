@@ -7,12 +7,17 @@ import (
 	"unicode/utf8"
 )
 
-func (n Sub) String() string { return n.Name }
-
-func (n Import) String() string { return "import " + strconv.Quote(n.Path) }
+func (n Import) String() string {
+	return "import " + strconv.Quote(n.Path)
+}
 
 func (n Val) String() string {
 	var s strings.Builder
+	if n.priv {
+		s.WriteString("val ")
+	} else {
+		s.WriteString("Val ")
+	}
 	s.WriteString(n.Ident)
 	if n.Type != nil {
 		s.WriteRune(' ')
@@ -21,9 +26,37 @@ func (n Val) String() string {
 	return s.String()
 }
 
-func (n Fun) String() string { return n.Sig.String() }
+func (n Fun) String() string {
+	var s strings.Builder
+	if n.Recv != nil {
+		if n.priv {
+			s.WriteString("meth ")
+		} else {
+			s.WriteString("Meth ")
+		}
+		buildTypeSigString(n.Recv, &s)
+		s.WriteRune(' ')
+	} else {
+		if n.priv {
+			s.WriteString("func ")
+		} else {
+			s.WriteString("Func ")
+		}
+	}
+	buildFunSigString(&n.Sig, &s)
+	return s.String()
+}
 
-func (n Type) String() string { return n.Sig.String() }
+func (n Type) String() string {
+	var s strings.Builder
+	if n.priv {
+		s.WriteString("type ")
+	} else {
+		s.WriteString("Type ")
+	}
+	buildTypeSigString(&n.Sig, &s)
+	return s.String()
+}
 
 func (n FunSig) String() string {
 	var s strings.Builder
@@ -44,10 +77,6 @@ func (n TypeName) String() string {
 }
 
 func buildFunSigString(n *FunSig, s *strings.Builder) {
-	if n.Recv != nil {
-		buildTypeSigString(n.Recv, s)
-		s.WriteRune(' ')
-	}
 	s.WriteRune('[')
 	if len(n.Parms) == 0 { // unary
 		s.WriteString(n.Sel)
