@@ -39,7 +39,7 @@ func (p *Parser) Parse(path string, r io.Reader) error {
 		_, t := _FileFail(_p, 0, perr)
 		return parseError{path: path, loc: perr, text: _p.text, fail: t}
 	}
-	_, defs := _FileAction(_p, 0)
+	_, file := _FileAction(_p, 0)
 
 	var lines []int
 	for i, r := range _p.text {
@@ -47,8 +47,10 @@ func (p *Parser) Parse(path string, r io.Reader) error {
 			lines = append(lines, p.offs+i)
 		}
 	}
-	file := File{Path: path, offs: p.offs, lines: lines, Defs: *defs}
-	p.files = append(p.files, file)
+	file.Path = path
+	file.offs = p.offs
+	file.lines = lines
+	p.files = append(p.files, *file)
 	p.offs += len(_p.text)
 	return nil
 }

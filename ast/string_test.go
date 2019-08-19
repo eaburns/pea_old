@@ -10,7 +10,6 @@ func TestString(t *testing.T) {
 		src  string
 		want string
 	}{
-		{"import \"abc\"", "import \"abc\""},
 		{"val x := [5]", "val x"},
 		{"Val x := [5]", "Val x"},
 		{"val x Int32 := [5]", "val x Int32"},

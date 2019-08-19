@@ -41,8 +41,8 @@ func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
 
 const (
 	_File         int = 0
-	_Def          int = 1
-	_Import       int = 2
+	_Import       int = 1
+	_Def          int = 2
 	_Val          int = 3
 	_Fun          int = 4
 	_Meth         int = 5
@@ -237,22 +237,22 @@ func _leaf(parser *_Parser, start, end int) *peg.Node {
 func use(interface{}) {}
 
 func _FileAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [1]string
+	var labels [2]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _File, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// defs:Def* _ EOF
-	// defs:Def*
+	// imports:Import* defs:Def* _ EOF
+	// imports:Import*
 	{
 		pos1 := pos
-		// Def*
+		// Import*
 		for {
 			pos3 := pos
-			// Def
-			if !_accept(parser, _DefAccepts, &pos, &perr) {
+			// Import
+			if !_accept(parser, _ImportAccepts, &pos, &perr) {
 				goto fail5
 			}
 			continue
@@ -261,6 +261,23 @@ func _FileAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 			break
 		}
 		labels[0] = parser.text[pos1:pos]
+	}
+	// defs:Def*
+	{
+		pos6 := pos
+		// Def*
+		for {
+			pos8 := pos
+			// Def
+			if !_accept(parser, _DefAccepts, &pos, &perr) {
+				goto fail10
+			}
+			continue
+		fail10:
+			pos = pos8
+			break
+		}
+		labels[1] = parser.text[pos6:pos]
 	}
 	// _
 	if !_accept(parser, __Accepts, &pos, &perr) {
@@ -276,7 +293,7 @@ fail:
 }
 
 func _FileNode(parser *_Parser, start int) (int, *peg.Node) {
-	var labels [1]string
+	var labels [2]string
 	use(labels)
 	dp := parser.deltaPos[start][_File]
 	if dp < 0 {
@@ -290,16 +307,16 @@ func _FileNode(parser *_Parser, start int) (int, *peg.Node) {
 	pos := start
 	node = &peg.Node{Name: "File"}
 	// action
-	// defs:Def* _ EOF
-	// defs:Def*
+	// imports:Import* defs:Def* _ EOF
+	// imports:Import*
 	{
 		pos1 := pos
-		// Def*
+		// Import*
 		for {
 			nkids2 := len(node.Kids)
 			pos3 := pos
-			// Def
-			if !_node(parser, _DefNode, node, &pos) {
+			// Import
+			if !_node(parser, _ImportNode, node, &pos) {
 				goto fail5
 			}
 			continue
@@ -309,6 +326,25 @@ func _FileNode(parser *_Parser, start int) (int, *peg.Node) {
 			break
 		}
 		labels[0] = parser.text[pos1:pos]
+	}
+	// defs:Def*
+	{
+		pos6 := pos
+		// Def*
+		for {
+			nkids7 := len(node.Kids)
+			pos8 := pos
+			// Def
+			if !_node(parser, _DefNode, node, &pos) {
+				goto fail10
+			}
+			continue
+		fail10:
+			node.Kids = node.Kids[:nkids7]
+			pos = pos8
+			break
+		}
+		labels[1] = parser.text[pos6:pos]
 	}
 	// _
 	if !_node(parser, __Node, node, &pos) {
@@ -326,7 +362,7 @@ fail:
 }
 
 func _FileFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [1]string
+	var labels [2]string
 	use(labels)
 	pos, failure := _failMemo(parser, _File, start, errPos)
 	if failure != nil {
@@ -338,15 +374,15 @@ func _FileFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _File}
 	// action
-	// defs:Def* _ EOF
-	// defs:Def*
+	// imports:Import* defs:Def* _ EOF
+	// imports:Import*
 	{
 		pos1 := pos
-		// Def*
+		// Import*
 		for {
 			pos3 := pos
-			// Def
-			if !_fail(parser, _DefFail, errPos, failure, &pos) {
+			// Import
+			if !_fail(parser, _ImportFail, errPos, failure, &pos) {
 				goto fail5
 			}
 			continue
@@ -355,6 +391,23 @@ func _FileFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 			break
 		}
 		labels[0] = parser.text[pos1:pos]
+	}
+	// defs:Def*
+	{
+		pos6 := pos
+		// Def*
+		for {
+			pos8 := pos
+			// Def
+			if !_fail(parser, _DefFail, errPos, failure, &pos) {
+				goto fail10
+			}
+			continue
+		fail10:
+			pos = pos8
+			break
+		}
+		labels[1] = parser.text[pos6:pos]
 	}
 	// _
 	if !_fail(parser, __Fail, errPos, failure, &pos) {
@@ -371,10 +424,11 @@ fail:
 	return -1, failure
 }
 
-func _FileAction(parser *_Parser, start int) (int, *[]Def) {
-	var labels [1]string
+func _FileAction(parser *_Parser, start int) (int, *File) {
+	var labels [2]string
 	use(labels)
-	var label0 []Def
+	var label0 []Import
+	var label1 []Def
 	dp := parser.deltaPos[start][_File]
 	if dp < 0 {
 		return -1, nil
@@ -382,24 +436,24 @@ func _FileAction(parser *_Parser, start int) (int, *[]Def) {
 	key := _key{start: start, rule: _File}
 	n := parser.act[key]
 	if n != nil {
-		n := n.([]Def)
+		n := n.(File)
 		return start + int(dp-1), &n
 	}
-	var node []Def
+	var node File
 	pos := start
 	// action
 	{
 		start0 := pos
-		// defs:Def* _ EOF
-		// defs:Def*
+		// imports:Import* defs:Def* _ EOF
+		// imports:Import*
 		{
 			pos2 := pos
-			// Def*
+			// Import*
 			for {
 				pos4 := pos
-				var node5 Def
-				// Def
-				if p, n := _DefAction(parser, pos); n == nil {
+				var node5 Import
+				// Import
+				if p, n := _ImportAction(parser, pos); n == nil {
 					goto fail6
 				} else {
 					node5 = *n
@@ -412,6 +466,28 @@ func _FileAction(parser *_Parser, start int) (int, *[]Def) {
 				break
 			}
 			labels[0] = parser.text[pos2:pos]
+		}
+		// defs:Def*
+		{
+			pos7 := pos
+			// Def*
+			for {
+				pos9 := pos
+				var node10 Def
+				// Def
+				if p, n := _DefAction(parser, pos); n == nil {
+					goto fail11
+				} else {
+					node10 = *n
+					pos = p
+				}
+				label1 = append(label1, node10)
+				continue
+			fail11:
+				pos = pos9
+				break
+			}
+			labels[1] = parser.text[pos7:pos]
 		}
 		// _
 		if p, n := __Action(parser, pos); n == nil {
@@ -426,266 +502,13 @@ func _FileAction(parser *_Parser, start int) (int, *[]Def) {
 			pos = p
 		}
 		node = func(
-			start, end int, defs []Def) []Def {
-			return []Def(defs)
+			start, end int, defs []Def, imports []Import) File {
+			return File{
+				Imports: imports,
+				Defs:    defs,
+			}
 		}(
-			start0, pos, label0)
-	}
-	parser.act[key] = node
-	return pos, &node
-fail:
-	return -1, nil
-}
-
-func _DefAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	if dp, de, ok := _memo(parser, _Def, start); ok {
-		return dp, de
-	}
-	pos, perr := start, -1
-	// Import/Val/Fun/Meth/Type
-	{
-		pos3 := pos
-		// Import
-		if !_accept(parser, _ImportAccepts, &pos, &perr) {
-			goto fail4
-		}
-		goto ok0
-	fail4:
-		pos = pos3
-		// Val
-		if !_accept(parser, _ValAccepts, &pos, &perr) {
-			goto fail5
-		}
-		goto ok0
-	fail5:
-		pos = pos3
-		// Fun
-		if !_accept(parser, _FunAccepts, &pos, &perr) {
-			goto fail6
-		}
-		goto ok0
-	fail6:
-		pos = pos3
-		// Meth
-		if !_accept(parser, _MethAccepts, &pos, &perr) {
-			goto fail7
-		}
-		goto ok0
-	fail7:
-		pos = pos3
-		// Type
-		if !_accept(parser, _TypeAccepts, &pos, &perr) {
-			goto fail8
-		}
-		goto ok0
-	fail8:
-		pos = pos3
-		goto fail
-	ok0:
-	}
-	return _memoize(parser, _Def, start, pos, perr)
-fail:
-	return _memoize(parser, _Def, start, -1, perr)
-}
-
-func _DefNode(parser *_Parser, start int) (int, *peg.Node) {
-	dp := parser.deltaPos[start][_Def]
-	if dp < 0 {
-		return -1, nil
-	}
-	key := _key{start: start, rule: _Def}
-	node := parser.node[key]
-	if node != nil {
-		return start + int(dp-1), node
-	}
-	pos := start
-	node = &peg.Node{Name: "Def"}
-	// Import/Val/Fun/Meth/Type
-	{
-		pos3 := pos
-		nkids1 := len(node.Kids)
-		// Import
-		if !_node(parser, _ImportNode, node, &pos) {
-			goto fail4
-		}
-		goto ok0
-	fail4:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		// Val
-		if !_node(parser, _ValNode, node, &pos) {
-			goto fail5
-		}
-		goto ok0
-	fail5:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		// Fun
-		if !_node(parser, _FunNode, node, &pos) {
-			goto fail6
-		}
-		goto ok0
-	fail6:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		// Meth
-		if !_node(parser, _MethNode, node, &pos) {
-			goto fail7
-		}
-		goto ok0
-	fail7:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		// Type
-		if !_node(parser, _TypeNode, node, &pos) {
-			goto fail8
-		}
-		goto ok0
-	fail8:
-		node.Kids = node.Kids[:nkids1]
-		pos = pos3
-		goto fail
-	ok0:
-	}
-	node.Text = parser.text[start:pos]
-	parser.node[key] = node
-	return pos, node
-fail:
-	return -1, nil
-}
-
-func _DefFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	pos, failure := _failMemo(parser, _Def, start, errPos)
-	if failure != nil {
-		return pos, failure
-	}
-	failure = &peg.Fail{
-		Name: "Def",
-		Pos:  int(start),
-	}
-	key := _key{start: start, rule: _Def}
-	// Import/Val/Fun/Meth/Type
-	{
-		pos3 := pos
-		// Import
-		if !_fail(parser, _ImportFail, errPos, failure, &pos) {
-			goto fail4
-		}
-		goto ok0
-	fail4:
-		pos = pos3
-		// Val
-		if !_fail(parser, _ValFail, errPos, failure, &pos) {
-			goto fail5
-		}
-		goto ok0
-	fail5:
-		pos = pos3
-		// Fun
-		if !_fail(parser, _FunFail, errPos, failure, &pos) {
-			goto fail6
-		}
-		goto ok0
-	fail6:
-		pos = pos3
-		// Meth
-		if !_fail(parser, _MethFail, errPos, failure, &pos) {
-			goto fail7
-		}
-		goto ok0
-	fail7:
-		pos = pos3
-		// Type
-		if !_fail(parser, _TypeFail, errPos, failure, &pos) {
-			goto fail8
-		}
-		goto ok0
-	fail8:
-		pos = pos3
-		goto fail
-	ok0:
-	}
-	parser.fail[key] = failure
-	return pos, failure
-fail:
-	parser.fail[key] = failure
-	return -1, failure
-}
-
-func _DefAction(parser *_Parser, start int) (int, *Def) {
-	dp := parser.deltaPos[start][_Def]
-	if dp < 0 {
-		return -1, nil
-	}
-	key := _key{start: start, rule: _Def}
-	n := parser.act[key]
-	if n != nil {
-		n := n.(Def)
-		return start + int(dp-1), &n
-	}
-	var node Def
-	pos := start
-	// Import/Val/Fun/Meth/Type
-	{
-		pos3 := pos
-		var node2 Def
-		// Import
-		if p, n := _ImportAction(parser, pos); n == nil {
-			goto fail4
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail4:
-		node = node2
-		pos = pos3
-		// Val
-		if p, n := _ValAction(parser, pos); n == nil {
-			goto fail5
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail5:
-		node = node2
-		pos = pos3
-		// Fun
-		if p, n := _FunAction(parser, pos); n == nil {
-			goto fail6
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail6:
-		node = node2
-		pos = pos3
-		// Meth
-		if p, n := _MethAction(parser, pos); n == nil {
-			goto fail7
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail7:
-		node = node2
-		pos = pos3
-		// Type
-		if p, n := _TypeAction(parser, pos); n == nil {
-			goto fail8
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail8:
-		node = node2
-		pos = pos3
-		goto fail
-	ok0:
+			start0, pos, label1, label0)
 	}
 	parser.act[key] = node
 	return pos, &node
@@ -843,11 +666,11 @@ fail:
 	return -1, failure
 }
 
-func _ImportAction(parser *_Parser, start int) (int, *Def) {
+func _ImportAction(parser *_Parser, start int) (int, *Import) {
 	var labels [2]string
 	use(labels)
 	var label0 String
-	var label1 *Import
+	var label1 Import
 	dp := parser.deltaPos[start][_Import]
 	if dp < 0 {
 		return -1, nil
@@ -855,10 +678,10 @@ func _ImportAction(parser *_Parser, start int) (int, *Def) {
 	key := _key{start: start, rule: _Import}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Def)
+		n := n.(Import)
 		return start + int(dp-1), &n
 	}
-	var node Def
+	var node Import
 	pos := start
 	// action
 	{
@@ -896,10 +719,10 @@ func _ImportAction(parser *_Parser, start int) (int, *Def) {
 					labels[0] = parser.text[pos5:pos]
 				}
 				label1 = func(
-					start, end int, path String) *Import {
-					return &Import{
+					start, end int, path String) Import {
+					return Import{
 						location: loc(parser, start, end),
-						Path:     path.Data,
+						Path:     path.Text,
 					}
 				}(
 					start3, pos, label0)
@@ -907,10 +730,233 @@ func _ImportAction(parser *_Parser, start int) (int, *Def) {
 			labels[1] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, i *Import, path String) Def {
-			return Def(i)
+			start, end int, i Import, path String) Import {
+			return Import(i)
 		}(
 			start0, pos, label1, label0)
+	}
+	parser.act[key] = node
+	return pos, &node
+fail:
+	return -1, nil
+}
+
+func _DefAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
+	if dp, de, ok := _memo(parser, _Def, start); ok {
+		return dp, de
+	}
+	pos, perr := start, -1
+	// Val/Fun/Meth/Type
+	{
+		pos3 := pos
+		// Val
+		if !_accept(parser, _ValAccepts, &pos, &perr) {
+			goto fail4
+		}
+		goto ok0
+	fail4:
+		pos = pos3
+		// Fun
+		if !_accept(parser, _FunAccepts, &pos, &perr) {
+			goto fail5
+		}
+		goto ok0
+	fail5:
+		pos = pos3
+		// Meth
+		if !_accept(parser, _MethAccepts, &pos, &perr) {
+			goto fail6
+		}
+		goto ok0
+	fail6:
+		pos = pos3
+		// Type
+		if !_accept(parser, _TypeAccepts, &pos, &perr) {
+			goto fail7
+		}
+		goto ok0
+	fail7:
+		pos = pos3
+		goto fail
+	ok0:
+	}
+	return _memoize(parser, _Def, start, pos, perr)
+fail:
+	return _memoize(parser, _Def, start, -1, perr)
+}
+
+func _DefNode(parser *_Parser, start int) (int, *peg.Node) {
+	dp := parser.deltaPos[start][_Def]
+	if dp < 0 {
+		return -1, nil
+	}
+	key := _key{start: start, rule: _Def}
+	node := parser.node[key]
+	if node != nil {
+		return start + int(dp-1), node
+	}
+	pos := start
+	node = &peg.Node{Name: "Def"}
+	// Val/Fun/Meth/Type
+	{
+		pos3 := pos
+		nkids1 := len(node.Kids)
+		// Val
+		if !_node(parser, _ValNode, node, &pos) {
+			goto fail4
+		}
+		goto ok0
+	fail4:
+		node.Kids = node.Kids[:nkids1]
+		pos = pos3
+		// Fun
+		if !_node(parser, _FunNode, node, &pos) {
+			goto fail5
+		}
+		goto ok0
+	fail5:
+		node.Kids = node.Kids[:nkids1]
+		pos = pos3
+		// Meth
+		if !_node(parser, _MethNode, node, &pos) {
+			goto fail6
+		}
+		goto ok0
+	fail6:
+		node.Kids = node.Kids[:nkids1]
+		pos = pos3
+		// Type
+		if !_node(parser, _TypeNode, node, &pos) {
+			goto fail7
+		}
+		goto ok0
+	fail7:
+		node.Kids = node.Kids[:nkids1]
+		pos = pos3
+		goto fail
+	ok0:
+	}
+	node.Text = parser.text[start:pos]
+	parser.node[key] = node
+	return pos, node
+fail:
+	return -1, nil
+}
+
+func _DefFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
+	pos, failure := _failMemo(parser, _Def, start, errPos)
+	if failure != nil {
+		return pos, failure
+	}
+	failure = &peg.Fail{
+		Name: "Def",
+		Pos:  int(start),
+	}
+	key := _key{start: start, rule: _Def}
+	// Val/Fun/Meth/Type
+	{
+		pos3 := pos
+		// Val
+		if !_fail(parser, _ValFail, errPos, failure, &pos) {
+			goto fail4
+		}
+		goto ok0
+	fail4:
+		pos = pos3
+		// Fun
+		if !_fail(parser, _FunFail, errPos, failure, &pos) {
+			goto fail5
+		}
+		goto ok0
+	fail5:
+		pos = pos3
+		// Meth
+		if !_fail(parser, _MethFail, errPos, failure, &pos) {
+			goto fail6
+		}
+		goto ok0
+	fail6:
+		pos = pos3
+		// Type
+		if !_fail(parser, _TypeFail, errPos, failure, &pos) {
+			goto fail7
+		}
+		goto ok0
+	fail7:
+		pos = pos3
+		goto fail
+	ok0:
+	}
+	parser.fail[key] = failure
+	return pos, failure
+fail:
+	parser.fail[key] = failure
+	return -1, failure
+}
+
+func _DefAction(parser *_Parser, start int) (int, *Def) {
+	dp := parser.deltaPos[start][_Def]
+	if dp < 0 {
+		return -1, nil
+	}
+	key := _key{start: start, rule: _Def}
+	n := parser.act[key]
+	if n != nil {
+		n := n.(Def)
+		return start + int(dp-1), &n
+	}
+	var node Def
+	pos := start
+	// Val/Fun/Meth/Type
+	{
+		pos3 := pos
+		var node2 Def
+		// Val
+		if p, n := _ValAction(parser, pos); n == nil {
+			goto fail4
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail4:
+		node = node2
+		pos = pos3
+		// Fun
+		if p, n := _FunAction(parser, pos); n == nil {
+			goto fail5
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail5:
+		node = node2
+		pos = pos3
+		// Meth
+		if p, n := _MethAction(parser, pos); n == nil {
+			goto fail6
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail6:
+		node = node2
+		pos = pos3
+		// Type
+		if p, n := _TypeAction(parser, pos); n == nil {
+			goto fail7
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail7:
+		node = node2
+		pos = pos3
+		goto fail
+	ok0:
 	}
 	parser.act[key] = node
 	return pos, &node

@@ -1,15 +1,10 @@
 package ast
 
 import (
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
-
-func (n Import) String() string {
-	return "import " + strconv.Quote(n.Path)
-}
 
 func (n Val) String() string {
 	var s strings.Builder

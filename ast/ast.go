@@ -10,10 +10,17 @@ type Mod struct {
 
 // File is a single source code file.
 type File struct {
-	Path  string
-	offs  int   // offset of the start of the file
-	lines []int // offset of newlines
-	Defs  []Def
+	offs    int   // offset of the start of the file
+	lines   []int // offset of newlines
+	Path    string
+	Imports []Import
+	Defs    []Def
+}
+
+// An Import is an import statement.
+type Import struct {
+	location
+	Path string
 }
 
 // A Node is a node of the AST with location information.
@@ -38,14 +45,6 @@ type location struct {
 }
 
 func (n location) loc() (int, int) { return n.start, n.end }
-
-// Import is an import statement.
-type Import struct {
-	location
-	Path string
-}
-
-func (n Import) Priv() bool { return true }
 
 // A Val is a module-level value definition.
 type Val struct {

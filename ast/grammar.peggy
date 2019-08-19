@@ -41,16 +41,21 @@ func loc(p *_Parser, start, end int) location {
 func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
 }
 
-File <- defs:Def* _ EOF { return []Def(defs) }
-
-Def <- Import / Val / Fun / Meth / Type
-
-Import <- _ i:("import" path:String  {
-	return &Import{
-		location: loc(parser, start, end),
-		Path: path.Data,
+File <- imports:Import* defs:Def* _ EOF {
+	return File{
+		Imports: imports,
+		Defs: defs,
 	}
-}) { return Def(i) }
+}
+
+Import <- _ i:( "import" path:String {
+	return Import{
+		location: loc(parser, start, end),
+		Path: path.Text,
+	}
+}) { return Import(i) }
+
+Def <- Val / Fun / Meth / Type
 
 Val <- _ v:(key:("val" / "Val") id:Ident typ:TypeName? _":=" _"[" stmts:Stmts _"]" {
 	return &Val{
