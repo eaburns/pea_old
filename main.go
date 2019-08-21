@@ -40,11 +40,7 @@ func main() {
 		fmt.Println("")
 	}
 
-	var opts []types.Opt
-	if *trace {
-		opts = append(opts, types.Trace)
-	}
-	typeMod, errs := types.Check(astMod, opts...)
+	typeMod, errs := types.Check(astMod, types.Config{Trace: *trace})
 	if len(errs) > 0 {
 		fmt.Println(errs)
 		os.Exit(1)
@@ -53,7 +49,6 @@ func main() {
 		// Clear out some noisy fields before printing.
 		trimmedTypeMod := *typeMod
 		trimmedTypeMod.AST = nil
-		trimmedTypeMod.Imports = nil
 		pretty.Print(trimmedTypeMod)
 		fmt.Println("")
 	}

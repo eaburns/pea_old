@@ -10,10 +10,7 @@ import (
 type Mod struct {
 	AST  *ast.Mod
 	Name string
-	// Defs are all definitions in this module.
 	Defs []Def
-	// Imports are all modules imported by this module.
-	Imports []Import
 }
 
 // An Import is an imported module.

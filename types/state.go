@@ -3,40 +3,46 @@ package types
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/eaburns/pea/ast"
 )
 
-// An Opt is an option to the type checker.
-type Opt func(*state)
-
-var (
-	// Trace enables tracing of the type checker.
-	Trace Opt = func(x *state) { x.trace = true }
-)
-
 type state struct {
 	astMod *ast.Mod
-
-	// IntSize is the size of Int, UInt, and Word in bits (8, 16, 32, or 64).
-	IntSize int
-	// FloatSize is the size of Float in bits (32 or 64).
-	FloatSize int
-
-	trace  bool
+	cfg    Config
 	indent string
 }
 
-func newState(astMod *ast.Mod, opts ...Opt) *state {
-	s := &state{
-		astMod:    astMod,
-		IntSize:   64,
-		FloatSize: 64,
+func newState(cfg Config, astMod *ast.Mod) *state {
+	x := &state{astMod: astMod, cfg: cfg}
+	setConfigDefaults(x)
+	return x
+}
+
+func setConfigDefaults(x *state) {
+	switch x.cfg.IntSize {
+	case 0:
+		x.cfg.IntSize = 64
+	case 8, 16, 32, 64:
+		break
+	default:
+		panic("bad IntSize " + strconv.Itoa(x.cfg.IntSize))
 	}
-	for _, opt := range opts {
-		opt(s)
+	switch x.cfg.FloatSize {
+	case 0:
+		x.cfg.FloatSize = 64
+	case 32, 64:
+		break
+	default:
+		panic("bad FloatSize " + strconv.Itoa(x.cfg.FloatSize))
 	}
-	return s
+	if x.cfg.Importer == nil {
+		x.cfg.Importer = &dirImporter{}
+	}
+	if _, ok := x.cfg.Importer.(*importer); !ok {
+		x.cfg.Importer = newImporter(x, x.astMod.Name, x.cfg.Importer)
+	}
 }
 
 func (x *state) loc(n interface{}) ast.Loc {
@@ -59,7 +65,7 @@ func (x *state) err(n interface{}, f string, vs ...interface{}) *checkError {
 // It must be a either pointer to a slice of types convertable to error,
 // or a pointer to a type convertable to error.
 func (x *state) tr(f string, vs ...interface{}) func(...interface{}) {
-	if !x.trace {
+	if !x.cfg.Trace {
 		return func(...interface{}) {}
 	}
 	x.log(f, vs...)
@@ -79,7 +85,7 @@ func (x *state) tr(f string, vs ...interface{}) func(...interface{}) {
 }
 
 func (x *state) log(f string, vs ...interface{}) {
-	if !x.trace {
+	if !x.cfg.Trace {
 		return
 	}
 	fmt.Printf(x.indent)
