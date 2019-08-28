@@ -401,6 +401,10 @@ func newUniv(x *state) []Def {
 		panic("parse error in univ: " + err.Error())
 	}
 	astMod := p.Mod()
+	// Explicitly disable tracing from the recursive check call.
+	saveTrace := x.cfg.Trace
+	defer func() { x.cfg.Trace = saveTrace }()
+	x.cfg.Trace = false
 	mod, errs := check(&scope{state: x}, astMod)
 	if len(errs) > 0 {
 		panic("check error in univ: " + errs[0].Error())
