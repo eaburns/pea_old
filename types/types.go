@@ -34,15 +34,11 @@ type Node interface {
 type Def interface {
 	Node
 
+	// type, method, function, value.
+	kind() string
+
 	// Priv returns whether the definition is private.
 	Priv() bool
-
-	// ID is the identifier of the definition.
-	// For values it is the value name.
-	// For types it is the arity plus the type name.
-	// For funs it is the selector.
-	// For methods it is the receiver type ID and the selector.
-	ID() string
 }
 
 // A Val is a module-level value definition.
@@ -55,8 +51,8 @@ type Val struct {
 }
 
 func (n *Val) AST() ast.Node { return n.ast }
+func (n *Val) kind() string  { return "value" }
 func (n *Val) Priv() bool    { return n.priv }
-func (n *Val) ID() string    { return n.Name }
 
 // A Fun is a function or method definition.
 type Fun struct {
@@ -69,14 +65,15 @@ type Fun struct {
 }
 
 func (n *Fun) AST() ast.Node { return n.ast }
-func (n *Fun) Priv() bool    { return n.priv }
 
-func (n *Fun) ID() string {
-	if n.Recv == nil {
-		return n.Sig.Sel
+func (n *Fun) kind() string {
+	if n.Recv != nil {
+		return "method"
 	}
-	return n.Recv.id() + " " + n.Sig.Sel
+	return "function"
 }
+
+func (n *Fun) Priv() bool { return n.priv }
 
 // A FunSig is the signature of a function.
 type FunSig struct {
@@ -112,8 +109,8 @@ type Type struct {
 }
 
 func (n *Type) AST() ast.Node { return n.ast }
+func (n *Type) kind() string  { return "type" }
 func (n *Type) Priv() bool    { return n.priv }
-func (n *Type) ID() string    { return n.Sig.id() }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
@@ -142,13 +139,6 @@ type TypeName struct {
 }
 
 func (n *TypeName) AST() ast.Node { return n.ast }
-
-func (n *TypeName) ID() string {
-	if len(n.Args) == 0 {
-		return n.Name
-	}
-	return fmt.Sprintf("(%d)%s", len(n.Args), n.Name)
-}
 
 // A Var is a name and a type.
 // Var are used in several AST nodes.

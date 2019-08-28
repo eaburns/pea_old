@@ -53,12 +53,12 @@ type dirImporter struct{}
 func (ir *dirImporter) Import(cfg Config, path string) (*Import, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open %s: %s", path, err)
 	}
 	finfos, err := f.Readdir(0) // all
 	f.Close()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read %s: %s", path, err)
 	}
 	p := ast.NewParser(path)
 	for _, fi := range finfos {
@@ -67,6 +67,7 @@ func (ir *dirImporter) Import(cfg Config, path string) (*Import, error) {
 			return nil, fmt.Errorf("error parsing import %s:\n%v", path, err)
 		}
 	}
+	cfg.Trace = false // don't trace imports
 	mod, errs := Check(p.Mod(), cfg)
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("error checking import %s:\n%v", path, errs)

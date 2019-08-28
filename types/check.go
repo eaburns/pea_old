@@ -23,7 +23,7 @@ type Config struct {
 
 // Check type-checks an AST and returns the type-checked tree or errors.
 func Check(astMod *ast.Mod, cfg Config) (*Mod, []error) {
-	x := newState(cfg, astMod)
+	x := newUnivScope(newState(cfg, astMod))
 	mod, errs := check(x, astMod)
 	if len(errs) > 0 {
 		return nil, convertErrors(errs)
@@ -37,49 +37,86 @@ type file struct {
 	defs    []Def
 }
 
-func check(x *state, astMod *ast.Mod) (*Mod, []checkError) {
-	mod := &Mod{AST: astMod}
+func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
+	defer x.tr("check(%s)", astMod.Name)(errs)
 
-	var files []file
-	var errs []checkError
-	seen := make(map[string]Def)
+	mod := &Mod{AST: astMod}
+	x = x.new()
+	x.mod = mod
+
+	var files []*file
 	for i := range astMod.Files {
-		file := file{ast: &astMod.Files[i]}
-		errs = append(errs, imports(x, &file)...)
-		errs = append(errs, gather(x, seen, &file)...)
-		mod.Defs = append(mod.Defs, file.defs...)
+		file := &file{ast: &astMod.Files[i]}
+		errs = append(errs, imports(x.state, file)...)
+		for _, astDef := range file.ast.Defs {
+			def := makeDef(astDef)
+			file.defs = append(file.defs, def)
+			mod.Defs = append(mod.Defs, def)
+		}
 		files = append(files, file)
 	}
+
+	errs = append(errs, checkDups(x, mod.Defs)...)
+
 	return mod, errs
+}
+
+// checkDups returns redefinition errors for types, vals, and funs.
+// It doesn't check duplicate methods.
+func checkDups(x *scope, defs []Def) (errs []checkError) {
+	defer x.tr("checkDups")(errs)
+
+	seen := make(map[string]Def)
+	types := make(map[string]Def)
+	for _, def := range defs {
+		var id string
+		switch def := def.(type) {
+		case *Val:
+			id = def.Name
+		case *Type:
+			id = def.Sig.Name
+			tid := fmt.Sprintf("(%d)%s", def.Sig.Arity, def.Sig.Name)
+			if prev, ok := types[tid]; ok {
+				err := x.err(def, "type %s redefined", tid)
+				note(err, "previous definition is at %s", x.loc(prev))
+				errs = append(errs, *err)
+				continue
+			}
+			types[tid] = def
+			if _, ok := seen[id].(*Type); ok {
+				// Multiple defs of the same type name are OK
+				// as long as their arity is different.
+				continue
+			}
+		case *Fun:
+			if def.Recv != nil {
+				continue // check dup methods separately.
+			}
+			id = def.Sig.Sel
+		default:
+			panic(fmt.Sprintf("impossible type %T", def))
+		}
+		if prev, ok := seen[id]; ok {
+			err := x.err(def, "%s redefined", id)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+		}
+		seen[id] = def
+	}
+	return errs
 }
 
 func imports(x *state, file *file) []checkError {
 	var errs []checkError
 	for _, astImp := range file.ast.Imports {
 		path := astImp.Path[1 : len(astImp.Path)-1] // trim "
+		x.log("importing %s", path)
 		imp, err := x.cfg.Importer.Import(x.cfg, path)
 		if err != nil {
 			errs = append(errs, *x.err(astImp, err.Error()))
 			continue
 		}
 		file.imports = append(file.imports, *imp)
-	}
-	return errs
-}
-
-func gather(x *state, seen map[string]Def, file *file) []checkError {
-	var errs []checkError
-	for _, astDef := range file.ast.Defs {
-		def := makeDef(astDef)
-		id := def.ID()
-		if prev, ok := seen[id]; ok {
-			err := x.err(astDef, "%s is redefined", id)
-			note(err, "`previously defined at %s", x.loc(prev))
-			errs = append(errs, *err)
-		} else {
-			seen[id] = def
-		}
-		file.defs = append(file.defs, def)
 	}
 	return errs
 }

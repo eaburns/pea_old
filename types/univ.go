@@ -400,9 +400,8 @@ func newUniv(x *state) *Import {
 	if err := p.Parse("", bytes.NewReader(buf.Bytes())); err != nil {
 		panic("parse error in univ: " + err.Error())
 	}
-	x1 := *x
-	x1.astMod = p.Mod()
-	mod, errs := check(&x1, x1.astMod)
+	astMod := p.Mod()
+	mod, errs := check(&scope{state: x}, astMod)
 	if len(errs) > 0 {
 		panic("check error in univ: " + errs[0].Error())
 	}
