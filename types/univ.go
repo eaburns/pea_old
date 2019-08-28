@@ -387,7 +387,7 @@ var univ = `
 	type Float := Float{{.FloatSize}}.
 `
 
-func newUniv(x *state) *Import {
+func newUniv(x *state) []Def {
 	p := ast.NewParser("")
 	tmp, err := template.New("").Parse(univ)
 	if err != nil {
@@ -405,5 +405,5 @@ func newUniv(x *state) *Import {
 	if len(errs) > 0 {
 		panic("check error in univ: " + errs[0].Error())
 	}
-	return &Import{Defs: mod.Defs}
+	return mod.Defs
 }

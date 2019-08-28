@@ -190,7 +190,7 @@ func (test checkTest) run(t *testing.T) {
 
 type testImporter [][2]string
 
-func (imports testImporter) Import(cfg Config, path string) (*Import, error) {
+func (imports testImporter) Import(cfg Config, path string) ([]Def, error) {
 	for i := range imports {
 		if imports[i][0] != path {
 			continue
@@ -205,7 +205,7 @@ func (imports testImporter) Import(cfg Config, path string) (*Import, error) {
 		if len(errs) > 0 {
 			return nil, fmt.Errorf("failed to check import: %s", errs)
 		}
-		return &Import{Path: path, Defs: mod.Defs}, nil
+		return mod.Defs, nil
 	}
 	return nil, errors.New("not found")
 }

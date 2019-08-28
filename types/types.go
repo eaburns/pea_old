@@ -13,16 +13,6 @@ type Mod struct {
 	Defs []Def
 }
 
-// An Import is an imported module.
-type Import struct {
-	// Path is the path of the import.
-	Path string
-	// Name is the name of the import within the importing module.
-	Name string
-	// Defs are the used, imported definitions.
-	Defs []Def
-}
-
 // A Node is a node of the AST with location information.
 type Node interface {
 	// AST returns the AST node corresponding to the type-checked node.

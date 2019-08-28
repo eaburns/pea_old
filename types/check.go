@@ -33,8 +33,13 @@ func Check(astMod *ast.Mod, cfg Config) (*Mod, []error) {
 
 type file struct {
 	ast     *ast.File
-	imports []Import
+	imports []imp
 	defs    []Def
+}
+
+type imp struct {
+	path string
+	defs []Def
 }
 
 func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
@@ -111,12 +116,15 @@ func imports(x *state, file *file) []checkError {
 	for _, astImp := range file.ast.Imports {
 		path := astImp.Path[1 : len(astImp.Path)-1] // trim "
 		x.log("importing %s", path)
-		imp, err := x.cfg.Importer.Import(x.cfg, path)
+		defs, err := x.cfg.Importer.Import(x.cfg, path)
 		if err != nil {
 			errs = append(errs, *x.err(astImp, err.Error()))
 			continue
 		}
-		file.imports = append(file.imports, *imp)
+		file.imports = append(file.imports, imp{
+			path: path,
+			defs: defs,
+		})
 	}
 	return errs
 }

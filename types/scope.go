@@ -11,11 +11,11 @@ type scope struct {
 }
 
 func newUnivScope(x *state) *scope {
-	univ, err := x.cfg.Importer.Import(x.cfg, "")
+	defs, err := x.cfg.Importer.Import(x.cfg, "")
 	if err != nil {
 		panic(err.Error())
 	}
-	return &scope{state: x, univ: univ.Defs}
+	return &scope{state: x, univ: defs}
 }
 
 func (x *scope) new() *scope {

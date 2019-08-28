@@ -10,24 +10,26 @@ import (
 
 // An Importer imports modules by path.
 type Importer interface {
-	Import(cfg Config, path string) (*Import, error)
+	Import(cfg Config, path string) ([]Def, error)
 }
 
 type importer struct {
 	paths    []string
-	imports  []*Import
+	imports  map[string][]Def
 	importer Importer
 }
 
 func newImporter(x *state, astMod string, base Importer) *importer {
+	imports := make(map[string][]Def)
+	imports[""] = newUniv(x)
 	return &importer{
 		paths:    []string{astMod},
-		imports:  []*Import{newUniv(x)},
+		imports:  imports,
 		importer: base,
 	}
 }
 
-func (ir *importer) Import(cfg Config, path string) (*Import, error) {
+func (ir *importer) Import(cfg Config, path string) ([]Def, error) {
 	ir.paths = append(ir.paths, path)
 	defer func() { ir.paths = ir.paths[:len(ir.paths)-1] }()
 	for _, p := range ir.paths[:len(ir.paths)-1] {
@@ -35,22 +37,20 @@ func (ir *importer) Import(cfg Config, path string) (*Import, error) {
 			return nil, fmt.Errorf("import cycle: %v", ir.paths)
 		}
 	}
-	for _, imp := range ir.imports {
-		if imp.Path == path {
-			return imp, nil
-		}
+	if defs, ok := ir.imports[path]; ok {
+		return defs, nil
 	}
-	imp, err := ir.importer.Import(cfg, path)
+	defs, err := ir.importer.Import(cfg, path)
+	ir.imports[path] = defs // add nil on error too
 	if err != nil {
 		return nil, err
 	}
-	ir.imports = append(ir.imports, imp)
-	return imp, nil
+	return defs, nil
 }
 
 type dirImporter struct{}
 
-func (ir *dirImporter) Import(cfg Config, path string) (*Import, error) {
+func (ir *dirImporter) Import(cfg Config, path string) ([]Def, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s: %s", path, err)
@@ -72,5 +72,5 @@ func (ir *dirImporter) Import(cfg Config, path string) (*Import, error) {
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("error checking import %s:\n%v", path, errs)
 	}
-	return &Import{Path: path, Defs: mod.Defs}, nil
+	return mod.Defs, nil
 }
