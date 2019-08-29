@@ -156,6 +156,93 @@ func TestRedefError(t *testing.T) {
 	}
 }
 
+func TestAlias(t *testing.T) {
+	tests := []checkTest{
+		{
+			name: "target not found",
+			src: `
+				type Abc := NotFound.
+			`,
+			err: "NotFound not found",
+		},
+		{
+			name: "importednot found",
+			src: `
+				type Abc := #notFound Xyz.
+			`,
+			err: "#notFound not found",
+		},
+		{
+			name: "imported type not found",
+			src: `
+				import "xyz"
+				type Abc := #xyz NotFound.
+			`,
+			imports: [][2]string{
+				{"xyz", ""},
+			},
+			err: "NotFound not found",
+		},
+		{
+			name: "arg count mismatch",
+			src: `
+				type Abc := Int Int.
+			`,
+			err: "\\(1\\)Int not found",
+		},
+		{
+			name: "no cycle",
+			src: `
+				type Abc := Int.
+			`,
+			err: "",
+		},
+		{
+			name: "no cycle, import",
+			src: `
+				import "xyz"
+				type Abc := #xyz Xyz.
+			`,
+			imports: [][2]string{
+				{
+					"xyz",
+					`
+						type Xyz {}
+					`,
+				},
+			},
+			err: "",
+		},
+		{
+			name: "1 cycle",
+			src: `
+				type Abc := Abc.
+			`,
+			err: "type alias cycle",
+		},
+		{
+			name: "2 cycle",
+			src: `
+				type AbcXyz := Abc.
+				type Abc := AbcXyz.
+			`,
+			err: "type alias cycle",
+		},
+		{
+			name: "3 cycle",
+			src: `
+				type AbcXyz := AbcXyz123.
+				type Abc := AbcXyz.
+				type AbcXyz123 := Abc.
+			`,
+			err: "type alias cycle",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 type checkTest struct {
 	name    string
 	src     string

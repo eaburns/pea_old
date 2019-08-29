@@ -9,13 +9,21 @@ import (
 )
 
 type state struct {
-	astMod *ast.Mod
-	cfg    Config
-	indent string
+	astMod     *ast.Mod
+	cfg        Config
+	defFiles   map[Def]*file
+	checked    map[Def]bool
+	aliasStack []*Type
+	indent     string
 }
 
 func newState(cfg Config, astMod *ast.Mod) *state {
-	x := &state{astMod: astMod, cfg: cfg}
+	x := &state{
+		astMod:   astMod,
+		cfg:      cfg,
+		defFiles: make(map[Def]*file),
+		checked:  make(map[Def]bool),
+	}
 	setConfigDefaults(x)
 	return x
 }

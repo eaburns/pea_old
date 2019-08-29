@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/eaburns/pea/ast"
 )
@@ -27,6 +28,9 @@ type Def interface {
 	// type, method, function, value.
 	kind() string
 
+	// name returns the name of the definition for use in debug and tracing.
+	name() string
+
 	// Priv returns whether the definition is private.
 	Priv() bool
 }
@@ -42,6 +46,7 @@ type Val struct {
 
 func (n *Val) AST() ast.Node { return n.ast }
 func (n *Val) kind() string  { return "value" }
+func (n *Val) name() string  { return n.Name }
 func (n *Val) Priv() bool    { return n.priv }
 
 // A Fun is a function or method definition.
@@ -61,6 +66,13 @@ func (n *Fun) kind() string {
 		return "method"
 	}
 	return "function"
+}
+
+func (n *Fun) name() string {
+	if n.Recv == nil {
+		return n.Sig.Sel
+	}
+	return fmt.Sprintf("(%d)%s %s", n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
 }
 
 func (n *Fun) Priv() bool { return n.priv }
@@ -100,7 +112,12 @@ type Type struct {
 
 func (n *Type) AST() ast.Node { return n.ast }
 func (n *Type) kind() string  { return "type" }
-func (n *Type) Priv() bool    { return n.priv }
+
+func (n *Type) name() string {
+	return fmt.Sprintf("(%d)%s", n.Sig.Arity, n.Sig.Name)
+}
+
+func (n *Type) Priv() bool { return n.priv }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
@@ -122,13 +139,32 @@ func (n *TypeSig) id() string {
 // A TypeName is the name of a concrete type.
 type TypeName struct {
 	ast  *ast.TypeName
-	Var  bool
-	Mod  *Ident
+	Mod  string
 	Name string
 	Args []TypeName
+
+	Var  *Var  // non-nil if a type variable
+	Type *Type // nil if error or a type variable (in which case Var is non-nil)
 }
 
 func (n *TypeName) AST() ast.Node { return n.ast }
+
+func (n *TypeName) name() string {
+	if len(n.Args) == 0 {
+		return n.Name
+	}
+	var s strings.Builder
+	s.WriteRune('(')
+	for i, t := range n.Args {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		s.WriteString(t.name())
+	}
+	s.WriteString(") ")
+	s.WriteString(n.Name)
+	return s.String()
+}
 
 // A Var is a name and a type.
 // Var are used in several AST nodes.
