@@ -45,7 +45,7 @@ type imp struct {
 }
 
 func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
-	defer x.tr("check(%s)", astMod.Name)(errs)
+	defer x.tr("check(%s)", astMod.Name)(&errs)
 
 	mod := &Mod{AST: astMod}
 	x = x.new()
@@ -74,7 +74,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 // checkDups returns redefinition errors for types, vals, and funs.
 // It doesn't check duplicate methods.
 func checkDups(x *scope, defs []Def) (errs []checkError) {
-	defer x.tr("checkDups")(errs)
+	defer x.tr("checkDups")(&errs)
 
 	seen := make(map[string]Def)
 	types := make(map[string]Def)
@@ -177,7 +177,7 @@ func makeDef(astDef ast.Def) Def {
 }
 
 func checkDefSigs(x *scope, defs []Def) (errs []checkError) {
-	defer x.tr("checkDefSigs()")(errs)
+	defer x.tr("checkDefSigs()")(&errs)
 
 	for _, def := range defs {
 		errs = append(errs, checkDefSig(x, def)...)
@@ -239,37 +239,42 @@ func aliasCycle(x *scope, typ *Type) *checkError {
 }
 
 func checkVal(x *scope, def *Val) (errs []checkError) {
-	defer x.tr("checkVal(%s)", def.name())(errs)
+	defer x.tr("checkVal(%s)", def.name())(&errs)
 	// TODO: implement checkVal.
 	return errs
 }
 
 func checkFun(x *scope, def *Fun) (errs []checkError) {
-	defer x.tr("checkFun(%s)", def.name())(errs)
+	defer x.tr("checkFun(%s)", def.name())(&errs)
 	// TODO: implement checkFun.
 	return errs
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
+	for i := range def.Sig.Parms {
+		x = x.new()
+		x.typeVar = &def.Sig.Parms[i]
+	}
+
 	switch {
 	case def.ast.Alias != nil:
 		return checkAliasType(x, def)
 	}
 
 	// TODO: implement checkType.
-	defer x.tr("checkType(%s)", def.name())(errs)
+	defer x.tr("checkType(%s)", def.name())(&errs)
 
 	return errs
 }
 
 func checkAliasType(x *scope, typ *Type) (errs []checkError) {
-	defer x.tr("checkAliasType(%s)", typ.name())(errs)
+	defer x.tr("checkAliasType(%s)", typ.name())(&errs)
 	typ.Alias, errs = checkTypeName(x, typ.ast.Alias)
 	return errs
 }
 
 func checkTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkError) {
-	defer x.tr("checkTypeName(%s)", astName)(errs)
+	defer x.tr("checkTypeName(%s)", astName)(&errs)
 
 	n := &TypeName{
 		ast:  astName,

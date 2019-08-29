@@ -1,7 +1,7 @@
 package types
 
 func instType(x *scope, typ *Type, name *TypeName) (_ *Type, errs []checkError) {
-	defer x.tr("instType(%s, %s)", typ.name(), name.name())(errs)
+	defer x.tr("instType(%s, %s)", typ.name(), name.name())(&errs)
 
 	if errs = append(errs, checkDefSig(x, typ)...); len(errs) > 0 {
 		return nil, errs
