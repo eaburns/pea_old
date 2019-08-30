@@ -7,9 +7,10 @@ type scope struct {
 	up *scope
 
 	// One of each of the following fields is non-nil.
-	univ []Def
-	mod  *Mod
-	file *file
+	univ    []Def
+	mod     *Mod
+	file    *file
+	typeVar *Var
 }
 
 func newUnivScope(x *state) *scope {
@@ -42,10 +43,15 @@ func (x *scope) _findImport(name string) *imp {
 	return x.up._findImport(name)
 }
 
-func (x *scope) findType(arity int, name string) *Type {
+// Returns either *Type or *Var.
+func (x *scope) findType(arity int, name string) interface{} {
 	switch {
 	case x == nil:
 		return nil
+	case x.typeVar != nil:
+		if arity == 0 && x.typeVar.Name == name {
+			return x.typeVar
+		}
 	case x.mod != nil:
 		if typ := findType(x.mod.Defs, arity, name); typ != nil {
 			return typ

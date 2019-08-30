@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/eaburns/pea/ast"
 )
@@ -53,7 +52,7 @@ func (n *Val) Priv() bool    { return n.priv }
 type Fun struct {
 	ast    *ast.Fun
 	priv   bool
-	Recv   *TypeSig
+	Recv   *Recv
 	TParms []Var // types may be nil
 	Sig    FunSig
 	Stmts  []Stmt
@@ -76,6 +75,16 @@ func (n *Fun) name() string {
 }
 
 func (n *Fun) Priv() bool { return n.priv }
+
+// Recv is a method receiver.
+type Recv struct {
+	ast   *ast.TypeSig
+	Parms []Var
+	Arity int
+	Name  string
+
+	Type *Type
+}
 
 // A FunSig is the signature of a function.
 type FunSig struct {
@@ -112,24 +121,24 @@ type Type struct {
 
 func (n *Type) AST() ast.Node { return n.ast }
 func (n *Type) kind() string  { return "type" }
-
-func (n *Type) name() string {
-	return fmt.Sprintf("(%d)%s", n.Sig.Arity, n.Sig.Name)
-}
-
-func (n *Type) Priv() bool { return n.priv }
+func (n *Type) name() string  { return n.Sig.ID() }
+func (n *Type) Priv() bool    { return n.priv }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
 	ast   *ast.TypeSig
 	Arity int
 	Name  string
-	Parms []Var // types may be nil
+
+	Parms []Var      // types may be nil
+	Args  []TypeName // what is subbed for Parms
 }
 
 func (n *TypeSig) AST() ast.Node { return n.ast }
 
-func (n *TypeSig) id() string {
+// ID returns a user-readable type identifier that includes the name
+// and the arity if non-zero.
+func (n *TypeSig) ID() string {
 	if n.Arity == 0 {
 		return n.Name
 	}
@@ -149,21 +158,13 @@ type TypeName struct {
 
 func (n *TypeName) AST() ast.Node { return n.ast }
 
-func (n *TypeName) name() string {
+// ID returns a user-readable type identifier that includes the name
+// and the arity if non-zero.
+func (n *TypeName) ID() string {
 	if len(n.Args) == 0 {
 		return n.Name
 	}
-	var s strings.Builder
-	s.WriteRune('(')
-	for i, t := range n.Args {
-		if i > 0 {
-			s.WriteString(", ")
-		}
-		s.WriteString(t.name())
-	}
-	s.WriteString(") ")
-	s.WriteString(n.Name)
-	return s.String()
+	return fmt.Sprintf("(%d)%s", len(n.Args), n.Name)
 }
 
 // A Var is a name and a type.

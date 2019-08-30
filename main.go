@@ -42,7 +42,9 @@ func main() {
 
 	typeMod, errs := types.Check(astMod, types.Config{Trace: *trace})
 	if len(errs) > 0 {
-		fmt.Println(errs)
+		for _, err := range errs {
+			fmt.Println(err)
+		}
 		os.Exit(1)
 	}
 	if *printType {

@@ -12,17 +12,22 @@ type state struct {
 	astMod     *ast.Mod
 	cfg        Config
 	defFiles   map[Def]*file
-	checked    map[Def]bool
+	gathered   map[Def]bool
 	aliasStack []*Type
-	indent     string
+
+	insts     []Def
+	typeInsts map[interface{}]*Type
+
+	indent string
 }
 
 func newState(cfg Config, astMod *ast.Mod) *state {
 	x := &state{
-		astMod:   astMod,
-		cfg:      cfg,
-		defFiles: make(map[Def]*file),
-		checked:  make(map[Def]bool),
+		astMod:    astMod,
+		cfg:       cfg,
+		defFiles:  make(map[Def]*file),
+		gathered:  make(map[Def]bool),
+		typeInsts: make(map[interface{}]*Type),
 	}
 	setConfigDefaults(x)
 	return x
