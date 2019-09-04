@@ -32,6 +32,10 @@ type Def interface {
 
 	// Priv returns whether the definition is private.
 	Priv() bool
+
+	// String returns a human-readable string representation
+	// of the definition's signature.
+	String() string
 }
 
 // A Val is a module-level value definition.

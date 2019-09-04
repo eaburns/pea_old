@@ -450,7 +450,7 @@ func identString(id *ast.Ident) string {
 
 func instType(x *scope, typ *Type, name *TypeName) (res *Type, errs []checkError) {
 	defer func() { x.log("inst=%p", res) }()
-	defer x.tr("instType(%s, %s)", typ.name(), argsDebugString(name))(&errs)
+	defer x.tr("instType(%s, %v)", typ.name(), name)(&errs)
 
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
@@ -538,19 +538,6 @@ func makeArgsKey(args []TypeName) interface{} {
 	}
 }
 
-func argsDebugString(n *TypeName) string {
-	var s strings.Builder
-	s.WriteRune('[')
-	for i, a := range n.Args {
-		if i > 0 {
-			s.WriteString(", ")
-		}
-		s.WriteString(a.ID())
-	}
-	s.WriteRune(']')
-	return s.String()
-}
-
 func subTypeNames(x *scope, seen map[*Type]bool, sub map[*Var]TypeName, names0 []TypeName) []TypeName {
 	var names1 []TypeName
 	for i := range names0 {
@@ -567,7 +554,7 @@ func subTypeName(x *scope, seen map[*Type]bool, sub map[*Var]TypeName, name0 *Ty
 	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.ID(), name0.Var)()
 
 	if s, ok := sub[name0.Var]; ok {
-		x.log("%s→%s", name0.Var.Name, typeNameDebugString(s))
+		x.log("%s→%s", name0.Var.Name, s)
 		return &s
 	}
 	name1 := *name0
@@ -639,26 +626,9 @@ func subFunSig(x *scope, seen map[*Type]bool, sub map[*Var]TypeName, sig0 *FunSi
 func subDebugString(sub map[*Var]TypeName) string {
 	var ss []string
 	for k, v := range sub {
-		s := fmt.Sprintf("%s[%p]=%s", k.Name, k, typeNameDebugString(v))
+		s := fmt.Sprintf("%s[%p]=%s", k.Name, k, v)
 		ss = append(ss, s)
 	}
 	sort.Slice(ss, func(i, j int) bool { return ss[i] < ss[j] })
 	return strings.Join(ss, ";")
-}
-
-func typeNameDebugString(n TypeName) string {
-	if len(n.Args) == 0 {
-		return n.Name
-	}
-	var s strings.Builder
-	s.WriteRune('(')
-	for i, a := range n.Args {
-		if i > 0 {
-			s.WriteString(", ")
-		}
-		s.WriteString(typeNameDebugString(a))
-	}
-	s.WriteString(") ")
-	s.WriteString(n.Name)
-	return s.String()
 }

@@ -166,7 +166,7 @@ func TestAlias(t *testing.T) {
 			err: "NotFound not found",
 		},
 		{
-			name: "importednot found",
+			name: "imported not found",
 			src: `
 				type Abc := #notFound Xyz.
 			`,
