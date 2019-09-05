@@ -1,6 +1,6 @@
 package ast
 
-//go:generate peggy -o grammar.go -t grammar.peggy
+//go:generate peggy -t=false -o grammar.go grammar.peggy
 
 // A Mod is a module: the unit of compilation.
 type Mod struct {
