@@ -193,9 +193,11 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 	// This can happen if a type definition is cyclic
 	// and we are still in the process of gathering some of its fields.
 	// We break the recursion below by checking x.gathered[def].
-	// However, for alias types, we _do_ look at the Type.Alias field;
+	// However, for alias types, we look at the Type.Alias field;
 	// alias definitions must no be cyclic.
 	// We break the recursion and emit an error for cycle aliases here.
+	// We also look at type parameter constraints, which are types,
+	// and must also be acyclic.
 	if typ, ok := def.(*Type); ok && typ.ast.Alias != nil {
 		if err := aliasCycle(x, typ); err != nil {
 			return append(errs, *err)
@@ -532,10 +534,18 @@ func makeArgsKey(args []TypeName) interface{} {
 	if len(args) == 0 {
 		return nil
 	}
-	return argsKey{
-		typ:  makeTypeKey(args[0].Name, args[0].Args),
-		next: makeArgsKey(args[1:]),
+	var tkey typeKey
+	switch a := args[0]; {
+	case a.Type == nil && a.Var == nil:
+		// This case indicates an error somwhere in the args.
+		// The error was reported elsewhere; just use the empty key.
+		break
+	case a.Type == nil:
+		tkey = makeTypeKey(a.Var.Name, nil)
+	default:
+		tkey = makeTypeKey(a.Type.Sig.Name, args[0].Args)
 	}
+	return argsKey{typ: tkey, next: makeArgsKey(args[1:])}
 }
 
 func subTypeNames(x *scope, seen map[*Type]bool, sub map[*Var]TypeName, names0 []TypeName) []TypeName {
