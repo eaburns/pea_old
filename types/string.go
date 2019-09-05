@@ -53,6 +53,52 @@ func (n Type) String() string {
 	return s.String()
 }
 
+func (n Type) fullString() string {
+	var s strings.Builder
+	if n.priv {
+		s.WriteString("type ")
+	} else {
+		s.WriteString("Type ")
+	}
+	buildTypeSigString(&n.Sig, &s)
+	if n.Alias != nil {
+		s.WriteString(" := ")
+		s.WriteString(n.Alias.String())
+		s.WriteRune('.')
+		return s.String()
+	}
+	s.WriteString(" {")
+	l := s.Len()
+	for _, v := range n.Fields {
+		s.WriteRune(' ')
+		s.WriteString(v.Name)
+		s.WriteString(": ")
+		buildTypeNameString(v.Type, &s)
+	}
+	for i, v := range n.Cases {
+		if i > 0 {
+			s.WriteString(", ")
+		} else {
+			s.WriteRune(' ')
+		}
+		s.WriteString(v.Name)
+		if v.Type == nil {
+			continue
+		}
+		s.WriteString(": ")
+		buildTypeNameString(v.Type, &s)
+	}
+	for _, v := range n.Virts {
+		s.WriteRune(' ')
+		buildFunSigString(&v, &s)
+	}
+	if s.Len() > l {
+		s.WriteRune(' ')
+	}
+	s.WriteRune('}')
+	return s.String()
+}
+
 func (n FunSig) String() string {
 	var s strings.Builder
 	buildFunSigString(&n, &s)
@@ -123,6 +169,25 @@ func buildRecvString(n *Recv, s *strings.Builder) {
 
 func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 	switch {
+	case len(n.Args) == 1:
+		buildTypeNameString(&n.Args[0], s)
+		if !isOpType(n.Name) || isOpType(n.Args[0].Name) {
+			s.WriteRune(' ')
+		}
+		s.WriteString(n.Name)
+	case len(n.Args) > 1:
+		s.WriteRune('(')
+		for i := range n.Args {
+			if i > 0 {
+				s.WriteString(", ")
+			}
+			buildTypeNameString(&n.Args[i], s)
+		}
+		s.WriteRune(')')
+		if !isOpType(n.Name) {
+			s.WriteRune(' ')
+		}
+		s.WriteString(n.Name)
 	case len(n.Parms) == 0:
 		s.WriteString(n.Name)
 	case len(n.Parms) == 1 && n.Parms[0].Type == nil:

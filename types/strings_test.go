@@ -63,3 +63,64 @@ func TestString(t *testing.T) {
 		}
 	}
 }
+
+func TestFullString(t *testing.T) {
+	tests := []struct {
+		src  string
+		want string
+	}{
+		{
+			"type Xyz { }",
+			"type Xyz {}",
+		},
+		{
+			"Type Xyz { }",
+			"Type Xyz {}",
+		},
+		{
+			"type X Xyz { }",
+			"type X Xyz {}",
+		},
+		{
+			"type Abc := Int.",
+			"type Abc := Int.",
+		},
+		{
+			"type Abc := Int Array.",
+			"type Abc := Int Array.",
+		},
+		{
+			"type Abc { x0: Int x1: Int }",
+			"type Abc { x0: Int x1: Int }",
+		},
+		{
+			"type Abc { x0: Int, x1: Int }",
+			"type Abc { x0: Int, x1: Int }",
+		},
+		{
+			"type T? { None, Some: T }",
+			"type T? { None, Some: T }",
+		},
+		{
+			"type Abc { [foo] [bar: Int] [baz ^Bool] [= Int ^Bool] }",
+			"type Abc { [foo] [bar: Int] [baz ^Bool] [= Int ^Bool] }",
+		},
+	}
+	for _, test := range tests {
+		p := ast.NewParser("#test")
+		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
+			continue
+		}
+		mod, errs := Check(p.Mod(), Config{})
+		if len(errs) > 0 {
+			t.Errorf("failed to check [%s]: %v", test.src, errs)
+			continue
+		}
+		got := mod.Defs[0].(*Type).fullString()
+		if got != test.want {
+			t.Errorf("got:\n	%s\nexpected:\n	%s", got, test.want)
+			continue
+		}
+	}
+}
