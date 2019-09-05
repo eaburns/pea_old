@@ -69,6 +69,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 
 	errs = append(errs, checkDups(x, mod.Defs)...)
 	errs = append(errs, gatherDefs(x, mod.Defs)...)
+	errs = append(errs, checkDupMeths(x, mod.Defs)...)
 
 	return mod, errs
 }
@@ -251,16 +252,7 @@ func gatherVal(x *scope, def *Val) (errs []checkError) {
 func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	defer x.tr("gatherFun(%s)", def.name())(&errs)
 
-	if def.ast.Recv != nil {
-		def.Recv = &Recv{
-			ast:   def.ast.Recv,
-			Arity: len(def.ast.Recv.Parms),
-			Name:  def.ast.Recv.Name,
-		}
-		var es []checkError
-		x, def.Recv.Parms, es = gatherTypeParms(x, def.ast.Recv.Parms)
-		errs = append(errs, es...)
-	}
+	x, def.Recv, errs = gatherRecv(x, def.ast.Recv)
 
 	var es []checkError
 	x, def.TParms, es = gatherTypeParms(x, def.ast.TParms)
@@ -271,6 +263,63 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	def.Sig = *sig
 
 	return errs
+}
+
+func gatherRecv(x *scope, astRecv *ast.TypeSig) (_ *scope, _ *Recv, errs []checkError) {
+	if astRecv == nil {
+		return x, nil, nil
+	}
+	defer x.tr("gatherRecv(%s)", astRecv)(&errs)
+
+	recv := &Recv{
+		ast:   astRecv,
+		Arity: len(astRecv.Parms),
+		Name:  astRecv.Name,
+		// TODO: allow adding methods to other-module types.
+		Mod: "",
+	}
+	var es []checkError
+	x, recv.Parms, es = gatherTypeParms(x, astRecv.Parms)
+	errs = append(errs, es...)
+
+	var typ *Type
+	if recv.Mod == "" {
+		switch t := x.findType(recv.Arity, recv.Name).(type) {
+		case nil:
+			break
+		case *Type:
+			typ = t
+		case *Var:
+			panic("impossible")
+		}
+	} else {
+		imp := x.findImport(recv.Mod)
+		if imp == nil {
+			// TODO: astRecv.Mod, once adding methods to other-module types is supported.
+			err := x.err(astRecv, "module %s not found", recv.Mod)
+			errs = append(errs, *err)
+			return x, recv, errs
+		}
+		typ = imp.findType(recv.Arity, recv.Name)
+	}
+	if typ == nil {
+		var err *checkError
+		err = x.err(astRecv, "type %s not found", recv.ID())
+		// TODO: note candidate types of different arity if a type is not found.
+		errs = append(errs, *err)
+		return x, recv, errs
+	}
+
+	// We access typ.Alias; it must be cycle free to guarantee
+	// that they are populated by this call.
+	if es := gatherDef(x, typ); es != nil {
+		return x, recv, append(errs, es...)
+	}
+	if typ.Alias != nil {
+		typ = typ.Alias.Type
+	}
+	recv.Type = typ
+	return x, recv, errs
 }
 
 func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []checkError) {
@@ -290,21 +339,6 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []che
 		errs = append(errs, es...)
 	}
 	return x, vars, errs
-}
-
-func gatherRecv(x *scope, astRecv *ast.TypeSig) (_ *Recv, errs []checkError) {
-	if astRecv == nil {
-		return nil, nil
-	}
-
-	defer x.tr("gatherRecv(%s)", astRecv)(&errs)
-	recv := &Recv{
-		ast:   astRecv,
-		Arity: len(astRecv.Parms),
-		Name:  astRecv.Name,
-	}
-	recv.Parms, errs = gatherVars(x, astRecv.Parms)
-	return recv, errs
 }
 
 func gatherFunSigs(x *scope, astSigs []ast.FunSig) (_ []FunSig, errs []checkError) {
@@ -409,7 +443,6 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 	name.Args, es = gatherTypeNames(x, astName.Args)
 	errs = append(errs, es...)
 
-	var imp *imp
 	var typ *Type
 	if name.Mod == "" {
 		switch t := x.findType(len(name.Args), name.Name).(type) {
@@ -422,13 +455,13 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 			return name, errs
 		}
 	} else {
-		imp = x.findImport(name.Mod)
+		imp := x.findImport(name.Mod)
 		if imp == nil {
 			err := x.err(astName.Mod, "module %s not found", name.Mod)
 			errs = append(errs, *err)
-		} else {
-			typ = imp.findType(len(name.Args), name.Name)
+			return name, errs
 		}
+		typ = imp.findType(len(name.Args), name.Name)
 	}
 	if typ == nil {
 		var err *checkError
@@ -641,4 +674,25 @@ func subDebugString(sub map[*Var]TypeName) string {
 	}
 	sort.Slice(ss, func(i, j int) bool { return ss[i] < ss[j] })
 	return strings.Join(ss, ";")
+}
+
+func checkDupMeths(x *scope, defs []Def) []checkError {
+	var errs []checkError
+	seen := make(map[string]Def)
+	for _, def := range defs {
+		fun, ok := def.(*Fun)
+		if !ok || fun.Recv == nil || fun.Recv.Type == nil {
+			continue
+		}
+		recv := fun.Recv.Type
+		key := recv.name() + " " + fun.Sig.Sel
+		if prev, ok := seen[key]; ok {
+			err := x.err(def, "method %s redefined", key)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[key] = def
+		}
+	}
+	return errs
 }

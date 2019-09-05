@@ -150,6 +150,75 @@ func TestRedefError(t *testing.T) {
 			},
 			err: "",
 		},
+		{
+			name: "method redefinition",
+			src: `
+				meth Int64 [foo |]
+				meth Int64 [foo |]
+			`,
+			err: "method Int64 foo redefined",
+		},
+		{
+			name: "method redefinition through an alias",
+			src: `
+				meth Int [foo |]
+				meth Int64 [foo |]
+			`,
+			err: "method Int64 foo redefined",
+		},
+		{
+			name: "method redefinition through multiple aliases",
+			src: `
+				meth Int [foo |]
+				meth Abc [foo |]
+				type Abc := Def.
+				type Def := Ghi.
+				type Ghi := Int64.
+			`,
+			err: "method Int64 foo redefined",
+		},
+		{
+			name: "binary method redefinition",
+			src: `
+				meth Int [@@ _ Int |]
+				meth Int [@@ _ Int |]
+			`,
+			err: "method Int64 @@ redefined",
+		},
+		{
+			name: "nary method redefinition",
+			src: `
+				meth Int [foo: _ String bar: _ Int |]
+				meth Int [foo: _ String bar: _ Int |]
+			`,
+			err: "method Int64 foo:bar: redefined",
+		},
+		{
+			name: "method redefinition with different param types",
+			src: `
+				meth Int [foo: _ Int bar: _ Float |]
+				meth Int [foo: _ String bar: _ Int |]
+			`,
+			err: "method Int64 foo:bar: redefined",
+		},
+		{
+			name: "method redefinition with receiver type params",
+			src: `
+				meth T Array [foo: _ String bar: _ Int |]
+				meth U Array [foo: _ String bar: _ Int |]
+			`,
+			err: "method \\(1\\)Array foo:bar: redefined",
+		},
+		{
+			name: "method not redefined when differing receiver",
+			src: `
+				type V Map {}
+				meth V Map [foo |]
+				type (K, V) Map {}
+				meth (K, V) Map [foo |]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

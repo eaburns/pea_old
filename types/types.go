@@ -84,10 +84,18 @@ func (n *Fun) Priv() bool { return n.priv }
 type Recv struct {
 	ast   *ast.TypeSig
 	Parms []Var
+	Mod   string
 	Arity int
 	Name  string
 
 	Type *Type
+}
+
+func (n *Recv) ID() string {
+	if n.Arity == 0 {
+		return n.Name
+	}
+	return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
 }
 
 // A FunSig is the signature of a function.
