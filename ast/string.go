@@ -29,7 +29,7 @@ func (n Fun) String() string {
 		} else {
 			s.WriteString("Meth ")
 		}
-		buildTypeSigString(n.Recv, &s)
+		buildRecvString(n.Recv, &s)
 		s.WriteRune(' ')
 	} else {
 		if n.priv {
@@ -102,23 +102,44 @@ func buildFunSigString(n *FunSig, s *strings.Builder) {
 	s.WriteRune(']')
 }
 
+func buildRecvString(n *Recv, s *strings.Builder) {
+	switch {
+	case len(n.Parms) == 0:
+		break
+	case len(n.Parms) == 1 && n.Parms[0].Type == nil:
+		s.WriteString(n.Parms[0].Name)
+		if n.Mod != nil || !isOpType(n.Name) {
+			s.WriteRune(' ')
+		}
+	default:
+		buildTypeParms(n.Parms, s)
+		if n.Mod != nil || !isOpType(n.Name) {
+			s.WriteRune(' ')
+		}
+	}
+	if n.Mod != nil {
+		s.WriteString(n.Mod.Text)
+		s.WriteRune(' ')
+	}
+	s.WriteString(n.Name)
+}
+
 func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 	switch {
 	case len(n.Parms) == 0:
-		s.WriteString(n.Name)
+		break
 	case len(n.Parms) == 1 && n.Parms[0].Type == nil:
 		s.WriteString(n.Parms[0].Name)
 		if !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
-		s.WriteString(n.Name)
 	default:
 		buildTypeParms(n.Parms, s)
 		if !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
-		s.WriteString(n.Name)
 	}
+	s.WriteString(n.Name)
 }
 
 func buildTypeParms(parms []Var, s *strings.Builder) {
@@ -144,13 +165,12 @@ func isOpType(s string) bool {
 func buildTypeNameString(n *TypeName, s *strings.Builder) {
 	switch {
 	case len(n.Args) == 0:
-		s.WriteString(n.Name)
+		break
 	case len(n.Args) == 1:
 		buildTypeNameString(&n.Args[0], s)
-		if !isOpType(n.Name) || isOpType(n.Args[0].Name) {
+		if n.Mod != nil || !isOpType(n.Name) || isOpType(n.Args[0].Name) {
 			s.WriteRune(' ')
 		}
-		s.WriteString(n.Name)
 	default:
 		s.WriteRune('(')
 		for i, arg := range n.Args {
@@ -160,9 +180,13 @@ func buildTypeNameString(n *TypeName, s *strings.Builder) {
 			buildTypeNameString(&arg, s)
 		}
 		s.WriteRune(')')
-		if !isOpType(n.Name) {
+		if n.Mod != nil || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
-		s.WriteString(n.Name)
 	}
+	if n.Mod != nil {
+		s.WriteString(n.Mod.Text)
+		s.WriteRune(' ')
+	}
+	s.WriteString(n.Name)
 }

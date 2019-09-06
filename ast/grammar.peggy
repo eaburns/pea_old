@@ -77,16 +77,31 @@ Fun <- _ f:(key:("func" / "Func") tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts 
 	}
 })   { return Def(f) }
 
-Meth <- _ m:(key:("meth" / "Meth") typ:TypeSig tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts _"]" {
+Meth <- _ m:(key:("meth" / "Meth") recv:Recv tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts _"]" {
 	return &Fun{
 		location: loc(parser, start, end),
 		priv: key == "meth",
-		Recv: &typ,
+		Recv: &recv,
 		TParms: tps,
 		Sig: sig,
 		Stmts: stmts,
 	}
 }) { return Def(m) }
+
+Recv <- tps:TParms mod:ModName? n:( Ident / Op ) {
+	l := loc(parser, start, end)
+	if len(tps) > 0 {
+		l.start = tps[0].start
+	}
+	return Recv{
+		TypeSig: TypeSig{
+			location: l,
+			Name: n.Text,
+			Parms: tps,
+		},
+		Mod: mod,
+	}
+}
 
 FunSig <- ps:Parms r:Ret? {
 	if len(ps) == 1 && ps[0].name.Text == "" {

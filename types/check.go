@@ -265,7 +265,7 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	return errs
 }
 
-func gatherRecv(x *scope, astRecv *ast.TypeSig) (_ *scope, _ *Recv, errs []checkError) {
+func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkError) {
 	if astRecv == nil {
 		return x, nil, nil
 	}
@@ -275,8 +275,7 @@ func gatherRecv(x *scope, astRecv *ast.TypeSig) (_ *scope, _ *Recv, errs []check
 		ast:   astRecv,
 		Arity: len(astRecv.Parms),
 		Name:  astRecv.Name,
-		// TODO: allow adding methods to other-module types.
-		Mod: "",
+		Mod:   identString(astRecv.Mod),
 	}
 	var es []checkError
 	x, recv.Parms, es = gatherTypeParms(x, astRecv.Parms)
@@ -295,8 +294,7 @@ func gatherRecv(x *scope, astRecv *ast.TypeSig) (_ *scope, _ *Recv, errs []check
 	} else {
 		imp := x.findImport(recv.Mod)
 		if imp == nil {
-			// TODO: astRecv.Mod, once adding methods to other-module types is supported.
-			err := x.err(astRecv, "module %s not found", recv.Mod)
+			err := x.err(astRecv.Mod, "module %s not found", recv.Mod)
 			errs = append(errs, *err)
 			return x, recv, errs
 		}

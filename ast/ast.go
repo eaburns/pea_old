@@ -61,13 +61,19 @@ func (n *Val) Priv() bool { return n.priv }
 type Fun struct {
 	location
 	priv   bool
-	Recv   *TypeSig
+	Recv   *Recv
 	TParms []Var // types may be nil
 	Sig    FunSig
 	Stmts  []Stmt
 }
 
 func (n *Fun) Priv() bool { return n.priv }
+
+// Recv is a method receiver.
+type Recv struct {
+	TypeSig
+	Mod *Ident
+}
 
 // A FunSig is the signature of a function.
 type FunSig struct {

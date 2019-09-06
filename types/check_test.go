@@ -245,17 +245,8 @@ func TestRedefError(t *testing.T) {
 			src: `
 				import "foo"
 				import "bar"
-				// TODO: remove the type aliases from this test
-				// once the parser supports module names
-				// in method receivers.
-				// Then just do this:
-				// meth #foo Abc [baz |]
-				// meth #bar Abc [baz |]
-
-				type FooAbc := #foo Abc.
-				type BarAbc := #bar Abc.
-				meth FooAbc [baz |]
-				meth BarAbc [baz |]
+				meth #foo Abc [baz |]
+				meth #bar Abc [baz |]
 			`,
 			imports: [][2]string{
 				{"foo", "Type Abc {}"},

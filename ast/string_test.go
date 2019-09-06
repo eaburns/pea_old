@@ -27,20 +27,30 @@ func TestString(t *testing.T) {
 		{"meth Int [++ abc Int |]", "meth Int [++ abc Int]"},
 		{"Meth Int [++ abc Int |]", "Meth Int [++ abc Int]"},
 		{"meth Int [+ abc Int ^Int |]", "meth Int [+ abc Int ^Int]"},
+		{"Meth #big Int [++ abc Int |]", "Meth #big Int [++ abc Int]"},
+		{"Meth #big ? [foo |]", "Meth #big ? [foo]"},
+		{"Meth T #big ? [foo |]", "Meth T #big ? [foo]"},
 		{"meth T Array [at: i Int put: t T |]", "meth T Array [at: i Int put: t T]"},
 		{"meth T Array [foo: x Bar |]", "meth T Array [foo: x Bar]"},
+		{"meth T #test Array [foo: x Bar |]", "meth T #test Array [foo: x Bar]"},
+		{"meth (K, V) #test Map [foo|]", "meth (K, V) #test Map [foo]"},
 
 		// Tests for TypeName.String.
 		// These use Val's typename to exercise the code path,
 		// since this test framework only does .String() on Defs.
 		{"val x Int := []", "val x Int"},
+		{"val x #test Int := []", "val x #test Int"},
 		{"val x Float Array := []", "val x Float Array"},
+		{"val x Float #test Array := []", "val x Float #test Array"},
 		{"val x Float Array Array := []", "val x Float Array Array"},
 		{"val x (Float, String) Pair := []", "val x (Float, String) Pair"},
 		{"val x (Float, String Array) Pair := []", "val x (Float, String Array) Pair"},
+		{"val x (Float, String Array) #test Pair := []", "val x (Float, String Array) #test Pair"},
 		{"val x Int? := []", "val x Int?"},
+		{"val x Int #test ? := []", "val x Int #test ?"},
 		{"val x Int? ? ? := []", "val x Int? ? ?"},
 		{"val x (Int, Float)! := []", "val x (Int, Float)!"},
+		{"val x (Int, Float) #test ! := []", "val x (Int, Float) #test !"},
 		{"val x Int? ?? := []", "val x Int? ??"},
 	}
 	for _, test := range tests {

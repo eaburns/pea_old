@@ -103,7 +103,7 @@ func (n *Fun) Mod() string { return n.mod }
 
 // Recv is a method receiver.
 type Recv struct {
-	ast   *ast.TypeSig
+	ast   *ast.Recv
 	Parms []Var
 	Mod   string
 	Arity int
