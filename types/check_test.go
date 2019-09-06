@@ -25,6 +25,27 @@ func TestImportError(t *testing.T) {
 	}
 }
 
+func TestPrivate(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "private type",
+			src: `
+				import "in"
+				type Test := #in Private.
+			`,
+			imports: [][2]string{
+				{"in", `
+					type Private {}
+				`},
+			},
+			err: "type Private not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestRedefError(t *testing.T) {
 	tests := []errorTest{
 		{
@@ -276,7 +297,7 @@ func TestAlias(t *testing.T) {
 				{
 					"xyz",
 					`
-						type Xyz {}
+						Type Xyz {}
 					`,
 				},
 			},

@@ -45,6 +45,7 @@ func (x *scope) _findImport(name string) *imp {
 
 // Returns either *Type or *Var.
 func (x *scope) findType(arity int, name string) interface{} {
+	var defs []Def
 	switch {
 	case x == nil:
 		return nil
@@ -53,26 +54,24 @@ func (x *scope) findType(arity int, name string) interface{} {
 			return x.typeVar
 		}
 	case x.mod != nil:
-		if typ := findType(x.mod.Defs, arity, name); typ != nil {
-			return typ
-		}
+		defs = x.mod.Defs
 	case x.univ != nil:
-		if typ := findType(x.univ, arity, name); typ != nil {
-			return typ
+		defs = x.univ
+	}
+	for _, d := range defs {
+		if t, ok := d.(*Type); ok && t.Sig.Arity == arity && t.Sig.Name == name {
+			return t
 		}
 	}
 	return x.up.findType(arity, name)
 }
 
 func (imp *imp) findType(arity int, name string) *Type {
-	return findType(imp.defs, arity, name)
-}
-
-func findType(defs []Def, arity int, name string) *Type {
-	for _, d := range defs {
-		if t, ok := d.(*Type); ok && t.Sig.Arity == arity && t.Sig.Name == name {
+	for _, d := range imp.defs {
+		if t, ok := d.(*Type); ok && !t.Priv() && t.Sig.Arity == arity && t.Sig.Name == name {
 			return t
 		}
 	}
 	return nil
+
 }
