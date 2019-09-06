@@ -38,7 +38,7 @@ func TestPrivate(t *testing.T) {
 					type Private {}
 				`},
 			},
-			err: "type Private not found",
+			err: "type #in Private not found",
 		},
 	}
 	for _, test := range tests {
@@ -238,6 +238,29 @@ func TestRedefError(t *testing.T) {
 				type (K, V) Map {}
 				meth (K, V) Map [foo |]
 			`,
+			err: "",
+		},
+		{
+			name: "method not redefined on same-name type from different imports",
+			src: `
+				import "foo"
+				import "bar"
+				// TODO: remove the type aliases from this test
+				// once the parser supports module names
+				// in method receivers.
+				// Then just do this:
+				// meth #foo Abc [baz |]
+				// meth #bar Abc [baz |]
+
+				type FooAbc := #foo Abc.
+				type BarAbc := #bar Abc.
+				meth FooAbc [baz |]
+				meth BarAbc [baz |]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Abc {}"},
+				{"bar", "Type Abc {}"},
+			},
 			err: "",
 		},
 	}
@@ -617,6 +640,7 @@ func (imports testImporter) Import(cfg Config, path string) ([]Def, error) {
 		if len(errs) > 0 {
 			return nil, fmt.Errorf("failed to check import: %s", errs)
 		}
+		setMod(path, mod.Defs)
 		return mod.Defs, nil
 	}
 	return nil, errors.New("not found")

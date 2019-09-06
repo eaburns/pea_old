@@ -72,5 +72,21 @@ func (ir *dirImporter) Import(cfg Config, path string) ([]Def, error) {
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("error checking import %s:\n%v", path, errs)
 	}
+	setMod(path, mod.Defs)
 	return mod.Defs, nil
+}
+
+func setMod(path string, defs []Def) {
+	for _, def := range defs {
+		switch def := def.(type) {
+		case *Val:
+			def.mod = path
+		case *Fun:
+			def.mod = path
+		case *Type:
+			def.Sig.mod = path
+		default:
+			panic(fmt.Sprintf("impossible type: %T", def))
+		}
+	}
 }

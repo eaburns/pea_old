@@ -33,6 +33,10 @@ type Def interface {
 	// Priv returns whether the definition is private.
 	Priv() bool
 
+	// Mod returns the module name of the definition if imported.
+	// Mod returns the empty string for definitions in the current module.
+	Mod() string
+
 	// String returns a human-readable string representation
 	// of the definition's signature.
 	String() string
@@ -42,6 +46,7 @@ type Def interface {
 type Val struct {
 	ast  *ast.Val
 	priv bool
+	mod  string
 	Name string
 	Type *TypeName
 	Init []Stmt
@@ -49,13 +54,22 @@ type Val struct {
 
 func (n *Val) AST() ast.Node { return n.ast }
 func (n *Val) kind() string  { return "value" }
-func (n *Val) name() string  { return n.Name }
-func (n *Val) Priv() bool    { return n.priv }
+
+func (n *Val) name() string {
+	if n.mod == "" {
+		return n.Name
+	}
+	return n.mod + " " + n.Name
+}
+
+func (n *Val) Priv() bool  { return n.priv }
+func (n *Val) Mod() string { return n.mod }
 
 // A Fun is a function or method definition.
 type Fun struct {
 	ast    *ast.Fun
 	priv   bool
+	mod    string
 	Recv   *Recv
 	TParms []Var // types may be nil
 	Sig    FunSig
@@ -72,13 +86,20 @@ func (n *Fun) kind() string {
 }
 
 func (n *Fun) name() string {
-	if n.Recv == nil {
+	switch {
+	case n.mod == "" && n.Recv == nil:
 		return n.Sig.Sel
+	case n.mod == "" && n.Recv != nil:
+		return fmt.Sprintf("(%d)%s %s", n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
+	case n.mod != "" && n.Recv == nil:
+		return n.mod + " " + n.Sig.Sel
+	default:
+		return fmt.Sprintf("%s (%d)%s %s", n.mod, n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
 	}
-	return fmt.Sprintf("(%d)%s %s", n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
 }
 
-func (n *Fun) Priv() bool { return n.priv }
+func (n *Fun) Priv() bool  { return n.priv }
+func (n *Fun) Mod() string { return n.mod }
 
 // Recv is a method receiver.
 type Recv struct {
@@ -91,11 +112,19 @@ type Recv struct {
 	Type *Type
 }
 
+// ID returns a user-readable type identifier that includes
+// the module if not the current module, name, and arity if non-zero.
 func (n *Recv) ID() string {
-	if n.Arity == 0 {
+	switch {
+	case n.Mod == "" && n.Arity == 0:
 		return n.Name
+	case n.Mod == "" && n.Arity > 0:
+		return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
+	case n.Mod != "" && n.Arity == 0:
+		return n.Mod + " " + n.Name
+	default:
+		return fmt.Sprintf("%s (%d)%s", n.Mod, n.Arity, n.Name)
 	}
-	return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
 }
 
 // A FunSig is the signature of a function.
@@ -135,10 +164,12 @@ func (n *Type) AST() ast.Node { return n.ast }
 func (n *Type) kind() string  { return "type" }
 func (n *Type) name() string  { return n.Sig.ID() }
 func (n *Type) Priv() bool    { return n.priv }
+func (n *Type) Mod() string   { return n.Sig.mod }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
 	ast   *ast.TypeSig
+	mod   string
 	Arity int
 	Name  string
 
@@ -151,10 +182,16 @@ func (n *TypeSig) AST() ast.Node { return n.ast }
 // ID returns a user-readable type identifier that includes the name
 // and the arity if non-zero.
 func (n *TypeSig) ID() string {
-	if n.Arity == 0 {
+	switch {
+	case n.mod == "" && n.Arity == 0:
 		return n.Name
+	case n.mod == "" && n.Arity > 0:
+		return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
+	case n.mod != "" && n.Arity == 0:
+		return n.mod + " " + n.Name
+	default:
+		return fmt.Sprintf("%s (%d)%s", n.mod, n.Arity, n.Name)
 	}
-	return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
 }
 
 // A TypeName is the name of a concrete type.
@@ -170,13 +207,19 @@ type TypeName struct {
 
 func (n *TypeName) AST() ast.Node { return n.ast }
 
-// ID returns a user-readable type identifier that includes the name
-// and the arity if non-zero.
+// ID returns a user-readable type identifier that includes
+// the module if not the current module, name, and arity if non-zero.
 func (n *TypeName) ID() string {
-	if len(n.Args) == 0 {
+	switch arity := len(n.Args); {
+	case n.Mod == "" && arity == 0:
 		return n.Name
+	case n.Mod == "" && arity > 0:
+		return fmt.Sprintf("(%d)%s", arity, n.Name)
+	case n.Mod != "" && arity == 0:
+		return n.Mod + " " + n.Name
+	default:
+		return fmt.Sprintf("%s (%d)%s", n.Mod, arity, n.Name)
 	}
-	return fmt.Sprintf("(%d)%s", len(n.Args), n.Name)
 }
 
 // A Var is a name and a type.
