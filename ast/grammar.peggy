@@ -360,14 +360,16 @@ Call <- c:( Nary / Binary / Unary ) cs:(
 	return Expr(c)
 }
 
-Unary <- r:(
-	p:Primary { return Node(p) } /
-	n:ModName { return Node(n) }
-) ms:UnaryMsg+ {
-	s, _ := r.loc()
+Unary <- r:Primary? ms:UnaryMsg+ {
+	s := ms[0].start
+	var recv Expr
+	if r != nil {
+		s, _ = (*r).loc()
+		recv = *r
+	}
 	c := Call{
 		location: location{s, ms[0].end},
-		Recv: r,
+		Recv: recv,
 		Msgs: []Msg{ms[0]},
 	}
 	for _, m := range ms[1:] {
@@ -384,11 +386,7 @@ UnaryMsg <- mod:ModName? i:Ident {
 	return Msg{location: i.location, Mod: mod, Sel: i.Text}
 }
 
-Binary <- r:(
-	u:Unary { return Node(u) } /
-	p:Primary { return Node(p) } /
-	n:ModName { return Node(n) }
-) m:BinMsg {
+Binary <- r:( u:Unary { return Expr(u) } / Primary ) m:BinMsg {
 	s, _ := r.loc()
 	return Call{
 		location: location{s, loc1(parser, end)},
@@ -412,13 +410,12 @@ BinMsg <-
 }
 
 Nary <- r:(
-	b:Binary { return Node(b) } /
-	u:Unary { return Node(u) } /
-	p:Primary { return Node(p) } /
-	n:ModName { return Node(n) }
+	b:Binary { return Expr(b) } /
+	u:Unary {return Expr(u) } /
+	Primary
 )? m:NaryMsg {
 	s := m.start
-	var recv Node
+	var recv Expr
 	if r != nil {
 		s, _ = (*r).loc()
 		recv = *r

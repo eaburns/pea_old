@@ -9237,72 +9237,51 @@ fail:
 }
 
 func _UnaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [4]string
+	var labels [2]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _Unary, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// r:(p:Primary {…}/n:ModName {…}) ms:UnaryMsg+
-	// r:(p:Primary {…}/n:ModName {…})
+	// r:Primary? ms:UnaryMsg+
+	// r:Primary?
 	{
 		pos1 := pos
-		// (p:Primary {…}/n:ModName {…})
-		// p:Primary {…}/n:ModName {…}
+		// Primary?
 		{
-			pos5 := pos
-			// action
-			// p:Primary
-			{
-				pos7 := pos
-				// Primary
-				if !_accept(parser, _PrimaryAccepts, &pos, &perr) {
-					goto fail6
-				}
-				labels[0] = parser.text[pos7:pos]
+			pos3 := pos
+			// Primary
+			if !_accept(parser, _PrimaryAccepts, &pos, &perr) {
+				goto fail4
 			}
-			goto ok2
-		fail6:
-			pos = pos5
-			// action
-			// n:ModName
-			{
-				pos9 := pos
-				// ModName
-				if !_accept(parser, _ModNameAccepts, &pos, &perr) {
-					goto fail8
-				}
-				labels[1] = parser.text[pos9:pos]
-			}
-			goto ok2
-		fail8:
-			pos = pos5
-			goto fail
-		ok2:
+			goto ok5
+		fail4:
+			pos = pos3
+		ok5:
 		}
-		labels[2] = parser.text[pos1:pos]
+		labels[0] = parser.text[pos1:pos]
 	}
 	// ms:UnaryMsg+
 	{
-		pos10 := pos
+		pos6 := pos
 		// UnaryMsg+
 		// UnaryMsg
 		if !_accept(parser, _UnaryMsgAccepts, &pos, &perr) {
 			goto fail
 		}
 		for {
-			pos12 := pos
+			pos8 := pos
 			// UnaryMsg
 			if !_accept(parser, _UnaryMsgAccepts, &pos, &perr) {
-				goto fail14
+				goto fail10
 			}
 			continue
-		fail14:
-			pos = pos12
+		fail10:
+			pos = pos8
 			break
 		}
-		labels[3] = parser.text[pos10:pos]
+		labels[1] = parser.text[pos6:pos]
 	}
 	return _memoize(parser, _Unary, start, pos, perr)
 fail:
@@ -9310,7 +9289,7 @@ fail:
 }
 
 func _UnaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [4]string
+	var labels [2]string
 	use(labels)
 	pos, failure := _failMemo(parser, _Unary, start, errPos)
 	if failure != nil {
@@ -9322,65 +9301,44 @@ func _UnaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Unary}
 	// action
-	// r:(p:Primary {…}/n:ModName {…}) ms:UnaryMsg+
-	// r:(p:Primary {…}/n:ModName {…})
+	// r:Primary? ms:UnaryMsg+
+	// r:Primary?
 	{
 		pos1 := pos
-		// (p:Primary {…}/n:ModName {…})
-		// p:Primary {…}/n:ModName {…}
+		// Primary?
 		{
-			pos5 := pos
-			// action
-			// p:Primary
-			{
-				pos7 := pos
-				// Primary
-				if !_fail(parser, _PrimaryFail, errPos, failure, &pos) {
-					goto fail6
-				}
-				labels[0] = parser.text[pos7:pos]
+			pos3 := pos
+			// Primary
+			if !_fail(parser, _PrimaryFail, errPos, failure, &pos) {
+				goto fail4
 			}
-			goto ok2
-		fail6:
-			pos = pos5
-			// action
-			// n:ModName
-			{
-				pos9 := pos
-				// ModName
-				if !_fail(parser, _ModNameFail, errPos, failure, &pos) {
-					goto fail8
-				}
-				labels[1] = parser.text[pos9:pos]
-			}
-			goto ok2
-		fail8:
-			pos = pos5
-			goto fail
-		ok2:
+			goto ok5
+		fail4:
+			pos = pos3
+		ok5:
 		}
-		labels[2] = parser.text[pos1:pos]
+		labels[0] = parser.text[pos1:pos]
 	}
 	// ms:UnaryMsg+
 	{
-		pos10 := pos
+		pos6 := pos
 		// UnaryMsg+
 		// UnaryMsg
 		if !_fail(parser, _UnaryMsgFail, errPos, failure, &pos) {
 			goto fail
 		}
 		for {
-			pos12 := pos
+			pos8 := pos
 			// UnaryMsg
 			if !_fail(parser, _UnaryMsgFail, errPos, failure, &pos) {
-				goto fail14
+				goto fail10
 			}
 			continue
-		fail14:
-			pos = pos12
+		fail10:
+			pos = pos8
 			break
 		}
-		labels[3] = parser.text[pos10:pos]
+		labels[1] = parser.text[pos6:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -9390,12 +9348,10 @@ fail:
 }
 
 func _UnaryAction(parser *_Parser, start int) (int, *Call) {
-	var labels [4]string
+	var labels [2]string
 	use(labels)
-	var label0 Expr
-	var label1 Ident
-	var label2 Node
-	var label3 []Msg
+	var label0 *Expr
+	var label1 []Msg
 	dp := parser.deltaPos[start][_Unary]
 	if dp < 0 {
 		return -1, nil
@@ -9411,109 +9367,73 @@ func _UnaryAction(parser *_Parser, start int) (int, *Call) {
 	// action
 	{
 		start0 := pos
-		// r:(p:Primary {…}/n:ModName {…}) ms:UnaryMsg+
-		// r:(p:Primary {…}/n:ModName {…})
+		// r:Primary? ms:UnaryMsg+
+		// r:Primary?
 		{
 			pos2 := pos
-			// (p:Primary {…}/n:ModName {…})
-			// p:Primary {…}/n:ModName {…}
+			// Primary?
 			{
-				pos6 := pos
-				var node5 Node
-				// action
-				{
-					start8 := pos
-					// p:Primary
-					{
-						pos9 := pos
-						// Primary
-						if p, n := _PrimaryAction(parser, pos); n == nil {
-							goto fail7
-						} else {
-							label0 = *n
-							pos = p
-						}
-						labels[0] = parser.text[pos9:pos]
-					}
-					label2 = func(
-						start, end int, p Expr) Node {
-						return Node(p)
-					}(
-						start8, pos, label0)
+				pos4 := pos
+				label0 = new(Expr)
+				// Primary
+				if p, n := _PrimaryAction(parser, pos); n == nil {
+					goto fail5
+				} else {
+					*label0 = *n
+					pos = p
 				}
-				goto ok3
-			fail7:
-				label2 = node5
-				pos = pos6
-				// action
-				{
-					start11 := pos
-					// n:ModName
-					{
-						pos12 := pos
-						// ModName
-						if p, n := _ModNameAction(parser, pos); n == nil {
-							goto fail10
-						} else {
-							label1 = *n
-							pos = p
-						}
-						labels[1] = parser.text[pos12:pos]
-					}
-					label2 = func(
-						start, end int, n Ident, p Expr) Node {
-						return Node(n)
-					}(
-						start11, pos, label1, label0)
-				}
-				goto ok3
-			fail10:
-				label2 = node5
-				pos = pos6
-				goto fail
-			ok3:
+				goto ok6
+			fail5:
+				label0 = nil
+				pos = pos4
+			ok6:
 			}
-			labels[2] = parser.text[pos2:pos]
+			labels[0] = parser.text[pos2:pos]
 		}
 		// ms:UnaryMsg+
 		{
-			pos13 := pos
+			pos7 := pos
 			// UnaryMsg+
 			{
-				var node16 Msg
+				var node10 Msg
 				// UnaryMsg
 				if p, n := _UnaryMsgAction(parser, pos); n == nil {
 					goto fail
 				} else {
-					node16 = *n
+					node10 = *n
 					pos = p
 				}
-				label3 = append(label3, node16)
+				label1 = append(label1, node10)
 			}
 			for {
-				pos15 := pos
-				var node16 Msg
+				pos9 := pos
+				var node10 Msg
 				// UnaryMsg
 				if p, n := _UnaryMsgAction(parser, pos); n == nil {
-					goto fail17
+					goto fail11
 				} else {
-					node16 = *n
+					node10 = *n
 					pos = p
 				}
-				label3 = append(label3, node16)
+				label1 = append(label1, node10)
 				continue
-			fail17:
-				pos = pos15
+			fail11:
+				pos = pos9
 				break
 			}
-			labels[3] = parser.text[pos13:pos]
+			labels[1] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, ms []Msg, n Ident, p Expr, r Node) Call {
-			s, _ := r.loc()
+			start, end int, ms []Msg, r *Expr) Call {
+			s := ms[0].start
+			var recv Expr
+			if r != nil {
+				s, _ = (*r).loc()
+				recv = *r
+			}
 			c := Call{
 				location: location{s, ms[0].end},
-				Recv:     r,
+				Recv:     recv,
 				Msgs:     []Msg{ms[0]},
 			}
 			for _, m := range ms[1:] {
@@ -9525,7 +9445,7 @@ func _UnaryAction(parser *_Parser, start int) (int, *Call) {
 			}
 			return Call(c)
 		}(
-			start0, pos, label3, label1, label0, label2)
+			start0, pos, label1, label0)
 	}
 	parser.act[key] = node
 	return pos, &node
@@ -9688,19 +9608,19 @@ fail:
 }
 
 func _BinaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [5]string
+	var labels [3]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _Binary, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// r:(u:Unary {…}/p:Primary {…}/n:ModName {…}) m:BinMsg
-	// r:(u:Unary {…}/p:Primary {…}/n:ModName {…})
+	// r:(u:Unary {…}/Primary) m:BinMsg
+	// r:(u:Unary {…}/Primary)
 	{
 		pos1 := pos
-		// (u:Unary {…}/p:Primary {…}/n:ModName {…})
-		// u:Unary {…}/p:Primary {…}/n:ModName {…}
+		// (u:Unary {…}/Primary)
+		// u:Unary {…}/Primary
 		{
 			pos5 := pos
 			// action
@@ -9716,45 +9636,26 @@ func _BinaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 			goto ok2
 		fail6:
 			pos = pos5
-			// action
-			// p:Primary
-			{
-				pos9 := pos
-				// Primary
-				if !_accept(parser, _PrimaryAccepts, &pos, &perr) {
-					goto fail8
-				}
-				labels[1] = parser.text[pos9:pos]
+			// Primary
+			if !_accept(parser, _PrimaryAccepts, &pos, &perr) {
+				goto fail8
 			}
 			goto ok2
 		fail8:
 			pos = pos5
-			// action
-			// n:ModName
-			{
-				pos11 := pos
-				// ModName
-				if !_accept(parser, _ModNameAccepts, &pos, &perr) {
-					goto fail10
-				}
-				labels[2] = parser.text[pos11:pos]
-			}
-			goto ok2
-		fail10:
-			pos = pos5
 			goto fail
 		ok2:
 		}
-		labels[3] = parser.text[pos1:pos]
+		labels[1] = parser.text[pos1:pos]
 	}
 	// m:BinMsg
 	{
-		pos12 := pos
+		pos9 := pos
 		// BinMsg
 		if !_accept(parser, _BinMsgAccepts, &pos, &perr) {
 			goto fail
 		}
-		labels[4] = parser.text[pos12:pos]
+		labels[2] = parser.text[pos9:pos]
 	}
 	return _memoize(parser, _Binary, start, pos, perr)
 fail:
@@ -9762,7 +9663,7 @@ fail:
 }
 
 func _BinaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [5]string
+	var labels [3]string
 	use(labels)
 	pos, failure := _failMemo(parser, _Binary, start, errPos)
 	if failure != nil {
@@ -9774,12 +9675,12 @@ func _BinaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Binary}
 	// action
-	// r:(u:Unary {…}/p:Primary {…}/n:ModName {…}) m:BinMsg
-	// r:(u:Unary {…}/p:Primary {…}/n:ModName {…})
+	// r:(u:Unary {…}/Primary) m:BinMsg
+	// r:(u:Unary {…}/Primary)
 	{
 		pos1 := pos
-		// (u:Unary {…}/p:Primary {…}/n:ModName {…})
-		// u:Unary {…}/p:Primary {…}/n:ModName {…}
+		// (u:Unary {…}/Primary)
+		// u:Unary {…}/Primary
 		{
 			pos5 := pos
 			// action
@@ -9795,45 +9696,26 @@ func _BinaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 			goto ok2
 		fail6:
 			pos = pos5
-			// action
-			// p:Primary
-			{
-				pos9 := pos
-				// Primary
-				if !_fail(parser, _PrimaryFail, errPos, failure, &pos) {
-					goto fail8
-				}
-				labels[1] = parser.text[pos9:pos]
+			// Primary
+			if !_fail(parser, _PrimaryFail, errPos, failure, &pos) {
+				goto fail8
 			}
 			goto ok2
 		fail8:
 			pos = pos5
-			// action
-			// n:ModName
-			{
-				pos11 := pos
-				// ModName
-				if !_fail(parser, _ModNameFail, errPos, failure, &pos) {
-					goto fail10
-				}
-				labels[2] = parser.text[pos11:pos]
-			}
-			goto ok2
-		fail10:
-			pos = pos5
 			goto fail
 		ok2:
 		}
-		labels[3] = parser.text[pos1:pos]
+		labels[1] = parser.text[pos1:pos]
 	}
 	// m:BinMsg
 	{
-		pos12 := pos
+		pos9 := pos
 		// BinMsg
 		if !_fail(parser, _BinMsgFail, errPos, failure, &pos) {
 			goto fail
 		}
-		labels[4] = parser.text[pos12:pos]
+		labels[2] = parser.text[pos9:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -9843,13 +9725,11 @@ fail:
 }
 
 func _BinaryAction(parser *_Parser, start int) (int, *Call) {
-	var labels [5]string
+	var labels [3]string
 	use(labels)
 	var label0 Call
 	var label1 Expr
-	var label2 Ident
-	var label3 Node
-	var label4 Msg
+	var label2 Msg
 	dp := parser.deltaPos[start][_Binary]
 	if dp < 0 {
 		return -1, nil
@@ -9865,15 +9745,15 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 	// action
 	{
 		start0 := pos
-		// r:(u:Unary {…}/p:Primary {…}/n:ModName {…}) m:BinMsg
-		// r:(u:Unary {…}/p:Primary {…}/n:ModName {…})
+		// r:(u:Unary {…}/Primary) m:BinMsg
+		// r:(u:Unary {…}/Primary)
 		{
 			pos2 := pos
-			// (u:Unary {…}/p:Primary {…}/n:ModName {…})
-			// u:Unary {…}/p:Primary {…}/n:ModName {…}
+			// (u:Unary {…}/Primary)
+			// u:Unary {…}/Primary
 			{
 				pos6 := pos
-				var node5 Node
+				var node5 Expr
 				// action
 				{
 					start8 := pos
@@ -9889,85 +9769,46 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 						}
 						labels[0] = parser.text[pos9:pos]
 					}
-					label3 = func(
-						start, end int, u Call) Node {
-						return Node(u)
+					label1 = func(
+						start, end int, u Call) Expr {
+						return Expr(u)
 					}(
 						start8, pos, label0)
 				}
 				goto ok3
 			fail7:
-				label3 = node5
+				label1 = node5
 				pos = pos6
-				// action
-				{
-					start11 := pos
-					// p:Primary
-					{
-						pos12 := pos
-						// Primary
-						if p, n := _PrimaryAction(parser, pos); n == nil {
-							goto fail10
-						} else {
-							label1 = *n
-							pos = p
-						}
-						labels[1] = parser.text[pos12:pos]
-					}
-					label3 = func(
-						start, end int, p Expr, u Call) Node {
-						return Node(p)
-					}(
-						start11, pos, label1, label0)
+				// Primary
+				if p, n := _PrimaryAction(parser, pos); n == nil {
+					goto fail10
+				} else {
+					label1 = *n
+					pos = p
 				}
 				goto ok3
 			fail10:
-				label3 = node5
-				pos = pos6
-				// action
-				{
-					start14 := pos
-					// n:ModName
-					{
-						pos15 := pos
-						// ModName
-						if p, n := _ModNameAction(parser, pos); n == nil {
-							goto fail13
-						} else {
-							label2 = *n
-							pos = p
-						}
-						labels[2] = parser.text[pos15:pos]
-					}
-					label3 = func(
-						start, end int, n Ident, p Expr, u Call) Node {
-						return Node(n)
-					}(
-						start14, pos, label2, label1, label0)
-				}
-				goto ok3
-			fail13:
-				label3 = node5
+				label1 = node5
 				pos = pos6
 				goto fail
 			ok3:
 			}
-			labels[3] = parser.text[pos2:pos]
+			labels[1] = parser.text[pos2:pos]
 		}
 		// m:BinMsg
 		{
-			pos16 := pos
+			pos11 := pos
 			// BinMsg
 			if p, n := _BinMsgAction(parser, pos); n == nil {
 				goto fail
 			} else {
-				label4 = *n
+				label2 = *n
 				pos = p
 			}
-			labels[4] = parser.text[pos16:pos]
+			labels[2] = parser.text[pos11:pos]
 		}
 		node = func(
-			start, end int, m Msg, n Ident, p Expr, r Node, u Call) Call {
+			start, end int, m Msg, r Expr, u Call) Call {
 			s, _ := r.loc()
 			return Call{
 				location: location{s, loc1(parser, end)},
@@ -9975,7 +9816,7 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 				Msgs:     []Msg{m},
 			}
 		}(
-			start0, pos, label4, label2, label1, label3, label0)
+			start0, pos, label2, label1, label0)
 	}
 	parser.act[key] = node
 	return pos, &node
@@ -10310,22 +10151,22 @@ fail:
 }
 
 func _NaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [6]string
+	var labels [4]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _Nary, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// r:(b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})? m:NaryMsg
-	// r:(b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})?
+	// r:(b:Binary {…}/u:Unary {…}/Primary)? m:NaryMsg
+	// r:(b:Binary {…}/u:Unary {…}/Primary)?
 	{
 		pos1 := pos
-		// (b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})?
+		// (b:Binary {…}/u:Unary {…}/Primary)?
 		{
 			pos3 := pos
-			// (b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})
-			// b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…}
+			// (b:Binary {…}/u:Unary {…}/Primary)
+			// b:Binary {…}/u:Unary {…}/Primary
 			{
 				pos8 := pos
 				// action
@@ -10354,50 +10195,31 @@ func _NaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 				goto ok5
 			fail11:
 				pos = pos8
-				// action
-				// p:Primary
-				{
-					pos14 := pos
-					// Primary
-					if !_accept(parser, _PrimaryAccepts, &pos, &perr) {
-						goto fail13
-					}
-					labels[2] = parser.text[pos14:pos]
+				// Primary
+				if !_accept(parser, _PrimaryAccepts, &pos, &perr) {
+					goto fail13
 				}
 				goto ok5
 			fail13:
 				pos = pos8
-				// action
-				// n:ModName
-				{
-					pos16 := pos
-					// ModName
-					if !_accept(parser, _ModNameAccepts, &pos, &perr) {
-						goto fail15
-					}
-					labels[3] = parser.text[pos16:pos]
-				}
-				goto ok5
-			fail15:
-				pos = pos8
 				goto fail4
 			ok5:
 			}
-			goto ok17
+			goto ok14
 		fail4:
 			pos = pos3
-		ok17:
+		ok14:
 		}
-		labels[4] = parser.text[pos1:pos]
+		labels[2] = parser.text[pos1:pos]
 	}
 	// m:NaryMsg
 	{
-		pos18 := pos
+		pos15 := pos
 		// NaryMsg
 		if !_accept(parser, _NaryMsgAccepts, &pos, &perr) {
 			goto fail
 		}
-		labels[5] = parser.text[pos18:pos]
+		labels[3] = parser.text[pos15:pos]
 	}
 	return _memoize(parser, _Nary, start, pos, perr)
 fail:
@@ -10405,7 +10227,7 @@ fail:
 }
 
 func _NaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [6]string
+	var labels [4]string
 	use(labels)
 	pos, failure := _failMemo(parser, _Nary, start, errPos)
 	if failure != nil {
@@ -10417,15 +10239,15 @@ func _NaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Nary}
 	// action
-	// r:(b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})? m:NaryMsg
-	// r:(b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})?
+	// r:(b:Binary {…}/u:Unary {…}/Primary)? m:NaryMsg
+	// r:(b:Binary {…}/u:Unary {…}/Primary)?
 	{
 		pos1 := pos
-		// (b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})?
+		// (b:Binary {…}/u:Unary {…}/Primary)?
 		{
 			pos3 := pos
-			// (b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})
-			// b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…}
+			// (b:Binary {…}/u:Unary {…}/Primary)
+			// b:Binary {…}/u:Unary {…}/Primary
 			{
 				pos8 := pos
 				// action
@@ -10454,50 +10276,31 @@ func _NaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 				goto ok5
 			fail11:
 				pos = pos8
-				// action
-				// p:Primary
-				{
-					pos14 := pos
-					// Primary
-					if !_fail(parser, _PrimaryFail, errPos, failure, &pos) {
-						goto fail13
-					}
-					labels[2] = parser.text[pos14:pos]
+				// Primary
+				if !_fail(parser, _PrimaryFail, errPos, failure, &pos) {
+					goto fail13
 				}
 				goto ok5
 			fail13:
 				pos = pos8
-				// action
-				// n:ModName
-				{
-					pos16 := pos
-					// ModName
-					if !_fail(parser, _ModNameFail, errPos, failure, &pos) {
-						goto fail15
-					}
-					labels[3] = parser.text[pos16:pos]
-				}
-				goto ok5
-			fail15:
-				pos = pos8
 				goto fail4
 			ok5:
 			}
-			goto ok17
+			goto ok14
 		fail4:
 			pos = pos3
-		ok17:
+		ok14:
 		}
-		labels[4] = parser.text[pos1:pos]
+		labels[2] = parser.text[pos1:pos]
 	}
 	// m:NaryMsg
 	{
-		pos18 := pos
+		pos15 := pos
 		// NaryMsg
 		if !_fail(parser, _NaryMsgFail, errPos, failure, &pos) {
 			goto fail
 		}
-		labels[5] = parser.text[pos18:pos]
+		labels[3] = parser.text[pos15:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -10507,14 +10310,12 @@ fail:
 }
 
 func _NaryAction(parser *_Parser, start int) (int, *Call) {
-	var labels [6]string
+	var labels [4]string
 	use(labels)
 	var label0 Call
 	var label1 Call
-	var label2 Expr
-	var label3 Ident
-	var label4 *Node
-	var label5 Msg
+	var label2 *Expr
+	var label3 Msg
 	dp := parser.deltaPos[start][_Nary]
 	if dp < 0 {
 		return -1, nil
@@ -10530,19 +10331,19 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 	// action
 	{
 		start0 := pos
-		// r:(b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})? m:NaryMsg
-		// r:(b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})?
+		// r:(b:Binary {…}/u:Unary {…}/Primary)? m:NaryMsg
+		// r:(b:Binary {…}/u:Unary {…}/Primary)?
 		{
 			pos2 := pos
-			// (b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})?
+			// (b:Binary {…}/u:Unary {…}/Primary)?
 			{
 				pos4 := pos
-				label4 = new(Node)
-				// (b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…})
-				// b:Binary {…}/u:Unary {…}/p:Primary {…}/n:ModName {…}
+				label2 = new(Expr)
+				// (b:Binary {…}/u:Unary {…}/Primary)
+				// b:Binary {…}/u:Unary {…}/Primary
 				{
 					pos9 := pos
-					var node8 Node
+					var node8 Expr
 					// action
 					{
 						start11 := pos
@@ -10558,15 +10359,15 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 							}
 							labels[0] = parser.text[pos12:pos]
 						}
-						*label4 = func(
-							start, end int, b Call) Node {
-							return Node(b)
+						*label2 = func(
+							start, end int, b Call) Expr {
+							return Expr(b)
 						}(
 							start11, pos, label0)
 					}
 					goto ok6
 				fail10:
-					*label4 = node8
+					*label2 = node8
 					pos = pos9
 					// action
 					{
@@ -10583,93 +10384,54 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 							}
 							labels[1] = parser.text[pos15:pos]
 						}
-						*label4 = func(
-							start, end int, b Call, u Call) Node {
-							return Node(u)
+						*label2 = func(
+							start, end int, b Call, u Call) Expr {
+							return Expr(u)
 						}(
 							start14, pos, label0, label1)
 					}
 					goto ok6
 				fail13:
-					*label4 = node8
+					*label2 = node8
 					pos = pos9
-					// action
-					{
-						start17 := pos
-						// p:Primary
-						{
-							pos18 := pos
-							// Primary
-							if p, n := _PrimaryAction(parser, pos); n == nil {
-								goto fail16
-							} else {
-								label2 = *n
-								pos = p
-							}
-							labels[2] = parser.text[pos18:pos]
-						}
-						*label4 = func(
-							start, end int, b Call, p Expr, u Call) Node {
-							return Node(p)
-						}(
-							start17, pos, label0, label2, label1)
+					// Primary
+					if p, n := _PrimaryAction(parser, pos); n == nil {
+						goto fail16
+					} else {
+						*label2 = *n
+						pos = p
 					}
 					goto ok6
 				fail16:
-					*label4 = node8
-					pos = pos9
-					// action
-					{
-						start20 := pos
-						// n:ModName
-						{
-							pos21 := pos
-							// ModName
-							if p, n := _ModNameAction(parser, pos); n == nil {
-								goto fail19
-							} else {
-								label3 = *n
-								pos = p
-							}
-							labels[3] = parser.text[pos21:pos]
-						}
-						*label4 = func(
-							start, end int, b Call, n Ident, p Expr, u Call) Node {
-							return Node(n)
-						}(
-							start20, pos, label0, label3, label2, label1)
-					}
-					goto ok6
-				fail19:
-					*label4 = node8
+					*label2 = node8
 					pos = pos9
 					goto fail5
 				ok6:
 				}
-				goto ok22
+				goto ok17
 			fail5:
-				label4 = nil
+				label2 = nil
 				pos = pos4
-			ok22:
+			ok17:
 			}
-			labels[4] = parser.text[pos2:pos]
+			labels[2] = parser.text[pos2:pos]
 		}
 		// m:NaryMsg
 		{
-			pos23 := pos
+			pos18 := pos
 			// NaryMsg
 			if p, n := _NaryMsgAction(parser, pos); n == nil {
 				goto fail
 			} else {
-				label5 = *n
+				label3 = *n
 				pos = p
 			}
-			labels[5] = parser.text[pos23:pos]
+			labels[3] = parser.text[pos18:pos]
 		}
 		node = func(
-			start, end int, b Call, m Msg, n Ident, p Expr, r *Node, u Call) Call {
+			start, end int, b Call, m Msg, r *Expr, u Call) Call {
 			s := m.start
-			var recv Node
+			var recv Expr
 			if r != nil {
 				s, _ = (*r).loc()
 				recv = *r
@@ -10680,7 +10442,7 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 				Msgs:     []Msg{m},
 			}
 		}(
-			start0, pos, label0, label5, label3, label2, label4, label1)
+			start0, pos, label0, label3, label2, label1)
 	}
 	parser.act[key] = node
 	return pos, &node
