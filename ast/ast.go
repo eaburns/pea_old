@@ -165,10 +165,7 @@ func (n *Ret) loc() (int, int) {
 
 // An Assign is an assignment statement.
 type Assign struct {
-	// Vars are the target of assignment.
-	// After type checking, these refer to the defining Param,
-	// either a local variable or Fun/Block parameter.
-	Vars []*Var // types may be nil before successful Check()
+	Vars []Var // types may be nil
 	Val  Expr
 }
 

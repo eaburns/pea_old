@@ -329,7 +329,7 @@ Lhs <- id:(
 			if t0 != nil {
 				e = t0.end
 			}
-			return &Var{
+			return Var{
 				location: location{i0.start, e},
 				Name: i0.Text,
 				Type: t0,
@@ -341,14 +341,14 @@ Lhs <- id:(
 			if t1 != nil {
 				e = t1.end
 			}
-			return &Var{
+			return Var{
 				location: location{i1.start, e},
 				Name: i1.Text,
 				Type: t1,
 			}
 		}
 	)* {
-	return []*Var(append([]*Var{id}, is...))
+	return []Var(append([]Var{id}, is...))
 }
 
 Expr <- Call / Primary

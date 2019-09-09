@@ -8282,7 +8282,7 @@ fail:
 func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 	var labels [2]string
 	use(labels)
-	var label0 []*Var
+	var label0 []Var
 	var label1 Expr
 	dp := parser.deltaPos[start][_Assign]
 	if dp < 0 {
@@ -8336,7 +8336,7 @@ func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 			labels[1] = parser.text[pos3:pos]
 		}
 		node = func(
-			start, end int, l []*Var, r Expr) Stmt {
+			start, end int, l []Var, r Expr) Stmt {
 			return Stmt(&Assign{Vars: l, Val: r})
 		}(
 			start0, pos, label0, label1)
@@ -8559,15 +8559,15 @@ fail:
 	return -1, failure
 }
 
-func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
+func _LhsAction(parser *_Parser, start int) (int, *[]Var) {
 	var labels [6]string
 	use(labels)
 	var label0 Ident
 	var label1 *TypeName
-	var label2 *Var
+	var label2 Var
 	var label3 Ident
 	var label4 *TypeName
-	var label5 []*Var
+	var label5 []Var
 	dp := parser.deltaPos[start][_Lhs]
 	if dp < 0 {
 		return -1, nil
@@ -8575,10 +8575,10 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
 	key := _key{start: start, rule: _Lhs}
 	n := parser.act[key]
 	if n != nil {
-		n := n.([]*Var)
+		n := n.([]Var)
 		return start + int(dp-1), &n
 	}
-	var node []*Var
+	var node []Var
 	pos := start
 	// action
 	{
@@ -8627,12 +8627,12 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
 					labels[1] = parser.text[pos6:pos]
 				}
 				label2 = func(
-					start, end int, i0 Ident, t0 *TypeName) *Var {
+					start, end int, i0 Ident, t0 *TypeName) Var {
 					e := i0.end
 					if t0 != nil {
 						e = t0.end
 					}
-					return &Var{
+					return Var{
 						location: location{i0.start, e},
 						Name:     i0.Text,
 						Type:     t0,
@@ -8648,7 +8648,7 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
 			// (_ "," i1:Ident t1:TypeName? {…})*
 			for {
 				pos13 := pos
-				var node14 *Var
+				var node14 Var
 				// (_ "," i1:Ident t1:TypeName? {…})
 				// action
 				{
@@ -8700,12 +8700,12 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
 						labels[4] = parser.text[pos19:pos]
 					}
 					node14 = func(
-						start, end int, i0 Ident, i1 Ident, id *Var, t0 *TypeName, t1 *TypeName) *Var {
+						start, end int, i0 Ident, i1 Ident, id Var, t0 *TypeName, t1 *TypeName) Var {
 						e := i1.end
 						if t1 != nil {
 							e = t1.end
 						}
-						return &Var{
+						return Var{
 							location: location{i1.start, e},
 							Name:     i1.Text,
 							Type:     t1,
@@ -8722,8 +8722,8 @@ func _LhsAction(parser *_Parser, start int) (int, *[]*Var) {
 			labels[5] = parser.text[pos11:pos]
 		}
 		node = func(
-			start, end int, i0 Ident, i1 Ident, id *Var, is []*Var, t0 *TypeName, t1 *TypeName) []*Var {
-			return []*Var(append([]*Var{id}, is...))
+			start, end int, i0 Ident, i1 Ident, id Var, is []Var, t0 *TypeName, t1 *TypeName) []Var {
+			return []Var(append([]Var{id}, is...))
 		}(
 			start0, pos, label0, label3, label2, label5, label1, label4)
 	}
