@@ -380,8 +380,8 @@ Unary <- r:(
 	return Call(c)
 }
 
-UnaryMsg <- i:Ident {
-	return Msg{location: i.location, Sel: i.Text}
+UnaryMsg <- mod:ModName? i:Ident {
+	return Msg{location: i.location, Mod: mod, Sel: i.Text}
 }
 
 Binary <- r:(
@@ -398,13 +398,14 @@ Binary <- r:(
 }
 
 BinMsg <-
-	n:Op a:(
+	mod:ModName? n:Op a:(
 		b:Binary { return Expr(b) } /
 		u:Unary { return Expr(u) } /
 		Primary
 	) {
 	return Msg{
 		location: location{n.start, loc1(parser, end)},
+		Mod: mod,
 		Sel: n.Text,
 		Args: []Expr{a},
 	}
@@ -429,7 +430,7 @@ Nary <- r:(
 	}
 }
 
-NaryMsg <- as:(
+NaryMsg <- mod:ModName? as:(
 	n:IdentC v:(
 		b:Binary { return Expr(b) } /
 		u:Unary { return Expr(u) } /
@@ -444,6 +445,7 @@ NaryMsg <- as:(
 	}
 	return Msg{
 		location: location{as[0].name.start, loc1(parser, end)},
+		Mod: mod,
 		Sel: sel,
 		Args: es,
 	}

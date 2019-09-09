@@ -196,6 +196,7 @@ func (Call) isExpr() {}
 // A Msg is a message, sent to a value.
 type Msg struct {
 	location
+	Mod  *Ident
 	Sel  string
 	Args []Expr
 }
