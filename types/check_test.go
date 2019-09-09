@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pretty"
 )
 
 func TestImportError(t *testing.T) {
@@ -476,9 +477,10 @@ func TestTypeInstMemo(t *testing.T) {
 	// The test setup expects src to have two alias types, Test0 and Test1.
 	// The expectation is that Test0.Alias.Type==Test1.Alias.Type.
 	tests := []struct {
-		name  string
-		src   string
-		trace bool
+		name    string
+		src     string
+		imports [][2]string
+		trace   bool
 	}{
 		{
 			name: "basic types",
@@ -535,6 +537,28 @@ func TestTypeInstMemo(t *testing.T) {
 				type (K, V) Map {}
 			`,
 		},
+		{
+			name: "imported type",
+			src: `
+				import "bar"
+				import "foo"
+				type Test0 := #bar IntStringMap.
+				type Test1 := #foo IntStringMap.
+			`,
+			imports: [][2]string{
+				{"foo", `
+					import "map"
+					Type IntStringMap := (Int, String) #map Map.
+				`},
+				{"bar", `
+					import "map"
+					Type IntStringMap := (Int, String) #map Map.
+				`},
+				{"map", `
+					Type (K, V) Map {}
+				`},
+			},
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -544,7 +568,7 @@ func TestTypeInstMemo(t *testing.T) {
 				t.Fatalf("failed to parse source: %s", err)
 			}
 			cfg := Config{
-				Importer: testImporter(nil),
+				Importer: testImporter(test.imports),
 				Trace:    test.trace,
 			}
 			mod, errs := Check(p.Mod(), cfg)
@@ -566,6 +590,9 @@ func TestTypeInstMemo(t *testing.T) {
 				t.Fatalf("test type is not an alias")
 			}
 			if testType0.Alias.Type != testType1.Alias.Type {
+				t.Logf("Test0=%s\nTest1=%s",
+					pretty.String(testType0.Alias.Type),
+					pretty.String(testType1.Alias.Type))
 				t.Errorf("Test0=%p, Test1=%p",
 					testType0.Alias.Type, testType1.Alias.Type)
 			}
