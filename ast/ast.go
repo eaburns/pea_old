@@ -188,7 +188,7 @@ type Call struct {
 	Msgs []Msg
 }
 
-func (Call) isExpr() {}
+func (*Call) isExpr() {}
 
 // A Msg is a message, sent to a value.
 type Msg struct {
@@ -206,7 +206,7 @@ type Ctor struct {
 	Args []Expr
 }
 
-func (Ctor) isExpr() {}
+func (*Ctor) isExpr() {}
 
 // A Block is a block literal.
 type Block struct {
@@ -215,7 +215,7 @@ type Block struct {
 	Stmts []Stmt
 }
 
-func (Block) isExpr() {}
+func (*Block) isExpr() {}
 
 // An Ident is a variable name as an expression.
 type Ident struct {
@@ -223,7 +223,7 @@ type Ident struct {
 	Text string
 }
 
-func (Ident) isExpr() {}
+func (*Ident) isExpr() {}
 
 // An Int is an integer literal.
 type Int struct {
@@ -231,7 +231,7 @@ type Int struct {
 	Text string
 }
 
-func (Int) isExpr() {}
+func (*Int) isExpr() {}
 
 // A Float is a floating point literal.
 type Float struct {
@@ -239,7 +239,7 @@ type Float struct {
 	Text string
 }
 
-func (Float) isExpr() {}
+func (*Float) isExpr() {}
 
 // A Rune is a rune literal.
 type Rune struct {
@@ -248,7 +248,7 @@ type Rune struct {
 	Rune rune
 }
 
-func (Rune) isExpr() {}
+func (*Rune) isExpr() {}
 
 // A String is a string literal.
 type String struct {
@@ -257,4 +257,4 @@ type String struct {
 	Data string
 }
 
-func (String) isExpr() {}
+func (*String) isExpr() {}

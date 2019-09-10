@@ -367,19 +367,25 @@ Unary <- r:Primary? ms:UnaryMsg+ {
 		s, _ = (*r).loc()
 		recv = *r
 	}
-	c := Call{
+	c := &Call{
 		location: location{s, ms[0].end},
 		Recv: recv,
 		Msgs: []Msg{ms[0]},
 	}
 	for _, m := range ms[1:] {
-		c = Call{
+		c = &Call{
 			location: location{s, m.end},
 			Recv: c,
 			Msgs: []Msg{m},
 		}
 	}
-	return Call(c)
+	// TODO: fix the (*Call)(c) workaround for a Peggy bug.
+	// Ideally we would just
+	// 	return (*Call)(c)
+	// However, there is a bugy in Peggy where it detects the type as
+	// (*Call) instead of just *Call, and it gives a type mismatch error.
+	if true { return (*Call)(c) }
+	return &Call{}
 }
 
 UnaryMsg <- mod:ModName? i:Ident {
@@ -388,7 +394,7 @@ UnaryMsg <- mod:ModName? i:Ident {
 
 Binary <- r:( u:Unary { return Expr(u) } / Primary ) m:BinMsg {
 	s, _ := r.loc()
-	return Call{
+	return &Call{
 		location: location{s, loc1(parser, end)},
 		Recv: r,
 		Msgs: []Msg{m},
@@ -420,7 +426,7 @@ Nary <- r:(
 		s, _ = (*r).loc()
 		recv = *r
 	}
-	return Call{
+	return &Call{
 		location: location{s, loc1(parser, end)},
 		Recv: recv,
 		Msgs: []Msg{m},
@@ -449,21 +455,21 @@ NaryMsg <- mod:ModName? as:(
 }
 
 Primary <-
-	i:Ident { return Expr(i) }/
+	i:Ident { return Expr(&i) }/
 	Float /
 	Int /
 	Rune /
-	s:String { return Expr(s) } /
+	s:String { return Expr(&s) } /
 	Ctor /
 	Block /
 	_ "(" e:Expr _ ")" { return Expr(e) }
 
 Ctor <- _ ( "{" t:TypeName _"|" as:(
 	Struct /
-	id:Ident { return []arg{{name: id, val: id}} } /
+	id:Ident { return []arg{{name: id, val: &id}} } /
 	a:Ary? { if a != nil { return *a }; return []arg{} }
 ) _"}" ) {
-	ctor := Ctor{location: loc(parser, start, end), Type: t}
+	ctor := &Ctor{location: loc(parser, start, end), Type: t}
 	for _, a := range as {
 		ctor.Sel += a.name.Text
 		if a.val != nil {
@@ -488,7 +494,7 @@ Block <- _ b:( "[" (
 		return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
 	} )+ _ "|" )? ss:Stmts
 ) _ "]"  {
-	return Block{
+	return &Block{
 		location: loc(parser, start, end),
 		Parms: ps,
 		Stmts: ss,
@@ -498,11 +504,11 @@ Block <- _ b:( "[" (
 # Tokens
 
 Int "integer" <- _ tok:( text:( [+\-]? [0-9]+ ) {
-	return Int{location: loc(parser, start, end), Text: text}
+	return &Int{location: loc(parser, start, end), Text: text}
 } ) { return Expr(tok) }
 
 Float "floating point" <- _ tok:( text:( [+\-]? [0-9]+ "." [0-9]+ ( [eE] [+\-]? [0-9]+ )? ) {
-	return Float{location: loc(parser, start, end), Text: text}
+	return &Float{location: loc(parser, start, end), Text: text}
 } ) { return Expr(tok) }
 
 Rune "rune" <- _ tok:( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
@@ -510,15 +516,23 @@ Rune "rune" <- _ tok:( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
 	if w != len(data) {
 		panic("impossible")
 	}
-	return Rune{location: loc(parser, start, end), Text: text, Rune: r}
+	return &Rune{location: loc(parser, start, end), Text: text, Rune: r}
 } ) { return Expr(tok) }
 
 String "string" <-
 	_ tok0:( text0:( ["] data0:( !"\n" ( Esc / "\\\"" / [^"] ) )* ["] ) {
-		return String{location: loc(parser, start, end), Text: text0, Data: data0}
+		return String{
+			location: loc(parser, start, end),
+			Text: text0,
+			Data: data0,
+		}
 	} ) { return String(tok0) } /
 	_ tok1:( text1: ( [`] data1:( "\\`" / [^`] )* [`] ) {
-		return String{location: loc(parser, start, end), Text: text1, Data: data1}
+		return String{
+			location: loc(parser, start, end),
+			Text: text1,
+			Data: data1,
+		}
 	} ) { return String(tok1) }
 
 Esc <-

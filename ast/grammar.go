@@ -9075,7 +9075,7 @@ fail:
 func _CallAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [3]string
 	use(labels)
-	var label0 Call
+	var label0 *Call
 	var label1 Msg
 	var label2 []Msg
 	dp := parser.deltaPos[start][_Call]
@@ -9101,7 +9101,7 @@ func _CallAction(parser *_Parser, start int) (int, *Expr) {
 			// Nary/Binary/Unary
 			{
 				pos6 := pos
-				var node5 Call
+				var node5 *Call
 				// Nary
 				if p, n := _NaryAction(parser, pos); n == nil {
 					goto fail7
@@ -9210,7 +9210,7 @@ func _CallAction(parser *_Parser, start int) (int, *Expr) {
 						labels[1] = parser.text[pos17:pos]
 					}
 					node13 = func(
-						start, end int, c Call, m Msg) Msg {
+						start, end int, c *Call, m Msg) Msg {
 						return Msg(m)
 					}(
 						start15, pos, label0, label1)
@@ -9224,7 +9224,7 @@ func _CallAction(parser *_Parser, start int) (int, *Expr) {
 			labels[2] = parser.text[pos10:pos]
 		}
 		node = func(
-			start, end int, c Call, cs []Msg, m Msg) Expr {
+			start, end int, c *Call, cs []Msg, m Msg) Expr {
 			c.Msgs = append(c.Msgs, cs...)
 			return Expr(c)
 		}(
@@ -9347,7 +9347,7 @@ fail:
 	return -1, failure
 }
 
-func _UnaryAction(parser *_Parser, start int) (int, *Call) {
+func _UnaryAction(parser *_Parser, start int) (int, **Call) {
 	var labels [2]string
 	use(labels)
 	var label0 *Expr
@@ -9359,10 +9359,10 @@ func _UnaryAction(parser *_Parser, start int) (int, *Call) {
 	key := _key{start: start, rule: _Unary}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Call)
+		n := n.(*Call)
 		return start + int(dp-1), &n
 	}
-	var node Call
+	var node *Call
 	pos := start
 	// action
 	{
@@ -9424,26 +9424,34 @@ func _UnaryAction(parser *_Parser, start int) (int, *Call) {
 			labels[1] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, ms []Msg, r *Expr) Call {
+			start, end int, ms []Msg, r *Expr) *Call {
 			s := ms[0].start
 			var recv Expr
 			if r != nil {
 				s, _ = (*r).loc()
 				recv = *r
 			}
-			c := Call{
+			c := &Call{
 				location: location{s, ms[0].end},
 				Recv:     recv,
 				Msgs:     []Msg{ms[0]},
 			}
 			for _, m := range ms[1:] {
-				c = Call{
+				c = &Call{
 					location: location{s, m.end},
 					Recv:     c,
 					Msgs:     []Msg{m},
 				}
 			}
-			return Call(c)
+			// TODO: fix the (*Call)(c) workaround for a Peggy bug.
+			// Ideally we would just
+			// 	return (*Call)(c)
+			// However, there is a bugy in Peggy where it detects the type as
+			// (*Call) instead of just *Call, and it gives a type mismatch error.
+			if true {
+				return (*Call)(c)
+			}
+			return &Call{}
 		}(
 			start0, pos, label1, label0)
 	}
@@ -9724,10 +9732,10 @@ fail:
 	return -1, failure
 }
 
-func _BinaryAction(parser *_Parser, start int) (int, *Call) {
+func _BinaryAction(parser *_Parser, start int) (int, **Call) {
 	var labels [3]string
 	use(labels)
-	var label0 Call
+	var label0 *Call
 	var label1 Expr
 	var label2 Msg
 	dp := parser.deltaPos[start][_Binary]
@@ -9737,10 +9745,10 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 	key := _key{start: start, rule: _Binary}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Call)
+		n := n.(*Call)
 		return start + int(dp-1), &n
 	}
-	var node Call
+	var node *Call
 	pos := start
 	// action
 	{
@@ -9770,7 +9778,7 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 						labels[0] = parser.text[pos9:pos]
 					}
 					label1 = func(
-						start, end int, u Call) Expr {
+						start, end int, u *Call) Expr {
 						return Expr(u)
 					}(
 						start8, pos, label0)
@@ -9808,9 +9816,9 @@ func _BinaryAction(parser *_Parser, start int) (int, *Call) {
 			labels[2] = parser.text[pos11:pos]
 		}
 		node = func(
-			start, end int, m Msg, r Expr, u Call) Call {
+			start, end int, m Msg, r Expr, u *Call) *Call {
 			s, _ := r.loc()
-			return Call{
+			return &Call{
 				location: location{s, loc1(parser, end)},
 				Recv:     r,
 				Msgs:     []Msg{m},
@@ -10006,8 +10014,8 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 	use(labels)
 	var label0 *Ident
 	var label1 Ident
-	var label2 Call
-	var label3 Call
+	var label2 *Call
+	var label3 *Call
 	var label4 Expr
 	dp := parser.deltaPos[start][_BinMsg]
 	if dp < 0 {
@@ -10083,7 +10091,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[2] = parser.text[pos15:pos]
 					}
 					label4 = func(
-						start, end int, b Call, mod *Ident, n Ident) Expr {
+						start, end int, b *Call, mod *Ident, n Ident) Expr {
 						return Expr(b)
 					}(
 						start14, pos, label2, label0, label1)
@@ -10108,7 +10116,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[3] = parser.text[pos18:pos]
 					}
 					label4 = func(
-						start, end int, b Call, mod *Ident, n Ident, u Call) Expr {
+						start, end int, b *Call, mod *Ident, n Ident, u *Call) Expr {
 						return Expr(u)
 					}(
 						start17, pos, label2, label0, label1, label3)
@@ -10134,7 +10142,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 			labels[4] = parser.text[pos8:pos]
 		}
 		node = func(
-			start, end int, a Expr, b Call, mod *Ident, n Ident, u Call) Msg {
+			start, end int, a Expr, b *Call, mod *Ident, n Ident, u *Call) Msg {
 			return Msg{
 				location: location{n.start, loc1(parser, end)},
 				Mod:      mod,
@@ -10309,11 +10317,11 @@ fail:
 	return -1, failure
 }
 
-func _NaryAction(parser *_Parser, start int) (int, *Call) {
+func _NaryAction(parser *_Parser, start int) (int, **Call) {
 	var labels [4]string
 	use(labels)
-	var label0 Call
-	var label1 Call
+	var label0 *Call
+	var label1 *Call
 	var label2 *Expr
 	var label3 Msg
 	dp := parser.deltaPos[start][_Nary]
@@ -10323,10 +10331,10 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 	key := _key{start: start, rule: _Nary}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Call)
+		n := n.(*Call)
 		return start + int(dp-1), &n
 	}
-	var node Call
+	var node *Call
 	pos := start
 	// action
 	{
@@ -10360,7 +10368,7 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 							labels[0] = parser.text[pos12:pos]
 						}
 						*label2 = func(
-							start, end int, b Call) Expr {
+							start, end int, b *Call) Expr {
 							return Expr(b)
 						}(
 							start11, pos, label0)
@@ -10385,7 +10393,7 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 							labels[1] = parser.text[pos15:pos]
 						}
 						*label2 = func(
-							start, end int, b Call, u Call) Expr {
+							start, end int, b *Call, u *Call) Expr {
 							return Expr(u)
 						}(
 							start14, pos, label0, label1)
@@ -10429,14 +10437,14 @@ func _NaryAction(parser *_Parser, start int) (int, *Call) {
 			labels[3] = parser.text[pos18:pos]
 		}
 		node = func(
-			start, end int, b Call, m Msg, r *Expr, u Call) Call {
+			start, end int, b *Call, m Msg, r *Expr, u *Call) *Call {
 			s := m.start
 			var recv Expr
 			if r != nil {
 				s, _ = (*r).loc()
 				recv = *r
 			}
-			return Call{
+			return &Call{
 				location: location{s, loc1(parser, end)},
 				Recv:     recv,
 				Msgs:     []Msg{m},
@@ -10778,8 +10786,8 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 	use(labels)
 	var label0 *Ident
 	var label1 Ident
-	var label2 Call
-	var label3 Call
+	var label2 *Call
+	var label3 *Call
 	var label4 Expr
 	var label5 []arg
 	dp := parser.deltaPos[start][_NaryMsg]
@@ -10867,7 +10875,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[2] = parser.text[pos22:pos]
 								}
 								label4 = func(
-									start, end int, b Call, mod *Ident, n Ident) Expr {
+									start, end int, b *Call, mod *Ident, n Ident) Expr {
 									return Expr(b)
 								}(
 									start21, pos, label2, label0, label1)
@@ -10892,7 +10900,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[3] = parser.text[pos25:pos]
 								}
 								label4 = func(
-									start, end int, b Call, mod *Ident, n Ident, u Call) Expr {
+									start, end int, b *Call, mod *Ident, n Ident, u *Call) Expr {
 									return Expr(u)
 								}(
 									start24, pos, label2, label0, label1, label3)
@@ -10918,7 +10926,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[4] = parser.text[pos15:pos]
 					}
 					node10 = func(
-						start, end int, b Call, mod *Ident, n Ident, u Call, v Expr) arg {
+						start, end int, b *Call, mod *Ident, n Ident, u *Call, v Expr) arg {
 						return arg{n, v}
 					}(
 						start12, pos, label2, label0, label1, label3, label4)
@@ -10969,7 +10977,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[2] = parser.text[pos37:pos]
 								}
 								label4 = func(
-									start, end int, b Call, mod *Ident, n Ident) Expr {
+									start, end int, b *Call, mod *Ident, n Ident) Expr {
 									return Expr(b)
 								}(
 									start36, pos, label2, label0, label1)
@@ -10994,7 +11002,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[3] = parser.text[pos40:pos]
 								}
 								label4 = func(
-									start, end int, b Call, mod *Ident, n Ident, u Call) Expr {
+									start, end int, b *Call, mod *Ident, n Ident, u *Call) Expr {
 									return Expr(u)
 								}(
 									start39, pos, label2, label0, label1, label3)
@@ -11020,7 +11028,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[4] = parser.text[pos30:pos]
 					}
 					node10 = func(
-						start, end int, b Call, mod *Ident, n Ident, u Call, v Expr) arg {
+						start, end int, b *Call, mod *Ident, n Ident, u *Call, v Expr) arg {
 						return arg{n, v}
 					}(
 						start27, pos, label2, label0, label1, label3, label4)
@@ -11034,7 +11042,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 			labels[5] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, as []arg, b Call, mod *Ident, n Ident, u Call, v Expr) Msg {
+			start, end int, as []arg, b *Call, mod *Ident, n Ident, u *Call, v Expr) Msg {
 			var sel string
 			var es []Expr
 			for _, a := range as {
@@ -11338,7 +11346,7 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 			}
 			node = func(
 				start, end int, i Ident) Expr {
-				return Expr(i)
+				return Expr(&i)
 			}(
 				start5, pos, label0)
 		}
@@ -11396,7 +11404,7 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 			}
 			node = func(
 				start, end int, i Ident, s String) Expr {
-				return Expr(s)
+				return Expr(&s)
 			}(
 				start11, pos, label0, label1)
 		}
@@ -11808,7 +11816,7 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 					}
 					label3 = func(
 						start, end int, id Ident, t TypeName) []arg {
-						return []arg{{name: id, val: id}}
+						return []arg{{name: id, val: &id}}
 					}(
 						start11, pos, label1, label0)
 				}
@@ -11867,7 +11875,7 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 		pos++
 		node = func(
 			start, end int, a *[]arg, as []arg, id Ident, t TypeName) Expr {
-			ctor := Ctor{location: loc(parser, start, end), Type: t}
+			ctor := &Ctor{location: loc(parser, start, end), Type: t}
 			for _, a := range as {
 				ctor.Sel += a.name.Text
 				if a.val != nil {
@@ -12841,7 +12849,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 	var label1 *TypeName
 	var label2 []Var
 	var label3 []Stmt
-	var label4 Block
+	var label4 *Block
 	dp := parser.deltaPos[start][_Block]
 	if dp < 0 {
 		return -1, nil
@@ -13033,8 +13041,8 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 				}
 				pos++
 				label4 = func(
-					start, end int, n Ident, ps []Var, ss []Stmt, t *TypeName) Block {
-					return Block{
+					start, end int, n Ident, ps []Var, ss []Stmt, t *TypeName) *Block {
+					return &Block{
 						location: loc(parser, start, end),
 						Parms:    ps,
 						Stmts:    ss,
@@ -13045,7 +13053,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 			labels[4] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, b Block, n Ident, ps []Var, ss []Stmt, t *TypeName) Expr {
+			start, end int, b *Block, n Ident, ps []Var, ss []Stmt, t *TypeName) Expr {
 			return Expr(b)
 		}(
 			start0, pos, label4, label0, label2, label3, label1)
@@ -13224,7 +13232,7 @@ func _IntAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [2]string
 	use(labels)
 	var label0 string
-	var label1 Int
+	var label1 *Int
 	dp := parser.deltaPos[start][_Int]
 	if dp < 0 {
 		return -1, nil
@@ -13311,15 +13319,15 @@ func _IntAction(parser *_Parser, start int) (int, *Expr) {
 					labels[0] = parser.text[pos4:pos]
 				}
 				label1 = func(
-					start, end int, text string) Int {
-					return Int{location: loc(parser, start, end), Text: text}
+					start, end int, text string) *Int {
+					return &Int{location: loc(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
 			labels[1] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, text string, tok Int) Expr {
+			start, end int, text string, tok *Int) Expr {
 			return Expr(tok)
 		}(
 			start0, pos, label0, label1)
@@ -13697,7 +13705,7 @@ func _FloatAction(parser *_Parser, start int) (int, *Expr) {
 	var labels [2]string
 	use(labels)
 	var label0 string
-	var label1 Float
+	var label1 *Float
 	dp := parser.deltaPos[start][_Float]
 	if dp < 0 {
 		return -1, nil
@@ -13889,15 +13897,15 @@ func _FloatAction(parser *_Parser, start int) (int, *Expr) {
 					labels[0] = parser.text[pos4:pos]
 				}
 				label1 = func(
-					start, end int, text string) Float {
-					return Float{location: loc(parser, start, end), Text: text}
+					start, end int, text string) *Float {
+					return &Float{location: loc(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
 			labels[1] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, text string, tok Float) Expr {
+			start, end int, text string, tok *Float) Expr {
 			return Expr(tok)
 		}(
 			start0, pos, label0, label1)
@@ -14157,7 +14165,7 @@ func _RuneAction(parser *_Parser, start int) (int, *Expr) {
 	use(labels)
 	var label0 string
 	var label1 string
-	var label2 Rune
+	var label2 *Rune
 	dp := parser.deltaPos[start][_Rune]
 	if dp < 0 {
 		return -1, nil
@@ -14276,19 +14284,19 @@ func _RuneAction(parser *_Parser, start int) (int, *Expr) {
 					labels[1] = parser.text[pos4:pos]
 				}
 				label2 = func(
-					start, end int, data string, text string) Rune {
+					start, end int, data string, text string) *Rune {
 					r, w := utf8.DecodeRuneInString(data)
 					if w != len(data) {
 						panic("impossible")
 					}
-					return Rune{location: loc(parser, start, end), Text: text, Rune: r}
+					return &Rune{location: loc(parser, start, end), Text: text, Rune: r}
 				}(
 					start3, pos, label0, label1)
 			}
 			labels[2] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, data string, text string, tok Rune) Expr {
+			start, end int, data string, text string, tok *Rune) Expr {
 			return Expr(tok)
 		}(
 			start0, pos, label0, label1, label2)
@@ -14901,7 +14909,11 @@ func _StringAction(parser *_Parser, start int) (int, *String) {
 					}
 					label2 = func(
 						start, end int, data0 string, text0 string) String {
-						return String{location: loc(parser, start, end), Text: text0, Data: data0}
+						return String{
+							location: loc(parser, start, end),
+							Text:     text0,
+							Data:     data0,
+						}
 					}(
 						start8, pos, label0, label1)
 				}
@@ -15008,7 +15020,11 @@ func _StringAction(parser *_Parser, start int) (int, *String) {
 					}
 					label5 = func(
 						start, end int, data0 string, data1 string, text0 string, text1 string, tok0 String) String {
-						return String{location: loc(parser, start, end), Text: text1, Data: data1}
+						return String{
+							location: loc(parser, start, end),
+							Text:     text1,
+							Data:     data1,
+						}
 					}(
 						start32, pos, label0, label3, label1, label4, label2)
 				}
