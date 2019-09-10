@@ -255,6 +255,55 @@ func TestRedefError(t *testing.T) {
 			},
 			err: "",
 		},
+		{
+			name: "type field",
+			src: `
+				type Test { a: Int a: Float }
+			`,
+			err: "field a redefined",
+		},
+		{
+			name: "type case",
+			src: `
+				type Test { a, a }
+			`,
+			err: "case a redefined",
+		},
+		{
+			name: "type case:",
+			src: `
+				type Test { a: Int, a: Float }
+			`,
+			err: "case a: redefined",
+		},
+		{
+			name: "type case not redefined with case:",
+			src: `
+				type Test { a, a: Float }
+			`,
+			err: "",
+		},
+		{
+			name: "type virt unary selector",
+			src: `
+				type Test { [foo] [foo] }
+			`,
+			err: "virtual method foo redefined",
+		},
+		{
+			name: "type virt binary selector",
+			src: `
+				type Test { [* Int] [* String] }
+			`,
+			err: "virtual method \\* redefined",
+		},
+		{
+			name: "type virt n-ary selector",
+			src: `
+				type Test { [foo: Int bar: Float] [foo: String bar: Rune] }
+			`,
+			err: "virtual method foo:bar: redefined",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

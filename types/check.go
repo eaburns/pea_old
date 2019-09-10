@@ -753,13 +753,80 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 		x.typeVar = &def.TParms[i]
 	}
 	def.Stmts, errs = gatherStmts(x, def.ast.Stmts)
-	// TODO: implement checkFun.
-	return errs
+	return append(errs, checkStmts(x, def.Stmts)...)
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("checkType(%s)", def.name())(&errs)
-	// TODO: implement checkType.
+	switch {
+	case def.Alias != nil:
+		errs = checkTypeName(x, def.Alias)
+	case def.Fields != nil:
+		errs = checkFields(x, def.Fields)
+	case def.Cases != nil:
+		errs = checkCases(x, def.Cases)
+	case def.Virts != nil:
+		errs = checkVirts(x, def.Virts)
+	}
+	return errs
+}
+
+func checkFields(x *scope, fields []Var) []checkError {
+	var errs []checkError
+	seen := make(map[string]*Var)
+	for i := range fields {
+		field := &fields[i]
+		if prev, ok := seen[field.Name]; ok {
+			err := x.err(field, "field %s redefined", field.Name)
+			note(err, "previous definition at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[field.Name] = field
+		}
+		errs = append(errs, checkTypeName(x, field.Type)...)
+	}
+	return errs
+}
+
+func checkCases(x *scope, cases []Var) []checkError {
+	var errs []checkError
+	seen := make(map[string]*Var)
+	for i := range cases {
+		cas := &cases[i]
+		if prev, ok := seen[cas.Name]; ok {
+			err := x.err(cas, "case %s redefined", cas.Name)
+			note(err, "previous definition at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[cas.Name] = cas
+		}
+		if cas.Type != nil {
+			errs = append(errs, checkTypeName(x, cas.Type)...)
+		}
+	}
+	return errs
+}
+
+func checkVirts(x *scope, virts []FunSig) []checkError {
+	var errs []checkError
+	seen := make(map[string]*FunSig)
+	for i := range virts {
+		virt := &virts[i]
+		if prev, ok := seen[virt.Sel]; ok {
+			err := x.err(virt, "virtual method %s redefined", virt.Sel)
+			note(err, "previous definition at %s", x.loc(prev))
+			errs = append(errs, *err)
+		} else {
+			seen[virt.Sel] = virt
+		}
+		for i := range virt.Parms {
+			parm := &virt.Parms[i]
+			errs = append(errs, checkTypeName(x, parm.Type)...)
+		}
+		if virt.Ret != nil {
+			errs = append(errs, checkTypeName(x, virt.Ret)...)
+		}
+	}
 	return errs
 }
 

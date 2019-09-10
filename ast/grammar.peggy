@@ -270,7 +270,7 @@ Case <-
 	id1:IdentC t:TypeName {
 		return Var{
 			location: id1.location,
-			Name: strings.TrimSuffix(id1.Text, ":"),
+			Name: id1.Text,
 			Type: &t,
 		}
 	}

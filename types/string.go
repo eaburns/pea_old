@@ -85,7 +85,7 @@ func (n Type) fullString() string {
 		if v.Type == nil {
 			continue
 		}
-		s.WriteString(": ")
+		s.WriteRune(' ')
 		buildTypeNameString(v.Type, &s)
 	}
 	for _, v := range n.Virts {

@@ -6656,7 +6656,7 @@ func _CaseAction(parser *_Parser, start int) (int, *Var) {
 				start, end int, id0 Ident, id1 Ident, t TypeName) Var {
 				return Var{
 					location: id1.location,
-					Name:     strings.TrimSuffix(id1.Text, ":"),
+					Name:     id1.Text,
 					Type:     &t,
 				}
 			}(
