@@ -1,6 +1,10 @@
 package types
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/eaburns/pea/ast"
+)
 
 type scope struct {
 	*state
@@ -11,6 +15,18 @@ type scope struct {
 	mod     *Mod
 	file    *file
 	typeVar *Var
+}
+
+type file struct {
+	ast     *ast.File
+	imports []imp
+	x       *scope
+}
+
+type imp struct {
+	path string
+	name string
+	defs []Def
 }
 
 func newUnivScope(x *state) *scope {
