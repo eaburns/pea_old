@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"math/big"
+	"strconv"
 
 	"github.com/eaburns/pea/ast"
 )
@@ -249,11 +251,8 @@ func (n *Ret) AST() ast.Node { return n.ast }
 
 // An Assign is an assignment statement.
 type Assign struct {
-	ast *ast.Assign
-	// Vars are the target of assignment.
-	// After type checking, these refer to the defining Param,
-	// either a local variable or Fun/Block parameter.
-	Vars []*Var // types may be nil before successful Check()
+	ast  *ast.Assign
+	Vars []Var
 	Val  Expr
 }
 
@@ -267,7 +266,7 @@ type Expr interface {
 // A Call is a method call or a cascade.
 type Call struct {
 	ast  *ast.Call
-	Recv Node // Expr, ModName (Ident beginning with '#'), or nil
+	Recv Expr // nil for function calls
 	Msgs []Msg
 }
 
@@ -276,11 +275,12 @@ func (n *Call) AST() ast.Node { return n.ast }
 // A Msg is a message, sent to a value.
 type Msg struct {
 	ast  *ast.Msg
+	Mod  string
 	Sel  string
 	Args []Expr
 }
 
-func (n *Msg) AST() ast.Node { return n.ast }
+func (n Msg) AST() ast.Node { return n.ast }
 
 // A Ctor type constructor literal.
 type Ctor struct {
@@ -311,34 +311,32 @@ func (n *Ident) AST() ast.Node { return n.ast }
 
 // An Int is an integer literal.
 type Int struct {
-	ast  *ast.Int
-	Text string
+	ast ast.Node // *ast.Int or *ast.Rune
+	Val *big.Int
 }
 
 func (n *Int) AST() ast.Node { return n.ast }
 
+func (n *Int) PrettyPrint() string {
+	if _, ok := n.ast.(*ast.Rune); ok {
+		return "Int{Val: " + strconv.QuoteRune(rune(n.Val.Int64())) + "}"
+	}
+	return "Int{Val: " + n.Val.String() + "}"
+}
+
 // A Float is a floating point literal.
 type Float struct {
-	ast  *ast.Float
-	Text string
+	ast *ast.Float
+	Val *big.Float
 }
 
-func (n *Float) AST() ast.Node { return n.ast }
-
-// A Rune is a rune literal.
-type Rune struct {
-	ast  *ast.Rune
-	Text string
-	Rune rune
-}
-
-func (n *Rune) AST() ast.Node { return n.ast }
+func (n *Float) AST() ast.Node       { return n.ast }
+func (n *Float) PrettyPrint() string { return "Int{Val: " + n.Val.String() + "}" }
 
 // A String is a string literal.
 type String struct {
 	ast  *ast.String
-	Text string
 	Data string
 }
 
-func (n *String) AST() ast.Node { return n.ast }
+func (n String) AST() ast.Node { return n.ast }
