@@ -15,6 +15,8 @@ type scope struct {
 	mod     *Mod
 	file    *file
 	typeVar *Var
+	fun     *Fun
+	local   *Assign
 }
 
 type file struct {
@@ -39,6 +41,17 @@ func newUnivScope(x *state) *scope {
 
 func (x *scope) new() *scope {
 	return &scope{state: x.state, up: x}
+}
+
+func (x *scope) function() *Fun {
+	switch {
+	case x == nil:
+		return nil
+	case x.fun != nil:
+		return x.fun
+	default:
+		return x.up.function()
+	}
 }
 
 func (x *scope) findImport(name string) *imp {

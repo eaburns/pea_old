@@ -18,6 +18,7 @@ type state struct {
 	insts     []Def
 	typeInsts map[interface{}]*Type
 
+	nextID int
 	indent string
 }
 
@@ -56,6 +57,11 @@ func setConfigDefaults(x *state) {
 	if _, ok := x.cfg.Importer.(*importer); !ok {
 		x.cfg.Importer = newImporter(x, x.astMod.Name, x.cfg.Importer)
 	}
+}
+
+func (x *state) newID() string {
+	x.nextID++
+	return fmt.Sprintf("$%d", x.nextID-1)
 }
 
 func (x *state) loc(n interface{}) ast.Loc {

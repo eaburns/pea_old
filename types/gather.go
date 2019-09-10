@@ -412,32 +412,81 @@ func makeArgsKey(args []TypeName) interface{} {
 func gatherStmts(x *scope, astStmts []ast.Stmt) (_ []Stmt, errs []checkError) {
 	var stmts []Stmt
 	for _, astStmt := range astStmts {
-		stmt, es := gatherStmt(x, astStmt)
+		ss, es := gatherStmt(x, astStmt)
 		errs = append(errs, es...)
-		stmts = append(stmts, stmt)
+		stmts = append(stmts, ss...)
 	}
 	return stmts, errs
 }
 
-func gatherStmt(x *scope, astStmt ast.Stmt) (_ Stmt, errs []checkError) {
+func gatherStmt(x *scope, astStmt ast.Stmt) (_ []Stmt, errs []checkError) {
 	switch astStmt := astStmt.(type) {
 	case *ast.Ret:
-		defer x.tr("gatherStmt(Ret)")(&errs)
-		val, es := gatherExpr(x, astStmt.Val)
-		errs = append(errs, es...)
-		return &Ret{ast: astStmt, Val: val}, errs
+		var ret *Ret
+		ret, errs = gatherRet(x, astStmt)
+		return []Stmt{ret}, errs
 	case *ast.Assign:
-		defer x.tr("gatherStmt(Assign)")(&errs)
-		vars, es := gatherVars(x, astStmt.Vars)
-		errs = append(errs, es...)
-		val, es := gatherExpr(x, astStmt.Val)
-		errs = append(errs, es...)
-		return &Assign{ast: astStmt, Vars: vars, Val: val}, errs
+		return gatherAssign(x, astStmt)
 	case ast.Expr:
-		return gatherExpr(x, astStmt)
+		var expr Expr
+		expr, errs = gatherExpr(x, astStmt)
+		return []Stmt{expr}, errs
 	default:
 		panic(fmt.Sprintf("impossible type: %T", astStmt))
 	}
+}
+
+func gatherRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
+	defer x.tr("gatherRet(…)")(&errs)
+	var expr Expr
+	expr, errs = gatherExpr(x, astRet.Val)
+	return &Ret{ast: astRet, Val: expr}, errs
+}
+
+func gatherAssign(x *scope, astAss *ast.Assign) (_ []Stmt, errs []checkError) {
+	defer x.tr("gatherAssign(…)")(&errs)
+	vars, es := gatherVars(x, astAss.Vars)
+	errs = append(errs, es...)
+	val, es := gatherExpr(x, astAss.Val)
+	errs = append(errs, es...)
+
+	if len(vars) == 1 {
+		return []Stmt{&Assign{ast: astAss, Var: vars[0], Val: val}}, errs
+	}
+
+	var stmts []Stmt
+	call, ok := val.(*Call)
+	if !ok || len(call.Msgs) != len(vars) {
+		got := 1
+		if ok {
+			got = len(call.Msgs)
+		}
+		err := x.err(astAss, "assignment count mismatch: got %d, want %d", got, len(vars))
+		errs = append(errs, *err)
+		stmts = append(stmts, &Assign{ast: astAss, Var: vars[0], Val: val})
+		for _, v := range vars[1:] {
+			stmts = append(stmts, &Assign{ast: astAss, Var: v, Val: nil})
+		}
+		return stmts, errs
+	}
+
+	tmp := x.newID()
+	stmts = append(stmts, &Assign{
+		Var: Var{Name: tmp},
+		Val: call.Recv,
+	})
+	for i := range vars {
+		stmts = append(stmts, &Assign{
+			ast: astAss,
+			Var: vars[i],
+			Val: &Call{
+				ast:  call.ast,
+				Recv: &Ident{Text: tmp},
+				Msgs: []Msg{call.Msgs[i]},
+			},
+		})
+	}
+	return stmts, errs
 }
 
 func gatherExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {

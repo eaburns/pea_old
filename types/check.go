@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pretty"
 )
 
 // Config are configuration parameters for the type checker.
@@ -219,9 +220,9 @@ func checkVal(x *scope, def *Val) (errs []checkError) {
 	}
 	var es []checkError
 	if def.Init, es = gatherStmts(x, def.ast.Init); len(es) > 0 {
-		return append(errs, es...)
+		errs = append(errs, es...)
 	}
-	errs = append(errs, checkStmts(x, def.Init)...)
+	errs = append(errs, checkStmts(x, def.Type, def.Init)...)
 	return errs
 }
 
@@ -237,8 +238,11 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 		x = x.new()
 		x.typeVar = &def.TParms[i]
 	}
+
+	x = x.new()
+	x.fun = def
 	def.Stmts, errs = gatherStmts(x, def.ast.Stmts)
-	return append(errs, checkStmts(x, def.Stmts)...)
+	return append(errs, checkStmts(x, nil, def.Stmts)...)
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
@@ -321,7 +325,72 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	return errs
 }
 
-func checkStmts(x *scope, stmts []Stmt) []checkError {
-	// TODO: implement checkStmts.
-	return nil
+// want is the type of the result of the last statement in the case that it's an expression.
+func checkStmts(x *scope, want *TypeName, stmts []Stmt) []checkError {
+	var errs []checkError
+	for i, stmt := range stmts {
+		switch stmt := stmt.(type) {
+		case *Ret:
+			errs = append(errs, checkRet(x, stmt)...)
+		case *Assign:
+			errs = append(errs, checkAssign(x, stmt)...)
+			x = x.new()
+			x.local = stmt
+		case Expr:
+			var es []checkError
+			if i == len(stmts)-1 {
+				stmts[i], es = checkExprWant(x, stmt, want)
+			} else {
+				stmts[i], es = checkExpr(x, stmt, nil)
+			}
+			errs = append(errs, es...)
+		default:
+			panic(fmt.Sprintf("impossible type: %T", stmt))
+		}
+	}
+	return errs
+}
+
+func checkRet(x *scope, ret *Ret) (errs []checkError) {
+	defer x.tr("checkRet(…)")(&errs)
+	fun := x.function()
+	if fun == nil {
+		err := x.err(ret, "return outside of a function or method")
+		ret.Val, errs = checkExpr(x, ret.Val, nil)
+		return append(errs, *err)
+	}
+	ret.Val, errs = checkExprWant(x, ret.Val, fun.Sig.Ret)
+	return errs
+}
+
+func checkAssign(x *scope, ass *Assign) (errs []checkError) {
+	defer x.tr("checkAssign(%s)", ass.Var.Name)(&errs)
+	if ass.Var.Type != nil {
+		errs = checkTypeName(x, ass.Var.Type)
+	}
+	x.log(pretty.String(ass))
+	if ass.Val == nil {
+		// ass.Val can be nil in the case of assignment count mismatch.
+		// We still want to check the type above, but then we are done.
+		return errs
+	}
+	var es []checkError
+	if ass.Var.Type == nil {
+		ass.Val, es = checkExpr(x, ass.Val, nil)
+	} else {
+		ass.Val, es = checkExprWant(x, ass.Val, ass.Var.Type)
+	}
+	return append(errs, es...)
+}
+
+func checkExprWant(x *scope, expr Expr, want *TypeName) (Expr, []checkError) {
+	expr, errs := checkExpr(x, expr, want)
+	// TODO: implement checkExprWant
+	return expr, errs
+}
+
+func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("checkExpr(infer=%s), want")(&errs)
+	// TODO: implement checkExpr
+	return expr, nil
 }

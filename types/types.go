@@ -251,9 +251,9 @@ func (n *Ret) AST() ast.Node { return n.ast }
 
 // An Assign is an assignment statement.
 type Assign struct {
-	ast  *ast.Assign
-	Vars []Var
-	Val  Expr
+	ast *ast.Assign
+	Var Var
+	Val Expr
 }
 
 func (n *Assign) AST() ast.Node { return n.ast }

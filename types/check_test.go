@@ -397,6 +397,91 @@ func TestAlias(t *testing.T) {
 	}
 }
 
+func TestRetError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				func [one ^Int | ^1]
+			`,
+			err: "",
+		},
+		{
+			name: "return outside function",
+			src: `
+				val x := [^5]
+			`,
+			err: "return outside of a function or method",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestAssignError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				Val x := [
+					a Int := 1.
+					b := 1.
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "count mismatch: no call",
+			src: `
+				Val x := [
+					a, b, c := 1.
+				]
+			`,
+			err: "assignment count mismatch: got 1, want 3",
+		},
+		{
+			name: "count mismatch: too few messages",
+			src: `
+				Val x := [
+					a, b, c := 1 neg, neg
+				]
+			`,
+			err: "assignment count mismatch: got 2, want 3",
+		},
+		{
+			name: "count mismatch: too many messages",
+			src: `
+				Val x := [
+					a, b, c := 1 neg, neg, neg, neg
+				]
+			`,
+			err: "assignment count mismatch: got 4, want 3",
+		},
+		{
+			name: "bad type name",
+			src: `
+				Val x := [
+					a Unknown := 1
+				]
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "bad type name and argument count mismatch",
+			src: `
+				Val x := [
+					a, b Unknown := 1
+				]
+			`,
+			err: "assignment count mismatch: got 1, want 2(.|\n)*type Unknown not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 // TestTypeInstSub tests type instantiation substitution.
 func TestTypeInstSub(t *testing.T) {
 	// The test setup expects src to have an alias type named Test.
