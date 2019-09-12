@@ -261,6 +261,8 @@ func (n *Assign) AST() ast.Node { return n.ast }
 // An Expr is an expression
 type Expr interface {
 	Node
+
+	check(*scope, *TypeName) (Expr, []checkError)
 }
 
 // A Call is a method call or a cascade.
@@ -311,11 +313,13 @@ func (n *Ident) AST() ast.Node { return n.ast }
 
 // An Int is an integer literal.
 type Int struct {
-	ast ast.Node // *ast.Int or *ast.Rune
+	ast ast.Expr // *ast.Int, *ast.Float, or *ast.Rune
 	Val *big.Int
+	typ *Type
 }
 
 func (n *Int) AST() ast.Node { return n.ast }
+func (n *Int) Type() *Type   { return n.typ }
 
 func (n *Int) PrettyPrint() string {
 	if _, ok := n.ast.(*ast.Rune); ok {
@@ -326,17 +330,21 @@ func (n *Int) PrettyPrint() string {
 
 // A Float is a floating point literal.
 type Float struct {
-	ast *ast.Float
+	ast ast.Expr // *ast.Float or *ast.Int
 	Val *big.Float
+	typ *Type
 }
 
 func (n *Float) AST() ast.Node       { return n.ast }
 func (n *Float) PrettyPrint() string { return "Int{Val: " + n.Val.String() + "}" }
+func (n *Float) Type() *Type         { return n.typ }
 
 // A String is a string literal.
 type String struct {
 	ast  *ast.String
 	Data string
+	typ  *Type
 }
 
 func (n String) AST() ast.Node { return n.ast }
+func (n String) Type() *Type   { return n.typ }

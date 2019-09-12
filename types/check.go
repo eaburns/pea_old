@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"math/big"
 	"path"
 
 	"github.com/eaburns/pea/ast"
@@ -390,7 +391,156 @@ func checkExprWant(x *scope, expr Expr, want *TypeName) (Expr, []checkError) {
 }
 
 func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("checkExpr(infer=%s), want")(&errs)
-	// TODO: implement checkExpr
+	return expr.check(x, infer)
+}
+
+func (expr *Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Call.check(infer=%s)", infer)(&errs)
+	// TODO: implement Call.check.
 	return expr, nil
+}
+
+func (expr *Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Ctor.check(infer=%s)", infer)(&errs)
+	// TODO: implement Ctor.check.
+	return expr, nil
+}
+
+func (expr *Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Block.check(infer=%s)", infer)(&errs)
+	// TODO: implement Block.check.
+	return expr, nil
+}
+
+func (expr *Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Ident.check(infer=%s)", infer)(&errs)
+	// TODO: implement Ident.check.
+	return expr, nil
+}
+
+func (expr *Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Int.check(infer=%s)", infer)(&errs)
+	switch {
+	case isFloat(x, infer):
+		var f big.Float
+		f.Int(expr.Val)
+		return checkExpr(x, &Float{ast: expr.ast, Val: &f}, infer)
+	case isInt(x, infer):
+		expr.typ = infer.Type
+	default:
+		expr.typ = builtInType(x, "Int")
+	}
+	signed, bits := disectInt(x, expr.typ)
+	x.log("signed=%v, bits=%v", signed, bits)
+	if !signed && expr.Val.Cmp(&big.Int{}) < 0 {
+		err := x.err(expr, "type %s cannot represent %s: negative unsigned",
+			expr.typ, expr.Val)
+		return expr, append(errs, *err)
+	}
+	min := big.NewInt(-(1 << uint(bits)))
+	x.log("val=%v, val.BitLen()=%d, min=%v",
+		expr.Val, expr.Val.BitLen(), min)
+	if expr.Val.BitLen() > bits && (!signed || expr.Val.Cmp(min) != 0) {
+		err := x.err(expr, "type %s cannot represent %s: overflow",
+			expr.typ, expr.Val)
+		return expr, append(errs, *err)
+	}
+	return expr, errs
+}
+
+func disectInt(x *scope, typ *Type) (bool, int) {
+	switch typ {
+	case builtInType(x, "Int8"):
+		return true, 7
+	case builtInType(x, "Int16"):
+		return true, 15
+	case builtInType(x, "Int32"):
+		return true, 31
+	case builtInType(x, "Int64"):
+		return true, 63
+	case builtInType(x, "UInt8"):
+		return false, 8
+	case builtInType(x, "UInt16"):
+		return false, 16
+	case builtInType(x, "UInt32"):
+		return false, 32
+	case builtInType(x, "UInt64"):
+		return false, 64
+	default:
+		panic(fmt.Sprintf("impossible int type: %T", typ))
+	}
+}
+
+func (expr *Float) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("Float.check(infer=%s)", infer)(&errs)
+	switch {
+	case isInt(x, infer):
+		var i big.Int
+		if _, acc := expr.Val.Int(&i); acc != big.Exact {
+			err := x.err(expr, "type %s cannot represent %s: truncation", infer, expr.Val.String())
+			return expr, append(errs, *err)
+		}
+		return checkExpr(x, &Int{ast: expr.ast, Val: &i}, infer)
+	case isFloat(x, infer):
+		expr.typ = infer.Type
+	default:
+		expr.typ = builtInType(x, "Float")
+	}
+	return expr, nil
+}
+
+func isInt(x *scope, name *TypeName) bool {
+	switch {
+	case name == nil || name.Type == nil:
+		return false
+	default:
+		return false
+	case name.Type == builtInType(x, "Int8") ||
+		name.Type == builtInType(x, "Int16") ||
+		name.Type == builtInType(x, "Int32") ||
+		name.Type == builtInType(x, "Int64") ||
+		name.Type == builtInType(x, "UInt8") ||
+		name.Type == builtInType(x, "UInt16") ||
+		name.Type == builtInType(x, "UInt32") ||
+		name.Type == builtInType(x, "UInt64"):
+		return true
+	}
+}
+
+func isFloat(x *scope, name *TypeName) bool {
+	switch {
+	case name == nil || name.Type == nil:
+		return false
+	default:
+		return false
+	case name.Type == builtInType(x, "Float32") ||
+		name.Type == builtInType(x, "Float64"):
+		return true
+	}
+}
+
+func (expr *String) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
+	defer x.tr("String.check(infer=%s)", infer)(&errs)
+	expr.typ = builtInType(x, "String")
+	return expr, nil
+}
+
+func builtInType(x *scope, name string, args ...TypeName) *Type {
+	// Silence tracing for looking up built-in types.
+	savedTrace := x.cfg.Trace
+	x.cfg.Trace = false
+	defer func() { x.cfg.Trace = savedTrace }()
+
+	for x.univ == nil {
+		x = x.up
+	}
+	typ := findType(len(args), name, x.univ)
+	if typ == nil {
+		panic(fmt.Sprintf("built-in type (%d)%s not found", len(args), name))
+	}
+	typ, errs := instType(x, typ, args)
+	if len(errs) > 0 {
+		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
+	}
+	return typ
 }

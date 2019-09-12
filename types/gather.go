@@ -306,14 +306,14 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 		return name, errs
 	}
 
-	name.Type, es = instType(x, typ, name)
+	name.Type, es = instType(x, typ, name.Args)
 	errs = append(errs, es...)
 	return name, errs
 }
 
-func instType(x *scope, typ *Type, name *TypeName) (res *Type, errs []checkError) {
+func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkError) {
 	defer func() { x.log("inst=%p", res) }()
-	defer x.tr("instType(%s, %v)", typ.name(), name)(&errs)
+	defer x.tr("instType(%s, %v)", typ.name(), args)(&errs)
 
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
@@ -323,14 +323,13 @@ func instType(x *scope, typ *Type, name *TypeName) (res *Type, errs []checkError
 		return nil, append(errs, es...)
 	}
 
-	args := name.Args
 	if typ.Alias != nil {
 		if typ.Alias.Type == nil {
 			return nil, errs // error reported elsewhere
 		}
 		sub := make(map[*Var]TypeName)
 		for i := range typ.Sig.Parms {
-			sub[&typ.Sig.Parms[i]] = name.Args[i]
+			sub[&typ.Sig.Parms[i]] = args[i]
 		}
 		args = subTypeNames(x, make(map[*Type]bool), sub, typ.Alias.Args)
 		typ = typ.Alias.Type

@@ -482,6 +482,219 @@ func TestAssignError(t *testing.T) {
 	}
 }
 
+func TestIntLit(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "bad type",
+			src:  "val a Unknown := [5]",
+			err:  "type Unknown not found",
+		},
+		{
+			name: "ok",
+			src: `
+				val a := [3]
+				val b Int := [3]
+				val c Int8 := [3]
+				val d Int16 := [3]
+				val e Int32 := [3]
+				val f Int64 := [3]
+				val g := [-3]
+				val h Int := [-3]
+				val i Int8 := [-3]
+				val j Int16 := [-3]
+				val k Int32 := [-3]
+				val l Int64 := [-3]
+				val m UInt := [3]
+				val n UInt8 := [3]
+				val o UInt16 := [3]
+				val p UInt32 := [3]
+				val q UInt64 := [3]
+				val r Float := [3]
+				val s Float32 := [3]
+				val t Float64 := [3]
+			`,
+			err: "",
+		},
+		{
+			name: "Int8 ok",
+			src: `
+				val a Int8 := [-128]
+				val b Int8 := [-127]
+				val c Int8 := [-1]
+				val d Int8 := [0]
+				val e Int8 := [-1]
+				val f Int8 := [126]
+				val g Int8 := [127]
+			`,
+			err: "",
+		},
+		overflowTest("Int8", "-1000"),
+		overflowTest("Int8", "-129"),
+		overflowTest("Int8", "128"),
+		overflowTest("Int8", "1000"),
+		{
+			name: "Int16 ok",
+			src: `
+				val a Int16 := [-32768]
+				val b Int16 := [-32767]
+				val c Int16 := [-1]
+				val d Int16 := [0]
+				val e Int16 := [-1]
+				val f Int16 := [32766]
+				val g Int16 := [32767]
+			`,
+			err: "",
+		},
+		overflowTest("Int16", "-10000000"),
+		overflowTest("Int16", "-32769"),
+		overflowTest("Int16", "32768"),
+		overflowTest("Int16", "10000000"),
+		{
+			name: "Int32 ok",
+			src: `
+				val a Int32 := [-2147483648]
+				val b Int32 := [-2147483647]
+				val c Int32 := [-1]
+				val d Int32 := [0]
+				val e Int32 := [-1]
+				val f Int32 := [2147483646]
+				val g Int32 := [2147483647]
+			`,
+			err: "",
+		},
+		overflowTest("Int32", "-100000000000000"),
+		overflowTest("Int32", "-2147483649"),
+		overflowTest("Int32", "2147483648"),
+		overflowTest("Int32", "100000000000000"),
+		{
+			name: "Int64 ok",
+			src: `
+				val a Int64 := [-9223372036854775808]
+				val b Int64 := [-9223372036854775807]
+				val c Int64 := [-1]
+				val d Int64 := [0]
+				val e Int64 := [-1]
+				val f Int64 := [9223372036854775806]
+				val g Int64 := [9223372036854775807]
+			`,
+			err: "",
+		},
+		overflowTest("Int64", "-100000000000000000000000"),
+		overflowTest("Int64", "-9223372036854775809"),
+		overflowTest("Int64", "9223372036854775808"),
+		overflowTest("Int64", "100000000000000000000000"),
+		{
+			name: "UInt8 ok",
+			src: `
+				val a UInt8 := [0]
+				val b UInt8 := [1]
+				val c UInt8 := [100]
+				val d UInt8 := [254]
+				val e UInt8 := [255]
+			`,
+			err: "",
+		},
+		{
+			name: "UInt8 negative",
+			src:  "val x UInt8 := [-1]",
+			err:  "UInt8 cannot represent -1: negative unsigned",
+		},
+		overflowTest("UInt8", "256"),
+		overflowTest("UInt8", "10000"),
+		{
+			name: "UInt16 ok",
+			src: `
+				val a UInt16 := [0]
+				val b UInt16 := [1]
+				val c UInt16 := [100]
+				val d UInt16 := [65534]
+				val e UInt16 := [65535]
+			`,
+			err: "",
+		},
+		{
+			name: "UInt16 negative",
+			src:  "val x UInt16 := [-1]",
+			err:  "UInt16 cannot represent -1: negative unsigned",
+		},
+		overflowTest("UInt16", "65536"),
+		overflowTest("UInt16", "1000000"),
+		{
+			name: "UInt32 ok",
+			src: `
+				val a UInt32 := [0]
+				val b UInt32 := [1]
+				val c UInt32 := [100]
+				val d UInt32 := [4294967294]
+				val e UInt32 := [4294967295]
+			`,
+			err: "",
+		},
+		{
+			name: "UInt32 negative",
+			src:  "val x UInt32 := [-1]",
+			err:  "UInt32 cannot represent -1: negative unsigned",
+		},
+		overflowTest("UInt32", "4294967296"),
+		overflowTest("UInt32", "10000000000000"),
+		{
+			name: "UInt64 ok",
+			src: `
+				val a UInt64 := [0]
+				val b UInt64 := [1]
+				val c UInt64 := [100]
+				val d UInt64 := [18446744073709551615]
+				val e UInt64 := [18446744073709551615]
+			`,
+			err: "",
+		},
+		{
+			name: "UInt64 negative",
+			src:  "val x UInt64 := [-1]",
+			err:  "UInt64 cannot represent -1: negative unsigned",
+		},
+		overflowTest("UInt64", "18446744073709551616"),
+		overflowTest("UInt64", "100000000000000000000000"),
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func overflowTest(typ, val string) errorTest {
+	return errorTest{
+		name: fmt.Sprintf("%s %s overflow", typ, val),
+		src:  fmt.Sprintf("val x %s := [%s]", typ, val),
+		err:  fmt.Sprintf("%s cannot represent %s: overflow", typ, val),
+	}
+}
+
+func TestFloatLit(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				val w := [3.1415]
+				val x Float := [3.1415]
+				val y Float32 := [3.1415]
+				val z Float64 := [3.1415]
+				val a Int := [3.00000]
+				val b Int := [-3.00000]
+				val c UInt := [3.00000]
+			`,
+			err: "",
+		},
+		{
+			name: "bad truncation",
+			src:  "val x Int := [3.14]",
+			err:  "Int cannot represent 3.14: truncation",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 // TestTypeInstSub tests type instantiation substitution.
 func TestTypeInstSub(t *testing.T) {
 	// The test setup expects src to have an alias type named Test.
