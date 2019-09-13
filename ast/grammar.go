@@ -1208,12 +1208,19 @@ func _ValAction(parser *_Parser, start int) (int, *Def) {
 				pos++
 				label4 = func(
 					start, end int, id Ident, key string, stmts []Stmt, typ *TypeName) *Val {
+					varEnd := id.end
+					if typ != nil {
+						varEnd = typ.end
+					}
 					return &Val{
 						location: loc(parser, start, end),
 						priv:     key == "val",
-						Ident:    id.Text,
-						Type:     typ,
-						Init:     stmts,
+						Var: Var{
+							location: location{start: id.start, end: varEnd},
+							Name:     id.Text,
+							Type:     typ,
+						},
+						Init: stmts,
 					}
 				}(
 					start3, pos, label1, label0, label3, label2)
@@ -8337,7 +8344,7 @@ func _AssignAction(parser *_Parser, start int) (int, *Stmt) {
 		}
 		node = func(
 			start, end int, l []Var, r Expr) Stmt {
-			return Stmt(&Assign{Vars: l, Val: r})
+			return Stmt(&Assign{Vars: l, Expr: r})
 		}(
 			start0, pos, label0, label1)
 	}

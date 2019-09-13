@@ -82,7 +82,7 @@ func aliasCycle(x *scope, typ *Type) *checkError {
 
 func gatherVal(x *scope, def *Val) (errs []checkError) {
 	defer x.tr("gatherVal(%s)", def.name())(&errs)
-	def.Type, errs = gatherTypeName(x, def.ast.Type)
+	def.Var.Type, errs = gatherTypeName(x, def.ast.Var.Type)
 	return errs
 }
 
@@ -98,6 +98,11 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	sig, es := gatherFunSig(x, &def.ast.Sig)
 	errs = append(errs, es...)
 	def.Sig = *sig
+
+	for i := range def.Sig.Parms {
+		def.Sig.Parms[i].Parm = def
+		def.Sig.Parms[i].Index = i
+	}
 
 	return errs
 }
@@ -229,6 +234,10 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	case def.ast.Fields != nil:
 		def.Fields, es = gatherVars(x, def.ast.Fields)
 		errs = append(errs, es...)
+		for i := range def.Fields {
+			def.Fields[i].Field = def
+			def.Fields[i].Index = i
+		}
 	case def.ast.Cases != nil:
 		def.Cases, es = gatherVars(x, def.ast.Cases)
 		errs = append(errs, es...)
@@ -446,15 +455,19 @@ func gatherAssign(x *scope, astAss *ast.Assign) (_ []Stmt, errs []checkError) {
 	defer x.tr("gatherAssign(…)")(&errs)
 	vars, es := gatherVars(x, astAss.Vars)
 	errs = append(errs, es...)
-	val, es := gatherExpr(x, astAss.Val)
+	expr, es := gatherExpr(x, astAss.Expr)
 	errs = append(errs, es...)
 
 	if len(vars) == 1 {
-		return []Stmt{&Assign{ast: astAss, Var: vars[0], Val: val}}, errs
+		return []Stmt{&Assign{
+			ast:  astAss,
+			Var:  &vars[0],
+			Expr: expr,
+		}}, errs
 	}
 
 	var stmts []Stmt
-	call, ok := val.(*Call)
+	call, ok := expr.(*Call)
 	if !ok || len(call.Msgs) != len(vars) {
 		got := 1
 		if ok {
@@ -462,23 +475,31 @@ func gatherAssign(x *scope, astAss *ast.Assign) (_ []Stmt, errs []checkError) {
 		}
 		err := x.err(astAss, "assignment count mismatch: got %d, want %d", got, len(vars))
 		errs = append(errs, *err)
-		stmts = append(stmts, &Assign{ast: astAss, Var: vars[0], Val: val})
-		for _, v := range vars[1:] {
-			stmts = append(stmts, &Assign{ast: astAss, Var: v, Val: nil})
+		stmts = append(stmts, &Assign{
+			ast:  astAss,
+			Var:  &vars[0],
+			Expr: expr,
+		})
+		for i := 1; i < len(vars); i++ {
+			stmts = append(stmts, &Assign{
+				ast:  astAss,
+				Var:  &vars[i],
+				Expr: nil,
+			})
 		}
 		return stmts, errs
 	}
 
 	tmp := x.newID()
 	stmts = append(stmts, &Assign{
-		Var: Var{Name: tmp},
-		Val: call.Recv,
+		Var:  &Var{Name: tmp},
+		Expr: call.Recv,
 	})
 	for i := range vars {
 		stmts = append(stmts, &Assign{
 			ast: astAss,
-			Var: vars[i],
-			Val: &Call{
+			Var: &vars[i],
+			Expr: &Call{
 				ast:  call.ast,
 				Recv: &Ident{Text: tmp},
 				Msgs: []Msg{call.Msgs[i]},

@@ -476,9 +476,190 @@ func TestAssignError(t *testing.T) {
 			`,
 			err: "assignment count mismatch: got 1, want 2(.|\n)*type Unknown not found",
 		},
+		{
+			name: "bad assign to a function",
+			src: `
+				Val x := [
+					foo := 1
+				]
+				func [foo | ]
+			`,
+			err: "assignment to a function",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
+	}
+}
+
+func TestAssignToExistingVariable(t *testing.T) {
+	const src = `
+		val x := [
+			a := 5.
+			a := 6.
+		]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	val := mod.Defs[0].(*Val)
+	if len(val.Locals) != 1 {
+		t.Fatalf("got %d locals, expected 1: %v", len(val.Locals), val.Locals)
+	}
+	l := val.Locals[0]
+	assign0 := val.Init[0].(*Assign)
+	assign1 := val.Init[1].(*Assign)
+	if assign0.Var != l {
+		t.Errorf("assign0.Van (%p) != val.Locals[0] (%p)", assign0.Var, l)
+	}
+	if assign1.Var != l {
+		t.Errorf("assign1.Van (%p) != val.Locals[0] (%p)", assign1.Var, l)
+	}
+}
+
+func TestIdentError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "not found",
+			src: `
+				val x := [
+					unknown.
+				]
+			`,
+			err: "unknown not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestIdentLookup(t *testing.T) {
+	const src = `
+		meth Test [ foo: ignore0 Int bar: parmVar Int |
+			ignore1 := 5. 	// 0
+			localVar := 5. 	// 1
+			localVar.		// 2
+			parmVar.		// 3
+			modVar.		// 4
+			fieldVar.		// 5
+			unaryFun.	// 6
+		]
+		val modVar := [5]
+		type Test { ignore: Float fieldVar: Int }
+		func [ unaryFun |]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+	stmts := mod.Defs[0].(*Fun).Stmts
+
+	// Statement 2 is a local variable from Statement 1.
+	localVar := stmts[1].(*Assign).Var
+	if stmts[2].(*Ident).Var != localVar {
+		t.Errorf("localVar (%p) != %p", stmts[2].(*Ident).Var, localVar)
+	}
+	if stmts[2].(*Ident).Var.Index != 1 {
+		t.Errorf("localVar.Index (%d) != 1", stmts[2].(*Ident).Var.Index)
+	}
+
+	// Statement 3 is a parameter access.
+	fun := mod.Defs[0].(*Fun)
+	parmVar := &fun.Sig.Parms[1]
+	if stmts[3].(*Ident).Var != parmVar {
+		t.Errorf("parmVar (%p) != %p", stmts[3].(*Ident).Var, parmVar)
+	}
+	if stmts[3].(*Ident).Var.Parm != fun {
+		t.Errorf("fun (%p) != %p", stmts[3].(*Ident).Var.Parm, fun)
+	}
+	if stmts[3].(*Ident).Var.Index != 1 {
+		t.Errorf("parmVar .Index(%d) != 1", stmts[3].(*Ident).Var.Index)
+	}
+
+	// Statement 3 is a module-level value access.
+	val := mod.Defs[1].(*Val)
+	modVar := &val.Var
+	if stmts[4].(*Ident).Var != modVar {
+		t.Errorf("modVar (%p) != %p", stmts[4].(*Ident).Var, modVar)
+	}
+	if stmts[4].(*Ident).Var.Val != val {
+		t.Errorf("val (%p) != %p", stmts[4].(*Ident).Var.Val, val)
+	}
+
+	// Statement 4 is a struct field access.
+	typ := mod.Defs[2].(*Type)
+	fieldVar := &typ.Fields[1]
+	if stmts[5].(*Ident).Var != fieldVar {
+		t.Errorf("fieldVar (%p) != %p", stmts[5].(*Ident).Var, fieldVar)
+	}
+	if stmts[5].(*Ident).Var.Field != typ {
+		t.Errorf("type (%p) != %p", stmts[5].(*Ident).Var.Field, typ)
+	}
+	if stmts[5].(*Ident).Var.Index != 1 {
+		t.Errorf("field (%d) != 1", stmts[5].(*Ident).Var.Index)
+	}
+
+	// Statement 5 is a uary function call.
+	if _, ok := stmts[6].(*Call); !ok {
+		t.Errorf("unaryFun is not a call")
+	}
+}
+
+func TestAssignToField(t *testing.T) {
+	const src = `
+		meth Point [ foo |
+			x := 5.
+			y := 6.
+		]
+		type Point { x: Int y: Int }
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	fun := mod.Defs[0].(*Fun)
+	typ := mod.Defs[1].(*Type)
+	if len(fun.Locals) != 0 {
+		t.Fatalf("got %d locals, expected 0: %v", len(fun.Locals), fun.Locals)
+	}
+	assign0 := fun.Stmts[0].(*Assign)
+	assign1 := fun.Stmts[1].(*Assign)
+
+	if assign0.Var != &typ.Fields[0] {
+		t.Errorf("assign0.Var (%p) != &typ.Fields[0] (%p)",
+			assign0.Var, &typ.Fields[0])
+	}
+	if assign0.Var.Field != typ {
+		t.Errorf("assign0.Var.Field (%p) != Point (%p)", assign0.Var.Field, typ)
+	}
+	if assign0.Var.Index != 0 {
+		t.Errorf("assign0.Var.Index (%d) != 0", assign0.Var.Index)
+	}
+	if assign1.Var != &typ.Fields[1] {
+		t.Errorf("assign1.Var (%p) != &typ.Fields[1] (%p)",
+			assign0.Var, &typ.Fields[1])
+	}
+	if assign1.Var.Field != typ {
+		t.Errorf("assign1.Var.Field (%p) != Point (%p)", assign1.Var.Field, typ)
+	}
+	if assign1.Var.Index != 1 {
+		t.Errorf("assign1.Var.Index (%d) != 1", assign1.Var.Index)
 	}
 }
 

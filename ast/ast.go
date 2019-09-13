@@ -49,10 +49,9 @@ func (n location) loc() (int, int) { return n.start, n.end }
 // A Val is a module-level value definition.
 type Val struct {
 	location
-	priv  bool
-	Ident string
-	Type  *TypeName
-	Init  []Stmt
+	priv bool
+	Var  Var
+	Init []Stmt
 }
 
 func (n *Val) Priv() bool { return n.priv }
@@ -166,12 +165,12 @@ func (n *Ret) loc() (int, int) {
 // An Assign is an assignment statement.
 type Assign struct {
 	Vars []Var // types may be nil
-	Val  Expr
+	Expr Expr
 }
 
 func (n *Assign) loc() (int, int) {
 	start, _ := n.Vars[0].loc()
-	_, end := n.Val.loc()
+	_, end := n.Expr.loc()
 	return start, end
 }
 

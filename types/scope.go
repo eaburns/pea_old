@@ -15,7 +15,9 @@ type scope struct {
 	mod     *Mod
 	file    *file
 	typeVar *Var
+	val     *Val
 	fun     *Fun
+	parm    *Var
 	local   *Assign
 }
 
@@ -105,6 +107,61 @@ func findType(arity int, name string, defs []Def) *Type {
 	for _, d := range defs {
 		if t, ok := d.(*Type); ok && t.Sig.Arity == arity && t.Sig.Name == name {
 			return t
+		}
+	}
+	return nil
+}
+
+// locals returns the local variable slice of the inner-most Block, Fun, or Val.
+func (x *scope) locals() *[]*Var {
+	switch {
+	case x.fun != nil:
+		return &x.fun.Locals
+	case x.val != nil:
+		return &x.val.Locals
+	default:
+		// TODO: implement locals() for Block.
+		return x.up.locals()
+	}
+}
+
+// findIdent returns a *Var or *Fun.
+// In the *Fun case, the identifier is a unary function in the current module.
+func (x *scope) findIdent(name string) interface{} {
+	switch {
+	case x == nil:
+		return nil
+	case x.parm != nil && x.parm.Name == name:
+		return x.parm
+	case x.local != nil && x.local.Var.Name == name:
+		return x.local.Var
+	case x.fun != nil && x.fun.Recv != nil && x.fun.Recv.Type != nil:
+		for i := range x.fun.Recv.Type.Fields {
+			if f := &x.fun.Recv.Type.Fields[i]; f.Name == name {
+				return f
+			}
+		}
+	case x.mod != nil:
+		if fun := findIdent(name, x.mod.Defs); fun != nil {
+			return fun
+		}
+	case x.univ != nil:
+		if fun := findIdent(name, x.univ); fun != nil {
+			return fun
+		}
+	}
+	return x.up.findIdent(name)
+}
+
+// findIdent returns either a *Fun that is a unary function or
+// a *Var that is a module-level Val.Var.
+func findIdent(name string, defs []Def) interface{} {
+	for _, def := range defs {
+		if fun, ok := def.(*Fun); ok && fun.Recv == nil && fun.Sig.Sel == name {
+			return fun
+		}
+		if val, ok := def.(*Val); ok && val.Var.Name == name {
+			return &val.Var
 		}
 	}
 	return nil

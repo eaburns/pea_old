@@ -58,11 +58,18 @@ Import <- _ i:( "import" path:String {
 Def <- Val / Fun / Meth / Type
 
 Val <- _ v:(key:("val" / "Val") id:Ident typ:TypeName? _":=" _"[" stmts:Stmts _"]" {
+	varEnd := id.end
+	if typ != nil {
+		varEnd = typ.end
+	}
 	return &Val{
 		location: loc(parser, start, end),
 		priv: key == "val",
-		Ident: id.Text,
-		Type: typ,
+		Var: Var{
+			location: location{start: id.start, end: varEnd},
+			Name: id.Text,
+			Type: typ,
+		},
 		Init: stmts,
 	}
 }) { return Def(v) }
@@ -321,7 +328,7 @@ Return <- _ r:(
 	return Stmt(r)
 }
 
-Assign <- l:Lhs _ ":=" r:Expr { return Stmt(&Assign{Vars: l, Val: r}) }
+Assign <- l:Lhs _ ":=" r:Expr { return Stmt(&Assign{Vars: l, Expr: r}) }
 
 Lhs <- id:(
 		i0:Ident t0:TypeName? {

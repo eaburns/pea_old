@@ -13,10 +13,10 @@ func (n Val) String() string {
 	} else {
 		s.WriteString("Val ")
 	}
-	s.WriteString(n.Name)
-	if n.Type != nil {
+	s.WriteString(n.Var.Name)
+	if n.Var.Type != nil {
 		s.WriteRune(' ')
-		buildTypeNameString(n.Type, &s)
+		buildTypeNameString(n.Var.Type, &s)
 	}
 	return s.String()
 }

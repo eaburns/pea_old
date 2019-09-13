@@ -97,7 +97,7 @@ func checkDups(x *scope, defs []Def) (errs []checkError) {
 		var id string
 		switch def := def.(type) {
 		case *Val:
-			id = def.Name
+			id = def.Var.Name
 		case *Type:
 			id = def.Sig.Name
 			tid := fmt.Sprintf("(%d)%s", def.Sig.Arity, def.Sig.Name)
@@ -134,11 +134,16 @@ func checkDups(x *scope, defs []Def) (errs []checkError) {
 func makeDef(astDef ast.Def) Def {
 	switch astDef := astDef.(type) {
 	case *ast.Val:
-		return &Val{
+		val := &Val{
 			ast:  astDef,
 			priv: astDef.Priv(),
-			Name: astDef.Ident,
+			Var: Var{
+				ast:  &astDef.Var,
+				Name: astDef.Var.Name,
+			},
 		}
+		val.Var.Val = val
+		return val
 	case *ast.Fun:
 		return &Fun{
 			ast:  astDef,
@@ -216,14 +221,18 @@ func checkDef(x *scope, def Def) []checkError {
 
 func checkVal(x *scope, def *Val) (errs []checkError) {
 	defer x.tr("checkVal(%s)", def.name())(&errs)
-	if def.Type != nil {
-		errs = append(errs, checkTypeName(x, def.Type)...)
+	if def.Var.Type != nil {
+		errs = append(errs, checkTypeName(x, def.Var.Type)...)
 	}
+
+	x = x.new()
+	x.val = def
+
 	var es []checkError
 	if def.Init, es = gatherStmts(x, def.ast.Init); len(es) > 0 {
 		errs = append(errs, es...)
 	}
-	errs = append(errs, checkStmts(x, def.Type, def.Init)...)
+	errs = append(errs, checkStmts(x, def.Var.Type, def.Init)...)
 	return errs
 }
 
@@ -242,6 +251,13 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 
 	x = x.new()
 	x.fun = def
+	for i := range def.Sig.Parms {
+		parm := &def.Sig.Parms[i]
+		errs = append(errs, checkTypeName(x, parm.Type)...)
+		x = x.new()
+		x.parm = parm
+	}
+
 	def.Stmts, errs = gatherStmts(x, def.ast.Stmts)
 	return append(errs, checkStmts(x, nil, def.Stmts)...)
 }
@@ -334,9 +350,9 @@ func checkStmts(x *scope, want *TypeName, stmts []Stmt) []checkError {
 		case *Ret:
 			errs = append(errs, checkRet(x, stmt)...)
 		case *Assign:
-			errs = append(errs, checkAssign(x, stmt)...)
-			x = x.new()
-			x.local = stmt
+			var es []checkError
+			x, es = checkAssign(x, stmt)
+			errs = append(errs, es...)
 		case Expr:
 			var es []checkError
 			if i == len(stmts)-1 {
@@ -364,24 +380,46 @@ func checkRet(x *scope, ret *Ret) (errs []checkError) {
 	return errs
 }
 
-func checkAssign(x *scope, ass *Assign) (errs []checkError) {
+func checkAssign(x *scope, ass *Assign) (_ *scope, errs []checkError) {
 	defer x.tr("checkAssign(%s)", ass.Var.Name)(&errs)
+
+	if ass.Var != nil {
+		switch id := x.findIdent(ass.Var.Name).(type) {
+		case nil:
+			loc := x.locals()
+			ass.Var.Local = loc
+			ass.Var.Index = len(*loc)
+			*loc = append(*loc, ass.Var)
+			x = x.new()
+			x.local = ass
+		case *Var:
+			ass.Var = id
+		case *Fun:
+			err := x.err(ass.Var, "assignment to a function")
+			note(err, "function %s is defined at %s", id.Sig.Sel, x.loc(id))
+			errs = append(errs, *err)
+		default:
+			panic(fmt.Sprintf("impossible type: %T", id))
+		}
+	}
+
 	if ass.Var.Type != nil {
-		errs = checkTypeName(x, ass.Var.Type)
+		errs = append(errs, checkTypeName(x, ass.Var.Type)...)
 	}
 	x.log(pretty.String(ass))
-	if ass.Val == nil {
-		// ass.Val can be nil in the case of assignment count mismatch.
+	if ass.Expr == nil {
+		// ass.Expr can be nil in the case of assignment count mismatch.
 		// We still want to check the type above, but then we are done.
-		return errs
+		return x, errs
 	}
 	var es []checkError
 	if ass.Var.Type == nil {
-		ass.Val, es = checkExpr(x, ass.Val, nil)
+		ass.Expr, es = checkExpr(x, ass.Expr, nil)
 	} else {
-		ass.Val, es = checkExprWant(x, ass.Val, ass.Var.Type)
+		ass.Expr, es = checkExprWant(x, ass.Expr, ass.Var.Type)
 	}
-	return append(errs, es...)
+	// TODO: set Var.Type on assignment to a new var of inferred type.
+	return x, append(errs, es...)
 }
 
 func checkExprWant(x *scope, expr Expr, want *TypeName) (Expr, []checkError) {
@@ -414,8 +452,23 @@ func (expr *Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) 
 
 func (expr *Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
 	defer x.tr("Ident.check(infer=%s)", infer)(&errs)
-	// TODO: implement Ident.check.
-	return expr, nil
+
+	switch id := x.findIdent(expr.Text).(type) {
+	case nil:
+		errs = append(errs, *x.err(expr, "%s not found", expr.Text))
+	case *Var:
+		expr.Var = id
+	case *Fun:
+		call := &Call{
+			ast:  expr.ast,
+			Msgs: []Msg{{ast: expr.ast, Sel: expr.Text}},
+		}
+		return checkExpr(x, call, infer)
+	default:
+		panic(fmt.Sprintf("impossible type: %T", id))
+	}
+
+	return expr, errs
 }
 
 func (expr *Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {

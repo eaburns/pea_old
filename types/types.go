@@ -49,9 +49,10 @@ type Val struct {
 	ast  *ast.Val
 	priv bool
 	mod  string
-	Name string
-	Type *TypeName
+	Var  Var
 	Init []Stmt
+
+	Locals []*Var
 }
 
 func (n *Val) AST() ast.Node { return n.ast }
@@ -59,9 +60,9 @@ func (n *Val) kind() string  { return "value" }
 
 func (n *Val) name() string {
 	if n.mod == "" {
-		return n.Name
+		return n.Var.Name
 	}
-	return n.mod + " " + n.Name
+	return n.mod + " " + n.Var.Name
 }
 
 func (n *Val) Priv() bool  { return n.priv }
@@ -76,6 +77,8 @@ type Fun struct {
 	TParms []Var // types may be nil
 	Sig    FunSig
 	Stmts  []Stmt
+
+	Locals []*Var
 }
 
 func (n *Fun) AST() ast.Node { return n.ast }
@@ -232,6 +235,15 @@ type Var struct {
 	ast  *ast.Var
 	Name string
 	Type *TypeName
+
+	// At most one of the following is non-nil.
+	Val   *Val    // a module-level Val; Index is unused.
+	Parm  *Fun    // a function parm; Index is the Parms index.
+	Local *[]*Var // a local variable; Index is the index.
+	Field *Type   // an And-type field; Index is the Fields index.
+
+	// Index is used as described above.
+	Index int
 }
 
 func (n *Var) AST() ast.Node { return n.ast }
@@ -251,9 +263,9 @@ func (n *Ret) AST() ast.Node { return n.ast }
 
 // An Assign is an assignment statement.
 type Assign struct {
-	ast *ast.Assign
-	Var Var
-	Val Expr
+	ast  *ast.Assign
+	Var  *Var
+	Expr Expr
 }
 
 func (n *Assign) AST() ast.Node { return n.ast }
@@ -267,8 +279,8 @@ type Expr interface {
 
 // A Call is a method call or a cascade.
 type Call struct {
-	ast  *ast.Call
-	Recv Expr // nil for function calls
+	ast  ast.Node // *ast.Call or *ast.Ident if in-module unary function call.
+	Recv Expr     // nil for function calls
 	Msgs []Msg
 }
 
@@ -276,7 +288,7 @@ func (n *Call) AST() ast.Node { return n.ast }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
-	ast  *ast.Msg
+	ast  ast.Node // *ast.Msg or *ast.Ident if in-module unary function call.
 	Mod  string
 	Sel  string
 	Args []Expr
@@ -307,6 +319,7 @@ func (n *Block) AST() ast.Node { return n.ast }
 type Ident struct {
 	ast  *ast.Ident
 	Text string
+	Var  *Var
 }
 
 func (n *Ident) AST() ast.Node { return n.ast }
