@@ -136,7 +136,7 @@ func makeDef(astDef ast.Def) Def {
 	case *ast.Val:
 		val := &Val{
 			ast:  astDef,
-			priv: astDef.Priv(),
+			Priv: astDef.Priv(),
 			Var: Var{
 				ast:  &astDef.Var,
 				Name: astDef.Var.Name,
@@ -147,7 +147,7 @@ func makeDef(astDef ast.Def) Def {
 	case *ast.Fun:
 		return &Fun{
 			ast:  astDef,
-			priv: astDef.Priv(),
+			Priv: astDef.Priv(),
 			Sig: FunSig{
 				ast: &astDef.Sig,
 				Sel: astDef.Sig.Sel,
@@ -156,7 +156,7 @@ func makeDef(astDef ast.Def) Def {
 	case *ast.Type:
 		return &Type{
 			ast:  astDef,
-			priv: astDef.Priv(),
+			Priv: astDef.Priv(),
 			Sig: TypeSig{
 				ast:   &astDef.Sig,
 				Arity: len(astDef.Sig.Parms),

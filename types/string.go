@@ -8,7 +8,7 @@ import (
 
 func (n Val) String() string {
 	var s strings.Builder
-	if n.priv {
+	if n.Priv {
 		s.WriteString("val ")
 	} else {
 		s.WriteString("Val ")
@@ -24,7 +24,7 @@ func (n Val) String() string {
 func (n Fun) String() string {
 	var s strings.Builder
 	if n.Recv != nil {
-		if n.priv {
+		if n.Priv {
 			s.WriteString("meth ")
 		} else {
 			s.WriteString("Meth ")
@@ -32,7 +32,7 @@ func (n Fun) String() string {
 		buildRecvString(n.Recv, &s)
 		s.WriteRune(' ')
 	} else {
-		if n.priv {
+		if n.Priv {
 			s.WriteString("func ")
 		} else {
 			s.WriteString("Func ")
@@ -44,7 +44,7 @@ func (n Fun) String() string {
 
 func (n Type) String() string {
 	var s strings.Builder
-	if n.priv {
+	if n.Priv {
 		s.WriteString("type ")
 	} else {
 		s.WriteString("Type ")
@@ -55,7 +55,7 @@ func (n Type) String() string {
 
 func (n Type) fullString() string {
 	var s strings.Builder
-	if n.priv {
+	if n.Priv {
 		s.WriteString("type ")
 	} else {
 		s.WriteString("Type ")

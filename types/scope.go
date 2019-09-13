@@ -97,7 +97,7 @@ func (x *scope) findType(arity int, name string) interface{} {
 
 func (imp *imp) findType(arity int, name string) *Type {
 	t := findType(arity, name, imp.defs)
-	if t == nil || t.Priv() {
+	if t == nil || t.Priv {
 		return nil
 	}
 	return t

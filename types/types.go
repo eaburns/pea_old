@@ -32,13 +32,6 @@ type Def interface {
 	// name returns the name of the definition for use in debug and tracing.
 	name() string
 
-	// Priv returns whether the definition is private.
-	Priv() bool
-
-	// Mod returns the module name of the definition if imported.
-	// Mod returns the empty string for definitions in the current module.
-	Mod() string
-
 	// String returns a human-readable string representation
 	// of the definition's signature.
 	String() string
@@ -47,8 +40,8 @@ type Def interface {
 // A Val is a module-level value definition.
 type Val struct {
 	ast  *ast.Val
-	priv bool
-	mod  string
+	Priv bool
+	Mod  string
 	Var  Var
 	Init []Stmt
 
@@ -59,20 +52,17 @@ func (n *Val) AST() ast.Node { return n.ast }
 func (n *Val) kind() string  { return "value" }
 
 func (n *Val) name() string {
-	if n.mod == "" {
+	if n.Mod == "" {
 		return n.Var.Name
 	}
-	return n.mod + " " + n.Var.Name
+	return n.Mod + " " + n.Var.Name
 }
-
-func (n *Val) Priv() bool  { return n.priv }
-func (n *Val) Mod() string { return n.mod }
 
 // A Fun is a function or method definition.
 type Fun struct {
 	ast    *ast.Fun
-	priv   bool
-	mod    string
+	Priv   bool
+	Mod    string
 	Recv   *Recv
 	TParms []Var // types may be nil
 	Sig    FunSig
@@ -92,19 +82,16 @@ func (n *Fun) kind() string {
 
 func (n *Fun) name() string {
 	switch {
-	case n.mod == "" && n.Recv == nil:
+	case n.Mod == "" && n.Recv == nil:
 		return n.Sig.Sel
-	case n.mod == "" && n.Recv != nil:
+	case n.Mod == "" && n.Recv != nil:
 		return fmt.Sprintf("(%d)%s %s", n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
-	case n.mod != "" && n.Recv == nil:
-		return n.mod + " " + n.Sig.Sel
+	case n.Mod != "" && n.Recv == nil:
+		return n.Mod + " " + n.Sig.Sel
 	default:
-		return fmt.Sprintf("%s (%d)%s %s", n.mod, n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
+		return fmt.Sprintf("%s (%d)%s %s", n.Mod, n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
 	}
 }
-
-func (n *Fun) Priv() bool  { return n.priv }
-func (n *Fun) Mod() string { return n.mod }
 
 // Recv is a method receiver.
 type Recv struct {
@@ -145,7 +132,7 @@ func (n *FunSig) AST() ast.Node { return n.ast }
 // A Type defines a type.
 type Type struct {
 	ast  *ast.Type
-	priv bool
+	Priv bool
 	Sig  TypeSig
 
 	// Alias, Fields, Cases, and Virts
@@ -168,13 +155,11 @@ type Type struct {
 func (n *Type) AST() ast.Node { return n.ast }
 func (n *Type) kind() string  { return "type" }
 func (n *Type) name() string  { return n.Sig.ID() }
-func (n *Type) Priv() bool    { return n.priv }
-func (n *Type) Mod() string   { return n.Sig.mod }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
 	ast   *ast.TypeSig
-	mod   string
+	Mod   string
 	Arity int
 	Name  string
 
@@ -188,14 +173,14 @@ func (n *TypeSig) AST() ast.Node { return n.ast }
 // and the arity if non-zero.
 func (n *TypeSig) ID() string {
 	switch {
-	case n.mod == "" && n.Arity == 0:
+	case n.Mod == "" && n.Arity == 0:
 		return n.Name
-	case n.mod == "" && n.Arity > 0:
+	case n.Mod == "" && n.Arity > 0:
 		return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
-	case n.mod != "" && n.Arity == 0:
-		return n.mod + " " + n.Name
+	case n.Mod != "" && n.Arity == 0:
+		return n.Mod + " " + n.Name
 	default:
-		return fmt.Sprintf("%s (%d)%s", n.mod, n.Arity, n.Name)
+		return fmt.Sprintf("%s (%d)%s", n.Mod, n.Arity, n.Name)
 	}
 }
 
@@ -323,6 +308,13 @@ type Ident struct {
 }
 
 func (n *Ident) AST() ast.Node { return n.ast }
+
+func (n *Ident) Type() *Type {
+	if n.Var == nil || n.Var.Type == nil {
+		return nil
+	}
+	return n.Var.Type.Type
+}
 
 // An Int is an integer literal.
 type Int struct {

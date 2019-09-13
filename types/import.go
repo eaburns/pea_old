@@ -80,11 +80,11 @@ func setMod(path string, defs []Def) {
 	for _, def := range defs {
 		switch def := def.(type) {
 		case *Val:
-			def.mod = path
+			def.Mod = path
 		case *Fun:
-			def.mod = path
+			def.Mod = path
 		case *Type:
-			def.Sig.mod = path
+			def.Sig.Mod = path
 		default:
 			panic(fmt.Sprintf("impossible type: %T", def))
 		}
