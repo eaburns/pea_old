@@ -14,9 +14,9 @@ func (n Val) String() string {
 		s.WriteString("Val ")
 	}
 	s.WriteString(n.Var.Name)
-	if n.Var.Type != nil {
+	if n.Var.TypeName != nil {
 		s.WriteRune(' ')
-		buildTypeNameString(n.Var.Type, &s)
+		buildTypeNameString(n.Var.TypeName, &s)
 	}
 	return s.String()
 }
@@ -73,7 +73,7 @@ func (n Type) fullString() string {
 		s.WriteRune(' ')
 		s.WriteString(v.Name)
 		s.WriteString(": ")
-		buildTypeNameString(v.Type, &s)
+		buildTypeNameString(v.TypeName, &s)
 	}
 	for i, v := range n.Cases {
 		if i > 0 {
@@ -82,11 +82,11 @@ func (n Type) fullString() string {
 			s.WriteRune(' ')
 		}
 		s.WriteString(v.Name)
-		if v.Type == nil {
+		if v.TypeName == nil {
 			continue
 		}
 		s.WriteRune(' ')
-		buildTypeNameString(v.Type, &s)
+		buildTypeNameString(v.TypeName, &s)
 	}
 	for _, v := range n.Virts {
 		s.WriteRune(' ')
@@ -130,14 +130,14 @@ func buildFunSigString(n *FunSig, s *strings.Builder) {
 			s.WriteString(keys[i])
 			s.WriteRune(' ')
 			switch {
-			case parm.Name != "" && parm.Type != nil:
+			case parm.Name != "" && parm.TypeName != nil:
 				s.WriteString(parm.Name)
 				s.WriteRune(' ')
-				buildTypeNameString(parm.Type, s)
+				buildTypeNameString(parm.TypeName, s)
 			case parm.Name != "":
 				s.WriteString(parm.Name)
-			case parm.Type != nil:
-				buildTypeNameString(parm.Type, s)
+			case parm.TypeName != nil:
+				buildTypeNameString(parm.TypeName, s)
 			}
 		}
 	}
@@ -152,7 +152,7 @@ func buildRecvString(n *Recv, s *strings.Builder) {
 	switch {
 	case len(n.Parms) == 0:
 		break
-	case len(n.Parms) == 1 && n.Parms[0].Type == nil:
+	case len(n.Parms) == 1 && n.Parms[0].TypeName == nil:
 		s.WriteString(n.Parms[0].Name)
 		if n.Mod != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
@@ -191,7 +191,7 @@ func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 		}
 	case len(n.Parms) == 0:
 		break
-	case len(n.Parms) == 1 && n.Parms[0].Type == nil:
+	case len(n.Parms) == 1 && n.Parms[0].TypeName == nil:
 		s.WriteString(n.Parms[0].Name)
 		if !isOpType(n.Name) {
 			s.WriteRune(' ')
@@ -212,9 +212,9 @@ func buildTypeParms(parms []Var, s *strings.Builder) {
 			s.WriteString(", ")
 		}
 		s.WriteString(parm.Name)
-		if parm.Type != nil {
+		if parm.TypeName != nil {
 			s.WriteRune(' ')
-			buildTypeNameString(parm.Type, s)
+			buildTypeNameString(parm.TypeName, s)
 		}
 	}
 	s.WriteRune(')')

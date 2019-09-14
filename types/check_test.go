@@ -868,7 +868,7 @@ func TestFloatLit(t *testing.T) {
 		{
 			name: "bad truncation",
 			src:  "val x Int := [3.14]",
-			err:  "Int cannot represent 3.14: truncation",
+			err:  "Int64 cannot represent 3.14: truncation",
 		},
 	}
 	for _, test := range tests {

@@ -47,7 +47,7 @@ func subVar(x *scope, seen map[*Type]bool, sub map[*Var]TypeName, var0 *Var) *Va
 	defer x.tr("subVar(%s, %s)", subDebugString(sub), var0.Name)()
 
 	var1 := *var0
-	var1.Type = subTypeName(x, seen, sub, var1.Type)
+	var1.TypeName = subTypeName(x, seen, sub, var1.TypeName)
 	return &var1
 }
 

@@ -11,14 +11,13 @@ type scope struct {
 	up *scope
 
 	// One of each of the following fields is non-nil.
-	univ    []Def
-	mod     *Mod
-	file    *file
-	typeVar *Var
-	val     *Val
-	fun     *Fun
-	parm    *Var
-	local   *Assign
+	univ     []Def
+	mod      *Mod
+	file     *file
+	typeVar  *Var
+	val      *Val
+	fun      *Fun
+	variable *Var
 }
 
 type file struct {
@@ -131,10 +130,8 @@ func (x *scope) findIdent(name string) interface{} {
 	switch {
 	case x == nil:
 		return nil
-	case x.parm != nil && x.parm.Name == name:
-		return x.parm
-	case x.local != nil && x.local.Var.Name == name:
-		return x.local.Var
+	case x.variable != nil && x.variable.Name == name:
+		return x.variable
 	case x.fun != nil && x.fun.Recv != nil && x.fun.Recv.Type != nil:
 		for i := range x.fun.Recv.Type.Fields {
 			if f := &x.fun.Recv.Type.Fields[i]; f.Name == name {

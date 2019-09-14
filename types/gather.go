@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/eaburns/pea/ast"
 )
@@ -82,7 +81,10 @@ func aliasCycle(x *scope, typ *Type) *checkError {
 
 func gatherVal(x *scope, def *Val) (errs []checkError) {
 	defer x.tr("gatherVal(%s)", def.name())(&errs)
-	def.Var.Type, errs = gatherTypeName(x, def.ast.Var.Type)
+	if def.ast.Var.Type != nil {
+		def.Var.TypeName, errs = gatherTypeName(x, def.ast.Var.Type)
+		def.Var.typ = def.Var.TypeName.Type
+	}
 	return errs
 }
 
@@ -175,7 +177,10 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []che
 		x.typeVar = &vars[i]
 
 		var es []checkError
-		vars[i].Type, es = gatherTypeName(x, astVars[i].Type)
+		if astVars[i].Type != nil {
+			vars[i].TypeName, es = gatherTypeName(x, astVars[i].Type)
+			vars[i].typ = vars[i].TypeName.Type
+		}
 		errs = append(errs, es...)
 	}
 	return x, vars, errs
@@ -254,7 +259,10 @@ func gatherVars(x *scope, astVars []ast.Var) (_ []Var, errs []checkError) {
 	for i := range astVars {
 		var es []checkError
 		vr := Var{ast: &astVars[i], Name: astVars[i].Name}
-		vr.Type, es = gatherTypeName(x, astVars[i].Type)
+		if astVars[i].Type != nil {
+			vr.TypeName, es = gatherTypeName(x, astVars[i].Type)
+			vr.typ = vr.TypeName.Type
+		}
 		errs = append(errs, es...)
 		vars = append(vars, vr)
 	}
@@ -417,96 +425,178 @@ func makeArgsKey(args []TypeName) interface{} {
 	return argsKey{typ: tkey, next: makeArgsKey(args[1:])}
 }
 
-func gatherStmts(x *scope, astStmts []ast.Stmt) (_ []Stmt, errs []checkError) {
+func gatherStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []checkError) {
+	defer x.tr("gatherStmts(want=%s)", want)(&errs)
 	var stmts []Stmt
-	for _, astStmt := range astStmts {
-		ss, es := gatherStmt(x, astStmt)
-		errs = append(errs, es...)
-		stmts = append(stmts, ss...)
+	for i, astStmt := range astStmts {
+		switch astStmt := astStmt.(type) {
+		case *ast.Ret:
+			ret, es := checkRet(x, astStmt)
+			errs = append(errs, es...)
+			stmts = append(stmts, ret)
+		case *ast.Assign:
+			var ss []Stmt
+			var es []checkError
+			x, ss, es = gatherAssign(x, astStmt)
+			errs = append(errs, es...)
+			stmts = append(stmts, ss...)
+		case ast.Expr:
+			var expr Expr
+			var es []checkError
+			if i == len(astStmts)-1 {
+				expr, es = gatherExpr(x, want, astStmt)
+			} else {
+				expr, es = gatherExpr(x, nil, astStmt)
+			}
+			errs = append(errs, es...)
+			stmts = append(stmts, expr)
+		default:
+			panic(fmt.Sprintf("impossible type: %T", astStmt))
+		}
 	}
 	return stmts, errs
 }
 
-func gatherStmt(x *scope, astStmt ast.Stmt) (_ []Stmt, errs []checkError) {
-	switch astStmt := astStmt.(type) {
-	case *ast.Ret:
-		var ret *Ret
-		ret, errs = gatherRet(x, astStmt)
-		return []Stmt{ret}, errs
-	case *ast.Assign:
-		return gatherAssign(x, astStmt)
-	case ast.Expr:
-		var expr Expr
-		expr, errs = gatherExpr(x, astStmt)
-		return []Stmt{expr}, errs
-	default:
-		panic(fmt.Sprintf("impossible type: %T", astStmt))
+func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
+	defer x.tr("checkRet(…)")(&errs)
+
+	var want *Type
+	if fun := x.function(); fun == nil {
+		err := x.err(astRet, "return outside of a function or method")
+		errs = append(errs, *err)
+	} else if fun.Sig.Ret != nil {
+		want = fun.Sig.Ret.Type
 	}
+	expr, es := gatherExpr(x, want, astRet.Val)
+	return &Ret{ast: astRet, Val: expr}, append(errs, es...)
 }
 
-func gatherRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
-	defer x.tr("gatherRet(…)")(&errs)
-	var expr Expr
-	expr, errs = gatherExpr(x, astRet.Val)
-	return &Ret{ast: astRet, Val: expr}, errs
-}
-
-func gatherAssign(x *scope, astAss *ast.Assign) (_ []Stmt, errs []checkError) {
+func gatherAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {
 	defer x.tr("gatherAssign(…)")(&errs)
-	vars, es := gatherVars(x, astAss.Vars)
-	errs = append(errs, es...)
-	expr, es := gatherExpr(x, astAss.Expr)
-	errs = append(errs, es...)
+
+	vars := make([]*Var, len(astAss.Vars))
+	for i := range astAss.Vars {
+		astVar := &astAss.Vars[i]
+
+		var typ *Type
+		var typName *TypeName
+		if astVar.Type != nil {
+			var es []checkError
+			typName, es = gatherTypeName(x, astVar.Type)
+			typ = typName.Type
+			errs = append(errs, es...)
+		}
+
+		switch found := x.findIdent(astVar.Name).(type) {
+		case nil:
+			x.log("adding local %s", astVar.Name)
+			loc := x.locals()
+			vr := &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+				Local:    loc,
+				Index:    len(*loc),
+			}
+			*loc = append(*loc, vr)
+			x = x.new()
+			x.variable = vr
+			vars[i] = vr
+		case *Var:
+			vars[i] = found
+		case *Fun:
+			err := x.err(astVar, "assignment to a function")
+			note(err, "%s is defined at %s", found.Sig.Sel, x.loc(found))
+			errs = append(errs, *err)
+			vars[i] = &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+			}
+		default:
+			panic(fmt.Sprintf("impossible type: %T", found))
+		}
+	}
 
 	if len(vars) == 1 {
-		return []Stmt{&Assign{
-			ast:  astAss,
-			Var:  &vars[0],
-			Expr: expr,
-		}}, errs
+		var es []checkError
+		assign := &Assign{ast: astAss, Var: vars[0]}
+		assign.Expr, es = gatherExpr(x, vars[0].typ, astAss.Expr)
+		errs = append(errs, es...)
+		return x, []Stmt{assign}, errs
 	}
 
+	// TODO: actually check the assignment left-hand-side expression.
+
 	var stmts []Stmt
-	call, ok := expr.(*Call)
-	if !ok || len(call.Msgs) != len(vars) {
+	astCall, ok := astAss.Expr.(*ast.Call)
+	if !ok || len(astCall.Msgs) != len(vars) {
 		got := 1
 		if ok {
-			got = len(call.Msgs)
+			got = len(astCall.Msgs)
 		}
 		err := x.err(astAss, "assignment count mismatch: got %d, want %d", got, len(vars))
 		errs = append(errs, *err)
+		expr, es := gatherExpr(x, nil, astAss.Expr)
+		errs = append(errs, es...)
 		stmts = append(stmts, &Assign{
 			ast:  astAss,
-			Var:  &vars[0],
+			Var:  vars[0],
 			Expr: expr,
 		})
 		for i := 1; i < len(vars); i++ {
 			stmts = append(stmts, &Assign{
 				ast:  astAss,
-				Var:  &vars[i],
+				Var:  vars[i],
 				Expr: nil,
 			})
 		}
-		return stmts, errs
+		return x, stmts, errs
 	}
 
-	tmp := x.newID()
-	stmts = append(stmts, &Assign{
-		Var:  &Var{Name: tmp},
-		Expr: call.Recv,
-	})
+	recv, es := gatherExpr(x, nil, astCall.Recv)
+	var recvType *Type // TODO: recv.Type()
+	errs = append(errs, es...)
+	loc := x.locals()
+	tmp := &Var{
+		Name:  x.newID(),
+		typ:   recvType,
+		Local: loc,
+		Index: len(*loc),
+	}
+	*loc = append(*loc, tmp)
+	x = x.new()
+	x.variable = tmp
+	stmts = append(stmts, &Assign{Var: tmp, Expr: recv})
 	for i := range vars {
+		msg, es := checkMsg(x, recvType, &astCall.Msgs[i])
+		errs = append(errs, es...)
 		stmts = append(stmts, &Assign{
 			ast: astAss,
-			Var: &vars[i],
+			Var: vars[i],
 			Expr: &Call{
-				ast:  call.ast,
-				Recv: &Ident{Text: tmp},
-				Msgs: []Msg{call.Msgs[i]},
+				ast:  astCall,
+				Recv: &Ident{Text: tmp.Name, Var: tmp},
+				Msgs: []Msg{msg},
 			},
 		})
 	}
-	return stmts, errs
+	return x, stmts, errs
+}
+
+func checkMsg(x *scope, typ *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
+	x.tr("checkMsg(%s, %s)", typ, astMsg.Sel)(&errs)
+
+	return Msg{
+		ast: astMsg,
+		Mod: identString(astMsg.Mod),
+		Sel: astMsg.Sel,
+		// TODO: check Msg.Args
+		Args: nil,
+		// TODO: lookup Msg's Fun
+	}, nil
 }
 
 func gatherExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
@@ -514,13 +604,13 @@ func gatherExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
 	exprs := make([]Expr, len(astExprs))
 	for i, expr := range astExprs {
 		var es []checkError
-		exprs[i], es = gatherExpr(x, expr)
+		exprs[i], es = gatherExpr(x, nil /* TODO */, expr)
 		errs = append(errs, es...)
 	}
 	return exprs, errs
 }
 
-func gatherExpr(x *scope, astExpr ast.Expr) (Expr, []checkError) {
+func gatherExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	switch astExpr := astExpr.(type) {
 	case *ast.Call:
 		return gatherCall(x, astExpr)
@@ -529,15 +619,15 @@ func gatherExpr(x *scope, astExpr ast.Expr) (Expr, []checkError) {
 	case *ast.Block:
 		return gatherBlock(x, astExpr)
 	case *ast.Ident:
-		return gatherIdent(x, astExpr)
+		return checkIdent(x, astExpr)
 	case *ast.Int:
-		return gatherInt(x, astExpr)
+		return checkInt(x, infer, astExpr, astExpr.Text)
 	case *ast.Float:
-		return gatherFloat(x, astExpr)
+		return checkFloat(x, infer, astExpr, astExpr.Text)
 	case *ast.Rune:
-		return gatherRune(x, astExpr)
+		return checkRune(x, astExpr)
 	case *ast.String:
-		return gatherString(x, astExpr)
+		return checkString(x, astExpr)
 	default:
 		panic(fmt.Sprintf("impossible type: %T", astExpr))
 	}
@@ -547,7 +637,7 @@ func gatherCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 	defer x.tr("gatherCall(…)")(&errs)
 	var recv Expr
 	if astCall.Recv != nil {
-		recv, errs = gatherExpr(x, astCall.Recv)
+		recv, errs = gatherExpr(x, nil /* TODO */, astCall.Recv)
 	}
 	msgs, es := gatherMsgs(x, astCall.Msgs)
 	errs = append(errs, es...)
@@ -590,47 +680,7 @@ func gatherBlock(x *scope, astBlock *ast.Block) (_ *Block, errs []checkError) {
 	blk := &Block{ast: astBlock}
 	blk.Parms, errs = gatherVars(x, astBlock.Parms)
 	var es []checkError
-	blk.Stmts, es = gatherStmts(x, astBlock.Stmts)
+	blk.Stmts, es = gatherStmts(x, nil, astBlock.Stmts)
 	errs = append(errs, es...)
 	return blk, errs
-}
-
-func gatherIdent(x *scope, astIdent *ast.Ident) (*Ident, []checkError) {
-	defer x.tr("gatherIdent(%s)", astIdent.Text)()
-	return &Ident{ast: astIdent, Text: astIdent.Text}, nil
-}
-
-func gatherInt(x *scope, astInt *ast.Int) (*Int, []checkError) {
-	defer x.tr("gatherInt(%s)", astInt.Text)()
-	var z big.Int
-	if _, ok := z.SetString(astInt.Text, 0); !ok {
-		panic("malformed int")
-	}
-	return &Int{ast: astInt, Val: &z}, nil
-}
-
-func gatherFloat(x *scope, astFloat *ast.Float) (*Float, []checkError) {
-	defer x.tr("gatherFloat(%s)", astFloat.Text)()
-	var z big.Float
-	if _, _, err := z.Parse(astFloat.Text, 10); err != nil {
-		panic("malformed float")
-	}
-	return &Float{ast: astFloat, Val: &z}, nil
-}
-
-func gatherRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {
-	defer x.tr("gatherRune(%s)", astRune.Text)()
-	return &Int{ast: astRune, Val: big.NewInt(int64(astRune.Rune))}, nil
-}
-
-func gatherString(x *scope, astString *ast.String) (*String, []checkError) {
-	defer x.tr("gatherString(%s)", astString.Text)()
-	return &String{ast: astString, Data: astString.Data}, nil
-}
-
-func identString(id *ast.Ident) string {
-	if id == nil {
-		return ""
-	}
-	return id.Text
 }

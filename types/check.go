@@ -6,7 +6,6 @@ import (
 	"path"
 
 	"github.com/eaburns/pea/ast"
-	"github.com/eaburns/pretty"
 )
 
 // Config are configuration parameters for the type checker.
@@ -221,18 +220,18 @@ func checkDef(x *scope, def Def) []checkError {
 
 func checkVal(x *scope, def *Val) (errs []checkError) {
 	defer x.tr("checkVal(%s)", def.name())(&errs)
-	if def.Var.Type != nil {
-		errs = append(errs, checkTypeName(x, def.Var.Type)...)
+	if def.Var.TypeName != nil {
+		errs = append(errs, checkTypeName(x, def.Var.TypeName)...)
+		def.Var.typ = def.Var.TypeName.Type
 	}
 
 	x = x.new()
 	x.val = def
 
 	var es []checkError
-	if def.Init, es = gatherStmts(x, def.ast.Init); len(es) > 0 {
+	if def.Init, es = gatherStmts(x, def.Var.typ, def.ast.Init); len(es) > 0 {
 		errs = append(errs, es...)
 	}
-	errs = append(errs, checkStmts(x, def.Var.Type, def.Init)...)
 	return errs
 }
 
@@ -253,13 +252,13 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	x.fun = def
 	for i := range def.Sig.Parms {
 		parm := &def.Sig.Parms[i]
-		errs = append(errs, checkTypeName(x, parm.Type)...)
+		errs = append(errs, checkTypeName(x, parm.TypeName)...)
 		x = x.new()
-		x.parm = parm
+		x.variable = parm
 	}
 
-	def.Stmts, errs = gatherStmts(x, def.ast.Stmts)
-	return append(errs, checkStmts(x, nil, def.Stmts)...)
+	def.Stmts, errs = gatherStmts(x, nil, def.ast.Stmts)
+	return errs
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
@@ -289,7 +288,7 @@ func checkFields(x *scope, fields []Var) []checkError {
 		} else {
 			seen[field.Name] = field
 		}
-		errs = append(errs, checkTypeName(x, field.Type)...)
+		errs = append(errs, checkTypeName(x, field.TypeName)...)
 	}
 	return errs
 }
@@ -306,8 +305,8 @@ func checkCases(x *scope, cases []Var) []checkError {
 		} else {
 			seen[cas.Name] = cas
 		}
-		if cas.Type != nil {
-			errs = append(errs, checkTypeName(x, cas.Type)...)
+		if cas.TypeName != nil {
+			errs = append(errs, checkTypeName(x, cas.TypeName)...)
 		}
 	}
 	return errs
@@ -327,7 +326,7 @@ func checkVirts(x *scope, virts []FunSig) []checkError {
 		}
 		for i := range virt.Parms {
 			parm := &virt.Parms[i]
-			errs = append(errs, checkTypeName(x, parm.Type)...)
+			errs = append(errs, checkTypeName(x, parm.TypeName)...)
 		}
 		if virt.Ret != nil {
 			errs = append(errs, checkTypeName(x, virt.Ret)...)
@@ -342,163 +341,61 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	return errs
 }
 
-// want is the type of the result of the last statement in the case that it's an expression.
-func checkStmts(x *scope, want *TypeName, stmts []Stmt) []checkError {
-	var errs []checkError
-	for i, stmt := range stmts {
-		switch stmt := stmt.(type) {
-		case *Ret:
-			errs = append(errs, checkRet(x, stmt)...)
-		case *Assign:
-			var es []checkError
-			x, es = checkAssign(x, stmt)
-			errs = append(errs, es...)
-		case Expr:
-			var es []checkError
-			if i == len(stmts)-1 {
-				stmts[i], es = checkExprWant(x, stmt, want)
-			} else {
-				stmts[i], es = checkExpr(x, stmt, nil)
-			}
-			errs = append(errs, es...)
-		default:
-			panic(fmt.Sprintf("impossible type: %T", stmt))
-		}
-	}
-	return errs
-}
+func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
+	defer x.tr("checkIdent(%s)", astIdent.Text)(&errs)
 
-func checkRet(x *scope, ret *Ret) (errs []checkError) {
-	defer x.tr("checkRet(…)")(&errs)
-	fun := x.function()
-	if fun == nil {
-		err := x.err(ret, "return outside of a function or method")
-		ret.Val, errs = checkExpr(x, ret.Val, nil)
-		return append(errs, *err)
-	}
-	ret.Val, errs = checkExprWant(x, ret.Val, fun.Sig.Ret)
-	return errs
-}
-
-func checkAssign(x *scope, ass *Assign) (_ *scope, errs []checkError) {
-	defer x.tr("checkAssign(%s)", ass.Var.Name)(&errs)
-
-	if ass.Var != nil {
-		switch id := x.findIdent(ass.Var.Name).(type) {
-		case nil:
-			loc := x.locals()
-			ass.Var.Local = loc
-			ass.Var.Index = len(*loc)
-			*loc = append(*loc, ass.Var)
-			x = x.new()
-			x.local = ass
-		case *Var:
-			ass.Var = id
-		case *Fun:
-			err := x.err(ass.Var, "assignment to a function")
-			note(err, "function %s is defined at %s", id.Sig.Sel, x.loc(id))
-			errs = append(errs, *err)
-		default:
-			panic(fmt.Sprintf("impossible type: %T", id))
-		}
-	}
-
-	if ass.Var.Type != nil {
-		errs = append(errs, checkTypeName(x, ass.Var.Type)...)
-	}
-	x.log(pretty.String(ass))
-	if ass.Expr == nil {
-		// ass.Expr can be nil in the case of assignment count mismatch.
-		// We still want to check the type above, but then we are done.
-		return x, errs
-	}
-	var es []checkError
-	if ass.Var.Type == nil {
-		ass.Expr, es = checkExpr(x, ass.Expr, nil)
-	} else {
-		ass.Expr, es = checkExprWant(x, ass.Expr, ass.Var.Type)
-	}
-	// TODO: set Var.Type on assignment to a new var of inferred type.
-	return x, append(errs, es...)
-}
-
-func checkExprWant(x *scope, expr Expr, want *TypeName) (Expr, []checkError) {
-	expr, errs := checkExpr(x, expr, want)
-	// TODO: implement checkExprWant
-	return expr, errs
-}
-
-func checkExpr(x *scope, expr Expr, infer *TypeName) (_ Expr, errs []checkError) {
-	return expr.check(x, infer)
-}
-
-func (expr *Call) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Call.check(infer=%s)", infer)(&errs)
-	// TODO: implement Call.check.
-	return expr, nil
-}
-
-func (expr *Ctor) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Ctor.check(infer=%s)", infer)(&errs)
-	// TODO: implement Ctor.check.
-	return expr, nil
-}
-
-func (expr *Block) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Block.check(infer=%s)", infer)(&errs)
-	// TODO: implement Block.check.
-	return expr, nil
-}
-
-func (expr *Ident) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Ident.check(infer=%s)", infer)(&errs)
-
-	switch id := x.findIdent(expr.Text).(type) {
+	ident := &Ident{ast: astIdent, Text: astIdent.Text}
+	switch vr := x.findIdent(astIdent.Text).(type) {
 	case nil:
-		errs = append(errs, *x.err(expr, "%s not found", expr.Text))
+		err := x.err(astIdent, "%s not found", astIdent.Text)
+		errs = append(errs, *err)
 	case *Var:
-		expr.Var = id
+		ident.Var = vr
 	case *Fun:
-		call := &Call{
-			ast:  expr.ast,
-			Msgs: []Msg{{ast: expr.ast, Sel: expr.Text}},
-		}
-		return checkExpr(x, call, infer)
+		// TODO: recursively check the call.
+		return &Call{
+			ast:  astIdent,
+			Msgs: []Msg{{ast: astIdent, Sel: astIdent.Text}},
+		}, errs
 	default:
-		panic(fmt.Sprintf("impossible type: %T", id))
+		panic(fmt.Sprintf("impossible type: %T", vr))
 	}
-
-	return expr, errs
+	return ident, errs
 }
 
-func (expr *Int) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Int.check(infer=%s)", infer)(&errs)
-	switch {
-	case isFloat(x, infer):
-		var f big.Float
-		f.Int(expr.Val)
-		return checkExpr(x, &Float{ast: expr.ast, Val: &f}, infer)
-	case isInt(x, infer):
-		expr.typ = infer.Type
-	default:
-		expr.typ = builtInType(x, "Int")
+func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
+	defer x.tr("checkInt(infer=%s, %s)", infer, text)(&errs)
+
+	if isFloat(x, infer) {
+		return checkFloat(x, infer, AST, text)
 	}
-	signed, bits := disectInt(x, expr.typ)
+	var i big.Int
+	x.log("parsing int [%s]", text)
+	if _, ok := i.SetString(text, 0); !ok {
+		panic("malformed int")
+	}
+	typ := builtInType(x, "Int")
+	if isInt(x, infer) {
+		typ = infer
+	}
+	if err := checkIntBounds(x, AST, typ, &i); err != nil {
+		errs = append(errs, *err)
+	}
+	return &Int{ast: AST, Val: &i, typ: typ}, errs
+}
+
+func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
+	signed, bits := disectInt(x, t)
 	x.log("signed=%v, bits=%v", signed, bits)
-	if !signed && expr.Val.Cmp(&big.Int{}) < 0 {
-		err := x.err(expr, "type %s cannot represent %s: negative unsigned",
-			expr.typ, expr.Val)
-		return expr, append(errs, *err)
+	if !signed && i.Cmp(&big.Int{}) < 0 {
+		return x.err(n, "type %s cannot represent %s: negative unsigned", t, i)
 	}
 	min := big.NewInt(-(1 << uint(bits)))
-	x.log("val=%v, val.BitLen()=%d, min=%v",
-		expr.Val, expr.Val.BitLen(), min)
-	if expr.Val.BitLen() > bits && (!signed || expr.Val.Cmp(min) != 0) {
-		err := x.err(expr, "type %s cannot represent %s: overflow",
-			expr.typ, expr.Val)
-		return expr, append(errs, *err)
+	x.log("val=%v, val.BitLen()=%d, min=%v", i, i.BitLen(), min)
+	if i.BitLen() > bits && (!signed || i.Cmp(min) != 0) {
+		return x.err(n, "type %s cannot represent %s: overflow", t, i)
 	}
-	return expr, errs
+	return nil
 }
 
 func disectInt(x *scope, typ *Type) (bool, int) {
@@ -524,58 +421,57 @@ func disectInt(x *scope, typ *Type) (bool, int) {
 	}
 }
 
-func (expr *Float) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("Float.check(infer=%s)", infer)(&errs)
-	switch {
-	case isInt(x, infer):
+func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
+	defer x.tr("checkFloat(infer=%s, %s)", infer, text)(&errs)
+
+	var f big.Float
+	if _, _, err := f.Parse(text, 10); err != nil {
+		panic("malformed float")
+	}
+	if isInt(x, infer) {
 		var i big.Int
-		if _, acc := expr.Val.Int(&i); acc != big.Exact {
-			err := x.err(expr, "type %s cannot represent %s: truncation", infer, expr.Val.String())
-			return expr, append(errs, *err)
+		if _, acc := f.Int(&i); acc != big.Exact {
+			err := x.err(AST, "type %s cannot represent %s: truncation", infer.Sig.ID(), text)
+			errs = append(errs, *err)
 		}
-		return checkExpr(x, &Int{ast: expr.ast, Val: &i}, infer)
-	case isFloat(x, infer):
-		expr.typ = infer.Type
-	default:
-		expr.typ = builtInType(x, "Float")
+		expr, es := checkInt(x, infer, AST, i.String())
+		return expr, append(errs, es...)
 	}
-	return expr, nil
+	typ := builtInType(x, "Float")
+	if isFloat(x, infer) {
+		typ = infer
+	}
+	return &Float{ast: AST, Val: &f, typ: typ}, errs
 }
 
-func isInt(x *scope, name *TypeName) bool {
+func isInt(x *scope, typ *Type) bool {
 	switch {
-	case name == nil || name.Type == nil:
+	case typ == nil:
 		return false
 	default:
 		return false
-	case name.Type == builtInType(x, "Int8") ||
-		name.Type == builtInType(x, "Int16") ||
-		name.Type == builtInType(x, "Int32") ||
-		name.Type == builtInType(x, "Int64") ||
-		name.Type == builtInType(x, "UInt8") ||
-		name.Type == builtInType(x, "UInt16") ||
-		name.Type == builtInType(x, "UInt32") ||
-		name.Type == builtInType(x, "UInt64"):
+	case typ == builtInType(x, "Int8") ||
+		typ == builtInType(x, "Int16") ||
+		typ == builtInType(x, "Int32") ||
+		typ == builtInType(x, "Int64") ||
+		typ == builtInType(x, "UInt8") ||
+		typ == builtInType(x, "UInt16") ||
+		typ == builtInType(x, "UInt32") ||
+		typ == builtInType(x, "UInt64"):
 		return true
 	}
 }
 
-func isFloat(x *scope, name *TypeName) bool {
+func isFloat(x *scope, typ *Type) bool {
 	switch {
-	case name == nil || name.Type == nil:
+	case typ == nil:
 		return false
 	default:
 		return false
-	case name.Type == builtInType(x, "Float32") ||
-		name.Type == builtInType(x, "Float64"):
+	case typ == builtInType(x, "Float32") ||
+		typ == builtInType(x, "Float64"):
 		return true
 	}
-}
-
-func (expr *String) check(x *scope, infer *TypeName) (_ Expr, errs []checkError) {
-	defer x.tr("String.check(infer=%s)", infer)(&errs)
-	expr.typ = builtInType(x, "String")
-	return expr, nil
 }
 
 func builtInType(x *scope, name string, args ...TypeName) *Type {
@@ -596,4 +492,29 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
 	}
 	return typ
+}
+
+func checkRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {
+	defer x.tr("checkRune(%s)", astRune.Text)()
+	return &Int{
+		ast: astRune,
+		Val: big.NewInt(int64(astRune.Rune)),
+		typ: builtInType(x, "Int32"),
+	}, nil
+}
+
+func checkString(x *scope, astString *ast.String) (*String, []checkError) {
+	defer x.tr("checkString(%s)", astString.Text)()
+	return &String{
+		ast:  astString,
+		Data: astString.Data,
+		typ:  builtInType(x, "String"),
+	}, nil
+}
+
+func identString(id *ast.Ident) string {
+	if id == nil {
+		return ""
+	}
+	return id.Text
 }

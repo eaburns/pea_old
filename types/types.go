@@ -219,7 +219,10 @@ func (n *TypeName) ID() string {
 type Var struct {
 	ast  *ast.Var
 	Name string
-	Type *TypeName
+	// TypeName is non-nil if explicit.
+	TypeName *TypeName
+
+	typ *Type
 
 	// At most one of the following is non-nil.
 	Val   *Val    // a module-level Val; Index is unused.
@@ -232,6 +235,7 @@ type Var struct {
 }
 
 func (n *Var) AST() ast.Node { return n.ast }
+func (n *Var) Type() *Type   { return n.typ }
 
 // A Stmt is a statement.
 type Stmt interface {
@@ -258,8 +262,6 @@ func (n *Assign) AST() ast.Node { return n.ast }
 // An Expr is an expression
 type Expr interface {
 	Node
-
-	check(*scope, *TypeName) (Expr, []checkError)
 }
 
 // A Call is a method call or a cascade.
@@ -310,10 +312,10 @@ type Ident struct {
 func (n *Ident) AST() ast.Node { return n.ast }
 
 func (n *Ident) Type() *Type {
-	if n.Var == nil || n.Var.Type == nil {
+	if n.Var == nil {
 		return nil
 	}
-	return n.Var.Type.Type
+	return n.Var.typ
 }
 
 // An Int is an integer literal.
