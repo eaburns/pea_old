@@ -101,6 +101,22 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	errs = append(errs, es...)
 	def.Sig = *sig
 
+	if def.Recv != nil {
+		self := Var{
+			Name: "self",
+			TypeName: &TypeName{
+				ast:  def.Recv.ast,
+				Mod:  def.Recv.Mod,
+				Name: def.Recv.Name,
+				Type: def.Recv.Type,
+			},
+		}
+		if def.Recv.Type != nil {
+			self.TypeName.Args = def.Recv.Type.Sig.Args
+		}
+		def.Sig.Parms = append([]Var{self}, def.Sig.Parms...)
+	}
+
 	for i := range def.Sig.Parms {
 		def.Sig.Parms[i].FunParm = def
 		def.Sig.Parms[i].Index = i
@@ -437,7 +453,7 @@ func gatherStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []ch
 		case *ast.Assign:
 			var ss []Stmt
 			var es []checkError
-			x, ss, es = gatherAssign(x, astStmt)
+			x, ss, es = checkAssign(x, astStmt)
 			errs = append(errs, es...)
 			stmts = append(stmts, ss...)
 		case ast.Expr:
@@ -471,8 +487,8 @@ func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
 	return &Ret{ast: astRet, Val: expr}, append(errs, es...)
 }
 
-func gatherAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {
-	defer x.tr("gatherAssign(…)")(&errs)
+func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {
+	defer x.tr("checkAssign(…)")(&errs)
 
 	vars := make([]*Var, len(astAss.Vars))
 	for i := range astAss.Vars {
@@ -504,7 +520,18 @@ func gatherAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []chec
 			x.variable = vr
 			vars[i] = vr
 		case *Var:
-			vars[i] = found
+			if !found.isSelf() {
+				vars[i] = found
+				break
+			}
+			err := x.err(astVar, "cannot assign to self")
+			errs = append(errs, *err)
+			vars[i] = &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+			}
 		case *Fun:
 			err := x.err(astVar, "assignment to a function")
 			note(err, "%s is defined at %s", found.Sig.Sel, x.loc(found))
@@ -527,8 +554,6 @@ func gatherAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []chec
 		errs = append(errs, es...)
 		return x, []Stmt{assign}, errs
 	}
-
-	// TODO: actually check the assignment left-hand-side expression.
 
 	var stmts []Stmt
 	astCall, ok := astAss.Expr.(*ast.Call)

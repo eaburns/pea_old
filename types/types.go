@@ -186,7 +186,7 @@ func (n *TypeSig) ID() string {
 
 // A TypeName is the name of a concrete type.
 type TypeName struct {
-	ast  *ast.TypeName
+	ast  ast.Node // *ast.TypeName or *ast.Recv
 	Mod  string
 	Name string
 	Args []TypeName
@@ -237,6 +237,10 @@ type Var struct {
 
 func (n *Var) AST() ast.Node { return n.ast }
 func (n *Var) Type() *Type   { return n.typ }
+
+func (n *Var) isSelf() bool {
+	return n.FunParm != nil && n.FunParm.Recv != nil && n.Index == 0
+}
 
 // A Stmt is a statement.
 type Stmt interface {

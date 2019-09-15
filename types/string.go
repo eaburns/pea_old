@@ -38,7 +38,7 @@ func (n Fun) String() string {
 			s.WriteString("Func ")
 		}
 	}
-	buildFunSigString(&n.Sig, &s)
+	buildFunSigString(&n.Sig, n.Recv != nil, &s)
 	return s.String()
 }
 
@@ -90,18 +90,12 @@ func (n Type) fullString() string {
 	}
 	for _, v := range n.Virts {
 		s.WriteRune(' ')
-		buildFunSigString(&v, &s)
+		buildFunSigString(&v, false, &s)
 	}
 	if s.Len() > l {
 		s.WriteRune(' ')
 	}
 	s.WriteRune('}')
-	return s.String()
-}
-
-func (n FunSig) String() string {
-	var s strings.Builder
-	buildFunSigString(&n, &s)
 	return s.String()
 }
 
@@ -117,13 +111,17 @@ func (n TypeName) String() string {
 	return s.String()
 }
 
-func buildFunSigString(n *FunSig, s *strings.Builder) {
+func buildFunSigString(n *FunSig, stripSelf bool, s *strings.Builder) {
 	s.WriteRune('[')
-	if len(n.Parms) == 0 { // unary
+	parms := n.Parms
+	if stripSelf {
+		parms = parms[1:]
+	}
+	if len(parms) == 0 { // unary
 		s.WriteString(n.Sel)
 	} else {
 		keys := strings.SplitAfter(n.Sel, ":")
-		for i, parm := range n.Parms {
+		for i, parm := range parms {
 			if i > 0 {
 				s.WriteRune(' ')
 			}

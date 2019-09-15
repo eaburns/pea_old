@@ -486,6 +486,35 @@ func TestAssignError(t *testing.T) {
 			`,
 			err: "assignment to a function",
 		},
+		{
+			name: "assign to self",
+			src: `
+				meth Int [ foo | self := 5 ]
+			`,
+			err: "cannot assign to self",
+		},
+		{
+			name: "assign to shadowed self",
+			src: `
+				meth Int [ foo: self Int | self := 5 ]
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestFuncHasNoSelf(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "no self",
+			src: `
+				func [foo | self]
+			`,
+			err: "self not found",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -550,6 +579,7 @@ func TestIdentLookup(t *testing.T) {
 			modVar.		// 4
 			fieldVar.		// 5
 			unaryFun.	// 6
+			self.			// 7
 		]
 		val modVar := [5]
 		type Test { ignore: Float fieldVar: Int }
@@ -576,18 +606,19 @@ func TestIdentLookup(t *testing.T) {
 
 	// Statement 3 is a parameter access.
 	fun := mod.Defs[0].(*Fun)
-	parmVar := &fun.Sig.Parms[1]
+	// parms are: 0=self, 1=ignore0, 2=parmVar
+	parmVar := &fun.Sig.Parms[2]
 	if stmts[3].(*Ident).Var != parmVar {
 		t.Errorf("parmVar (%p) != %p", stmts[3].(*Ident).Var, parmVar)
 	}
 	if stmts[3].(*Ident).Var.FunParm != fun {
 		t.Errorf("fun (%p) != %p", stmts[3].(*Ident).Var.FunParm, fun)
 	}
-	if stmts[3].(*Ident).Var.Index != 1 {
-		t.Errorf("parmVar .Index(%d) != 1", stmts[3].(*Ident).Var.Index)
+	if stmts[3].(*Ident).Var.Index != 2 {
+		t.Errorf("parmVar .Index(%d) != 2", stmts[3].(*Ident).Var.Index)
 	}
 
-	// Statement 3 is a module-level value access.
+	// Statement 4 is a module-level value access.
 	val := mod.Defs[1].(*Val)
 	modVar := &val.Var
 	if stmts[4].(*Ident).Var != modVar {
@@ -597,7 +628,7 @@ func TestIdentLookup(t *testing.T) {
 		t.Errorf("val (%p) != %p", stmts[4].(*Ident).Var.Val, val)
 	}
 
-	// Statement 4 is a struct field access.
+	// Statement 5 is a struct field access.
 	typ := mod.Defs[2].(*Type)
 	fieldVar := &typ.Fields[1]
 	if stmts[5].(*Ident).Var != fieldVar {
@@ -610,9 +641,21 @@ func TestIdentLookup(t *testing.T) {
 		t.Errorf("field (%d) != 1", stmts[5].(*Ident).Var.Index)
 	}
 
-	// Statement 5 is a uary function call.
+	// Statement 6 is a uary function call.
 	if _, ok := stmts[6].(*Call); !ok {
 		t.Errorf("unaryFun is not a call")
+	}
+	// Statement 7 is an access to self.
+	fun = mod.Defs[0].(*Fun)
+	parmVar = &fun.Sig.Parms[0]
+	if stmts[7].(*Ident).Var != parmVar {
+		t.Errorf("parmVar (%p) != %p", stmts[7].(*Ident).Var, parmVar)
+	}
+	if stmts[7].(*Ident).Var.FunParm != fun {
+		t.Errorf("fun (%p) != %p", stmts[7].(*Ident).Var.FunParm, fun)
+	}
+	if stmts[7].(*Ident).Var.Index != 0 {
+		t.Errorf("parmVar .Index(%d) != 0", stmts[7].(*Ident).Var.Index)
 	}
 }
 
