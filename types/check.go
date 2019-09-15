@@ -229,10 +229,8 @@ func checkVal(x *scope, def *Val) (errs []checkError) {
 	x.val = def
 
 	var es []checkError
-	if def.Init, es = gatherStmts(x, def.Var.typ, def.ast.Init); len(es) > 0 {
-		errs = append(errs, es...)
-	}
-	return errs
+	def.Init, es = checkStmts(x, def.Var.typ, def.ast.Init)
+	return append(errs, es...)
 }
 
 func checkFun(x *scope, def *Fun) (errs []checkError) {
@@ -257,8 +255,9 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 		x.variable = parm
 	}
 
-	def.Stmts, errs = gatherStmts(x, nil, def.ast.Stmts)
-	return errs
+	var es []checkError
+	def.Stmts, es = checkStmts(x, nil, def.ast.Stmts)
+	return append(errs, es...)
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
@@ -341,10 +340,261 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	return errs
 }
 
+func checkStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []checkError) {
+	defer x.tr("gatherStmts(want=%s)", want)(&errs)
+	var stmts []Stmt
+	for i, astStmt := range astStmts {
+		switch astStmt := astStmt.(type) {
+		case *ast.Ret:
+			ret, es := checkRet(x, astStmt)
+			errs = append(errs, es...)
+			stmts = append(stmts, ret)
+		case *ast.Assign:
+			var ss []Stmt
+			var es []checkError
+			x, ss, es = checkAssign(x, astStmt)
+			errs = append(errs, es...)
+			stmts = append(stmts, ss...)
+		case ast.Expr:
+			var expr Expr
+			var es []checkError
+			if i == len(astStmts)-1 {
+				expr, es = checkExpr(x, want, astStmt)
+			} else {
+				expr, es = checkExpr(x, nil, astStmt)
+			}
+			errs = append(errs, es...)
+			stmts = append(stmts, expr)
+		default:
+			panic(fmt.Sprintf("impossible type: %T", astStmt))
+		}
+	}
+	return stmts, errs
+}
+
+func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
+	defer x.tr("checkRet(…)")(&errs)
+
+	var want *Type
+	if fun := x.function(); fun == nil {
+		err := x.err(astRet, "return outside of a function or method")
+		errs = append(errs, *err)
+	} else if fun.Sig.Ret != nil {
+		want = fun.Sig.Ret.Type
+	}
+	expr, es := checkExpr(x, want, astRet.Val)
+	return &Ret{ast: astRet, Val: expr}, append(errs, es...)
+}
+
+func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {
+	defer x.tr("checkAssign(…)")(&errs)
+
+	vars := make([]*Var, len(astAss.Vars))
+	for i := range astAss.Vars {
+		astVar := &astAss.Vars[i]
+
+		var typ *Type
+		var typName *TypeName
+		if astVar.Type != nil {
+			var es []checkError
+			typName, es = gatherTypeName(x, astVar.Type)
+			typ = typName.Type
+			errs = append(errs, es...)
+		}
+
+		switch found := x.findIdent(astVar.Name).(type) {
+		case nil:
+			x.log("adding local %s", astVar.Name)
+			loc := x.locals()
+			vr := &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+				Local:    loc,
+				Index:    len(*loc),
+			}
+			*loc = append(*loc, vr)
+			x = x.new()
+			x.variable = vr
+			vars[i] = vr
+		case *Var:
+			if !found.isSelf() {
+				vars[i] = found
+				break
+			}
+			err := x.err(astVar, "cannot assign to self")
+			errs = append(errs, *err)
+			vars[i] = &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+			}
+		case *Fun:
+			err := x.err(astVar, "assignment to a function")
+			note(err, "%s is defined at %s", found.Sig.Sel, x.loc(found))
+			errs = append(errs, *err)
+			vars[i] = &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+			}
+		default:
+			panic(fmt.Sprintf("impossible type: %T", found))
+		}
+	}
+
+	if len(vars) == 1 {
+		var es []checkError
+		assign := &Assign{ast: astAss, Var: vars[0]}
+		assign.Expr, es = checkExpr(x, vars[0].typ, astAss.Expr)
+		errs = append(errs, es...)
+		return x, []Stmt{assign}, errs
+	}
+
+	var stmts []Stmt
+	astCall, ok := astAss.Expr.(*ast.Call)
+	if !ok || len(astCall.Msgs) != len(vars) {
+		got := 1
+		if ok {
+			got = len(astCall.Msgs)
+		}
+		err := x.err(astAss, "assignment count mismatch: got %d, want %d", got, len(vars))
+		errs = append(errs, *err)
+		expr, es := checkExpr(x, nil, astAss.Expr)
+		errs = append(errs, es...)
+		stmts = append(stmts, &Assign{
+			ast:  astAss,
+			Var:  vars[0],
+			Expr: expr,
+		})
+		for i := 1; i < len(vars); i++ {
+			stmts = append(stmts, &Assign{
+				ast:  astAss,
+				Var:  vars[i],
+				Expr: nil,
+			})
+		}
+		return x, stmts, errs
+	}
+
+	recv, es := checkExpr(x, nil, astCall.Recv)
+	var recvType *Type // TODO: recv.Type()
+	errs = append(errs, es...)
+	loc := x.locals()
+	tmp := &Var{
+		Name:  x.newID(),
+		typ:   recvType,
+		Local: loc,
+		Index: len(*loc),
+	}
+	*loc = append(*loc, tmp)
+	x = x.new()
+	x.variable = tmp
+	stmts = append(stmts, &Assign{Var: tmp, Expr: recv})
+	for i := range vars {
+		msg, es := checkMsg(x, recvType, &astCall.Msgs[i])
+		errs = append(errs, es...)
+		stmts = append(stmts, &Assign{
+			ast: astAss,
+			Var: vars[i],
+			Expr: &Call{
+				ast:  astCall,
+				Recv: &Ident{Text: tmp.Name, Var: tmp},
+				Msgs: []Msg{msg},
+			},
+		})
+	}
+	return x, stmts, errs
+}
+
+func checkExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
+	var errs []checkError
+	exprs := make([]Expr, len(astExprs))
+	for i, expr := range astExprs {
+		var es []checkError
+		exprs[i], es = checkExpr(x, nil /* TODO */, expr)
+		errs = append(errs, es...)
+	}
+	return exprs, errs
+}
+
+func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
+	switch astExpr := astExpr.(type) {
+	case *ast.Call:
+		return checkCall(x, astExpr)
+	case *ast.Ctor:
+		return checkCtor(x, astExpr)
+	case *ast.Block:
+		return checkBlock(x, infer, astExpr)
+	case *ast.Ident:
+		return checkIdent(x, astExpr)
+	case *ast.Int:
+		return checkInt(x, infer, astExpr, astExpr.Text)
+	case *ast.Float:
+		return checkFloat(x, infer, astExpr, astExpr.Text)
+	case *ast.Rune:
+		return checkRune(x, astExpr)
+	case *ast.String:
+		return checkString(x, astExpr)
+	default:
+		panic(fmt.Sprintf("impossible type: %T", astExpr))
+	}
+}
+
+func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
+	defer x.tr("checkCall(…)")(&errs)
+
+	// TODO: implement checkCall
+
+	var recv Expr
+	if astCall.Recv != nil {
+		recv, errs = checkExpr(x, nil /* TODO */, astCall.Recv)
+	}
+	var recvType *Type // TODO: set recvType once Expr.Type exists
+	msgs := make([]Msg, len(astCall.Msgs))
+	for i := range astCall.Msgs {
+		var es []checkError
+		msgs[i], es = checkMsg(x, recvType, &astCall.Msgs[i])
+		errs = append(errs, es...)
+	}
+	return &Call{ast: astCall, Recv: recv, Msgs: msgs}, errs
+}
+
+func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
+	defer x.tr("checkMsg(%s, %s)", recv, astMsg.Sel)(&errs)
+
+	// TODO: implement checkMsg
+
+	msg := Msg{
+		ast: astMsg,
+		Mod: identString(astMsg.Mod),
+		Sel: astMsg.Sel,
+	}
+	msg.Args, errs = checkExprs(x, astMsg.Args)
+	return msg, errs
+}
+
+func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
+	defer x.tr("checkCtor(%s)", astCtor.Type)(&errs)
+
+	// TODO: implement checkCtor.
+
+	typ, es := gatherTypeName(x, &astCtor.Type)
+	errs = append(errs, es...)
+	args, es := checkExprs(x, astCtor.Args)
+	errs = append(errs, es...)
+	return &Ctor{ast: astCtor, Type: *typ, Sel: astCtor.Sel, Args: args}, nil
+}
+
 func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {
 	defer x.tr("checkBlock(…)")(&errs)
 	blk := &Block{ast: astBlock}
 	blk.Parms, errs = gatherVars(x, astBlock.Parms)
+
+	// TODO: correctly handle block type inference.
 
 	x = x.new()
 	x.block = blk
@@ -357,11 +607,8 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 
 	var es []checkError
-	blk.Stmts, es = gatherStmts(x, infer, astBlock.Stmts)
+	blk.Stmts, es = checkStmts(x, infer, astBlock.Stmts)
 	errs = append(errs, es...)
-
-	// TODO: set Block.typ once Expr.Type is added
-
 	return blk, errs
 }
 
