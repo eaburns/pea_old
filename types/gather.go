@@ -102,7 +102,7 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	def.Sig = *sig
 
 	for i := range def.Sig.Parms {
-		def.Sig.Parms[i].Parm = def
+		def.Sig.Parms[i].FunParm = def
 		def.Sig.Parms[i].Index = i
 	}
 
@@ -617,7 +617,7 @@ func gatherExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	case *ast.Ctor:
 		return gatherCtor(x, astExpr)
 	case *ast.Block:
-		return gatherBlock(x, astExpr)
+		return checkBlock(x, infer, astExpr)
 	case *ast.Ident:
 		return checkIdent(x, astExpr)
 	case *ast.Int:
@@ -673,14 +673,4 @@ func gatherCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 	args, es := gatherExprs(x, astCtor.Args)
 	errs = append(errs, es...)
 	return &Ctor{ast: astCtor, Type: *typ, Sel: astCtor.Sel, Args: args}, nil
-}
-
-func gatherBlock(x *scope, astBlock *ast.Block) (_ *Block, errs []checkError) {
-	defer x.tr("gatherBlock(…)")(&errs)
-	blk := &Block{ast: astBlock}
-	blk.Parms, errs = gatherVars(x, astBlock.Parms)
-	var es []checkError
-	blk.Stmts, es = gatherStmts(x, nil, astBlock.Stmts)
-	errs = append(errs, es...)
-	return blk, errs
 }

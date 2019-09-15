@@ -225,10 +225,11 @@ type Var struct {
 	typ *Type
 
 	// At most one of the following is non-nil.
-	Val   *Val    // a module-level Val; Index is unused.
-	Parm  *Fun    // a function parm; Index is the Parms index.
-	Local *[]*Var // a local variable; Index is the index.
-	Field *Type   // an And-type field; Index is the Fields index.
+	Val     *Val    // a module-level Val; Index is unused.
+	FunParm *Fun    // a function parm; Index is the Parms index.
+	BlkParm *Block  // a block parm; Index is the Parms index.
+	Local   *[]*Var // a local variable; Index is the index.
+	Field   *Type   // an And-type field; Index is the Fields index.
 
 	// Index is used as described above.
 	Index int
@@ -298,9 +299,13 @@ type Block struct {
 	ast   *ast.Block
 	Parms []Var // if type is nil, it must be inferred
 	Stmts []Stmt
+
+	Locals []*Var
+	typ    *Type
 }
 
 func (n *Block) AST() ast.Node { return n.ast }
+func (n *Block) Type() *Type   { return n.typ }
 
 // An Ident is a variable name as an expression.
 type Ident struct {

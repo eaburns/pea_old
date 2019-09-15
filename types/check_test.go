@@ -580,8 +580,8 @@ func TestIdentLookup(t *testing.T) {
 	if stmts[3].(*Ident).Var != parmVar {
 		t.Errorf("parmVar (%p) != %p", stmts[3].(*Ident).Var, parmVar)
 	}
-	if stmts[3].(*Ident).Var.Parm != fun {
-		t.Errorf("fun (%p) != %p", stmts[3].(*Ident).Var.Parm, fun)
+	if stmts[3].(*Ident).Var.FunParm != fun {
+		t.Errorf("fun (%p) != %p", stmts[3].(*Ident).Var.FunParm, fun)
 	}
 	if stmts[3].(*Ident).Var.Index != 1 {
 		t.Errorf("parmVar .Index(%d) != 1", stmts[3].(*Ident).Var.Index)

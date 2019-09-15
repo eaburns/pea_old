@@ -341,6 +341,30 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	return errs
 }
 
+func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {
+	defer x.tr("checkBlock(…)")(&errs)
+	blk := &Block{ast: astBlock}
+	blk.Parms, errs = gatherVars(x, astBlock.Parms)
+
+	x = x.new()
+	x.block = blk
+	for i := range blk.Parms {
+		parm := &blk.Parms[i]
+		parm.BlkParm = blk
+		parm.Index = i
+		x = x.new()
+		x.variable = parm
+	}
+
+	var es []checkError
+	blk.Stmts, es = gatherStmts(x, infer, astBlock.Stmts)
+	errs = append(errs, es...)
+
+	// TODO: set Block.typ once Expr.Type is added
+
+	return blk, errs
+}
+
 func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	defer x.tr("checkIdent(%s)", astIdent.Text)(&errs)
 

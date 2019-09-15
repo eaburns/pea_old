@@ -17,6 +17,7 @@ type scope struct {
 	typeVar  *Var
 	val      *Val
 	fun      *Fun
+	block    *Block
 	variable *Var
 }
 
@@ -116,6 +117,8 @@ func (x *scope) locals() *[]*Var {
 	switch {
 	case x.fun != nil:
 		return &x.fun.Locals
+	case x.block != nil:
+		return &x.block.Locals
 	case x.val != nil:
 		return &x.val.Locals
 	default:
