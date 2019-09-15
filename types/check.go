@@ -565,16 +565,18 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 
 func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
 	defer x.tr("checkMsg(%s, %s)", recv, astMsg.Sel)(&errs)
-
-	// TODO: implement checkMsg
-
 	msg := Msg{
 		ast: astMsg,
 		Mod: identString(astMsg.Mod),
 		Sel: astMsg.Sel,
 	}
 	msg.Args, errs = checkExprs(x, astMsg.Args)
-	return msg, errs
+	return msg, _checkMsg(x, recv, &msg)
+}
+
+func _checkMsg(x *scope, recv *Type, msg *Msg) []checkError {
+	// TODO: implement _checkMsg
+	return nil
 }
 
 func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
@@ -623,11 +625,11 @@ func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	case *Var:
 		ident.Var = vr
 	case *Fun:
-		// TODO: recursively check the call.
-		return &Call{
-			ast:  astIdent,
-			Msgs: []Msg{{ast: astIdent, Sel: astIdent.Text}},
-		}, errs
+		defer x.tr("checkMsg(%s, %s)", nil, astIdent.Text)(&errs)
+		msg := Msg{ast: astIdent, Sel: astIdent.Text}
+		es := _checkMsg(x, nil, &msg)
+		errs = append(errs, es...)
+		return &Call{ast: astIdent, Msgs: []Msg{msg}}, errs
 	default:
 		panic(fmt.Sprintf("impossible type: %T", vr))
 	}
