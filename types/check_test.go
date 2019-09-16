@@ -706,6 +706,111 @@ func TestAssignToField(t *testing.T) {
 	}
 }
 
+func TestBlockLiteralError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "no infer type",
+			src: `
+				val x := [ [ :a :b :c | a + b + c ] ]
+			`,
+			err: "cannot infer block parameter type",
+		},
+		{
+			name: "non-Fun infer type",
+			src: `
+				val x Int := [ [ :a :b :c | a + b + c ] ]
+			`,
+			err: "cannot infer block parameter type",
+		},
+		{
+			name: "too many parameters",
+			src: `
+				val x (Int, Int, Int, Int, Int, String) Fun := [
+					[ :a :b :c :d :e | a + b + c + d + e ]
+				]
+			`,
+			err: "too many block parameters",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestBlockTypeInference(t *testing.T) {
+	// The first def must be a *Val.
+	// The first def's last statement must be a block literal.
+	tests := []struct {
+		name  string
+		src   string
+		want  string
+		trace bool
+	}{
+		{
+			name: "infer result from above",
+			src: `
+				val x Int64 Fun := [ [5] ]
+			`,
+			want: "type Int64 Fun",
+		},
+		{
+			name: "infer result from below",
+			src: `
+				val x := [ ["string"] ]
+			`,
+			want: "type String Fun",
+		},
+		{
+			name: "infer args from above",
+			src: `
+				val x (Int64, Int32, Float, String) Fun := [
+					[ :a :b :c | "string" ]
+				]
+			`,
+			want: "type (Int64, Int32, Float, String) Fun",
+		},
+		{
+			name: "infer args from below",
+			src: `
+				val x := [
+					[ :a Int :b Int32 :c Float | "string" ]
+				]
+			`,
+			want: "type (Int, Int32, Float, String) Fun",
+		},
+		{
+			// Eventually this will return a check error
+			// and needs to be moved to a different test
+			// that is testing block check errors.
+			name: "found overrides infer",
+			src: `
+				val x (Int64, Int32, Float, String) Fun := [
+					[ :a Int8 :b String :c Float32 | 5 ]
+				]
+			`,
+			want: "type (Int8, String, Float32, Int64) Fun",
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			p := ast.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse source: %s", err)
+			}
+			mod, errs := Check(p.Mod(), Config{Trace: test.trace})
+			if len(errs) > 0 {
+				t.Fatalf("failed to check the source: %v", errs)
+			}
+			val := mod.Defs[0].(*Val)
+			blk := val.Init[len(val.Init)-1].(*Block)
+			if blk.typ.String() != test.want {
+				t.Errorf("got %s, wanted %s", blk.typ.String(), test.want)
+			}
+		})
+	}
+}
+
 func TestIntLit(t *testing.T) {
 	tests := []errorTest{
 		{

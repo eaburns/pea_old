@@ -186,7 +186,11 @@ func (n *TypeSig) ID() string {
 
 // A TypeName is the name of a concrete type.
 type TypeName struct {
-	ast  ast.Node // *ast.TypeName or *ast.Recv
+	// *ast.TypeName if from an original type name.
+	// *ast.Recv if the self variable type of a method.
+	// *ast.Block if the inferred type of a block result.
+	// *ast.Var if the inferred type of a block parameter.
+	ast  ast.Node
 	Mod  string
 	Name string
 	Args []TypeName
@@ -267,6 +271,7 @@ func (n *Assign) AST() ast.Node { return n.ast }
 // An Expr is an expression
 type Expr interface {
 	Node
+	Type() *Type
 }
 
 // A Call is a method call or a cascade.
@@ -274,9 +279,12 @@ type Call struct {
 	ast  ast.Node // *ast.Call or *ast.Ident if in-module unary function call.
 	Recv Expr     // nil for function calls
 	Msgs []Msg
+
+	typ *Type
 }
 
 func (n *Call) AST() ast.Node { return n.ast }
+func (n *Call) Type() *Type   { return n.typ }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
@@ -290,13 +298,16 @@ func (n Msg) AST() ast.Node { return n.ast }
 
 // A Ctor type constructor literal.
 type Ctor struct {
-	ast  *ast.Ctor
-	Type TypeName
-	Sel  string
-	Args []Expr
+	ast      *ast.Ctor
+	TypeName TypeName
+	Sel      string
+	Args     []Expr
+
+	typ *Type
 }
 
 func (n *Ctor) AST() ast.Node { return n.ast }
+func (n *Ctor) Type() *Type   { return n.typ }
 
 // A Block is a block literal.
 type Block struct {

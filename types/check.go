@@ -553,7 +553,10 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 	if astCall.Recv != nil {
 		recv, errs = checkExpr(x, nil /* TODO */, astCall.Recv)
 	}
-	var recvType *Type // TODO: set recvType once Expr.Type exists
+	var recvType *Type
+	if recv != nil {
+		recvType = recv.Type()
+	}
 	msgs := make([]Msg, len(astCall.Msgs))
 	for i := range astCall.Msgs {
 		var es []checkError
@@ -588,15 +591,56 @@ func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 	errs = append(errs, es...)
 	args, es := checkExprs(x, astCtor.Args)
 	errs = append(errs, es...)
-	return &Ctor{ast: astCtor, Type: *typ, Sel: astCtor.Sel, Args: args}, nil
+	return &Ctor{
+		ast:      astCtor,
+		TypeName: *typ,
+		Sel:      astCtor.Sel,
+		Args:     args,
+	}, nil
 }
 
 func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {
-	defer x.tr("checkBlock(…)")(&errs)
-	blk := &Block{ast: astBlock}
-	blk.Parms, errs = gatherVars(x, astBlock.Parms)
+	defer x.tr("checkBlock(infer=%s)", infer)(&errs)
 
-	// TODO: correctly handle block type inference.
+	var resInfer *Type
+	parmInfer := make([]*Type, len(astBlock.Parms))
+	if isFun(x, infer) {
+		x.log("is a fun")
+		resInfer = infer.Sig.Args[len(infer.Sig.Args)-1].Type
+		n := len(infer.Sig.Args)
+		if n > len(astBlock.Parms) {
+			n = len(astBlock.Parms)
+		}
+		for i := 0; i < n; i++ {
+			parmInfer[i] = infer.Sig.Args[i].Type
+		}
+	} else {
+		x.log("is not a fun")
+	}
+
+	blk := &Block{
+		ast:   astBlock,
+		Parms: make([]Var, len(astBlock.Parms)),
+	}
+
+	for i := range astBlock.Parms {
+		astParm := &astBlock.Parms[i]
+		parm := &blk.Parms[i]
+		parm.ast = astParm
+		parm.Name = astParm.Name
+		if astParm.Type == nil {
+			if parmInfer[i] == nil {
+				err := x.err(parm, "cannot infer block parameter type")
+				errs = append(errs, *err)
+			}
+			parm.typ = parmInfer[i]
+			continue
+		}
+		var es []checkError
+		parm.TypeName, es = gatherTypeName(x, astParm.Type)
+		parm.typ = parm.TypeName.Type
+		errs = append(errs, es...)
+	}
 
 	x = x.new()
 	x.block = blk
@@ -609,9 +653,58 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 
 	var es []checkError
-	blk.Stmts, es = checkStmts(x, infer, astBlock.Stmts)
+	blk.Stmts, es = checkStmts(x, resInfer, astBlock.Stmts)
 	errs = append(errs, es...)
+
+	if len(blk.Parms) >= MaxValueParms {
+		err := x.err(astBlock, "too many block parameters: got %, max %d",
+			len(astBlock.Parms), MaxValueParms)
+		errs = append(errs, *err)
+		return blk, errs
+	}
+
+	typeArgs := make([]TypeName, len(blk.Parms)+1)
+	for i := range blk.Parms {
+		parm := &blk.Parms[i]
+		if parm.typ == nil {
+			return blk, errs
+		}
+		if parm.TypeName != nil {
+			typeArgs[i] = *parm.TypeName
+			continue
+		}
+		typeArgs[i] = TypeName{
+			ast:  &astBlock.Parms[i],
+			Mod:  parm.typ.Sig.Mod,
+			Name: parm.typ.Sig.Name,
+			Args: parm.typ.Sig.Args,
+			Type: parm.typ,
+		}
+	}
+
+	resType := builtInType(x, "Nil")
+	if n := len(blk.Stmts); n > 0 {
+		if expr, ok := blk.Stmts[n-1].(Expr); ok {
+			resType = expr.Type()
+		}
+	}
+	if resType == nil {
+		return blk, errs
+	}
+	typeArgs[len(typeArgs)-1] = TypeName{
+		ast:  astBlock,
+		Mod:  resType.Sig.Mod,
+		Name: resType.Sig.Name,
+		Args: resType.Sig.Args,
+		Type: resType,
+	}
+	blk.typ = builtInType(x, "Fun", typeArgs...)
 	return blk, errs
+}
+
+func isFun(x *scope, typ *Type) bool {
+	// TODO: isFun is can erroneously return true for a user-defined type shadowing the builtIn "Fun".
+	return typ != nil && typ.Sig.Name == "Fun" && typ.Sig.Mod == ""
 }
 
 func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
@@ -658,7 +751,7 @@ func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []
 }
 
 func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
-	signed, bits := disectInt(x, t)
+	signed, bits := disectIntType(x, t)
 	x.log("signed=%v, bits=%v", signed, bits)
 	if !signed && i.Cmp(&big.Int{}) < 0 {
 		return x.err(n, "type %s cannot represent %s: negative unsigned", t, i)
@@ -671,7 +764,7 @@ func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
 	return nil
 }
 
-func disectInt(x *scope, typ *Type) (bool, int) {
+func disectIntType(x *scope, typ *Type) (bool, int) {
 	switch typ {
 	case builtInType(x, "Int8"):
 		return true, 7
@@ -747,6 +840,24 @@ func isFloat(x *scope, typ *Type) bool {
 	}
 }
 
+func checkRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {
+	defer x.tr("checkRune(%s)", astRune.Text)()
+	return &Int{
+		ast: astRune,
+		Val: big.NewInt(int64(astRune.Rune)),
+		typ: builtInType(x, "Int32"),
+	}, nil
+}
+
+func checkString(x *scope, astString *ast.String) (*String, []checkError) {
+	defer x.tr("checkString(%s)", astString.Text)()
+	return &String{
+		ast:  astString,
+		Data: astString.Data,
+		typ:  builtInType(x, "String"),
+	}, nil
+}
+
 func builtInType(x *scope, name string, args ...TypeName) *Type {
 	// Silence tracing for looking up built-in types.
 	savedTrace := x.cfg.Trace
@@ -765,24 +876,6 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
 	}
 	return typ
-}
-
-func checkRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {
-	defer x.tr("checkRune(%s)", astRune.Text)()
-	return &Int{
-		ast: astRune,
-		Val: big.NewInt(int64(astRune.Rune)),
-		typ: builtInType(x, "Int32"),
-	}, nil
-}
-
-func checkString(x *scope, astString *ast.String) (*String, []checkError) {
-	defer x.tr("checkString(%s)", astString.Text)()
-	return &String{
-		ast:  astString,
-		Data: astString.Data,
-		typ:  builtInType(x, "String"),
-	}, nil
 }
 
 func identString(id *ast.Ident) string {

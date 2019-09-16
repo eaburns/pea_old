@@ -7,6 +7,10 @@ import (
 	"github.com/eaburns/pea/ast"
 )
 
+// MaxValueParms the maximum number of value: parameters
+// for Fun value methods.
+const MaxValueParms = 4
+
 // univ are the definitions of the universal package.
 // This is executed with text/template.
 // {{IntSize}} is the bit-size of the Int, UInt, and Word type aliases.
