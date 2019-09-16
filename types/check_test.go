@@ -432,6 +432,15 @@ func TestAssignError(t *testing.T) {
 			err: "",
 		},
 		{
+			name: "ok multi-assign",
+			src: `
+				Val x := [
+					a Int, b, c := 1 neg, neg, neg.
+				]
+			`,
+			err: "",
+		},
+		{
 			name: "count mismatch: no call",
 			src: `
 				Val x := [
