@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"path"
+	"strings"
 
 	"github.com/eaburns/pea/ast"
 )
@@ -585,18 +586,176 @@ func _checkMsg(x *scope, recv *Type, msg *Msg) []checkError {
 func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 	defer x.tr("checkCtor(%s)", astCtor.Type)(&errs)
 
-	// TODO: implement checkCtor.
+	name, es := gatherTypeName(x, &astCtor.Type)
+	errs = append(errs, es...)
 
-	typ, es := gatherTypeName(x, &astCtor.Type)
-	errs = append(errs, es...)
-	args, es := checkExprs(x, astCtor.Args)
-	errs = append(errs, es...)
-	return &Ctor{
-		ast:      astCtor,
-		TypeName: *typ,
-		Sel:      astCtor.Sel,
-		Args:     args,
-	}, nil
+	ctor := &Ctor{ast: astCtor, TypeName: *name, Sel: astCtor.Sel}
+
+	switch ctor.typ = name.Type; {
+	case ctor.typ == nil:
+		// There was an error in the type name; do best-effort arg checking.
+		args, es := checkExprs(x, astCtor.Args)
+		errs = append(errs, es...)
+		ctor.Args = args
+	case ctor.typ.Alias != nil:
+		// This should have already been resolved by gatherTypeName.
+		panic("impossible alias")
+	case handleRefConvert(x, ctor):
+		// if handleRefConvert returns true,
+		// ctor.Args is the converted expr, and
+		// ctor.Ref is the reference differenc.
+		break
+	case isAry(x, ctor.typ):
+		errs = append(errs, checkAryCtor(x, ctor)...)
+	case ctor.typ.Cases != nil:
+		errs = append(errs, checkOrCtor(x, ctor)...)
+	case ctor.typ.Virts != nil:
+		errs = append(errs, checkVirtCtor(x, ctor)...)
+	case isBuiltIn(x, ctor.typ):
+		err := x.err(astCtor, "cannot construct built-in type %s", ctor.TypeName)
+		errs = append(errs, *err)
+		args, es := checkExprs(x, astCtor.Args)
+		errs = append(errs, es...)
+		ctor.Args = args
+	default:
+		errs = append(errs, checkAndCtor(x, ctor)...)
+	}
+	return ctor, errs
+}
+
+func handleRefConvert(x *scope, ctor *Ctor) bool {
+	if ctor.Sel != "" || len(ctor.ast.Args) != 1 || ctor.TypeName.Type == nil {
+		return false
+	}
+
+	expr, errs := checkExpr(x, nil, ctor.ast.Args[0])
+	if len(errs) > 0 {
+		// Ignore the errors, they will be reported elsewhere
+		// as we try non-reference conversions.
+		return false
+	}
+
+	gotI, got := refBaseType(x, expr.Type())
+	wantI, want := refBaseType(x, ctor.TypeName.Type)
+	if want != got || gotI == wantI {
+		return false
+	}
+	ctor.Args = []Expr{expr}
+	ctor.Ref = wantI - gotI
+	return true
+}
+
+func refBaseType(x *scope, typ *Type) (int, *Type) {
+	var i int
+	for isRef(x, typ) {
+		i++
+		typ = typ.Sig.Args[0].Type
+	}
+	return i, typ
+}
+
+func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkAryCtor(%s)", ctor.TypeName)(&errs)
+	want := ctor.TypeName.Type.Sig.Args[0].Type
+	ctor.Args = make([]Expr, len(ctor.ast.Args))
+	for i, expr := range ctor.ast.Args {
+		var es []checkError
+		ctor.Args[i], es = checkExpr(x, want, expr)
+		errs = append(errs, es...)
+	}
+	return errs
+}
+
+func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkOrCtor(%s)", ctor.TypeName)(&errs)
+
+	if len(ctor.ast.Args) > 1 || ctor.Sel == "" {
+		err := x.err(ctor, "malformed or-type constructor")
+		errs = append(errs, *err)
+		var es []checkError
+		ctor.Args, es = checkExprs(x, ctor.ast.Args)
+		return append(errs, es...)
+	}
+
+	ctor.Case = findCase(ctor.TypeName.Type, ctor.Sel)
+	if ctor.Case == nil {
+		err := x.err(ctor, "case %s not found", ctor.Sel)
+		errs = append(errs, *err)
+		expr, es := checkExpr(x, nil, ctor.ast.Args[0])
+		ctor.Args = []Expr{expr}
+		return append(errs, es...)
+	}
+	c := &ctor.TypeName.Type.Cases[*ctor.Case]
+
+	if c.TypeName == nil {
+		// Or-type constructors have a bit of a grammar ambiguity:
+		// Is the argument a no-type case constructor or an identifier?
+		// So, it ends up looking like both:
+		// There is a single argument that is an identifier
+		// with the name equal to the selector.
+		// If the argument isn't such, then this was an array-style constructor
+		// and thus there are too many arguments.
+		//
+		// If it is not just a single identifier, the parser sets Sel=="",
+		// which is handled in the mal-formed error returned above.
+		if id, ok := ctor.ast.Args[0].(*ast.Ident); !ok || id.Text != c.Name {
+			panic("impossible")
+		}
+		return errs
+	}
+
+	expr, es := checkExpr(x, c.typ, ctor.ast.Args[0])
+	ctor.Args = []Expr{expr}
+	return append(errs, es...)
+}
+
+func findCase(typ *Type, name string) *int {
+	for i := range typ.Cases {
+		if typ.Cases[i].Name == name {
+			return &i
+		}
+	}
+	return nil
+}
+
+func checkVirtCtor(x *scope, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkVirtCtor(%s)", ctor.TypeName)(&errs)
+	// TODO: implement checkVirtCtor.
+	return errs
+}
+
+func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkAndCtor(%s)", ctor.TypeName)(&errs)
+
+	if ctor.Sel == "" && len(ctor.ast.Args) > 0 {
+		err := x.err(ctor, "malformed and-type constructor")
+		errs = append(errs, *err)
+		var es []checkError
+		ctor.Args, es = checkExprs(x, ctor.ast.Args)
+		return append(errs, es...)
+	}
+
+	var s strings.Builder
+	for _, v := range ctor.typ.Fields {
+		s.WriteString(v.Name)
+		s.WriteRune(':')
+	}
+	if want := s.String(); ctor.Sel != want {
+		err := x.err(ctor, "bad and-type constructor: got %s, expected %s", ctor.Sel, want)
+		errs = append(errs, *err)
+		var es []checkError
+		ctor.Args, es = checkExprs(x, ctor.ast.Args)
+		return append(errs, es...)
+	}
+
+	ctor.Args = make([]Expr, len(ctor.ast.Args))
+	for i, astArg := range ctor.ast.Args {
+		field := &ctor.typ.Fields[i]
+		var es []checkError
+		ctor.Args[i], es = checkExpr(x, field.typ, astArg)
+		errs = append(errs, es...)
+	}
+	return errs
 }
 
 func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {
@@ -708,7 +867,7 @@ func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	ident := &Ident{ast: astIdent, Text: astIdent.Text}
 	switch vr := x.findIdent(astIdent.Text).(type) {
 	case nil:
-		err := x.err(astIdent, "%s not found", astIdent.Text)
+		err := x.err(astIdent, "identifier %s not found", astIdent.Text)
 		errs = append(errs, *err)
 	case *Var:
 		ident.Var = vr
@@ -871,6 +1030,14 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
 	}
 	return typ
+}
+
+func isAry(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Sig.Name == "Array"
+}
+
+func isRef(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Sig.Name == "&"
 }
 
 func isFun(x *scope, typ *Type) bool {

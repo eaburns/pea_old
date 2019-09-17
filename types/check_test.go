@@ -561,6 +561,159 @@ func TestAssignToExistingVariable(t *testing.T) {
 	}
 }
 
+func TestCtorError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "bad type",
+			src: `
+				val x := [ {Unknown | 5} ]
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "disallowed built-in type",
+			src: `
+				val x := [ {Int | 5} ]
+			`,
+			err: "cannot construct built-in type Int64",
+		},
+		{
+			name: "alias is OK",
+			src: `
+				val x := [ {Int Ary | 5} ]
+				type T Ary := T Array.
+			`,
+			err: "",
+		},
+		{
+			name: "add a ref",
+			src: `
+				val x := [ {Int& | 5} ]
+			`,
+			err: "",
+		},
+		{
+			name: "add multiple refs",
+			src: `
+				val x := [ {Int& & & | 5} ]
+			`,
+			err: "",
+		},
+		{
+			name: "remove a ref",
+			src: `
+				val x := [ {Int | {Int& | 5}} ]
+			`,
+			err: "",
+		},
+		{
+			name: "remove multiple refs",
+			src: `
+				val x := [ {Int | {Int& & & | 5}} ]
+			`,
+			err: "",
+		},
+		{
+			name: "array OK",
+			src: `
+				val x := [ {Int Array | 1; 2; 3} ]
+			`,
+			err: "",
+		},
+		{
+			name: "array element error",
+			src: `
+				val x := [ {Int Array | 1; 2; 3.14} ]
+			`,
+			err: "Int64 cannot represent 3.14",
+		},
+		{
+			name: "or-type constructor",
+			src: `
+				type T? { none, some: T }
+				val x Int? := [ {Int?| none} ]
+				val y Int? := [ {Int?| some: 5} ]
+			`,
+			err: "",
+		},
+		{
+			name: "or-type malformed single argument",
+			src: `
+				type T? { none, some: T }
+				val x Int? := [ {Int?| 5} ]
+			`,
+			err: "malformed or-type constructor",
+		},
+		{
+			name: "or-type malformed too many arguments",
+			src: `
+				type T? { none, some: T }
+				val x Int? := [ {Int?| a: 5; b: 6; c: 7} ]
+			`,
+			err: "malformed or-type constructor",
+		},
+		{
+			name: "or-type case not found",
+			src: `
+				type T? { none, some: T }
+				val x Int? := [ {Int?| noCase} ]
+			`,
+			err: "case noCase not found",
+		},
+		{
+			name: "or-type case: not found",
+			src: `
+				type T? { none, some: T }
+				val x Int? := [ {Int?| noCase: 4} ]
+			`,
+			err: "case noCase: not found",
+		},
+		{
+			name: "and-type OK",
+			src: `
+				val x := [ {(Int, Float) Pair | x: 5; y: 2} ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "",
+		},
+		{
+			name: "and-type empty OK",
+			src: `
+				val x := [ {Empty | } ]
+				type Empty {}
+			`,
+			err: "",
+		},
+		{
+			name: "and-type malformed",
+			src: `
+				val x := [ {(Int, Float) Pair | 5; 6; 7} ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "malformed and-type constructor",
+		},
+		{
+			name: "and-type malformed",
+			src: `
+				val x := [ {(Int, Float) Pair | 5; 6; 7} ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "malformed and-type constructor",
+		},
+		{
+			name: "and-type unknown field",
+			src: `
+				val x := [ {(Int, Float) Pair | x: 5; y: 6; z: 7} ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "bad and-type constructor: got x:y:z:, expected x:y:",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestIdentError(t *testing.T) {
 	tests := []errorTest{
 		{

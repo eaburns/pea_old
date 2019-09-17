@@ -303,6 +303,15 @@ type Ctor struct {
 	Sel      string
 	Args     []Expr
 
+	// Case is non-nil if this is an or-type constructor.
+	// It is an index into the typ.Cases array.
+	Case *int
+
+	// Ref is non-0 for a reference conversion.
+	// A negative value is the number of references to remove,
+	// and a positive value is the number of references to add.
+	Ref int
+
 	typ *Type
 }
 
