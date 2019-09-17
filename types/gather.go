@@ -185,7 +185,7 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []che
 		return x, nil, nil
 	}
 
-	defer x.tr("gatherTypeParms(…)")(&errs)
+	defer x.tr("gatherTypeParms(%v)", astVars)(&errs)
 	vars := make([]Var, len(astVars))
 	for i := range astVars {
 		vars[i] = Var{ast: &astVars[i], Name: astVars[i].Name}
@@ -230,11 +230,13 @@ func gatherFunSig(x *scope, astSig *ast.FunSig) (_ *FunSig, errs []checkError) {
 }
 
 func gatherType(x *scope, def *Type) (errs []checkError) {
-	defer x.tr("gatherType(%s [%p])", def.name(), def)(&errs)
+	defer x.tr("gatherType(%p %s)", def, def.ast)(&errs)
 
 	var es []checkError
 	x, def.Sig.Parms, es = gatherTypeParms(x, def.ast.Sig.Parms)
 	errs = append(errs, es...)
+
+	x.typeInsts[makeTypeSigKey(&def.Sig)] = def
 
 	switch {
 	case def.ast.Alias != nil:
@@ -345,8 +347,7 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 }
 
 func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkError) {
-	defer func() { x.log("inst=%p", res) }()
-	defer x.tr("instType(%s, %v)", typ.name(), args)(&errs)
+	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
 
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
@@ -364,23 +365,20 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		for i := range typ.Sig.Parms {
 			sub[&typ.Sig.Parms[i]] = args[i]
 		}
-		args = subTypeNames(x, make(map[*Type]bool), sub, typ.Alias.Args)
+		seen := make(map[*Type]*Type)
+		args = subTypeNames(x, seen, sub, typ.Alias.Args)
 		typ = typ.Alias.Type
 	}
 	if len(args) == 0 {
-		x.log("nothing to instantiate")
 		return typ, nil
 	}
 
-	key := makeTypeKey(typ.Sig.Name, args)
+	key := makeTypeKey(typ.Sig.Mod, typ.Sig.Name, args)
 	if inst, ok := x.typeInsts[key]; ok {
 		return inst, nil
 	}
 
-	inst := *typ
-	x.typeInsts[key] = &inst
-	x.insts = append(x.insts, &inst)
-
+	var inst Type
 	if file, ok := x.defFiles[typ]; ok {
 		x.defFiles[&inst] = file
 		// The type was defined within this module.
@@ -395,23 +393,34 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		//
 		// Lastly, call gatherDef, not gatherType, because gatherDef
 		// fixes the scope to file-scope and does alias cycle checking.
-		es := gatherDef(x, &inst)
+		es := gatherDef(x, typ)
 		errs = append(errs, es...)
 	}
+
+	inst = *typ
+	x.typeInsts[key] = &inst
+	x.insts = append(x.insts, &inst)
 
 	sub := make(map[*Var]TypeName)
 	for i := range inst.Sig.Parms {
 		sub[&inst.Sig.Parms[i]] = args[i]
 	}
-	subTypeBody(x, make(map[*Type]bool), sub, &inst)
+	seen := make(map[*Type]*Type)
+	seen[typ] = &inst
+	subTypeBody(x, seen, sub, &inst)
 	inst.Sig.Parms = nil
 	inst.Sig.Args = args
 	return &inst, errs
 }
 
 type typeKey struct {
+	// Either mod+name+args or Var.
+
+	mod  string
 	name string
 	args interface{}
+
+	Var *Var
 }
 
 type argsKey struct {
@@ -419,8 +428,19 @@ type argsKey struct {
 	next interface{}
 }
 
-func makeTypeKey(name string, args []TypeName) typeKey {
-	return typeKey{name: name, args: makeArgsKey(args)}
+func makeTypeSigKey(sig *TypeSig) typeKey {
+	k := typeKey{mod: sig.Mod, name: sig.Name}
+	for i := len(sig.Parms) - 1; i >= 0; i-- {
+		k.args = argsKey{
+			typ:  typeKey{Var: &sig.Parms[i]},
+			next: k.args,
+		}
+	}
+	return k
+}
+
+func makeTypeKey(mod, name string, args []TypeName) typeKey {
+	return typeKey{mod: mod, name: name, args: makeArgsKey(args)}
 }
 
 func makeArgsKey(args []TypeName) interface{} {
@@ -434,9 +454,10 @@ func makeArgsKey(args []TypeName) interface{} {
 		// The error was reported elsewhere; just use the empty key.
 		break
 	case a.Type == nil:
-		tkey = makeTypeKey(a.Var.Name, nil)
+		tkey = typeKey{Var: a.Var}
 	default:
-		tkey = makeTypeKey(a.Type.Sig.Name, args[0].Args)
+		sig := &a.Type.Sig
+		tkey = makeTypeKey(sig.Mod, sig.Name, a.Args)
 	}
 	return argsKey{typ: tkey, next: makeArgsKey(args[1:])}
 }
