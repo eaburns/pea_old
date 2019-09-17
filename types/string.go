@@ -147,6 +147,10 @@ func buildFunSigString(n *FunSig, stripSelf bool, s *strings.Builder) {
 }
 
 func buildRecvString(n *Recv, s *strings.Builder) {
+	if n.Type != nil {
+		buildTypeSigString(&n.Type.Sig, s)
+		return
+	}
 	switch {
 	case len(n.Parms) == 0:
 		break
@@ -172,7 +176,7 @@ func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 	switch {
 	case len(n.Args) == 1:
 		buildTypeNameString(&n.Args[0], s)
-		if !isOpType(n.Name) || isOpType(n.Args[0].Name) {
+		if n.Mod != "" || !isOpType(n.Name) || isOpType(n.Args[0].Name) {
 			s.WriteRune(' ')
 		}
 	case len(n.Args) > 1:
@@ -184,21 +188,26 @@ func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 			buildTypeNameString(&n.Args[i], s)
 		}
 		s.WriteRune(')')
-		if !isOpType(n.Name) {
+		if n.Mod != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
 	case len(n.Parms) == 0:
 		break
 	case len(n.Parms) == 1 && n.Parms[0].TypeName == nil:
 		s.WriteString(n.Parms[0].Name)
-		if !isOpType(n.Name) {
+		if n.Mod != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
 	default:
 		buildTypeParms(n.Parms, s)
-		if !isOpType(n.Name) {
+		if n.Mod != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
+	}
+	if n.Mod != "" {
+		s.WriteRune('#')
+		s.WriteString(n.Mod)
+		s.WriteRune(' ')
 	}
 	s.WriteString(n.Name)
 }
@@ -224,6 +233,10 @@ func isOpType(s string) bool {
 }
 
 func buildTypeNameString(n *TypeName, s *strings.Builder) {
+	if n.Type != nil {
+		buildTypeSigString(&n.Type.Sig, s)
+		return
+	}
 	switch {
 	case len(n.Args) == 0:
 		break

@@ -776,7 +776,7 @@ func TestBlockTypeInference(t *testing.T) {
 					[ :a :b :c | "string" ]
 				]
 			`,
-			want: "type (Int64, Int32, Float, String) Fun",
+			want: "type (Int64, Int32, Float64, String) Fun",
 		},
 		{
 			name: "infer args from below",
@@ -785,7 +785,7 @@ func TestBlockTypeInference(t *testing.T) {
 					[ :a Int :b Int32 :c Float | "string" ]
 				]
 			`,
-			want: "type (Int, Int32, Float, String) Fun",
+			want: "type (Int64, Int32, Float64, String) Fun",
 		},
 		{
 			// Eventually this will return a check error
@@ -1068,7 +1068,7 @@ func TestTypeInstSub(t *testing.T) {
 				type T List { data: T, next: T List ? }
 				type T ? { Nil, Some: T }
 			`,
-			want: "type Int List { data: Int, next: Int List? }",
+			want: "type Int64 List { data: Int64, next: Int64 List? }",
 		},
 		{
 			name: "sub type parms",
@@ -1076,7 +1076,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := (Int, String) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Int, String) Pair { x: Int y: String }",
+			want: "type (Int64, String) Pair { x: Int64 y: String }",
 		},
 		{
 			name: "sub only some type parms",
@@ -1084,7 +1084,7 @@ func TestTypeInstSub(t *testing.T) {
 				type T Test := (Int, T) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Int, T) Pair { x: Int y: T }",
+			want: "type (Int64, T) Pair { x: Int64 y: T }",
 		},
 		{
 			name: "sub alias",
@@ -1092,7 +1092,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := Int DifferentArray.
 				type T DifferentArray := T Array.
 			`,
-			want: "type Int Array {}",
+			want: "type Int64 Array {}",
 		},
 		{
 			name: "sub fields",
@@ -1100,7 +1100,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := (Int, String) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Int, String) Pair { x: Int y: String }",
+			want: "type (Int64, String) Pair { x: Int64 y: String }",
 		},
 		{
 			name: "sub cases",
@@ -1108,7 +1108,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := Int?.
 				type T? { none, some: T }
 			`,
-			want: "type Int? { none, some: Int }",
+			want: "type Int64? { none, some: Int64 }",
 		},
 		{
 			name: "sub virts",
@@ -1116,7 +1116,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := Int Eq.
 				type T Eq { [= T& ^Bool] }
 			`,
-			want: "type Int Eq { [= Int& ^Bool] }",
+			want: "type Int64 Eq { [= Int64& ^Bool] }",
 		},
 		{
 			name: "recursive type",
@@ -1125,7 +1125,7 @@ func TestTypeInstSub(t *testing.T) {
 				type T List { data: T& next: T List? }
 				type T? { none, some: T }
 			`,
-			want: "type Int List { data: Int& next: Int List? }",
+			want: "type Int64 List { data: Int64& next: Int64 List? }",
 		},
 	}
 	for _, test := range tests {
