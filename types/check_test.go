@@ -993,6 +993,11 @@ func TestIntLit(t *testing.T) {
 		},
 		overflowTest("UInt64", "18446744073709551616"),
 		overflowTest("UInt64", "100000000000000000000000"),
+		{
+			name: "rune lit",
+			src:  "val x := ['a']",
+			err:  "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
