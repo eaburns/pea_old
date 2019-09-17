@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 
@@ -79,6 +80,8 @@ func (x *state) err(n interface{}, f string, vs ...interface{}) *checkError {
 	return &checkError{loc: x.loc(n), msg: fmt.Sprintf(f, vs...)}
 }
 
+const indent = "-"
+
 // The argument to the returned function,
 // if non-empty, only the first element of vs is used.
 // It must be a either pointer to a slice of types convertable to error,
@@ -89,7 +92,7 @@ func (x *state) tr(f string, vs ...interface{}) func(...interface{}) {
 	}
 	x.log(f, vs...)
 	olddent := x.indent
-	x.indent += "---"
+	x.indent += indent
 	return func(errs ...interface{}) {
 		defer func() { x.indent = olddent }()
 		if len(errs) == 0 {
@@ -107,7 +110,7 @@ func (x *state) log(f string, vs ...interface{}) {
 	if !x.cfg.Trace {
 		return
 	}
-	fmt.Printf(x.indent)
-	fmt.Printf(f, vs...)
-	fmt.Println("")
+	fmt.Fprintf(os.Stderr, "%02d%s", len(x.indent)/len(indent), x.indent)
+	fmt.Fprintf(os.Stderr, f, vs...)
+	fmt.Fprintf(os.Stderr, "\n")
 }
