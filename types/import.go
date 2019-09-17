@@ -73,6 +73,12 @@ func (ir *dirImporter) Import(cfg Config, path string) ([]Def, error) {
 		return nil, fmt.Errorf("error checking import %s:\n%v", path, errs)
 	}
 	setMod(path, mod.Defs)
+	// A future importer should read imported trees from a file.
+	// In this case, there will likely be no AST,
+	// so we do not want to assume one now.
+	// We nill out the AST of defs here to expose early
+	// any assumption that they are non-nil.
+	clearAST(mod.Defs)
 	return mod.Defs, nil
 }
 
@@ -85,6 +91,21 @@ func setMod(path string, defs []Def) {
 			def.Mod = path
 		case *Type:
 			def.Sig.Mod = path
+		default:
+			panic(fmt.Sprintf("impossible type: %T", def))
+		}
+	}
+}
+
+func clearAST(defs []Def) {
+	for _, def := range defs {
+		switch def := def.(type) {
+		case *Val:
+			def.ast = nil
+		case *Fun:
+			def.ast = nil
+		case *Type:
+			def.ast = nil
 		default:
 			panic(fmt.Sprintf("impossible type: %T", def))
 		}
