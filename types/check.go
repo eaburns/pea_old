@@ -25,7 +25,7 @@ type Config struct {
 
 // Check type-checks an AST and returns the type-checked tree or errors.
 func Check(astMod *ast.Mod, cfg Config) (*Mod, []error) {
-	x := newUnivScope(newState(cfg, astMod))
+	x := newUnivScope(newDefaultState(cfg, astMod))
 	mod, errs := check(x, astMod)
 	if len(errs) > 0 {
 		return nil, convertErrors(errs)
@@ -702,11 +702,6 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	return blk, errs
 }
 
-func isFun(x *scope, typ *Type) bool {
-	// TODO: isFun is can erroneously return true for a user-defined type shadowing the builtIn "Fun".
-	return typ != nil && typ.Sig.Name == "Fun" && typ.Sig.Mod == ""
-}
-
 func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	defer x.tr("checkIdent(%s)", astIdent.Text)(&errs)
 
@@ -876,6 +871,14 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
 	}
 	return typ
+}
+
+func isFun(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Sig.Name == "Fun"
+}
+
+func isBuiltIn(x *scope, typ *Type) bool {
+	return typ != nil && typ.Sig.Mod == "" && x.defFiles[typ] == nil
 }
 
 func identString(id *ast.Ident) string {

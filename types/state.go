@@ -24,13 +24,17 @@ type state struct {
 }
 
 func newState(cfg Config, astMod *ast.Mod) *state {
-	x := &state{
+	return &state{
 		astMod:    astMod,
 		cfg:       cfg,
 		defFiles:  make(map[Def]*file),
 		gathered:  make(map[Def]bool),
 		typeInsts: make(map[interface{}]*Type),
 	}
+}
+
+func newDefaultState(cfg Config, astMod *ast.Mod) *state {
+	x := newState(cfg, astMod)
 	setConfigDefaults(x)
 	return x
 }
