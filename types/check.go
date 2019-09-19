@@ -482,7 +482,7 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 	}
 
 	recv, es := checkExpr(x, nil, astCall.Recv)
-	var recvType *Type // TODO: recv.Type()
+	recvType := recv.Type()
 	errs = append(errs, es...)
 	loc := x.locals()
 	tmp := &Var{
