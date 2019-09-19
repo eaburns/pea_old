@@ -122,7 +122,6 @@ func (x *scope) locals() *[]*Var {
 	case x.val != nil:
 		return &x.val.Locals
 	default:
-		// TODO: implement locals() for Block.
 		return x.up.locals()
 	}
 }

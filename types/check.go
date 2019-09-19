@@ -516,7 +516,7 @@ func checkExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
 	exprs := make([]Expr, len(astExprs))
 	for i, expr := range astExprs {
 		var es []checkError
-		exprs[i], es = checkExpr(x, nil /* TODO */, expr)
+		exprs[i], es = checkExpr(x, nil, expr)
 		errs = append(errs, es...)
 	}
 	return exprs, errs
@@ -552,7 +552,7 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 
 	var recv Expr
 	if astCall.Recv != nil {
-		recv, errs = checkExpr(x, nil /* TODO */, astCall.Recv)
+		recv, errs = checkExpr(x, nil, astCall.Recv)
 	}
 	var recvType *Type
 	if recv != nil {
