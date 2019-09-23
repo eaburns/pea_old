@@ -38,6 +38,25 @@ func (n Fun) String() string {
 			s.WriteString("Func ")
 		}
 	}
+	if len(n.TParms) > 0 {
+		if len(n.TParms) > 1 || n.TParms[0].TypeName != nil {
+			s.WriteRune('(')
+		}
+		for i, parm := range n.TParms {
+			if i > 0 {
+				s.WriteString(", ")
+			}
+			s.WriteString(parm.Name)
+			if parm.TypeName != nil {
+				s.WriteRune(' ')
+				buildTypeNameString(parm.TypeName, &s)
+			}
+		}
+		if len(n.TParms) > 1 || n.TParms[0].TypeName != nil {
+			s.WriteRune(')')
+		}
+		s.WriteRune(' ')
+	}
 	buildFunSigString(&n.Sig, n.Recv != nil, &s)
 	return s.String()
 }

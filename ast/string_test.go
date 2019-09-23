@@ -23,6 +23,8 @@ func TestString(t *testing.T) {
 		{"type X? { }", "type X?"},
 		{"type (X, Y, Z)? { }", "type (X, Y, Z)?"},
 		{"func [unary |]", "func [unary]"},
+		{"func T [unary |]", "func T [unary]"},
+		{"func (T Foo) [unary |]", "func (T Foo) [unary]"},
 		{"Func [unary |]", "Func [unary]"},
 		{"meth Int [++ abc Int |]", "meth Int [++ abc Int]"},
 		{"Meth Int [++ abc Int |]", "Meth Int [++ abc Int]"},

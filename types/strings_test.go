@@ -26,6 +26,8 @@ func TestString(t *testing.T) {
 		{src: "type X& { }", want: "type X&"},
 		{src: "type (X, Y, Z)& { }", want: "type (X, Y, Z)&"},
 		{src: "func [unary |]", want: "func [unary]"},
+		{src: "func T [unary |]", want: "func T [unary]"},
+		{src: "func (T Foo) [unary |] type Foo { [xyz] }", want: "func (T Foo) [unary]"},
 		{src: "Func [unary |]", want: "Func [unary]"},
 		{src: "meth Int [++ abc Int |]", want: "meth Int64 [++ abc Int64]"},
 		{src: "Meth Int [++ abc Int |]", want: "Meth Int64 [++ abc Int64]"},
