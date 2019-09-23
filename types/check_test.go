@@ -256,6 +256,22 @@ func TestRedefError(t *testing.T) {
 			err: "",
 		},
 		{
+			name: "built-in case method redefined",
+			src: `
+				meth T? [ifNone: _ Int ifSome: _ String |]
+				type T? { none, some: T }
+			`,
+			err: "method \\(1\\)\\? ifNone:ifSome: redefined",
+		},
+		{
+			name: "virtual method redefined",
+			src: `
+				meth Foo [bar |]
+				type Foo { [bar] }
+			`,
+			err: "method Foo bar redefined",
+		},
+		{
 			name: "type field",
 			src: `
 				type Test { a: Int a: Float }

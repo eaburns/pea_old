@@ -60,7 +60,11 @@ func (n *Val) name() string {
 
 // A Fun is a function or method definition.
 type Fun struct {
-	ast    *ast.Fun
+	// ast is one of:
+	// 	*ast.Fun for a function or method defintion
+	// 	*ast.FunSig for a virtual function definition
+	// 	*ast.Type for a case-method definition
+	ast    ast.Node
 	Priv   bool
 	Mod    string
 	Recv   *Recv

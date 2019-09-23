@@ -91,13 +91,13 @@ func gatherVal(x *scope, def *Val) (errs []checkError) {
 func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	defer x.tr("gatherFun(%s)", def.name())(&errs)
 
-	x, def.Recv, errs = gatherRecv(x, def.ast.Recv)
+	x, def.Recv, errs = gatherRecv(x, def.ast.(*ast.Fun).Recv)
 
 	var es []checkError
-	x, def.TParms, es = gatherTypeParms(x, def.ast.TParms)
+	x, def.TParms, es = gatherTypeParms(x, def.ast.(*ast.Fun).TParms)
 	errs = append(errs, es...)
 
-	sig, es := gatherFunSig(x, &def.ast.Sig)
+	sig, es := gatherFunSig(x, &def.ast.(*ast.Fun).Sig)
 	errs = append(errs, es...)
 	def.Sig = *sig
 

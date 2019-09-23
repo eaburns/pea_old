@@ -37,6 +37,8 @@ func Check(astMod *ast.Mod, cfg Config) (*Mod, []error) {
 func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	defer x.tr("check(%s)", astMod.Name)(&errs)
 
+	isUniv := x.univ == nil
+
 	mod := &Mod{AST: astMod}
 	x = x.new()
 	x.mod = mod
@@ -44,6 +46,17 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	mod.Defs, errs = makeDefs(x, astMod.Files)
 	errs = append(errs, checkDups(x, mod.Defs)...)
 	errs = append(errs, gatherDefs(x, mod.Defs)...)
+	if isUniv {
+		// In this case, we are checking the univ mod.
+		// We've only now just gathered the defs, so set them in the state.
+		x.up.univ = mod.Defs
+	}
+	mod.Defs = append(mod.Defs, builtInMeths(x, mod.Defs)...)
+	if isUniv {
+		// In this case, we are checking the univ mod.
+		// Add the additional built-in defs to the state.
+		x.up.univ = mod.Defs
+	}
 	errs = append(errs, checkDupMeths(x, mod.Defs)...)
 	errs = append(errs, checkDefs(x, mod.Defs)...)
 
@@ -114,7 +127,7 @@ func checkDups(x *scope, defs []Def) (errs []checkError) {
 				continue
 			}
 		case *Fun:
-			if def.ast.Recv != nil {
+			if astFun, ok := def.ast.(*ast.Fun); ok && astFun.Recv != nil {
 				continue // check dup methods separately.
 			}
 			id = def.Sig.Sel
@@ -199,7 +212,8 @@ func checkDefs(x *scope, defs []Def) []checkError {
 
 func checkDef(x *scope, def Def) []checkError {
 	if !x.gathered[def] {
-		panic("impossible")
+		// This is a built-in method, with no AST and nothing to check.
+		return nil
 	}
 	file, ok := x.defFiles[def]
 	if !ok {
@@ -257,7 +271,7 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	}
 
 	var es []checkError
-	def.Stmts, es = checkStmts(x, nil, def.ast.Stmts)
+	def.Stmts, es = checkStmts(x, nil, def.ast.(*ast.Fun).Stmts)
 	return append(errs, es...)
 }
 
