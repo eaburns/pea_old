@@ -405,7 +405,9 @@ func newUniv(x *state) []Def {
 		panic("parse error in univ: " + err.Error())
 	}
 	astMod := p.Mod()
-	mod, errs := check(&scope{state: newState(x.cfg, astMod)}, astMod)
+	cfg := x.cfg
+	cfg.Trace = false
+	mod, errs := check(&scope{state: newState(cfg, astMod)}, astMod)
 	if len(errs) > 0 {
 		panic("check error in univ: " + errs[0].Error())
 	}
