@@ -298,9 +298,18 @@ type Msg struct {
 	Mod  string
 	Sel  string
 	Args []Expr
+
+	Fun *Fun
 }
 
 func (n Msg) AST() ast.Node { return n.ast }
+
+func (n Msg) name() string {
+	if n.Mod == "" {
+		return n.Sel
+	}
+	return n.Mod + " " + n.Sel
+}
 
 // A Ctor type constructor literal.
 type Ctor struct {

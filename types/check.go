@@ -573,39 +573,115 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 	defer x.tr("checkCall(…)")(&errs)
 
-	// TODO: implement checkCall
+	call := &Call{
+		ast:  astCall,
+		Msgs: make([]Msg, len(astCall.Msgs)),
+	}
 
 	var recv Expr
+	var recvType *Type
 	if astCall.Recv != nil {
 		recv, errs = checkExpr(x, nil, astCall.Recv)
-	}
-	var recvType *Type
-	if recv != nil {
 		recvType = recv.Type()
+		if recvType == nil {
+			x.log("call receiver check error")
+			// There was a receiver, but we don't know it's type.
+			// That error was reported elsewhere, but we can't continue here.
+			// Do best-effort checking of the message arguments.
+			for i := range astCall.Msgs {
+				astMsg := &astCall.Msgs[i]
+				call.Msgs[i] = Msg{
+					ast: astMsg,
+					Mod: identString(astMsg.Mod),
+					Sel: astMsg.Sel,
+				}
+				var es []checkError
+				call.Msgs[i].Args, es = checkExprs(x, astMsg.Args)
+				errs = append(errs, es...)
+			}
+			return call, errs
+		}
 	}
-	msgs := make([]Msg, len(astCall.Msgs))
 	for i := range astCall.Msgs {
 		var es []checkError
-		msgs[i], es = checkMsg(x, recvType, &astCall.Msgs[i])
+		call.Msgs[i], es = checkMsg(x, recvType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 	}
-	return &Call{ast: astCall, Recv: recv, Msgs: msgs}, errs
+	return call, errs
 }
 
 func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
 	defer x.tr("checkMsg(%s, %s)", recv, astMsg.Sel)(&errs)
+
 	msg := Msg{
 		ast: astMsg,
 		Mod: identString(astMsg.Mod),
 		Sel: astMsg.Sel,
 	}
-	msg.Args, errs = checkExprs(x, astMsg.Args)
-	return msg, _checkMsg(x, recv, &msg)
+	errs = findMsgFun(x, recv, &msg)
+	if msg.Fun == nil {
+		// findMsgFun failed; best-effort check the arguments.
+		var es []checkError
+		msg.Args, es = checkExprs(x, astMsg.Args)
+		return msg, append(errs, es...)
+	}
+	parms := msg.Fun.Sig.Parms
+	if msg.Fun.Recv != nil {
+		parms = parms[1:]
+	}
+	msg.Args = make([]Expr, len(astMsg.Args))
+	for i, astArg := range astMsg.Args {
+		var es []checkError
+		typ := parms[i].TypeName.Type
+		msg.Args[i], es = checkExpr(x, typ, astArg)
+		errs = append(errs, es...)
+	}
+	return msg, errs
 }
 
-func _checkMsg(x *scope, recv *Type, msg *Msg) []checkError {
-	// TODO: implement _checkMsg
-	return nil
+func findMsgFun(x *scope, recv *Type, msg *Msg) (errs []checkError) {
+	x.tr("findMsgFun(%s, %s)", recv, msg.name())(&errs)
+	var fun *Fun
+	var mod string
+
+	switch {
+	case recv != nil && recv.Var != nil:
+		c := recv.Var.TypeName
+		if c != nil && c.Type != nil {
+			fun = x.findFun(c.Type, msg.Sel)
+		}
+	case msg.Mod != "":
+		mod = msg.Mod + " "
+		imp := x.findImport(msg.Mod)
+		if imp == nil {
+			// msg.ast must be an *ast.Msg,
+			// since the only other case is ast.Ident,
+			// which is only for in-module function calls,
+			// and this is not in-module.
+			err := x.err(msg.ast.(*ast.Msg).Mod, "module %s not found", msg.Mod)
+			return append(errs, *err)
+		}
+		fun = imp.findFun(recv, msg.Sel)
+	default:
+		fun = x.findFun(recv, msg.Sel)
+	}
+	if fun == nil {
+		if recv == nil {
+			err := x.err(msg, "function %s%s not found", mod, msg.Sel)
+			return append(errs, *err)
+		}
+		err := x.err(msg, "method %s %s%s not found", recv.Sig.ID(), mod, msg.Sel)
+		return append(errs, *err)
+	}
+
+	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
+		// TODO: implement findMsgFun for lifted receiver types.
+		errs = append(errs, *x.err(msg, "calls on parameterized receivers unimplemented"))
+		return errs
+	}
+
+	msg.Fun = fun
+	return errs
 }
 
 func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
@@ -899,7 +975,7 @@ func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	case *Fun:
 		defer x.tr("checkMsg(%s, %s)", nil, astIdent.Text)(&errs)
 		msg := Msg{ast: astIdent, Sel: astIdent.Text}
-		es := _checkMsg(x, nil, &msg)
+		es := findMsgFun(x, nil, &msg)
 		errs = append(errs, es...)
 		return &Call{ast: astIdent, Msgs: []Msg{msg}}, errs
 	default:

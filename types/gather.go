@@ -112,6 +112,7 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 				Name: def.Recv.Name,
 				Type: def.Recv.Type,
 			},
+			typ: def.Recv.Type,
 		}
 		if def.Recv.Type != nil {
 			self.TypeName.Args = def.Recv.Type.Sig.Args

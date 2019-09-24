@@ -164,3 +164,49 @@ func findIdent(name string, defs []Def) interface{} {
 	}
 	return nil
 }
+
+func (x *scope) findFun(recv *Type, sel string) *Fun {
+	switch {
+	case x == nil:
+		return nil
+	case x.mod != nil:
+		if f := findFun(recv, sel, x.mod.Defs); f != nil {
+			return f
+		}
+	case x.univ != nil:
+		if f := findFun(recv, sel, x.univ); f != nil {
+			return f
+		}
+	}
+	return x.up.findFun(recv, sel)
+}
+
+func (imp *imp) findFun(recv *Type, sel string) *Fun {
+	f := findFun(recv, sel, imp.defs)
+	// TODO: give a different error message if a method or type is not found becasue it's private.
+	if f == nil || f.Priv {
+		return nil
+	}
+	return f
+}
+
+func findFun(recv *Type, sel string, defs []Def) *Fun {
+	for _, def := range defs {
+		switch fun, ok := def.(*Fun); {
+		case !ok:
+			continue
+		case fun.Recv != nil && fun.Recv.Type == nil:
+			continue
+		case (recv == nil) != (fun.Recv == nil):
+			continue
+		case fun.Sig.Sel != sel:
+			continue
+		case recv == nil:
+			return fun
+		case recv.Sig.Arity == len(fun.Recv.Type.Sig.Parms) &&
+			recv.Sig.Name == fun.Recv.Type.Sig.Name:
+			return fun
+		}
+	}
+	return nil
+}

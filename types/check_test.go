@@ -606,6 +606,142 @@ func TestAssignToExistingVariable(t *testing.T) {
 	}
 }
 
+func TestCallError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "function not found",
+			src: `
+				val x := [ foo: 5 bar: 6 ]
+			`,
+			err: "function foo:bar: not found",
+		},
+		{
+			name: "function found",
+			src: `
+				val x := [ foo: 5 bar: 6 ]
+				func [ foo: _ Int bar: _ Int | ]
+			`,
+			err: "",
+		},
+		{
+			name: "method not found",
+			src: `
+				val x := [ 5 foo: 5 bar: 6 ]
+			`,
+			err: "method Int64 foo:bar: not found",
+		},
+		{
+			name: "method found",
+			src: `
+				val x := [ 5 foo: 5 bar: 6 ]
+				meth Int [foo: _ Int bar: _ Int |]
+			`,
+			err: "",
+		},
+		{
+			name: "method on bad type is not found",
+			src: `
+				val x := [ 5 foo: 5 bar: 6 ]
+				meth Bad [foo: _ Int bar: _ Int |]
+			`,
+			err: "method Int64 foo:bar: not found",
+		},
+		{
+			name: "module not found",
+			src: `
+				val x := [ 5 #notfound foo: 5 bar: 6 ]
+			`,
+			err: "module #notfound not found",
+		},
+		{
+			name: "other module function call",
+			src: `
+				import "found"
+				val x := [ #found foo: 5 bar: 6 ]
+			`,
+			imports: [][2]string{
+				{"found", `
+					Func [foo: _ Int bar: _ Int |]
+				`},
+			},
+			err: "",
+		},
+		{
+			name: "other module method call",
+			src: `
+				import "found"
+				val x := [ 5 #found foo: 5 bar: 6 ]
+			`,
+			imports: [][2]string{
+				{"found", `
+					Meth Int [foo: _ Int bar: _ Int |]
+				`},
+			},
+			err: "",
+		},
+		{
+			name: "private function not found",
+			src: `
+				import "found"
+				val x := [ #found foo: 5 bar: 6 ]
+			`,
+			imports: [][2]string{
+				{"found", `
+					func [foo: _ Int bar: _ Int |]
+				`},
+			},
+			err: "function #found foo:bar: not found",
+		},
+		{
+			name: "private method not found",
+			src: `
+				import "found"
+				val x := [ 5 #found foo: 5 bar: 6 ]
+			`,
+			imports: [][2]string{
+				{"found", `
+					meth Int [foo: _ Int bar: _ Int |]
+				`},
+			},
+			err: "method Int64 #found foo:bar: not found",
+		},
+		{
+			name: "type variable method not found",
+			src: `
+				meth T Array [ test: t T | t foo: 5 bar: 6 ]
+			`,
+			err: "method T foo:bar: not found",
+		},
+		{
+			name: "type variable method found",
+			src: `
+				meth (T FooBarer) Array [ test: t T | t foo: 5 bar: 6 ]
+				type FooBarer { [foo: Int bar: Int] }
+			`,
+			err: "",
+		},
+		{
+			name: "function call does not find a method",
+			src: `
+				val x := [ foo: 5 bar: 6 ]
+				meth Int [foo: _ Int bar: _ Int |]
+			`,
+			err: "function foo:bar: not found",
+		},
+		{
+			name: "method call does not find a function",
+			src: `
+				val x := [ 5 foo: 5 bar: 6 ]
+				func [foo: _ Int bar: _ Int |]
+			`,
+			err: "method Int64 foo:bar: not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestCtorError(t *testing.T) {
 	tests := []errorTest{
 		{
