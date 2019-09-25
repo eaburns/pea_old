@@ -22,9 +22,15 @@ func builtInMeths(x *scope, defs []Def) []Def {
 }
 
 func makeCaseMeth(x *scope, typ *Type) *Fun {
-	tparms := []Var{{Name: x.newID()}}
-	retVar := &tparms[0]
-	retName := TypeName{Name: retVar.Name, Var: retVar}
+	tmp := x.newID()
+	tparms := []Var{{Name: tmp}}
+	retType := &Type{
+		Sig: TypeSig{Name: tmp},
+		Var: &tparms[0],
+	}
+	tparms[0].TypeVar = retType
+	tparms[0].typ = retType
+	retName := TypeName{Name: tmp, Type: retType}
 
 	var sel strings.Builder
 	parms := []Var{
@@ -111,7 +117,7 @@ func makeTypeName(typ *Type) *TypeName {
 			args = append(args, TypeName{
 				Mod:  "",
 				Name: parm.Name,
-				Var:  parm,
+				Type: parm.TypeVar,
 			})
 		}
 	}

@@ -35,12 +35,14 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 	// We break the recursion and emit an error for cycle aliases here.
 	// We also look at type parameter constraints, which are types,
 	// and must also be acyclic.
-	if typ, ok := def.(*Type); ok && typ.ast.Alias != nil {
-		if err := aliasCycle(x, typ); err != nil {
-			return append(errs, *err)
+	if typ, ok := def.(*Type); ok {
+		if astType, ok := typ.ast.(*ast.Type); ok && astType.Alias != nil {
+			if err := aliasCycle(x, typ); err != nil {
+				return append(errs, *err)
+			}
+			x.aliasStack = append(x.aliasStack, typ)
+			defer func() { x.aliasStack = x.aliasStack[:len(x.aliasStack)-1] }()
 		}
-		x.aliasStack = append(x.aliasStack, typ)
-		defer func() { x.aliasStack = x.aliasStack[:len(x.aliasStack)-1] }()
 	}
 	if x.gathered[def] {
 		return nil
@@ -143,14 +145,7 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 
 	var typ *Type
 	if recv.Mod == "" {
-		switch t := x.findType(recv.Arity, recv.Name).(type) {
-		case nil:
-			break
-		case *Type:
-			typ = t
-		case *Var:
-			panic("impossible")
-		}
+		typ = x.findType(recv.Arity, recv.Name)
 	} else {
 		imp := x.findImport(recv.Mod)
 		if imp == nil {
@@ -188,13 +183,24 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []che
 	defer x.tr("gatherTypeParms(%v)", astVars)(&errs)
 	vars := make([]Var, len(astVars))
 	for i := range astVars {
-		vars[i] = Var{ast: &astVars[i], Name: astVars[i].Name}
+		astVar := &astVars[i]
+		typ := &Type{
+			ast: astVar,
+			Sig: TypeSig{Name: astVar.Name},
+			Var: &vars[i],
+		}
+		vars[i] = Var{
+			ast:     astVar,
+			Name:    astVar.Name,
+			TypeVar: typ,
+			typ:     typ,
+		}
 		x = x.new()
-		x.typeVar = &vars[i]
+		x.typeVar = vars[i].TypeVar
 
 		var es []checkError
 		if astVars[i].Type != nil {
-			vars[i].TypeName, es = gatherTypeName(x, astVars[i].Type)
+			vars[i].TypeName, es = gatherTypeName(x, astVar.Type)
 			vars[i].typ = vars[i].TypeName.Type
 		}
 		errs = append(errs, es...)
@@ -232,15 +238,17 @@ func gatherFunSig(x *scope, astSig *ast.FunSig) (_ *FunSig, errs []checkError) {
 func gatherType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("gatherType(%p %s)", def, def.ast)(&errs)
 
+	astType := def.ast.(*ast.Type)
+
 	var es []checkError
-	x, def.Sig.Parms, es = gatherTypeParms(x, def.ast.Sig.Parms)
+	x, def.Sig.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
 	errs = append(errs, es...)
 
 	x.typeInsts[makeTypeSigKey(&def.Sig)] = def
 
 	switch {
-	case def.ast.Alias != nil:
-		def.Alias, es = gatherTypeName(x, def.ast.Alias)
+	case astType.Alias != nil:
+		def.Alias, es = gatherTypeName(x, astType.Alias)
 		errs = append(errs, es...)
 		if def.Sig.Parms != nil {
 			// TODO: error on unused type parameters.
@@ -254,18 +262,18 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 			// from this type name.
 			def.Alias.Type.Sig.Parms = def.Sig.Parms
 		}
-	case def.ast.Fields != nil:
-		def.Fields, es = gatherVars(x, def.ast.Fields)
+	case astType.Fields != nil:
+		def.Fields, es = gatherVars(x, astType.Fields)
 		errs = append(errs, es...)
 		for i := range def.Fields {
 			def.Fields[i].Field = def
 			def.Fields[i].Index = i
 		}
-	case def.ast.Cases != nil:
-		def.Cases, es = gatherVars(x, def.ast.Cases)
+	case astType.Cases != nil:
+		def.Cases, es = gatherVars(x, astType.Cases)
 		errs = append(errs, es...)
-	case def.ast.Virts != nil:
-		def.Virts, es = gatherFunSigs(x, def.ast.Virts)
+	case astType.Virts != nil:
+		def.Virts, es = gatherFunSigs(x, astType.Virts)
 		errs = append(errs, es...)
 	}
 	return errs
@@ -315,15 +323,7 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 
 	var typ *Type
 	if name.Mod == "" {
-		switch t := x.findType(len(name.Args), name.Name).(type) {
-		case nil:
-			break
-		case *Type:
-			typ = t
-		case *Var:
-			name.Var = t
-			return name, errs
-		}
+		typ = x.findType(len(name.Args), name.Name)
 	} else {
 		imp := x.findImport(name.Mod)
 		if imp == nil {
@@ -449,12 +449,12 @@ func makeArgsKey(args []TypeName) interface{} {
 	}
 	var tkey typeKey
 	switch a := args[0]; {
-	case a.Type == nil && a.Var == nil:
+	case a.Type == nil:
 		// This case indicates an error somwhere in the args.
 		// The error was reported elsewhere; just use the empty key.
 		break
-	case a.Type == nil:
-		tkey = typeKey{Var: a.Var}
+	case a.Type.Var != nil:
+		tkey = typeKey{Var: a.Type.Var}
 	default:
 		sig := &a.Type.Sig
 		tkey = makeTypeKey(sig.Mod, sig.Name, a.Args)

@@ -14,7 +14,7 @@ type scope struct {
 	univ     []Def
 	mod      *Mod
 	file     *file
-	typeVar  *Var
+	typeVar  *Type
 	val      *Val
 	fun      *Fun
 	block    *Block
@@ -88,13 +88,12 @@ func (x *scope) _findImport(name string) *imp {
 	return x.up._findImport(name)
 }
 
-// Returns either *Type or *Var.
-func (x *scope) findType(arity int, name string) interface{} {
+func (x *scope) findType(arity int, name string) *Type {
 	switch {
 	case x == nil:
 		return nil
 	case x.typeVar != nil:
-		if arity == 0 && x.typeVar.Name == name {
+		if arity == 0 && x.typeVar.Sig.Name == name {
 			return x.typeVar
 		}
 	case x.mod != nil:

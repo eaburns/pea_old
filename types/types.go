@@ -135,13 +135,16 @@ func (n *FunSig) AST() ast.Node { return n.ast }
 
 // A Type defines a type.
 type Type struct {
-	ast  *ast.Type
+	ast  ast.Node // *ast.Type or *ast.Var
 	Priv bool
 	Sig  TypeSig
 
 	// Alias, Fields, Cases, and Virts
 	// are mutually exclusive.
 	// If any one is non-nil, the others are nil.
+
+	// Var is non-nil for a type variable.
+	Var *Var
 
 	// Alias is non-nil for a type Alias.
 	Alias *TypeName
@@ -199,8 +202,7 @@ type TypeName struct {
 	Name string
 	Args []TypeName
 
-	Var  *Var  // non-nil if a type variable
-	Type *Type // nil if error or a type variable (in which case Var is non-nil)
+	Type *Type
 }
 
 func (n *TypeName) AST() ast.Node { return n.ast }
@@ -233,6 +235,7 @@ type Var struct {
 	typ *Type
 
 	// At most one of the following is non-nil.
+	TypeVar *Type   // a type variable; Index is unused.
 	Val     *Val    // a module-level Val; Index is unused.
 	FunParm *Fun    // a function parm; Index is the Parms index.
 	BlkParm *Block  // a block parm; Index is the Parms index.

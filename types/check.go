@@ -253,12 +253,12 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	if def.Recv != nil {
 		for i := range def.Recv.Parms {
 			x = x.new()
-			x.typeVar = &def.Recv.Parms[i]
+			x.typeVar = def.Recv.Parms[i].TypeVar
 		}
 	}
 	for i := range def.TParms {
 		x = x.new()
-		x.typeVar = &def.TParms[i]
+		x.typeVar = def.TParms[i].TypeVar
 	}
 
 	x = x.new()

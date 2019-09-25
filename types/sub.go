@@ -16,19 +16,18 @@ func subTypeNames(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, names0 
 }
 
 func subTypeName(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, name0 *TypeName) *TypeName {
-	if name0 == nil {
+	if name0 == nil || name0.Type == nil {
 		return nil
 	}
-	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.ID(), name0.Var)()
+	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.ID(), name0.Type.Var)()
 
-	if s, ok := sub[name0.Var]; ok {
-		x.log("%s→%s", name0.Var.Name, s)
+	if s, ok := sub[name0.Type.Var]; ok {
+		x.log("%s→%s", name0.Type.Var.Name, s)
 		return &s
 	}
 
 	name1 := *name0
 	name1.Args = subTypeNames(x, seen, sub, name1.Args)
-	name1.Var = subVar(x, seen, sub, name1.Var)
 	name1.Type = subType(x, seen, sub, name1.Type)
 	return &name1
 }
@@ -49,6 +48,8 @@ func subVar(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, var0 *Var) *V
 
 	var1 := *var0
 	var1.TypeName = subTypeName(x, seen, sub, var1.TypeName)
+	var1.typ = subType(x, seen, sub, var1.typ)
+	var1.TypeVar = subType(x, seen, sub, var1.TypeVar)
 	return &var1
 }
 
@@ -68,6 +69,11 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ0 *Type) 
 }
 
 func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+	typ.Var = subVar(x, seen, sub, typ.Var)
+	// TODO: remove paranoid check in subTypeBody once we are confident that it's OK.
+	if typ.Var != nil && typ.Var.TypeVar != typ {
+		panic("impossible")
+	}
 	typ.Sig.Parms = subVars(x, seen, sub, typ.Sig.Parms)
 	typ.Sig.Args = subTypeNames(x, seen, sub, typ.Sig.Args)
 	typ.Alias = subTypeName(x, seen, sub, typ.Alias)
