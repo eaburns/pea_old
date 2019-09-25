@@ -425,9 +425,11 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 				ast:      astVar,
 				Name:     astVar.Name,
 				TypeName: typName,
-				typ:      typ,
-				Local:    loc,
-				Index:    len(*loc),
+				// TODO: set local Var..typ using inference.
+				// This line only sets it if it's given explicitly.
+				typ:   typ,
+				Local: loc,
+				Index: len(*loc),
 			}
 			*loc = append(*loc, vr)
 			x = x.new()
