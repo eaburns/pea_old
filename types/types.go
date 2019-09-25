@@ -232,8 +232,6 @@ type Var struct {
 	// TypeName is non-nil if explicit.
 	TypeName *TypeName
 
-	typ *Type
-
 	// At most one of the following is non-nil.
 	TypeVar *Type   // a type variable; Index is unused.
 	Val     *Val    // a module-level Val; Index is unused.
@@ -241,9 +239,10 @@ type Var struct {
 	BlkParm *Block  // a block parm; Index is the Parms index.
 	Local   *[]*Var // a local variable; Index is the index.
 	Field   *Type   // an And-type field; Index is the Fields index.
-
 	// Index is used as described above.
 	Index int
+
+	typ *Type
 }
 
 func (n *Var) AST() ast.Node { return n.ast }

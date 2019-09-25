@@ -32,27 +32,6 @@ func subTypeName(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, name0 *T
 	return &name1
 }
 
-func subVars(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, vars0 []Var) []Var {
-	var vars1 []Var
-	for i := range vars0 {
-		vars1 = append(vars1, *subVar(x, seen, sub, &vars0[i]))
-	}
-	return vars1
-}
-
-func subVar(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, var0 *Var) *Var {
-	if var0 == nil {
-		return nil
-	}
-	defer x.tr("subVar(%s, %s)", subDebugString(sub), var0.Name)()
-
-	var1 := *var0
-	var1.TypeName = subTypeName(x, seen, sub, var1.TypeName)
-	var1.typ = subType(x, seen, sub, var1.typ)
-	var1.TypeVar = subType(x, seen, sub, var1.TypeVar)
-	return &var1
-}
-
 func subType(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ0 *Type) *Type {
 	if typ0 == nil {
 		return nil
@@ -69,32 +48,99 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ0 *Type) 
 }
 
 func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
-	typ.Var = subVar(x, seen, sub, typ.Var)
-	// TODO: remove paranoid check in subTypeBody once we are confident that it's OK.
-	if typ.Var != nil && typ.Var.TypeVar != typ {
-		panic("impossible")
-	}
-	typ.Sig.Parms = subVars(x, seen, sub, typ.Sig.Parms)
+	subTypeParms(x, seen, sub, typ)
 	typ.Sig.Args = subTypeNames(x, seen, sub, typ.Sig.Args)
-	typ.Alias = subTypeName(x, seen, sub, typ.Alias)
-	typ.Fields = subVars(x, seen, sub, typ.Fields)
-	typ.Cases = subVars(x, seen, sub, typ.Cases)
-	typ.Virts = subFunSigs(x, seen, sub, typ.Virts)
-}
-
-func subFunSigs(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, sigs0 []FunSig) []FunSig {
-	var sigs1 []FunSig
-	for i := range sigs0 {
-		sigs1 = append(sigs1, *subFunSig(x, seen, sub, &sigs0[i]))
+	switch {
+	case typ.Var != nil:
+		subTypeVar(x, seen, sub, typ)
+	case typ.Alias != nil:
+		typ.Alias = subTypeName(x, seen, sub, typ.Alias)
+	case typ.Fields != nil:
+		subFields(x, seen, sub, typ)
+	case typ.Cases != nil:
+		subCases(x, seen, sub, typ)
+	case typ.Virts != nil:
+		subVirts(x, seen, sub, typ)
 	}
-	return sigs1
 }
 
-func subFunSig(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, sig0 *FunSig) *FunSig {
-	sig1 := *sig0
-	sig1.Parms = subVars(x, seen, sub, sig1.Parms)
-	sig1.Ret = subTypeName(x, seen, sub, sig1.Ret)
-	return &sig1
+func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+	defer x.tr("subTypeVar(%s)", subDebugString(sub))()
+
+	typ.Var.TypeName = subTypeName(x, seen, sub, typ.Var.TypeName)
+	typ.Var.TypeVar = subType(x, seen, sub, typ.Var.TypeVar)
+	typ.Var.typ = typ.Var.TypeVar
+}
+
+func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+	defer x.tr("subTypeParms(%s)", subDebugString(sub))()
+
+	parms0 := typ.Sig.Parms
+	typ.Sig.Parms = make([]Var, len(parms0))
+	for i := range parms0 {
+		parm0 := &parms0[i]
+		parm1 := &typ.Sig.Parms[i]
+		parm1.ast = parm0.ast
+		parm1.Name = parm0.Name
+		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
+		parm1.typ = subType(x, seen, sub, parm0.typ)
+		parm1.TypeVar = parm1.typ
+	}
+}
+
+func subFields(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+	defer x.tr("subFields(%s)", subDebugString(sub))()
+
+	fields0 := typ.Fields
+	typ.Fields = make([]Var, len(fields0))
+	for i := range fields0 {
+		field0 := &fields0[i]
+		field1 := &typ.Fields[i]
+		field1.ast = field0.ast
+		field1.Name = field0.Name
+		field1.TypeName = subTypeName(x, seen, sub, field0.TypeName)
+		field1.typ = subType(x, seen, sub, field0.typ)
+		field1.Field = typ
+		field1.Index = i
+	}
+}
+
+func subCases(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+	defer x.tr("subCases(%s)", subDebugString(sub))()
+
+	cases0 := typ.Cases
+	typ.Cases = make([]Var, len(cases0))
+	for i := range cases0 {
+		case0 := &cases0[i]
+		case1 := &typ.Cases[i]
+		case1.ast = case0.ast
+		case1.Name = case0.Name
+		case1.TypeName = subTypeName(x, seen, sub, case0.TypeName)
+		case1.typ = subType(x, seen, sub, case0.typ)
+		case1.Index = i
+	}
+}
+
+func subVirts(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+	defer x.tr("subVirts(%s)", subDebugString(sub))()
+	sigs0 := typ.Virts
+	typ.Virts = make([]FunSig, len(sigs0))
+	for i := range sigs0 {
+		sig0 := &sigs0[i]
+		sig1 := &typ.Virts[i]
+		sig1.ast = sig0.ast
+		sig1.Sel = sig0.Sel
+		sig1.Parms = make([]Var, len(sig0.Parms))
+		for i := range sig0.Parms {
+			parm0 := &sig0.Parms[i]
+			parm1 := &sig1.Parms[i]
+			parm1.ast = parm0.ast
+			parm1.Name = parm0.Name
+			parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
+			parm1.typ = subType(x, seen, sub, parm0.typ)
+		}
+		sig1.Ret = subTypeName(x, seen, sub, sig0.Ret)
+	}
 }
 
 func subDebugString(sub map[*Var]TypeName) string {
