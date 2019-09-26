@@ -404,69 +404,15 @@ func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
 func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {
 	defer x.tr("checkAssign(…)")(&errs)
 
-	vars := make([]*Var, len(astAss.Vars))
-	for i := range astAss.Vars {
-		astVar := &astAss.Vars[i]
-
-		var typ *Type
-		var typName *TypeName
-		if astVar.Type != nil {
-			var es []checkError
-			typName, es = gatherTypeName(x, astVar.Type)
-			typ = typName.Type
-			errs = append(errs, es...)
-		}
-
-		switch found := x.findIdent(astVar.Name).(type) {
-		case nil:
-			x.log("adding local %s", astVar.Name)
-			loc := x.locals()
-			vr := &Var{
-				ast:      astVar,
-				Name:     astVar.Name,
-				TypeName: typName,
-				// TODO: set local Var..typ using inference.
-				// This line only sets it if it's given explicitly.
-				typ:   typ,
-				Local: loc,
-				Index: len(*loc),
-			}
-			*loc = append(*loc, vr)
-			x = x.new()
-			x.variable = vr
-			vars[i] = vr
-		case *Var:
-			if !found.isSelf() {
-				vars[i] = found
-				break
-			}
-			err := x.err(astVar, "cannot assign to self")
-			errs = append(errs, *err)
-			vars[i] = &Var{
-				ast:      astVar,
-				Name:     astVar.Name,
-				TypeName: typName,
-				typ:      typ,
-			}
-		case *Fun:
-			err := x.err(astVar, "assignment to a function")
-			note(err, "%s is defined at %s", found.Sig.Sel, x.loc(found))
-			errs = append(errs, *err)
-			vars[i] = &Var{
-				ast:      astVar,
-				Name:     astVar.Name,
-				TypeName: typName,
-				typ:      typ,
-			}
-		default:
-			panic(fmt.Sprintf("impossible type: %T", found))
-		}
-	}
+	x, vars, newLocal, errs := checkAssignVars(x, astAss)
 
 	if len(vars) == 1 {
 		var es []checkError
 		assign := &Assign{ast: astAss, Var: vars[0]}
 		assign.Expr, es = checkExpr(x, vars[0].typ, astAss.Expr)
+		if newLocal[0] && vars[0].TypeName == nil {
+			vars[0].typ = assign.Expr.Type()
+		}
 		errs = append(errs, es...)
 		return x, []Stmt{assign}, errs
 	}
@@ -514,17 +460,80 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 	for i := range vars {
 		msg, es := checkMsg(x, recvType, &astCall.Msgs[i])
 		errs = append(errs, es...)
-		stmts = append(stmts, &Assign{
-			ast: astAss,
-			Var: vars[i],
-			Expr: &Call{
-				ast:  astCall,
-				Recv: &Ident{Text: tmp.Name, Var: tmp},
-				Msgs: []Msg{msg},
-			},
-		})
+		call := &Call{
+			ast:  astCall,
+			Recv: &Ident{Text: tmp.Name, Var: tmp},
+			Msgs: []Msg{msg},
+		}
+		if newLocal[i] && vars[i].TypeName == nil {
+			vars[i].typ = call.Type()
+		}
+		stmts = append(stmts, &Assign{ast: astAss, Var: vars[i], Expr: call})
 	}
 	return x, stmts, errs
+}
+
+func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []checkError) {
+	var errs []checkError
+	vars := make([]*Var, len(astAss.Vars))
+	newLocal := make([]bool, len(astAss.Vars))
+	for i := range astAss.Vars {
+		astVar := &astAss.Vars[i]
+
+		var typ *Type
+		var typName *TypeName
+		if astVar.Type != nil {
+			var es []checkError
+			typName, es = gatherTypeName(x, astVar.Type)
+			typ = typName.Type
+			errs = append(errs, es...)
+		}
+
+		switch found := x.findIdent(astVar.Name).(type) {
+		case nil:
+			x.log("adding local %s", astVar.Name)
+			loc := x.locals()
+			vr := &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+				Local:    loc,
+				Index:    len(*loc),
+			}
+			*loc = append(*loc, vr)
+			x = x.new()
+			x.variable = vr
+			vars[i] = vr
+			newLocal[i] = true
+		case *Var:
+			if !found.isSelf() {
+				vars[i] = found
+				break
+			}
+			err := x.err(astVar, "cannot assign to self")
+			errs = append(errs, *err)
+			vars[i] = &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+			}
+		case *Fun:
+			err := x.err(astVar, "assignment to a function")
+			note(err, "%s is defined at %s", found.Sig.Sel, x.loc(found))
+			errs = append(errs, *err)
+			vars[i] = &Var{
+				ast:      astVar,
+				Name:     astVar.Name,
+				TypeName: typName,
+				typ:      typ,
+			}
+		default:
+			panic(fmt.Sprintf("impossible type: %T", found))
+		}
+	}
+	return x, vars, newLocal, errs
 }
 
 func checkExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {

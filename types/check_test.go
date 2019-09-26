@@ -546,6 +546,35 @@ func TestFuncHasNoSelf(t *testing.T) {
 	}
 }
 
+func TestAssignToNewVariable(t *testing.T) {
+	const src = `
+		val x := [
+			a := 5.
+		]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	val := mod.Defs[0].(*Val)
+	if len(val.Locals) != 1 {
+		t.Fatalf("got %d locals, expected 1: %v", len(val.Locals), val.Locals)
+	}
+	l := val.Locals[0]
+	assign0 := val.Init[0].(*Assign)
+	if assign0.Var != l {
+		t.Errorf("assign0.Van (%p) != val.Locals[0] (%p)", assign0.Var, l)
+	}
+	if l.typ == nil || l.typ.Sig.Name != "Int64" || l.typ.Sig.Mod != "" {
+		t.Errorf("got %v, expected Int64", l.typ)
+	}
+}
+
 func TestAssignToExistingVariable(t *testing.T) {
 	const src = `
 		val x := [
