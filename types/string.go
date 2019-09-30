@@ -39,7 +39,7 @@ func (n Fun) String() string {
 		}
 	}
 	if len(n.TParms) > 0 {
-		if len(n.TParms) > 1 || n.TParms[0].TypeName != nil {
+		if len(n.TParms) > 1 || len(n.TParms[0].Ifaces) > 0 {
 			s.WriteRune('(')
 		}
 		for i, parm := range n.TParms {
@@ -47,12 +47,12 @@ func (n Fun) String() string {
 				s.WriteString(", ")
 			}
 			s.WriteString(parm.Name)
-			if parm.TypeName != nil {
+			if len(parm.Ifaces) > 0 {
 				s.WriteRune(' ')
-				buildTypeNameString(parm.TypeName, &s)
+				buildTypeNameString(&parm.Ifaces[0], &s)
 			}
 		}
-		if len(n.TParms) > 1 || n.TParms[0].TypeName != nil {
+		if len(n.TParms) > 1 || len(n.TParms[0].Ifaces) > 0 {
 			s.WriteRune(')')
 		}
 		s.WriteRune(' ')
@@ -179,7 +179,7 @@ func buildRecvString(n *Recv, s *strings.Builder) {
 	switch {
 	case len(n.Parms) == 0:
 		break
-	case len(n.Parms) == 1 && n.Parms[0].TypeName == nil:
+	case len(n.Parms) == 1 && len(n.Parms[0].Ifaces) == 0:
 		s.WriteString(n.Parms[0].Name)
 		if n.Mod != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
@@ -218,7 +218,7 @@ func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 		}
 	case len(n.Parms) == 0:
 		break
-	case len(n.Parms) == 1 && n.Parms[0].TypeName == nil:
+	case len(n.Parms) == 1 && len(n.Parms[0].Ifaces) == 0:
 		s.WriteString(n.Parms[0].Name)
 		if n.Mod != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
@@ -237,16 +237,16 @@ func buildTypeSigString(n *TypeSig, s *strings.Builder) {
 	s.WriteString(n.Name)
 }
 
-func buildTypeParms(parms []Var, s *strings.Builder) {
+func buildTypeParms(parms []TypeVar, s *strings.Builder) {
 	s.WriteRune('(')
 	for i, parm := range parms {
 		if i > 0 {
 			s.WriteString(", ")
 		}
 		s.WriteString(parm.Name)
-		if parm.TypeName != nil {
+		if len(parm.Ifaces) > 0 {
 			s.WriteRune(' ')
-			buildTypeNameString(parm.TypeName, s)
+			buildTypeNameString(&parm.Ifaces[0], s)
 		}
 	}
 	s.WriteRune(')')

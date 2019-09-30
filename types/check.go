@@ -253,12 +253,12 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	if def.Recv != nil {
 		for i := range def.Recv.Parms {
 			x = x.new()
-			x.typeVar = def.Recv.Parms[i].TypeVar
+			x.typeVar = def.Recv.Parms[i].Type
 		}
 	}
 	for i := range def.TParms {
 		x = x.new()
-		x.typeVar = def.TParms[i].TypeVar
+		x.typeVar = def.TParms[i].Type
 	}
 
 	x = x.new()
@@ -646,9 +646,11 @@ func findMsgFun(x *scope, recv *Type, msg *Msg) (errs []checkError) {
 
 	switch {
 	case recv != nil && recv.Var != nil:
-		c := recv.Var.TypeName
-		if c != nil && c.Type != nil {
-			fun = x.findFun(c.Type, msg.Sel)
+		for _, iface := range recv.Var.Ifaces {
+			if iface.Type == nil {
+				continue
+			}
+			fun = x.findFun(iface.Type, msg.Sel)
 		}
 	case msg.Mod != "":
 		mod = msg.Mod + " "

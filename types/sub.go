@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func subTypeNames(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, names0 []TypeName) []TypeName {
+func subTypeNames(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, names0 []TypeName) []TypeName {
 	var names1 []TypeName
 	for i := range names0 {
 		n := subTypeName(x, seen, sub, &names0[i])
@@ -15,7 +15,7 @@ func subTypeNames(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, names0 
 	return names1
 }
 
-func subTypeName(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, name0 *TypeName) *TypeName {
+func subTypeName(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, name0 *TypeName) *TypeName {
 	if name0 == nil || name0.Type == nil {
 		return nil
 	}
@@ -32,7 +32,7 @@ func subTypeName(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, name0 *T
 	return &name1
 }
 
-func subType(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ0 *Type) *Type {
+func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Type) *Type {
 	if typ0 == nil {
 		return nil
 	}
@@ -47,7 +47,7 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ0 *Type) 
 	return &typ1
 }
 
-func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	subTypeParms(x, seen, sub, typ)
 	typ.Sig.Args = subTypeNames(x, seen, sub, typ.Sig.Args)
 	switch {
@@ -64,31 +64,33 @@ func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Typ
 	}
 }
 
-func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subTypeVar(%s)", subDebugString(sub))()
 
-	typ.Var.TypeName = subTypeName(x, seen, sub, typ.Var.TypeName)
-	typ.Var.TypeVar = subType(x, seen, sub, typ.Var.TypeVar)
-	typ.Var.typ = typ.Var.TypeVar
+	for i := range typ.Var.Ifaces {
+		typ.Var.Ifaces[i] = *subTypeName(x, seen, sub, &typ.Var.Ifaces[i])
+	}
+	typ.Var.Type = subType(x, seen, sub, typ.Var.Type)
 }
 
-func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subTypeParms(%s)", subDebugString(sub))()
 
 	parms0 := typ.Sig.Parms
-	typ.Sig.Parms = make([]Var, len(parms0))
+	typ.Sig.Parms = make([]TypeVar, len(parms0))
 	for i := range parms0 {
 		parm0 := &parms0[i]
 		parm1 := &typ.Sig.Parms[i]
 		parm1.ast = parm0.ast
 		parm1.Name = parm0.Name
-		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
-		parm1.typ = subType(x, seen, sub, parm0.typ)
-		parm1.TypeVar = parm1.typ
+		for i := range parm0.Ifaces {
+			parm1.Ifaces[i] = *subTypeName(x, seen, sub, &parm0.Ifaces[i])
+		}
+		parm1.Type = subType(x, seen, sub, parm0.Type)
 	}
 }
 
-func subFields(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+func subFields(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subFields(%s)", subDebugString(sub))()
 
 	fields0 := typ.Fields
@@ -105,7 +107,7 @@ func subFields(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type)
 	}
 }
 
-func subCases(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+func subCases(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subCases(%s)", subDebugString(sub))()
 
 	cases0 := typ.Cases
@@ -121,7 +123,7 @@ func subCases(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) 
 	}
 }
 
-func subVirts(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) {
+func subVirts(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subVirts(%s)", subDebugString(sub))()
 	sigs0 := typ.Virts
 	typ.Virts = make([]FunSig, len(sigs0))
@@ -143,7 +145,7 @@ func subVirts(x *scope, seen map[*Type]*Type, sub map[*Var]TypeName, typ *Type) 
 	}
 }
 
-func subDebugString(sub map[*Var]TypeName) string {
+func subDebugString(sub map[*TypeVar]TypeName) string {
 	var ss []string
 	for k, v := range sub {
 		s := fmt.Sprintf("%s[%p]=%s", k.Name, k, v)

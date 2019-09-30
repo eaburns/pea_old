@@ -68,7 +68,7 @@ type Fun struct {
 	Priv   bool
 	Mod    string
 	Recv   *Recv
-	TParms []Var // types may be nil
+	TParms []TypeVar
 	Sig    FunSig
 	Stmts  []Stmt
 
@@ -100,7 +100,7 @@ func (n *Fun) name() string {
 // Recv is a method receiver.
 type Recv struct {
 	ast   *ast.Recv
-	Parms []Var
+	Parms []TypeVar
 	Mod   string
 	Arity int
 	Name  string
@@ -144,7 +144,7 @@ type Type struct {
 	// If any one is non-nil, the others are nil.
 
 	// Var is non-nil for a type variable.
-	Var *Var
+	Var *TypeVar
 
 	// Alias is non-nil for a type Alias.
 	Alias *TypeName
@@ -170,7 +170,7 @@ type TypeSig struct {
 	Arity int
 	Name  string
 
-	Parms []Var      // types may be nil
+	Parms []TypeVar
 	Args  []TypeName // what is subbed for Parms
 }
 
@@ -233,7 +233,6 @@ type Var struct {
 	TypeName *TypeName
 
 	// At most one of the following is non-nil.
-	TypeVar *Type   // a type variable; Index is unused.
 	Val     *Val    // a module-level Val; Index is unused.
 	FunParm *Fun    // a function parm; Index is the Parms index.
 	BlkParm *Block  // a block parm; Index is the Parms index.
@@ -243,6 +242,15 @@ type Var struct {
 	Index int
 
 	typ *Type
+}
+
+// A TypeVar is a type variable.
+type TypeVar struct {
+	ast    *ast.Var
+	Name   string
+	Ifaces []TypeName
+
+	Type *Type
 }
 
 func (n *Var) AST() ast.Node { return n.ast }

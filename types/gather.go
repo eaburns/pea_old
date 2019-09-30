@@ -176,13 +176,13 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 	return x, recv, errs
 }
 
-func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []checkError) {
+func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs []checkError) {
 	if astVars == nil {
 		return x, nil, nil
 	}
 
 	defer x.tr("gatherTypeParms(%v)", astVars)(&errs)
-	vars := make([]Var, len(astVars))
+	vars := make([]TypeVar, len(astVars))
 	for i := range astVars {
 		astVar := &astVars[i]
 		typ := &Type{
@@ -190,21 +190,21 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []Var, errs []che
 			Sig: TypeSig{Name: astVar.Name},
 			Var: &vars[i],
 		}
-		vars[i] = Var{
-			ast:     astVar,
-			Name:    astVar.Name,
-			TypeVar: typ,
-			typ:     typ,
+		vars[i] = TypeVar{
+			ast:  astVar,
+			Name: astVar.Name,
+			Type: typ,
 		}
 		x = x.new()
-		x.typeVar = vars[i].TypeVar
+		x.typeVar = vars[i].Type
 
-		var es []checkError
 		if astVars[i].Type != nil {
-			vars[i].TypeName, es = gatherTypeName(x, astVar.Type)
-			vars[i].typ = vars[i].TypeName.Type
+			n, es := gatherTypeName(x, astVar.Type)
+			errs = append(errs, es...)
+			if n != nil {
+				vars[i].Ifaces = append(vars[i].Ifaces, *n)
+			}
 		}
-		errs = append(errs, es...)
 	}
 	return x, vars, errs
 }
@@ -362,7 +362,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		if typ.Alias.Type == nil {
 			return nil, errs // error reported elsewhere
 		}
-		sub := make(map[*Var]TypeName)
+		sub := make(map[*TypeVar]TypeName)
 		for i := range typ.Sig.Parms {
 			sub[&typ.Sig.Parms[i]] = args[i]
 		}
@@ -402,7 +402,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	x.typeInsts[key] = &inst
 	x.insts = append(x.insts, &inst)
 
-	sub := make(map[*Var]TypeName)
+	sub := make(map[*TypeVar]TypeName)
 	for i := range inst.Sig.Parms {
 		sub[&inst.Sig.Parms[i]] = args[i]
 	}
@@ -421,7 +421,7 @@ type typeKey struct {
 	name string
 	args interface{}
 
-	Var *Var
+	Var *TypeVar
 }
 
 type argsKey struct {
