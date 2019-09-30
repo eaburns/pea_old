@@ -411,5 +411,6 @@ func newUniv(x *state) []Def {
 	if len(errs) > 0 {
 		panic("check error in univ: " + errs[0].Error())
 	}
+	clearAST(mod.Defs)
 	return mod.Defs
 }

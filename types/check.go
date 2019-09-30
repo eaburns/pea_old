@@ -821,8 +821,79 @@ func findCase(typ *Type, name string) *int {
 
 func checkVirtCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	defer x.tr("checkVirtCtor(%s)", ctor.TypeName)(&errs)
-	// TODO: implement checkVirtCtor.
+
+	var es []checkError
+	ctor.Args, es = checkExprs(x, ctor.ast.Args)
+	errs = append(errs, es...)
+
+	if len(ctor.ast.Args) != 1 {
+		err := x.err(ctor, "malformed virtual-type constructor")
+		return append(errs, *err)
+	}
+
+	recv := ctor.Args[0].Type()
+	if recv == nil {
+		return errs
+	}
+
+	var notes []string
+	ctor.Funs, notes = findVirts(x, recv, ctor.typ.Virts)
+	if len(notes) > 0 {
+		err := x.err(ctor, "type %s does not implement %s", recv.Sig.ID(), ctor.typ.Sig.ID())
+		err.notes = notes
+		errs = append(errs, *err)
+	}
 	return errs
+}
+
+func findVirts(x *scope, recv *Type, virts []FunSig) ([]*Fun, []string) {
+	var funs []*Fun
+	var notes []string
+
+	funs = make([]*Fun, len(virts))
+	for i, want := range virts {
+		got := x.findFun(recv, want.Sel)
+		if got == nil {
+			notes = append(notes, fmt.Sprintf("no method %s", want.Sel))
+			continue
+		}
+
+		// Make a copy and remove the self parameter.
+		gotSig := got.Sig
+		gotSig.Parms = gotSig.Parms[1:]
+
+		if !funSigEq(&gotSig, &want) {
+			// Clear the parameter names for printing the error note.
+			for i := range gotSig.Parms {
+				gotSig.Parms[i].Name = ""
+			}
+			var where string
+			if got.ast != nil {
+				where = fmt.Sprintf(", defined at %s", x.loc(got.ast))
+			}
+			notes = append(notes,
+				fmt.Sprintf("wrong type for method %s", want.Sel),
+				fmt.Sprintf("	have %s%s", gotSig, where),
+				fmt.Sprintf("	want %s", want))
+			continue
+		}
+		funs[i] = got
+	}
+	return funs, notes
+}
+
+func funSigEq(a, b *FunSig) bool {
+	if a.Sel != b.Sel || len(a.Parms) != len(b.Parms) || (a.Ret == nil) != (b.Ret == nil) {
+		return false
+	}
+	for i := range a.Parms {
+		aParm := &a.Parms[i]
+		bParm := &b.Parms[i]
+		if aParm.typ != bParm.typ {
+			return false
+		}
+	}
+	return a.Ret == nil || a.Ret.Type == b.Ret.Type
 }
 
 func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {

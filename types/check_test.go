@@ -889,6 +889,88 @@ func TestCtorError(t *testing.T) {
 			`,
 			err: "bad and-type constructor: got x:y:z:, expected x:y:",
 		},
+		{
+			name: "virt-type ok",
+			src: `
+				val x := [ {Fooer | 5} ]
+				meth Int [foo: _ Int ^Int|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "",
+		},
+		{
+			name: "virt-type bad argument",
+			src: `
+				val x := [ {Fooer | xyz} ]
+				meth Int [foo: _ Int ^Int|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "xyz not found",
+		},
+		{
+			name: "malformed virt-type: no expressions",
+			src: `
+				val x := [ {Fooer | } ]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "malformed virtual-type constructor",
+		},
+		{
+			name: "malformed virt-type: multiple expressions",
+			src: `
+				val x := [ {Fooer | 5; 6; 7} ]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "malformed virtual-type constructor",
+		},
+		{
+			name: "virt-type single selector OK",
+			src: `
+				val x := [
+					xyz := 5.
+					{Fooer | xyz}
+				]
+				meth Int [foo: _ Int ^Int|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "",
+		},
+		{
+			name: "virt-type missing method",
+			src: `
+				val x := [ {Fooer | 7} ]
+				meth Int [notFoo: _ Float64 ^Int|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "no method foo:",
+		},
+		{
+			name: "virt-type different arg type",
+			src: `
+				val x := [ {Fooer | 7} ]
+				meth Int [foo: _ Float64 ^Int|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "wrong type for method foo:",
+		},
+		{
+			name: "virt-type different return type",
+			src: `
+				val x := [ {Fooer | 7} ]
+				meth Int [foo: _ Int ^Float|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "wrong type for method foo:",
+		},
+		{
+			name: "virt-type different return and no return",
+			src: `
+				val x := [ {Fooer | 7} ]
+				meth Int [foo: _ Int|]
+				type Fooer { [foo: Int ^Int] }
+			`,
+			err: "wrong type for method foo:",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

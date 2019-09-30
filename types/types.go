@@ -327,6 +327,10 @@ type Ctor struct {
 	// and a positive value is the number of references to add.
 	Ref int
 
+	// Funs is non-nil for a virtual conversion;
+	// Funs[i] is the function implementing typ.Virts[i].
+	Funs []*Fun
+
 	typ *Type
 }
 

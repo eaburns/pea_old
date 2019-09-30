@@ -61,6 +61,12 @@ func (n Fun) String() string {
 	return s.String()
 }
 
+func (n FunSig) String() string {
+	var s strings.Builder
+	buildFunSigString(&n, false, &s)
+	return s.String()
+}
+
 func (n Type) String() string {
 	var s strings.Builder
 	if n.Priv {
