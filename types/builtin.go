@@ -25,8 +25,8 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 	tmp := x.newID()
 	tparms := []TypeVar{{Name: tmp}}
 	retType := &Type{
-		Sig: TypeSig{Name: tmp},
-		Var: &tparms[0],
+		Name: tmp,
+		Var:  &tparms[0],
 	}
 	tparms[0].Type = retType
 	retName := TypeName{Name: tmp, Type: retType}
@@ -57,12 +57,12 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 	return &Fun{
 		AST:  typ.AST,
 		Priv: typ.Priv,
-		Mod:  typ.Sig.Mod,
+		Mod:  typ.Mod,
 		Recv: &Recv{
-			Parms: typ.Sig.Parms,
-			Mod:   typ.Sig.Mod,
-			Arity: len(typ.Sig.Parms),
-			Name:  typ.Sig.Name,
+			Parms: typ.Parms,
+			Mod:   typ.Mod,
+			Arity: len(typ.Parms),
+			Name:  typ.Name,
 			Type:  typ,
 		},
 		TParms: tparms,
@@ -98,12 +98,12 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 	return &Fun{
 		AST:  sig.AST,
 		Priv: typ.Priv,
-		Mod:  typ.Sig.Mod,
+		Mod:  typ.Mod,
 		Recv: &Recv{
-			Parms: typ.Sig.Parms,
-			Mod:   typ.Sig.Mod,
-			Arity: len(typ.Sig.Parms),
-			Name:  typ.Sig.Name,
+			Parms: typ.Parms,
+			Mod:   typ.Mod,
+			Arity: len(typ.Parms),
+			Name:  typ.Name,
 			Type:  typ,
 		},
 		Sig: sig,
@@ -111,10 +111,10 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 }
 
 func makeTypeName(typ *Type) *TypeName {
-	args := typ.Sig.Args
-	if typ.Sig.Args == nil {
-		for i := range typ.Sig.Parms {
-			parm := &typ.Sig.Parms[i]
+	args := typ.Args
+	if typ.Args == nil {
+		for i := range typ.Parms {
+			parm := &typ.Parms[i]
 			args = append(args, TypeName{
 				Mod:  "",
 				Name: parm.Name,
@@ -123,8 +123,8 @@ func makeTypeName(typ *Type) *TypeName {
 		}
 	}
 	return &TypeName{
-		Mod:  typ.Sig.Mod,
-		Name: typ.Sig.Name,
+		Mod:  typ.Mod,
+		Name: typ.Name,
 		Args: args,
 		Type: typ,
 	}

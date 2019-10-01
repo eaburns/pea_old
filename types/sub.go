@@ -49,7 +49,7 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 
 func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	subTypeParms(x, seen, sub, typ)
-	typ.Sig.Args = subTypeNames(x, seen, sub, typ.Sig.Args)
+	typ.Args = subTypeNames(x, seen, sub, typ.Args)
 	switch {
 	case typ.Var != nil:
 		subTypeVar(x, seen, sub, typ)
@@ -76,11 +76,11 @@ func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *
 func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subTypeParms(%s)", subDebugString(sub))()
 
-	parms0 := typ.Sig.Parms
-	typ.Sig.Parms = make([]TypeVar, len(parms0))
+	parms0 := typ.Parms
+	typ.Parms = make([]TypeVar, len(parms0))
 	for i := range parms0 {
 		parm0 := &parms0[i]
-		parm1 := &typ.Sig.Parms[i]
+		parm1 := &typ.Parms[i]
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
 		for i := range parm0.Ifaces {

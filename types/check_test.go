@@ -570,7 +570,7 @@ func TestAssignToNewVariable(t *testing.T) {
 	if assign0.Var != l {
 		t.Errorf("assign0.Van (%p) != val.Locals[0] (%p)", assign0.Var, l)
 	}
-	if l.typ == nil || l.typ.Sig.Name != "Int64" || l.typ.Sig.Mod != "" {
+	if l.typ == nil || l.typ.Name != "Int64" || l.typ.Mod != "" {
 		t.Errorf("got %v, expected Int64", l.typ)
 	}
 }
@@ -1708,7 +1708,7 @@ func TestTypeInstMemo(t *testing.T) {
 
 func findTestType(mod *Mod, name string) *Type {
 	for _, def := range mod.Defs {
-		if typ, ok := def.(*Type); ok && typ.Sig.Name == name {
+		if typ, ok := def.(*Type); ok && typ.Name == name {
 			return typ
 		}
 	}

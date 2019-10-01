@@ -29,7 +29,9 @@ type Def interface {
 	// type, method, function, value.
 	kind() string
 
-	// name returns the name of the definition for use in debug and tracing.
+	// name returns the name of the definition.
+	// The name is intended for error messages
+	// and for debugging.
 	name() string
 
 	// String returns a human-readable string representation
@@ -137,9 +139,14 @@ func (n *FunSig) ast() ast.Node { return n.AST }
 
 // A Type defines a type.
 type Type struct {
-	AST  ast.Node // *ast.Type or *ast.Var
-	Priv bool
-	Sig  TypeSig
+	AST   ast.Node // *ast.Type or *ast.Var
+	Priv  bool
+	Mod   string
+	Arity int
+	Name  string
+
+	Parms []TypeVar
+	Args  []TypeName // what is subbed for Parms
 
 	// Alias, Fields, Cases, and Virts
 	// are mutually exclusive.
@@ -163,24 +170,8 @@ type Type struct {
 
 func (n *Type) ast() ast.Node { return n.AST }
 func (n *Type) kind() string  { return "type" }
-func (n *Type) name() string  { return n.Sig.ID() }
 
-// A TypeSig is a type signature, a pattern defining a type or set o types.
-type TypeSig struct {
-	AST   *ast.TypeSig
-	Mod   string
-	Arity int
-	Name  string
-
-	Parms []TypeVar
-	Args  []TypeName // what is subbed for Parms
-}
-
-func (n *TypeSig) ast() ast.Node { return n.AST }
-
-// ID returns a user-readable type identifier that includes the name
-// and the arity if non-zero.
-func (n *TypeSig) ID() string {
+func (n *Type) name() string {
 	switch {
 	case n.Mod == "" && n.Arity == 0:
 		return n.Name

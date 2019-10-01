@@ -112,8 +112,8 @@ func checkDups(x *scope, defs []Def) (errs []checkError) {
 		case *Val:
 			id = def.Var.Name
 		case *Type:
-			id = def.Sig.Name
-			tid := fmt.Sprintf("(%d)%s", def.Sig.Arity, def.Sig.Name)
+			id = def.Name
+			tid := fmt.Sprintf("(%d)%s", def.Arity, def.Name)
 			if prev, ok := types[tid]; ok {
 				err := x.err(def, "type %s redefined", tid)
 				note(err, "previous definition is at %s", x.loc(prev))
@@ -168,13 +168,10 @@ func makeDef(astDef ast.Def) Def {
 		}
 	case *ast.Type:
 		return &Type{
-			AST:  astDef,
-			Priv: astDef.Priv(),
-			Sig: TypeSig{
-				AST:   &astDef.Sig,
-				Arity: len(astDef.Sig.Parms),
-				Name:  astDef.Sig.Name,
-			},
+			AST:   astDef,
+			Priv:  astDef.Priv(),
+			Arity: len(astDef.Sig.Parms),
+			Name:  astDef.Sig.Name,
 		}
 	default:
 		panic(fmt.Sprintf("impossible type %T", astDef))
@@ -672,7 +669,7 @@ func findMsgFun(x *scope, recv *Type, msg *Msg) (errs []checkError) {
 			err := x.err(msg, "function %s%s not found", mod, msg.Sel)
 			return append(errs, *err)
 		}
-		err := x.err(msg, "method %s %s%s not found", recv.Sig.ID(), mod, msg.Sel)
+		err := x.err(msg, "method %s %s%s not found", recv.name(), mod, msg.Sel)
 		return append(errs, *err)
 	}
 
@@ -752,14 +749,14 @@ func refBaseType(x *scope, typ *Type) (int, *Type) {
 	var i int
 	for isRef(x, typ) {
 		i++
-		typ = typ.Sig.Args[0].Type
+		typ = typ.Args[0].Type
 	}
 	return i, typ
 }
 
 func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	defer x.tr("checkAryCtor(%s)", ctor.TypeName)(&errs)
-	want := ctor.TypeName.Type.Sig.Args[0].Type
+	want := ctor.TypeName.Type.Args[0].Type
 	ctor.Args = make([]Expr, len(ctor.AST.Args))
 	for i, expr := range ctor.AST.Args {
 		var es []checkError
@@ -841,7 +838,7 @@ func checkVirtCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	var notes []string
 	ctor.Funs, notes = findVirts(x, recv, ctor.typ.Virts)
 	if len(notes) > 0 {
-		err := x.err(ctor, "type %s does not implement %s", recv.Sig.ID(), ctor.typ.Sig.ID())
+		err := x.err(ctor, "type %s does not implement %s", recv.name(), ctor.typ.name())
 		err.notes = notes
 		errs = append(errs, *err)
 	}
@@ -939,13 +936,13 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	parmInfer := make([]*Type, len(astBlock.Parms))
 	if isFun(x, infer) {
 		x.log("is a fun")
-		resInfer = infer.Sig.Args[len(infer.Sig.Args)-1].Type
-		n := len(infer.Sig.Args)
+		resInfer = infer.Args[len(infer.Args)-1].Type
+		n := len(infer.Args)
 		if n > len(astBlock.Parms) {
 			n = len(astBlock.Parms)
 		}
 		for i := 0; i < n; i++ {
-			parmInfer[i] = infer.Sig.Args[i].Type
+			parmInfer[i] = infer.Args[i].Type
 		}
 	} else {
 		x.log("is not a fun")
@@ -1008,9 +1005,9 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 		}
 		typeArgs[i] = TypeName{
 			AST:  &astBlock.Parms[i],
-			Mod:  parm.typ.Sig.Mod,
-			Name: parm.typ.Sig.Name,
-			Args: parm.typ.Sig.Args,
+			Mod:  parm.typ.Mod,
+			Name: parm.typ.Name,
+			Args: parm.typ.Args,
 			Type: parm.typ,
 		}
 	}
@@ -1026,9 +1023,9 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 	typeArgs[len(typeArgs)-1] = TypeName{
 		AST:  astBlock,
-		Mod:  resType.Sig.Mod,
-		Name: resType.Sig.Name,
-		Args: resType.Sig.Args,
+		Mod:  resType.Mod,
+		Name: resType.Name,
+		Args: resType.Args,
 		Type: resType,
 	}
 	blk.typ = builtInType(x, "Fun", typeArgs...)
@@ -1125,7 +1122,7 @@ func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs 
 	if isInt(x, infer) {
 		var i big.Int
 		if _, acc := f.Int(&i); acc != big.Exact {
-			err := x.err(AST, "type %s cannot represent %s: truncation", infer.Sig.ID(), text)
+			err := x.err(AST, "type %s cannot represent %s: truncation", infer.name(), text)
 			errs = append(errs, *err)
 		}
 		expr, es := checkInt(x, infer, AST, i.String())
@@ -1207,19 +1204,19 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 }
 
 func isAry(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Sig.Name == "Array"
+	return isBuiltIn(x, typ) && typ.Name == "Array"
 }
 
 func isRef(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Sig.Name == "&"
+	return isBuiltIn(x, typ) && typ.Name == "&"
 }
 
 func isFun(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Sig.Name == "Fun"
+	return isBuiltIn(x, typ) && typ.Name == "Fun"
 }
 
 func isBuiltIn(x *scope, typ *Type) bool {
-	return typ != nil && typ.Sig.Mod == "" && x.defFiles[typ] == nil
+	return typ != nil && typ.Mod == "" && x.defFiles[typ] == nil
 }
 
 func identString(id *ast.Ident) string {

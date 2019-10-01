@@ -74,7 +74,7 @@ func (n Type) String() string {
 	} else {
 		s.WriteString("Type ")
 	}
-	buildTypeSigString(&n.Sig, &s)
+	buildTypeString(&n, &s)
 	return s.String()
 }
 
@@ -85,7 +85,7 @@ func (n Type) fullString() string {
 	} else {
 		s.WriteString("Type ")
 	}
-	buildTypeSigString(&n.Sig, &s)
+	buildTypeString(&n, &s)
 	if n.Alias != nil {
 		s.WriteString(" := ")
 		s.WriteString(n.Alias.String())
@@ -121,12 +121,6 @@ func (n Type) fullString() string {
 		s.WriteRune(' ')
 	}
 	s.WriteRune('}')
-	return s.String()
-}
-
-func (n TypeSig) String() string {
-	var s strings.Builder
-	buildTypeSigString(&n, &s)
 	return s.String()
 }
 
@@ -173,7 +167,7 @@ func buildFunSigString(n *FunSig, stripSelf bool, s *strings.Builder) {
 
 func buildRecvString(n *Recv, s *strings.Builder) {
 	if n.Type != nil {
-		buildTypeSigString(&n.Type.Sig, s)
+		buildTypeString(n.Type, s)
 		return
 	}
 	switch {
@@ -197,7 +191,7 @@ func buildRecvString(n *Recv, s *strings.Builder) {
 	s.WriteString(n.Name)
 }
 
-func buildTypeSigString(n *TypeSig, s *strings.Builder) {
+func buildTypeString(n *Type, s *strings.Builder) {
 	switch {
 	case len(n.Args) == 1:
 		buildTypeNameString(&n.Args[0], s)
@@ -259,7 +253,7 @@ func isOpType(s string) bool {
 
 func buildTypeNameString(n *TypeName, s *strings.Builder) {
 	if n.Type != nil {
-		buildTypeSigString(&n.Type.Sig, s)
+		buildTypeString(n.Type, s)
 		return
 	}
 	switch {

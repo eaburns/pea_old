@@ -90,7 +90,7 @@ func setMod(path string, defs []Def) {
 		case *Fun:
 			def.Mod = path
 		case *Type:
-			def.Sig.Mod = path
+			def.Mod = path
 		default:
 			panic(fmt.Sprintf("impossible type: %T", def))
 		}

@@ -33,7 +33,7 @@ echo gocyclo
 gocyclo -over 15 .\
 	| grep -v "grammar.go:" \
 	| grep -v "17 types TestIdentLookup types/check_test.go" \
-	| grep -v "19 types buildTypeSigString types/string.go" \
+	| grep -v "19 types buildTypeString types/string.go" \
 	> $o 2>&1
 e=$(mktemp tmp.XXXXXXXXXX)
 touch $e

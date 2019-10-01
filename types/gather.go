@@ -115,7 +115,7 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 			typ: def.Recv.Type,
 		}
 		if def.Recv.Type != nil {
-			self.TypeName.Args = def.Recv.Type.Sig.Args
+			self.TypeName.Args = def.Recv.Type.Args
 		}
 		def.Sig.Parms = append([]Var{self}, def.Sig.Parms...)
 	}
@@ -186,9 +186,9 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 	for i := range astVars {
 		astVar := &astVars[i]
 		typ := &Type{
-			AST: astVar,
-			Sig: TypeSig{Name: astVar.Name},
-			Var: &vars[i],
+			AST:  astVar,
+			Name: astVar.Name,
+			Var:  &vars[i],
 		}
 		vars[i] = TypeVar{
 			AST:  astVar,
@@ -242,16 +242,16 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	astType := def.AST.(*ast.Type)
 
 	var es []checkError
-	x, def.Sig.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
+	x, def.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
 	errs = append(errs, es...)
 
-	x.typeInsts[makeTypeSigKey(&def.Sig)] = def
+	x.typeInsts[makeTypeKey(def)] = def
 
 	switch {
 	case astType.Alias != nil:
 		def.Alias, es = gatherTypeName(x, astType.Alias)
 		errs = append(errs, es...)
-		if def.Sig.Parms != nil {
+		if def.Parms != nil {
 			// TODO: error on unused type parameters.
 			// The following comment is only true if the type params
 			// are all referenced by the alias target type.
@@ -261,7 +261,7 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 			// because it was created
 			// with freshly gathered type arguments
 			// from this type name.
-			def.Alias.Type.Sig.Parms = def.Sig.Parms
+			def.Alias.Type.Parms = def.Parms
 		}
 	case astType.Fields != nil:
 		def.Fields, es = gatherVars(x, astType.Fields)
@@ -363,8 +363,8 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 			return nil, errs // error reported elsewhere
 		}
 		sub := make(map[*TypeVar]TypeName)
-		for i := range typ.Sig.Parms {
-			sub[&typ.Sig.Parms[i]] = args[i]
+		for i := range typ.Parms {
+			sub[&typ.Parms[i]] = args[i]
 		}
 		seen := make(map[*Type]*Type)
 		args = subTypeNames(x, seen, sub, typ.Alias.Args)
@@ -374,7 +374,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		return typ, nil
 	}
 
-	key := makeTypeKey(typ.Sig.Mod, typ.Sig.Name, args)
+	key := makeTypeNameKey(typ.Mod, typ.Name, args)
 	if inst, ok := x.typeInsts[key]; ok {
 		return inst, nil
 	}
@@ -403,14 +403,14 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	x.insts = append(x.insts, &inst)
 
 	sub := make(map[*TypeVar]TypeName)
-	for i := range inst.Sig.Parms {
-		sub[&inst.Sig.Parms[i]] = args[i]
+	for i := range inst.Parms {
+		sub[&inst.Parms[i]] = args[i]
 	}
 	seen := make(map[*Type]*Type)
 	seen[typ] = &inst
 	subTypeBody(x, seen, sub, &inst)
-	inst.Sig.Parms = nil
-	inst.Sig.Args = args
+	inst.Parms = nil
+	inst.Args = args
 	return &inst, errs
 }
 
@@ -429,7 +429,7 @@ type argsKey struct {
 	next interface{}
 }
 
-func makeTypeSigKey(sig *TypeSig) typeKey {
+func makeTypeKey(sig *Type) typeKey {
 	k := typeKey{mod: sig.Mod, name: sig.Name}
 	for i := len(sig.Parms) - 1; i >= 0; i-- {
 		k.args = argsKey{
@@ -440,7 +440,7 @@ func makeTypeSigKey(sig *TypeSig) typeKey {
 	return k
 }
 
-func makeTypeKey(mod, name string, args []TypeName) typeKey {
+func makeTypeNameKey(mod, name string, args []TypeName) typeKey {
 	return typeKey{mod: mod, name: name, args: makeArgsKey(args)}
 }
 
@@ -457,8 +457,7 @@ func makeArgsKey(args []TypeName) interface{} {
 	case a.Type.Var != nil:
 		tkey = typeKey{Var: a.Type.Var}
 	default:
-		sig := &a.Type.Sig
-		tkey = makeTypeKey(sig.Mod, sig.Name, a.Args)
+		tkey = makeTypeNameKey(a.Type.Mod, a.Type.Name, a.Args)
 	}
 	return argsKey{typ: tkey, next: makeArgsKey(args[1:])}
 }

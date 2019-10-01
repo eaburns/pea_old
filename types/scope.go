@@ -93,7 +93,7 @@ func (x *scope) findType(arity int, name string) *Type {
 	case x == nil:
 		return nil
 	case x.typeVar != nil:
-		if arity == 0 && x.typeVar.Sig.Name == name {
+		if arity == 0 && x.typeVar.Name == name {
 			return x.typeVar
 		}
 	case x.mod != nil:
@@ -118,7 +118,7 @@ func (imp *imp) findType(arity int, name string) *Type {
 
 func findType(arity int, name string, defs []Def) *Type {
 	for _, d := range defs {
-		if t, ok := d.(*Type); ok && t.Sig.Arity == arity && t.Sig.Name == name {
+		if t, ok := d.(*Type); ok && t.Arity == arity && t.Name == name {
 			return t
 		}
 	}
@@ -203,8 +203,8 @@ func findFun(recv *Type, sel string, defs []Def) *Fun {
 			continue
 		case recv == nil:
 			return fun
-		case recv.Sig.Arity == len(fun.Recv.Type.Sig.Parms) &&
-			recv.Sig.Name == fun.Recv.Type.Sig.Name:
+		case recv.Arity == len(fun.Recv.Type.Parms) &&
+			recv.Name == fun.Recv.Type.Name:
 			return fun
 		}
 	}
