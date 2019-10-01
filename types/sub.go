@@ -74,14 +74,13 @@ func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *
 	typ.Var.Type = subType(x, seen, sub, typ.Var.Type)
 }
 
-func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
+func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, parms0 []TypeVar) []TypeVar {
 	defer x.tr("subTypeParms(%s)", subDebugString(sub))()
 
-	parms0 := typ.Parms
-	typ.Parms = make([]TypeVar, len(parms0))
+	parms1 := make([]TypeVar, len(parms0))
 	for i := range parms0 {
 		parm0 := &parms0[i]
-		parm1 := &typ.Parms[i]
+		parm1 := &parms1[i]
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
 		for i := range parm0.Ifaces {
@@ -89,6 +88,7 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ
 		}
 		parm1.Type = subType(x, seen, sub, parm0.Type)
 	}
+	return parms1
 }
 
 func subFields(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
@@ -154,4 +154,58 @@ func subDebugString(sub map[*TypeVar]TypeName) string {
 	}
 	sort.Slice(ss, func(i, j int) bool { return ss[i] < ss[j] })
 	return strings.Join(ss, ";")
+}
+
+func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *Recv) *Recv {
+	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.name())()
+
+	recv1 := *recv0
+	recv1.Parms = subTypeParms(x, seen, sub, recv0.Parms)
+	recv1.Type = subType(x, seen, sub, recv0.Type)
+	return &recv1
+}
+
+func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun) *Fun {
+	inst := &Fun{
+		AST:    fun.AST,
+		Priv:   fun.Priv,
+		Mod:    fun.Mod,
+		Recv:   subRecv(x, seen, sub, fun.Recv),
+		TParms: subTypeParms(x, seen, sub, fun.TParms),
+		Sig: FunSig{
+			AST: fun.Sig.AST,
+			Sel: fun.Sig.Sel,
+			Ret: subTypeName(x, seen, sub, fun.Sig.Ret),
+		},
+	}
+
+	inst.Sig.Parms = make([]Var, len(fun.Sig.Parms))
+	for i := range fun.Sig.Parms {
+		parm0 := &fun.Sig.Parms[i]
+		parm1 := &inst.Sig.Parms[i]
+		parm1.AST = parm0.AST
+		parm1.Name = parm0.Name
+		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
+		parm1.FunParm = fun
+		parm1.Index = i
+		parm1.typ = subType(x, seen, sub, parm1.typ)
+	}
+
+	inst.Locals = make([]*Var, len(fun.Locals))
+	for i, loc0 := range fun.Locals {
+		inst.Locals[i] = &Var{
+			AST:      loc0.AST,
+			Name:     loc0.Name,
+			TypeName: subTypeName(x, seen, sub, loc0.TypeName),
+			Local:    &inst.Locals,
+			Index:    i,
+			typ:      subType(x, seen, sub, loc0.typ),
+		}
+	}
+
+	// Note that we don't substitute the statements here.
+	// They are instead substituted after the check pass
+	// if there were no check errors.
+
+	return inst
 }

@@ -169,10 +169,21 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 	if es := gatherDef(x, typ); es != nil {
 		return x, recv, append(errs, es...)
 	}
-	if typ.Alias != nil {
-		typ = typ.Alias.Type
+
+	args := make([]TypeName, len(recv.Parms))
+	for i := range recv.Parms {
+		parm := &recv.Parms[i]
+		args[i] = TypeName{
+			AST:  parm.AST,
+			Name: parm.Name,
+			Type: parm.Type,
+		}
 	}
-	recv.Type = typ
+
+	recv.Type, es = instType(x, typ, args)
+	errs = append(errs, es...)
+	x.log("gathered recv type %s", recv.Type)
+
 	return x, recv, errs
 }
 
@@ -245,6 +256,7 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	x, def.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
 	errs = append(errs, es...)
 
+	x.log("memoizing %s (%p)", def, def)
 	x.typeInsts[makeTypeKey(def)] = def
 
 	switch {
@@ -349,6 +361,7 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 
 func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkError) {
 	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
+	defer func() { x.log("inst=%p", res) }()
 
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
@@ -399,8 +412,8 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	}
 
 	inst = *typ
+	x.log("memoizing %s (%p)", inst, &inst)
 	x.typeInsts[key] = &inst
-	x.insts = append(x.insts, &inst)
 
 	sub := make(map[*TypeVar]TypeName)
 	for i := range inst.Parms {

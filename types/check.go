@@ -604,6 +604,19 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 		call.Msgs[i], es = checkMsg(x, recvType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 	}
+
+	lastMsg := &call.Msgs[len(call.Msgs)-1]
+	if lastMsg.Fun == nil {
+		return call, errs
+	}
+	if lastMsg.Fun.Sig.Ret == nil {
+		call.typ = builtInType(x, "Nil")
+		return call, errs
+	}
+	if lastMsg.Fun.Sig.Ret.Type == nil {
+		return call, errs
+	}
+	call.typ = lastMsg.Fun.Sig.Ret.Type
 	return call, errs
 }
 
@@ -674,13 +687,74 @@ func findMsgFun(x *scope, recv *Type, msg *Msg) (errs []checkError) {
 	}
 
 	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
-		// TODO: implement findMsgFun for lifted receiver types.
-		errs = append(errs, *x.err(msg, "calls on parameterized receivers unimplemented"))
+		if f, es := instRecv(x, recv, fun); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			fun = f
+		}
+	}
+	if len(fun.TParms) > 0 {
+		errs = append(errs, *x.err(msg, "calling parameterized functions is unimplemented"))
 		return errs
 	}
 
 	msg.Fun = fun
 	return errs
+}
+
+func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
+	defer x.tr("instRecv(%s, %s)", recv, fun)(&errs)
+
+	sub := make(map[*TypeVar]TypeName)
+	if fun.Recv.Type.Parms != nil {
+		for i, arg := range recv.Args {
+			parm := &fun.Recv.Type.Parms[i]
+			sub[parm] = arg
+		}
+	} else {
+		for i, arg := range recv.Args {
+			switch parm := fun.Recv.Type.Args[i].Type; {
+			case parm == nil || arg.Type == nil:
+				continue
+			case parm.Var != nil:
+				sub[parm.Var] = arg
+			case parm != arg.Type:
+				err := x.err(arg, "type mismatch: have %s, want %s", arg.Type, parm)
+				errs = append(errs, *err)
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	key := makeRecvKey(fun, recv.Args)
+	if inst := x.recvInsts[key]; inst != nil {
+		return inst, errs
+	}
+	inst := subFun(x, make(map[*Type]*Type), sub, fun)
+	x.recvInsts[key] = inst
+	// Save the original function definition so that later we can find it
+	// in order to substitute the statements of this definition.
+	if orig, ok := x.origFunDef[fun]; ok {
+		x.origFunDef[inst] = orig
+	} else {
+		x.origFunDef[inst] = fun
+	}
+	return inst, errs
+}
+
+type recvKey struct {
+	recvType typeKey
+	sel      string
+}
+
+func makeRecvKey(fun *Fun, args []TypeName) recvKey {
+	r := fun.Recv.Type
+	return recvKey{
+		recvType: makeTypeNameKey(r.Mod, r.Name, args),
+		sel:      fun.Sig.Sel,
+	}
 }
 
 func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {

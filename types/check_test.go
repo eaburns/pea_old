@@ -977,6 +977,72 @@ func TestCtorError(t *testing.T) {
 	}
 }
 
+func TestCallInstRecvType(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "inst receiver",
+			src: `
+				val x := [
+					({Int FloatFoo | } at: 0) + 5.
+
+					// But Int has no xyz: so this will error and say Int64.
+					({Int FloatFoo | } at: 0) xyz: 2
+				]
+				type (X, Y) Foo { }
+				type T FloatFoo := (T, Float) Foo.
+				meth T FloatFoo [at: _ Float ^T |]
+			`,
+			err: "Int64 xyz: not found",
+		},
+		{
+			name: "recv type arg mismatch",
+			src: `
+				val x := [
+					{Int Array | } foo
+				]
+				type FloatArray := Float Array.
+				meth FloatArray [foo |]
+			`,
+			err: "type mismatch: have type Int64, want type Float64",
+		},
+		{
+			name: "recv type arg error",
+			src: `
+				val x := [
+					{Unknown Array | } foo
+				]
+				type FloatArray := Float Array.
+				meth FloatArray [foo |]
+			`,
+			err: "Unknown not found",
+		},
+		/*
+			// TODO: enable "inst built-in type receiver" test once calls auto-deref.
+			// This is broken because Int Array at: returns Int&,
+			// and Int&+ is not found, because we don't do auto deref yet.
+			{
+				name: "inst built-in type receiver",
+				src: `
+					val x := [
+						// If we instantiated Int Array correctly,
+						// then the at: method should return Int
+						// and we will succssfully find the + method.
+						// If we didn't instantiated Int Array, + should fail.
+						({Int Array | } at: 0) + 5.
+
+						// But Int has no xyz: so this will error and say Int64.
+						({Int Array | } at: 0) xyz: 2
+					]
+				`,
+				err: "Int64 xyz: not found",
+			},
+		*/
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestIdentError(t *testing.T) {
 	tests := []errorTest{
 		{

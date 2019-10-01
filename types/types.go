@@ -191,6 +191,7 @@ type TypeName struct {
 	// *ast.Recv if the self variable type of a method.
 	// *ast.Block if the inferred type of a block result.
 	// *ast.Var if the inferred type of a block parameter.
+	// *ast.TypeVar if a type variable definition.
 	AST  ast.Node
 	Mod  string
 	Name string
@@ -199,7 +200,7 @@ type TypeName struct {
 	Type *Type
 }
 
-func (n *TypeName) ast() ast.Node { return n.AST }
+func (n TypeName) ast() ast.Node { return n.AST }
 
 // ID returns a user-readable type identifier that includes
 // the module if not the current module, name, and arity if non-zero.
@@ -254,7 +255,7 @@ type TypeVar struct {
 	Type *Type
 }
 
-func (n *TypeVar) ast() ast.Node { return n.AST }
+func (n TypeVar) ast() ast.Node { return n.AST }
 
 // A Stmt is a statement.
 type Stmt interface {

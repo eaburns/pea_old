@@ -203,7 +203,7 @@ func findFun(recv *Type, sel string, defs []Def) *Fun {
 			continue
 		case recv == nil:
 			return fun
-		case recv.Arity == len(fun.Recv.Type.Parms) &&
+		case recv.Arity == fun.Recv.Type.Arity &&
 			recv.Name == fun.Recv.Type.Name:
 			return fun
 		}
