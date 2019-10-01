@@ -101,11 +101,11 @@ func clearAST(defs []Def) {
 	for _, def := range defs {
 		switch def := def.(type) {
 		case *Val:
-			def.ast = nil
+			def.AST = nil
 		case *Fun:
-			def.ast = nil
+			def.AST = nil
 		case *Type:
-			def.ast = nil
+			def.AST = nil
 		default:
 			panic(fmt.Sprintf("impossible type: %T", def))
 		}

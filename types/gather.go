@@ -20,7 +20,7 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 		return nil
 	}
 	x = file.x
-	if def.AST() == nil {
+	if def.ast() == nil {
 		panic("impossible")
 	}
 
@@ -36,7 +36,7 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 	// We also look at type parameter constraints, which are types,
 	// and must also be acyclic.
 	if typ, ok := def.(*Type); ok {
-		if astType, ok := typ.ast.(*ast.Type); ok && astType.Alias != nil {
+		if astType, ok := typ.AST.(*ast.Type); ok && astType.Alias != nil {
 			if err := aliasCycle(x, typ); err != nil {
 				return append(errs, *err)
 			}
@@ -73,9 +73,9 @@ func aliasCycle(x *scope, typ *Type) *checkError {
 			// alias loops can only occur in the current package,
 			// so alias.AST() is guaranteed to be non-nil,
 			// and x.loc(alias) is OK.
-			note(err, "%s at %s", alias.ast, x.loc(alias))
+			note(err, "%s at %s", alias.AST, x.loc(alias))
 		}
-		note(err, "%s at %s", typ.ast, x.loc(typ))
+		note(err, "%s at %s", typ.AST, x.loc(typ))
 		return err
 	}
 	return nil
@@ -83,8 +83,8 @@ func aliasCycle(x *scope, typ *Type) *checkError {
 
 func gatherVal(x *scope, def *Val) (errs []checkError) {
 	defer x.tr("gatherVal(%s)", def.name())(&errs)
-	if def.ast.Var.Type != nil {
-		def.Var.TypeName, errs = gatherTypeName(x, def.ast.Var.Type)
+	if def.AST.Var.Type != nil {
+		def.Var.TypeName, errs = gatherTypeName(x, def.AST.Var.Type)
 		def.Var.typ = def.Var.TypeName.Type
 	}
 	return errs
@@ -93,13 +93,13 @@ func gatherVal(x *scope, def *Val) (errs []checkError) {
 func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	defer x.tr("gatherFun(%s)", def.name())(&errs)
 
-	x, def.Recv, errs = gatherRecv(x, def.ast.(*ast.Fun).Recv)
+	x, def.Recv, errs = gatherRecv(x, def.AST.(*ast.Fun).Recv)
 
 	var es []checkError
-	x, def.TParms, es = gatherTypeParms(x, def.ast.(*ast.Fun).TParms)
+	x, def.TParms, es = gatherTypeParms(x, def.AST.(*ast.Fun).TParms)
 	errs = append(errs, es...)
 
-	sig, es := gatherFunSig(x, &def.ast.(*ast.Fun).Sig)
+	sig, es := gatherFunSig(x, &def.AST.(*ast.Fun).Sig)
 	errs = append(errs, es...)
 	def.Sig = *sig
 
@@ -107,7 +107,7 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 		self := Var{
 			Name: "self",
 			TypeName: &TypeName{
-				ast:  def.Recv.ast,
+				AST:  def.Recv.AST,
 				Mod:  def.Recv.Mod,
 				Name: def.Recv.Name,
 				Type: def.Recv.Type,
@@ -135,7 +135,7 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 	defer x.tr("gatherRecv(%s)", astRecv)(&errs)
 
 	recv := &Recv{
-		ast:   astRecv,
+		AST:   astRecv,
 		Arity: len(astRecv.Parms),
 		Name:  astRecv.Name,
 		Mod:   identString(astRecv.Mod),
@@ -186,12 +186,12 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 	for i := range astVars {
 		astVar := &astVars[i]
 		typ := &Type{
-			ast: astVar,
+			AST: astVar,
 			Sig: TypeSig{Name: astVar.Name},
 			Var: &vars[i],
 		}
 		vars[i] = TypeVar{
-			ast:  astVar,
+			AST:  astVar,
 			Name: astVar.Name,
 			Type: typ,
 		}
@@ -223,7 +223,7 @@ func gatherFunSig(x *scope, astSig *ast.FunSig) (_ *FunSig, errs []checkError) {
 	defer x.tr("gatherFunSig(%s)", astSig)(&errs)
 
 	sig := &FunSig{
-		ast: astSig,
+		AST: astSig,
 		Sel: astSig.Sel,
 	}
 	var es []checkError
@@ -239,7 +239,7 @@ func gatherFunSig(x *scope, astSig *ast.FunSig) (_ *FunSig, errs []checkError) {
 func gatherType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("gatherType(%p %s)", def, def.ast)(&errs)
 
-	astType := def.ast.(*ast.Type)
+	astType := def.AST.(*ast.Type)
 
 	var es []checkError
 	x, def.Sig.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
@@ -285,7 +285,7 @@ func gatherVars(x *scope, astVars []ast.Var) (_ []Var, errs []checkError) {
 	var vars []Var
 	for i := range astVars {
 		var es []checkError
-		vr := Var{ast: &astVars[i], Name: astVars[i].Name}
+		vr := Var{AST: &astVars[i], Name: astVars[i].Name}
 		if astVars[i].Type != nil {
 			vr.TypeName, es = gatherTypeName(x, astVars[i].Type)
 			vr.typ = vr.TypeName.Type
@@ -314,7 +314,7 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 	defer x.tr("gatherTypeName(%s)", astName)(&errs)
 
 	name := &TypeName{
-		ast:  astName,
+		AST:  astName,
 		Name: astName.Name,
 		Mod:  identString(astName.Mod),
 	}

@@ -17,9 +17,9 @@ type Mod struct {
 
 // A Node is a node of the AST with location information.
 type Node interface {
-	// AST returns the AST node corresponding to the type-checked node.
-	// AST may return nil for nodes within built-in and imported definitions.
-	AST() ast.Node
+	// ast returns the AST node corresponding to the type-checked node.
+	// ast may return nil for nodes within built-in and imported definitions.
+	ast() ast.Node
 }
 
 // A Def is a module-level definition.
@@ -39,7 +39,7 @@ type Def interface {
 
 // A Val is a module-level value definition.
 type Val struct {
-	ast  *ast.Val
+	AST  *ast.Val
 	Priv bool
 	Mod  string
 	Var  Var
@@ -48,7 +48,7 @@ type Val struct {
 	Locals []*Var
 }
 
-func (n *Val) AST() ast.Node { return n.ast }
+func (n *Val) ast() ast.Node { return n.AST }
 func (n *Val) kind() string  { return "value" }
 
 func (n *Val) name() string {
@@ -60,11 +60,11 @@ func (n *Val) name() string {
 
 // A Fun is a function or method definition.
 type Fun struct {
-	// ast is one of:
+	// AST is one of:
 	// 	*ast.Fun for a function or method defintion
 	// 	*ast.FunSig for a virtual function definition
 	// 	*ast.Type for a case-method definition
-	ast    ast.Node
+	AST    ast.Node
 	Priv   bool
 	Mod    string
 	Recv   *Recv
@@ -75,7 +75,7 @@ type Fun struct {
 	Locals []*Var
 }
 
-func (n *Fun) AST() ast.Node { return n.ast }
+func (n *Fun) ast() ast.Node { return n.AST }
 
 func (n *Fun) kind() string {
 	if n.Recv != nil {
@@ -99,7 +99,7 @@ func (n *Fun) name() string {
 
 // Recv is a method receiver.
 type Recv struct {
-	ast   *ast.Recv
+	AST   *ast.Recv
 	Parms []TypeVar
 	Mod   string
 	Arity int
@@ -107,6 +107,8 @@ type Recv struct {
 
 	Type *Type
 }
+
+func (n *Recv) ast() ast.Node { return n.AST }
 
 // ID returns a user-readable type identifier that includes
 // the module if not the current module, name, and arity if non-zero.
@@ -125,17 +127,17 @@ func (n *Recv) ID() string {
 
 // A FunSig is the signature of a function.
 type FunSig struct {
-	ast   *ast.FunSig
+	AST   *ast.FunSig
 	Sel   string
 	Parms []Var // types cannot be nil
 	Ret   *TypeName
 }
 
-func (n *FunSig) AST() ast.Node { return n.ast }
+func (n *FunSig) ast() ast.Node { return n.AST }
 
 // A Type defines a type.
 type Type struct {
-	ast  ast.Node // *ast.Type or *ast.Var
+	AST  ast.Node // *ast.Type or *ast.Var
 	Priv bool
 	Sig  TypeSig
 
@@ -159,13 +161,13 @@ type Type struct {
 	Virts []FunSig
 }
 
-func (n *Type) AST() ast.Node { return n.ast }
+func (n *Type) ast() ast.Node { return n.AST }
 func (n *Type) kind() string  { return "type" }
 func (n *Type) name() string  { return n.Sig.ID() }
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
-	ast   *ast.TypeSig
+	AST   *ast.TypeSig
 	Mod   string
 	Arity int
 	Name  string
@@ -174,7 +176,7 @@ type TypeSig struct {
 	Args  []TypeName // what is subbed for Parms
 }
 
-func (n *TypeSig) AST() ast.Node { return n.ast }
+func (n *TypeSig) ast() ast.Node { return n.AST }
 
 // ID returns a user-readable type identifier that includes the name
 // and the arity if non-zero.
@@ -193,11 +195,12 @@ func (n *TypeSig) ID() string {
 
 // A TypeName is the name of a concrete type.
 type TypeName struct {
+	// AST is one of:
 	// *ast.TypeName if from an original type name.
 	// *ast.Recv if the self variable type of a method.
 	// *ast.Block if the inferred type of a block result.
 	// *ast.Var if the inferred type of a block parameter.
-	ast  ast.Node
+	AST  ast.Node
 	Mod  string
 	Name string
 	Args []TypeName
@@ -205,7 +208,7 @@ type TypeName struct {
 	Type *Type
 }
 
-func (n *TypeName) AST() ast.Node { return n.ast }
+func (n *TypeName) ast() ast.Node { return n.AST }
 
 // ID returns a user-readable type identifier that includes
 // the module if not the current module, name, and arity if non-zero.
@@ -227,7 +230,7 @@ func (n *TypeName) ID() string {
 // In some cases, the type must be non-nil.
 // In others, the type may be nil.
 type Var struct {
-	ast  *ast.Var
+	AST  *ast.Var
 	Name string
 	// TypeName is non-nil if explicit.
 	TypeName *TypeName
@@ -244,21 +247,23 @@ type Var struct {
 	typ *Type
 }
 
+func (n *Var) ast() ast.Node { return n.AST }
+func (n *Var) Type() *Type   { return n.typ }
+
+func (n *Var) isSelf() bool {
+	return n.FunParm != nil && n.FunParm.Recv != nil && n.Index == 0
+}
+
 // A TypeVar is a type variable.
 type TypeVar struct {
-	ast    *ast.Var
+	AST    *ast.Var
 	Name   string
 	Ifaces []TypeName
 
 	Type *Type
 }
 
-func (n *Var) AST() ast.Node { return n.ast }
-func (n *Var) Type() *Type   { return n.typ }
-
-func (n *Var) isSelf() bool {
-	return n.FunParm != nil && n.FunParm.Recv != nil && n.Index == 0
-}
+func (n *TypeVar) ast() ast.Node { return n.AST }
 
 // A Stmt is a statement.
 type Stmt interface {
@@ -267,20 +272,20 @@ type Stmt interface {
 
 // A Ret is a return statement.
 type Ret struct {
-	ast *ast.Ret
+	AST *ast.Ret
 	Val Expr
 }
 
-func (n *Ret) AST() ast.Node { return n.ast }
+func (n *Ret) ast() ast.Node { return n.AST }
 
 // An Assign is an assignment statement.
 type Assign struct {
-	ast  *ast.Assign
+	AST  *ast.Assign
 	Var  *Var
 	Expr Expr
 }
 
-func (n *Assign) AST() ast.Node { return n.ast }
+func (n *Assign) ast() ast.Node { return n.AST }
 
 // An Expr is an expression
 type Expr interface {
@@ -290,19 +295,19 @@ type Expr interface {
 
 // A Call is a method call or a cascade.
 type Call struct {
-	ast  ast.Node // *ast.Call or *ast.Ident if in-module unary function call.
+	AST  ast.Node // *ast.Call or *ast.Ident if in-module unary function call.
 	Recv Expr     // nil for function calls
 	Msgs []Msg
 
 	typ *Type
 }
 
-func (n *Call) AST() ast.Node { return n.ast }
+func (n *Call) ast() ast.Node { return n.AST }
 func (n *Call) Type() *Type   { return n.typ }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
-	ast  ast.Node // *ast.Msg or *ast.Ident if in-module unary function call.
+	AST  ast.Node // *ast.Msg or *ast.Ident if in-module unary function call.
 	Mod  string
 	Sel  string
 	Args []Expr
@@ -310,7 +315,7 @@ type Msg struct {
 	Fun *Fun
 }
 
-func (n Msg) AST() ast.Node { return n.ast }
+func (n Msg) ast() ast.Node { return n.AST }
 
 func (n Msg) name() string {
 	if n.Mod == "" {
@@ -321,7 +326,7 @@ func (n Msg) name() string {
 
 // A Ctor type constructor literal.
 type Ctor struct {
-	ast      *ast.Ctor
+	AST      *ast.Ctor
 	TypeName TypeName
 	Sel      string
 	Args     []Expr
@@ -342,12 +347,12 @@ type Ctor struct {
 	typ *Type
 }
 
-func (n *Ctor) AST() ast.Node { return n.ast }
+func (n *Ctor) ast() ast.Node { return n.AST }
 func (n *Ctor) Type() *Type   { return n.typ }
 
 // A Block is a block literal.
 type Block struct {
-	ast   *ast.Block
+	AST   *ast.Block
 	Parms []Var // if type is nil, it must be inferred
 	Stmts []Stmt
 
@@ -355,17 +360,17 @@ type Block struct {
 	typ    *Type
 }
 
-func (n *Block) AST() ast.Node { return n.ast }
+func (n *Block) ast() ast.Node { return n.AST }
 func (n *Block) Type() *Type   { return n.typ }
 
 // An Ident is a variable name as an expression.
 type Ident struct {
-	ast  *ast.Ident
+	AST  *ast.Ident
 	Text string
 	Var  *Var
 }
 
-func (n *Ident) AST() ast.Node { return n.ast }
+func (n *Ident) ast() ast.Node { return n.AST }
 
 func (n *Ident) Type() *Type {
 	if n.Var == nil {
@@ -376,16 +381,16 @@ func (n *Ident) Type() *Type {
 
 // An Int is an integer literal.
 type Int struct {
-	ast ast.Expr // *ast.Int, *ast.Float, or *ast.Rune
+	AST ast.Expr // *ast.Int, *ast.Float, or *ast.Rune
 	Val *big.Int
 	typ *Type
 }
 
-func (n *Int) AST() ast.Node { return n.ast }
+func (n *Int) ast() ast.Node { return n.AST }
 func (n *Int) Type() *Type   { return n.typ }
 
 func (n *Int) PrettyPrint() string {
-	if _, ok := n.ast.(*ast.Rune); ok {
+	if _, ok := n.AST.(*ast.Rune); ok {
 		return "Int{Val: " + strconv.QuoteRune(rune(n.Val.Int64())) + "}"
 	}
 	return "Int{Val: " + n.Val.String() + "}"
@@ -393,21 +398,21 @@ func (n *Int) PrettyPrint() string {
 
 // A Float is a floating point literal.
 type Float struct {
-	ast ast.Expr // *ast.Float or *ast.Int
+	AST ast.Expr // *ast.Float or *ast.Int
 	Val *big.Float
 	typ *Type
 }
 
-func (n *Float) AST() ast.Node       { return n.ast }
+func (n *Float) ast() ast.Node       { return n.AST }
 func (n *Float) PrettyPrint() string { return "Int{Val: " + n.Val.String() + "}" }
 func (n *Float) Type() *Type         { return n.typ }
 
 // A String is a string literal.
 type String struct {
-	ast  *ast.String
+	AST  *ast.String
 	Data string
 	typ  *Type
 }
 
-func (n String) AST() ast.Node { return n.ast }
+func (n String) ast() ast.Node { return n.AST }
 func (n String) Type() *Type   { return n.typ }

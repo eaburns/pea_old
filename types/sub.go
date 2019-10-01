@@ -81,7 +81,7 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ
 	for i := range parms0 {
 		parm0 := &parms0[i]
 		parm1 := &typ.Sig.Parms[i]
-		parm1.ast = parm0.ast
+		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
 		for i := range parm0.Ifaces {
 			parm1.Ifaces[i] = *subTypeName(x, seen, sub, &parm0.Ifaces[i])
@@ -98,7 +98,7 @@ func subFields(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *T
 	for i := range fields0 {
 		field0 := &fields0[i]
 		field1 := &typ.Fields[i]
-		field1.ast = field0.ast
+		field1.AST = field0.AST
 		field1.Name = field0.Name
 		field1.TypeName = subTypeName(x, seen, sub, field0.TypeName)
 		field1.typ = subType(x, seen, sub, field0.typ)
@@ -115,7 +115,7 @@ func subCases(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 	for i := range cases0 {
 		case0 := &cases0[i]
 		case1 := &typ.Cases[i]
-		case1.ast = case0.ast
+		case1.AST = case0.AST
 		case1.Name = case0.Name
 		case1.TypeName = subTypeName(x, seen, sub, case0.TypeName)
 		case1.typ = subType(x, seen, sub, case0.typ)
@@ -130,13 +130,13 @@ func subVirts(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 	for i := range sigs0 {
 		sig0 := &sigs0[i]
 		sig1 := &typ.Virts[i]
-		sig1.ast = sig0.ast
+		sig1.AST = sig0.AST
 		sig1.Sel = sig0.Sel
 		sig1.Parms = make([]Var, len(sig0.Parms))
 		for i := range sig0.Parms {
 			parm0 := &sig0.Parms[i]
 			parm1 := &sig1.Parms[i]
-			parm1.ast = parm0.ast
+			parm1.AST = parm0.AST
 			parm1.Name = parm0.Name
 			parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
 			parm1.typ = subType(x, seen, sub, parm0.typ)

@@ -74,7 +74,7 @@ func (x *state) loc(n interface{}) ast.Loc {
 	case ast.Node:
 		return x.astMod.Loc(n)
 	case Node:
-		return x.astMod.Loc(n.AST())
+		return x.astMod.Loc(n.ast())
 	default:
 		panic("bad type")
 	}

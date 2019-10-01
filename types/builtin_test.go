@@ -120,7 +120,7 @@ func TestBuiltInMeths(t *testing.T) {
 				if !ok {
 					continue
 				}
-				if _, ok := fun.ast.(*ast.Fun); ok {
+				if _, ok := fun.AST.(*ast.Fun); ok {
 					continue
 				}
 				got = append(got, fun.String())

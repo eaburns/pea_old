@@ -55,7 +55,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		})
 	}
 	return &Fun{
-		ast:  typ.ast,
+		AST:  typ.AST,
 		Priv: typ.Priv,
 		Mod:  typ.Sig.Mod,
 		Recv: &Recv{
@@ -96,7 +96,7 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 	}
 	sig.Parms = parms
 	return &Fun{
-		ast:  sig.ast,
+		AST:  sig.AST,
 		Priv: typ.Priv,
 		Mod:  typ.Sig.Mod,
 		Recv: &Recv{
