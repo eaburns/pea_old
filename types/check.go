@@ -347,7 +347,7 @@ func checkVirts(x *scope, virts []FunSig) []checkError {
 }
 
 func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
-	defer x.tr("checkTypeName(%s)", name.ID())(&errs)
+	defer x.tr("checkTypeName(%s)", name.name())(&errs)
 	// TODO: implement checkTypeName.
 	return errs
 }

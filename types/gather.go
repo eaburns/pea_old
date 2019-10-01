@@ -158,7 +158,7 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 	}
 	if typ == nil {
 		var err *checkError
-		err = x.err(astRecv, "type %s not found", recv.ID())
+		err = x.err(astRecv, "type %s not found", recv.name())
 		// TODO: note candidate types of different arity if a type is not found.
 		errs = append(errs, *err)
 		return x, recv, errs
@@ -336,7 +336,7 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 	}
 	if typ == nil {
 		var err *checkError
-		err = x.err(astName, "type %s not found", name.ID())
+		err = x.err(astName, "type %s not found", name.name())
 		// TODO: note candidate types of different arity if a type is not found.
 		errs = append(errs, *err)
 		return name, errs

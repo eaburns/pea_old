@@ -19,7 +19,7 @@ func subTypeName(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, name
 	if name0 == nil || name0.Type == nil {
 		return nil
 	}
-	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.ID(), name0.Type.Var)()
+	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.name(), name0.Type.Var)()
 
 	if s, ok := sub[name0.Type.Var]; ok {
 		x.log("%s→%s", name0.Type.Var.Name, s)

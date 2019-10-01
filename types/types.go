@@ -114,7 +114,7 @@ func (n *Recv) ast() ast.Node { return n.AST }
 
 // ID returns a user-readable type identifier that includes
 // the module if not the current module, name, and arity if non-zero.
-func (n *Recv) ID() string {
+func (n *Recv) name() string {
 	switch {
 	case n.Mod == "" && n.Arity == 0:
 		return n.Name
@@ -203,7 +203,7 @@ func (n *TypeName) ast() ast.Node { return n.AST }
 
 // ID returns a user-readable type identifier that includes
 // the module if not the current module, name, and arity if non-zero.
-func (n *TypeName) ID() string {
+func (n *TypeName) name() string {
 	switch arity := len(n.Args); {
 	case n.Mod == "" && arity == 0:
 		return n.Name
