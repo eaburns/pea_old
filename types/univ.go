@@ -31,7 +31,7 @@ var univ = `
 
 	type T Array {}
 	meth T Array [ size ^Int |]
-	meth T Array [ at: _ Int ^Byte |]
+	meth T Array [ at: _ Int ^T& |]
 	meth T Array [ at: _ Int put: _ T |]
 	meth T Array [ from: _ Int to: _ Int ^T Array |]
 
