@@ -251,7 +251,7 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	case astType.Alias != nil:
 		def.Alias, es = gatherTypeName(x, astType.Alias)
 		errs = append(errs, es...)
-		if def.Parms != nil {
+		if def.Alias.Type != nil && def.Parms != nil {
 			// TODO: error on unused type parameters.
 			// The following comment is only true if the type params
 			// are all referenced by the alias target type.
