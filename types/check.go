@@ -252,6 +252,10 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 			x = x.new()
 			x.typeVar = def.Recv.Parms[i].Type
 		}
+		if isRef(x, def.Recv.Type) {
+			err := x.err(def.Recv, "invalid receiver type: cannot add a method to &")
+			errs = append(errs, *err)
+		}
 	}
 	for i := range def.TParms {
 		x = x.new()
@@ -580,7 +584,8 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 	if astCall.Recv != nil {
 		recv, errs = checkExpr(x, nil, astCall.Recv)
 		recvType = recv.Type()
-		if recvType == nil {
+		switch {
+		case recvType == nil:
 			x.log("call receiver check error")
 			// There was a receiver, but we don't know it's type.
 			// That error was reported elsewhere, but we can't continue here.
@@ -597,7 +602,21 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 				errs = append(errs, es...)
 			}
 			return call, errs
+		case isRef(x, recvType) && isRef(x, recvType.Args[0].Type):
+			r := &Ctor{Args: []Expr{recv}, Ref: -1}
+			for isRef(x, recvType.Args[0].Type) {
+				r.Ref--
+				recvType = recvType.Args[0].Type
+			}
+			recv = r
+		case !isRef(x, recvType):
+			recv = &Ctor{Args: []Expr{recv}, Ref: 1}
+			recvType = builtInType(x, "&", *makeTypeName(recvType))
 		}
+		if !isRef(x, recvType) || isRef(x, recvType.Args[0].Type) {
+			panic("impossible")
+		}
+		recvType = recvType.Args[0].Type
 	}
 	for i := range astCall.Msgs {
 		var es []checkError
@@ -628,7 +647,8 @@ func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) 
 		Mod: identString(astMsg.Mod),
 		Sel: astMsg.Sel,
 	}
-	errs = findMsgFun(x, recv, &msg)
+	es := findMsgFun(x, recv, &msg)
+	errs = append(errs, es...)
 	if msg.Fun == nil {
 		// findMsgFun failed; best-effort check the arguments.
 		var es []checkError

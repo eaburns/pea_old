@@ -287,8 +287,12 @@ type Expr interface {
 
 // A Call is a method call or a cascade.
 type Call struct {
-	AST  ast.Node // *ast.Call or *ast.Ident if in-module unary function call.
-	Recv Expr     // nil for function calls
+	// AST is *ast.Call or *ast.Ident if in-module unary function call.
+	AST ast.Node
+	// Recv is nil for functino calls.
+	// For methods the receiver is always
+	// a reference to some non-reference type.
+	Recv Expr
 	Msgs []Msg
 
 	typ *Type

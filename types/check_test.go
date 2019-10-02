@@ -531,6 +531,29 @@ func TestAssignError(t *testing.T) {
 	}
 }
 
+func TestMethError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "reference receiver",
+			src: `
+				meth T& [foo |]
+			`,
+			err: "invalid receiver type",
+		},
+		{
+			name: "alias to a ref",
+			src: `
+				meth Xyz [foo |]
+				type Xyz := Int & & &.
+			`,
+			err: "invalid receiver type",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestFuncHasNoSelf(t *testing.T) {
 	tests := []errorTest{
 		{
@@ -634,6 +657,22 @@ func TestCallError(t *testing.T) {
 			name: "method found",
 			src: `
 				val x := [ 5 foo: 5 bar: 6 ]
+				meth Int [foo: _ Int bar: _ Int |]
+			`,
+			err: "",
+		},
+		{
+			name: "method found from ref receiver",
+			src: `
+				val x := [ {Int&| 5} foo: 5 bar: 6 ]
+				meth Int [foo: _ Int bar: _ Int |]
+			`,
+			err: "",
+		},
+		{
+			name: "method found from multi-ref receiver",
+			src: `
+				val x := [ {Int& & & & | 5} foo: 5 bar: 6 ]
 				meth Int [foo: _ Int bar: _ Int |]
 			`,
 			err: "",
@@ -1016,13 +1055,11 @@ func TestCallInstRecvType(t *testing.T) {
 			`,
 			err: "Unknown not found",
 		},
-		/*
-			// TODO: enable "inst built-in type receiver" test once calls auto-deref.
-			// This is broken because Int Array at: returns Int&,
-			// and Int&+ is not found, because we don't do auto deref yet.
-			{
-				name: "inst built-in type receiver",
-				src: `
+		// This is broken because Int Array at: returns Int&,
+		// and Int&+ is not found, because we don't do auto deref yet.
+		{
+			name: "inst built-in type receiver",
+			src: `
 					val x := [
 						// If we instantiated Int Array correctly,
 						// then the at: method should return Int
@@ -1034,9 +1071,8 @@ func TestCallInstRecvType(t *testing.T) {
 						({Int Array | } at: 0) xyz: 2
 					]
 				`,
-				err: "Int64 xyz: not found",
-			},
-		*/
+			err: "Int64 xyz: not found",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
