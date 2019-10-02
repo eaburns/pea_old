@@ -41,15 +41,16 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 	}
 
 	defer x.tr("subType(%s, %p %s)", subDebugString(sub), typ0, typ0)()
-	typ1 := *typ0
-	seen[typ0] = &typ1
-	subTypeBody(x, seen, sub, &typ1)
-	return &typ1
+
+	args := subTypeNames(x, seen, sub, typ0.Args)
+	typ1, es := instType(x, typ0, args)
+	if len(es) > 0 {
+		panic("impossible?")
+	}
+	return typ1
 }
 
 func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
-	subTypeParms(x, seen, sub, typ)
-	typ.Args = subTypeNames(x, seen, sub, typ.Args)
 	switch {
 	case typ.Var != nil:
 		subTypeVar(x, seen, sub, typ)
