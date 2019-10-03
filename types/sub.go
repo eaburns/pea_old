@@ -146,16 +146,6 @@ func subVirts(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 	}
 }
 
-func subDebugString(sub map[*TypeVar]TypeName) string {
-	var ss []string
-	for k, v := range sub {
-		s := fmt.Sprintf("%s[%p]=%s", k.Name, k, v)
-		ss = append(ss, s)
-	}
-	sort.Slice(ss, func(i, j int) bool { return ss[i] < ss[j] })
-	return strings.Join(ss, ";")
-}
-
 func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *Recv) *Recv {
 	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.name())()
 
@@ -208,4 +198,17 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 	// if there were no check errors.
 
 	return inst
+}
+
+func subDebugString(sub map[*TypeVar]TypeName) string {
+	if sub == nil {
+		return "[]"
+	}
+	var ss []string
+	for k, v := range sub {
+		s := fmt.Sprintf("%s[%p]=%s", k.Name, k, v)
+		ss = append(ss, s)
+	}
+	sort.Slice(ss, func(i, j int) bool { return ss[i] < ss[j] })
+	return strings.Join(ss, ";")
 }
