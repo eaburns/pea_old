@@ -18,6 +18,7 @@ type state struct {
 
 	typeInsts  map[interface{}]*Type
 	recvInsts  map[interface{}]*Fun
+	funInsts   map[interface{}]*Fun
 	origFunDef map[*Fun]*Fun
 
 	nextID int
@@ -32,6 +33,7 @@ func newState(cfg Config, astMod *ast.Mod) *state {
 		gathered:   make(map[Def]bool),
 		typeInsts:  make(map[interface{}]*Type),
 		recvInsts:  make(map[interface{}]*Fun),
+		funInsts:   make(map[interface{}]*Fun),
 		origFunDef: make(map[*Fun]*Fun),
 	}
 }

@@ -459,7 +459,11 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 	x.variable = tmp
 	stmts = append(stmts, &Assign{Var: tmp, Expr: recv})
 	for i := range vars {
-		msg, es := checkMsg(x, recvType, &astCall.Msgs[i])
+		var infer *Type
+		if vars[i].TypeName != nil {
+			infer = vars[i].TypeName.Type
+		}
+		msg, es := checkMsg(x, infer, recvType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 		call := &Call{
 			AST:  astCall,
@@ -554,6 +558,9 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 	if expr, errs = _checkExpr(x, infer, astExpr); len(errs) > 0 {
 		return expr, errs
 	}
+	if expr.Type() == nil {
+		return expr, errs
+	}
 	if infer == nil {
 		return expr, errs
 	}
@@ -569,7 +576,7 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 	}
 
 	// TODO: implement interface conversion.
-	if got != want {
+	if got != want && want.Var == nil {
 		err := x.err(expr, "type mismatch: have %s, want %s", expr.Type(), infer)
 		errs = append(errs, *err)
 	}
@@ -579,13 +586,13 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	switch astExpr := astExpr.(type) {
 	case *ast.Call:
-		return checkCall(x, astExpr)
+		return checkCall(x, infer, astExpr)
 	case *ast.Ctor:
 		return checkCtor(x, astExpr)
 	case *ast.Block:
 		return checkBlock(x, infer, astExpr)
 	case *ast.Ident:
-		return checkIdent(x, astExpr)
+		return checkIdent(x, infer, astExpr)
 	case *ast.Int:
 		return checkInt(x, infer, astExpr, astExpr.Text)
 	case *ast.Float:
@@ -599,8 +606,8 @@ func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	}
 }
 
-func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
-	defer x.tr("checkCall(…)")(&errs)
+func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkError) {
+	defer x.tr("checkCall(infer=%s)", infer)(&errs)
 
 	call := &Call{
 		AST:  astCall,
@@ -648,7 +655,7 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 	}
 	for i := range astCall.Msgs {
 		var es []checkError
-		call.Msgs[i], es = checkMsg(x, recvType, &astCall.Msgs[i])
+		call.Msgs[i], es = checkMsg(x, infer, recvType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 	}
 
@@ -660,22 +667,20 @@ func checkCall(x *scope, astCall *ast.Call) (_ *Call, errs []checkError) {
 		call.typ = builtInType(x, "Nil")
 		return call, errs
 	}
-	if lastMsg.Fun.Sig.Ret.Type == nil {
-		return call, errs
-	}
 	call.typ = lastMsg.Fun.Sig.Ret.Type
 	return call, errs
 }
 
-func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
-	defer x.tr("checkMsg(%s, %s)", recv, astMsg.Sel)(&errs)
+func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
+	defer x.tr("checkMsg(infer=%s, %s, %s)", infer, recv, astMsg.Sel)(&errs)
 
 	msg := Msg{
 		AST: astMsg,
 		Mod: identString(astMsg.Mod),
 		Sel: astMsg.Sel,
 	}
-	es := findMsgFun(x, recv, &msg)
+	msg.Args = make([]Expr, len(astMsg.Args))
+	es := findMsgFun(x, infer, recv, &msg)
 	errs = append(errs, es...)
 	if msg.Fun == nil {
 		// findMsgFun failed; best-effort check the arguments.
@@ -687,8 +692,12 @@ func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) 
 	if msg.Fun.Recv != nil {
 		parms = parms[1:]
 	}
-	msg.Args = make([]Expr, len(astMsg.Args))
 	for i, astArg := range astMsg.Args {
+		if msg.Args[i] != nil {
+			// This arg was already checked
+			// in order to inst fun type parameters.
+			continue
+		}
 		var es []checkError
 		typ := parms[i].typ
 		msg.Args[i], es = checkExpr(x, typ, astArg)
@@ -697,8 +706,8 @@ func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) 
 	return msg, errs
 }
 
-func findMsgFun(x *scope, recv *Type, msg *Msg) (errs []checkError) {
-	x.tr("findMsgFun(%s, %s)", recv, msg.name())(&errs)
+func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
+	x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
 	var fun *Fun
 	var mod string
 
@@ -742,10 +751,12 @@ func findMsgFun(x *scope, recv *Type, msg *Msg) (errs []checkError) {
 		}
 	}
 	if len(fun.TParms) > 0 {
-		errs = append(errs, *x.err(msg, "calling parameterized functions is unimplemented"))
-		return errs
+		if f, es := instFun(x, infer, fun, msg); len(es) > 0 {
+			errs = append(errs, es...)
+		} else {
+			fun = f
+		}
 	}
-
 	msg.Fun = fun
 	return errs
 }
@@ -1099,8 +1110,8 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	return blk, errs
 }
 
-func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
-	defer x.tr("checkIdent(%s)", astIdent.Text)(&errs)
+func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []checkError) {
+	defer x.tr("checkIdent(infer=%s, %s)", infer, astIdent.Text)(&errs)
 
 	ident := &Ident{AST: astIdent, Text: astIdent.Text}
 	switch vr := x.findIdent(astIdent.Text).(type) {
@@ -1110,11 +1121,20 @@ func checkIdent(x *scope, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	case *Var:
 		ident.Var = vr
 	case *Fun:
-		defer x.tr("checkMsg(%s, %s)", nil, astIdent.Text)(&errs)
+		defer x.tr("checkMsg(infer=%s, %s, %s)", infer, nil, astIdent.Text)(&errs)
 		msg := Msg{AST: astIdent, Sel: astIdent.Text}
-		es := findMsgFun(x, nil, &msg)
+		es := findMsgFun(x, infer, nil, &msg)
 		errs = append(errs, es...)
-		return &Call{AST: astIdent, Msgs: []Msg{msg}}, errs
+		call := &Call{AST: astIdent, Msgs: []Msg{msg}}
+		if msg.Fun == nil {
+			return call, errs
+		}
+		if msg.Fun.Sig.Ret == nil {
+			call.typ = builtInType(x, "Nil")
+		} else {
+			call.typ = msg.Fun.Sig.Ret.Type
+		}
+		return call, errs
 	default:
 		panic(fmt.Sprintf("impossible type: %T", vr))
 	}

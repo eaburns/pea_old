@@ -49,6 +49,9 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 	if len(es) > 0 {
 		panic("impossible?")
 	}
+	if typ0.Var != nil && typ0 != typ1 {
+		panic("impossible")
+	}
 	return typ1
 }
 
@@ -153,6 +156,9 @@ func subVirts(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 }
 
 func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *Recv) *Recv {
+	if recv0 == nil {
+		return nil
+	}
 	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.name())()
 
 	recv1 := *recv0

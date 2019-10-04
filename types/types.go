@@ -303,7 +303,8 @@ func (n *Call) Type() *Type   { return n.typ }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
-	AST  ast.Node // *ast.Msg or *ast.Ident if in-module unary function call.
+	// AST is *ast.Msg or *ast.Ident if in-module unary function call.
+	AST  ast.Node
 	Mod  string
 	Sel  string
 	Args []Expr
