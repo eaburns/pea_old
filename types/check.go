@@ -806,7 +806,7 @@ func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
 }
 
 func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkOrCtor(%s)", ctor.TypeName)(&errs)
+	defer x.tr("checkOrCtor(%s)", ctor.typ)(&errs)
 
 	if len(ctor.AST.Args) > 1 || ctor.Sel == "" {
 		err := x.err(ctor, "malformed or-type constructor")
@@ -816,7 +816,7 @@ func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
 		return append(errs, es...)
 	}
 
-	ctor.Case = findCase(ctor.TypeName.Type, ctor.Sel)
+	ctor.Case = findCase(ctor.typ, ctor.Sel)
 	if ctor.Case == nil {
 		err := x.err(ctor, "case %s not found", ctor.Sel)
 		errs = append(errs, *err)
@@ -824,7 +824,7 @@ func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
 		ctor.Args = []Expr{expr}
 		return append(errs, es...)
 	}
-	c := &ctor.TypeName.Type.Cases[*ctor.Case]
+	c := &ctor.typ.Cases[*ctor.Case]
 
 	if c.TypeName == nil {
 		// Or-type constructors have a bit of a grammar ambiguity:
