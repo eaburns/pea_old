@@ -1258,6 +1258,15 @@ func TestBlockLiteralError(t *testing.T) {
 			`,
 			err: "too many block parameters",
 		},
+		{
+			name: "found overrides infer",
+			src: `
+				val x (Int64, Int32, Float, String) Fun := [
+					[ :a Int8 :b String :c Float32 | 5 ]
+				]
+			`,
+			err: "have type Int64, want type String",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -1305,18 +1314,6 @@ func TestBlockTypeInference(t *testing.T) {
 			`,
 			want: "type (Int64, Int32, Float64, String) Fun",
 		},
-		{
-			// Eventually this will return a check error
-			// and needs to be moved to a different test
-			// that is testing block check errors.
-			name: "found overrides infer",
-			src: `
-				val x (Int64, Int32, Float, String) Fun := [
-					[ :a Int8 :b String :c Float32 | 5 ]
-				]
-			`,
-			want: "type (Int8, String, Float32, Int64) Fun",
-		},
 	}
 	for _, test := range tests {
 		test := test
@@ -1330,7 +1327,10 @@ func TestBlockTypeInference(t *testing.T) {
 				t.Fatalf("failed to check the source: %v", errs)
 			}
 			val := mod.Defs[0].(*Val)
-			blk := val.Init[len(val.Init)-1].(*Block)
+			blk, ok := val.Init[len(val.Init)-1].(*Block)
+			if !ok {
+				t.Fatalf("not a block, but a %T", val.Init[len(val.Init)-1])
+			}
 			if blk.typ.String() != test.want {
 				t.Errorf("got %s, wanted %s", blk.typ.String(), test.want)
 			}

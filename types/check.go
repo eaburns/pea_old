@@ -548,7 +548,35 @@ func checkExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
 	return exprs, errs
 }
 
-func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
+func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []checkError) {
+	defer x.tr("checkExpr(infer=%s)", infer)(&errs)
+
+	if expr, errs = _checkExpr(x, infer, astExpr); len(errs) > 0 {
+		return expr, errs
+	}
+	if infer == nil {
+		return expr, errs
+	}
+	gotI, got := refBaseType(x, expr.Type())
+	wantI, want := refBaseType(x, infer)
+	if got == want && gotI != wantI {
+		expr = &Ctor{
+			Args: []Expr{expr},
+			Ref:  wantI - gotI,
+			typ:  want,
+		}
+		return expr, errs
+	}
+
+	// TODO: implement interface conversion.
+	if got != want {
+		err := x.err(expr, "type mismatch: have %s, want %s", expr.Type(), infer)
+		errs = append(errs, *err)
+	}
+	return expr, errs
+}
+
+func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	switch astExpr := astExpr.(type) {
 	case *ast.Call:
 		return checkCall(x, astExpr)
