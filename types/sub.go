@@ -86,7 +86,12 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, par
 		for i := range parm0.Ifaces {
 			parm1.Ifaces[i] = *subTypeName(x, seen, sub, &parm0.Ifaces[i])
 		}
-		parm1.Type = subType(x, seen, sub, parm0.Type)
+		parm1.Type = &Type{
+			AST:  parm1.AST,
+			Name: parm1.Name,
+			Var:  parm1,
+		}
+		seen[parm0.Type] = parm1.Type
 	}
 	return parms1
 }
