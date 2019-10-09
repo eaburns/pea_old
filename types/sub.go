@@ -22,7 +22,6 @@ func subTypeName(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, name
 	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.name(), name0.Type.Var)()
 
 	if s, ok := sub[name0.Type.Var]; ok {
-		x.log("%s→%s", name0.Type.Var.Name, s)
 		return &s
 	}
 
@@ -35,6 +34,9 @@ func subTypeName(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, name
 func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Type) *Type {
 	if typ0 == nil {
 		return nil
+	}
+	if s, ok := sub[typ0.Var]; ok {
+		return s.Type
 	}
 	if typ1 := seen[typ0]; typ1 != nil {
 		return typ1
@@ -115,7 +117,6 @@ func subFields(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *T
 
 func subCases(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
 	defer x.tr("subCases(%s)", subDebugString(sub))()
-
 	cases0 := typ.Cases
 	typ.Cases = make([]Var, len(cases0))
 	for i := range cases0 {
