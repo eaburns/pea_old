@@ -51,7 +51,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		parms = append(parms, Var{
 			Name:     "_",
 			TypeName: makeTypeName(parmType),
-			typ:      typ,
+			typ:      parmType,
 		})
 	}
 	return &Fun{
