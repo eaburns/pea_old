@@ -131,3 +131,20 @@ func TestBuiltInMeths(t *testing.T) {
 		})
 	}
 }
+
+func TestCaseMethod(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "correct param types",
+			src: `
+				val x String := [
+					true ifTrue: ["string"] ifFalse: ["string"]
+				]
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
