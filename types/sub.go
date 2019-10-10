@@ -182,9 +182,9 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
 		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
+		parm1.typ = subType(x, seen, sub, parm0.typ)
 		parm1.FunParm = fun
 		parm1.Index = i
-		parm1.typ = subType(x, seen, sub, parm1.typ)
 	}
 
 	inst.Locals = make([]*Var, len(fun.Locals))
