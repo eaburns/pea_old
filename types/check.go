@@ -690,7 +690,7 @@ func checkMsg(x *scope, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) 
 	msg.Args = make([]Expr, len(astMsg.Args))
 	for i, astArg := range astMsg.Args {
 		var es []checkError
-		typ := parms[i].TypeName.Type
+		typ := parms[i].typ
 		msg.Args[i], es = checkExpr(x, typ, astArg)
 		errs = append(errs, es...)
 	}
