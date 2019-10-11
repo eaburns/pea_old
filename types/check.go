@@ -584,6 +584,18 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 
 	if got != want {
 		err := x.err(expr, "type mismatch: have %s, want %s", expr.Type(), infer)
+		if got.Var != nil && want.Var != nil && got.Name == want.Name {
+			if got.AST != nil {
+				note(err, "have type %s defined at %s", got, x.loc(got))
+			} else {
+				note(err, "have type %s is from a built-in definiton", got)
+			}
+			if want.AST != nil {
+				note(err, "want type %s defined at %s", want, x.loc(want))
+			} else {
+				note(err, "want type %s is from a built-in definiton", want)
+			}
+		}
 		errs = append(errs, *err)
 	}
 	return expr, errs
