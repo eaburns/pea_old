@@ -28,7 +28,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type Foo { bar }
 			`,
 			want: []string{
-				"meth Foo $0 [ifBar: _ $0 Fun ^$0]",
+				"Foo $0 [ifBar: _ $0 Fun ^$0]",
 			},
 		},
 		{
@@ -37,7 +37,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type Nums { one, two, three, four }
 			`,
 			want: []string{
-				"meth Nums $0 [ifOne: _ $0 Fun ifTwo: _ $0 Fun ifThree: _ $0 Fun ifFour: _ $0 Fun ^$0]",
+				"Nums $0 [ifOne: _ $0 Fun ifTwo: _ $0 Fun ifThree: _ $0 Fun ifFour: _ $0 Fun ^$0]",
 			},
 		},
 		{
@@ -46,7 +46,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type IntOrString { int: Int, string: String }
 			`,
 			want: []string{
-				"meth IntOrString $0 [ifInt: _ (Int64&, $0) Fun ifString: _ (String&, $0) Fun ^$0]",
+				"IntOrString $0 [ifInt: _ (Int64&, $0) Fun ifString: _ (String&, $0) Fun ^$0]",
 			},
 		},
 		{
@@ -55,7 +55,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type IntOpt { int: Int, none }
 			`,
 			want: []string{
-				"meth IntOpt $0 [ifInt: _ (Int64&, $0) Fun ifNone: _ $0 Fun ^$0]",
+				"IntOpt $0 [ifInt: _ (Int64&, $0) Fun ifNone: _ $0 Fun ^$0]",
 			},
 		},
 		{
@@ -64,7 +64,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type T? { none, some: T }
 			`,
 			want: []string{
-				"meth T? $0 [ifNone: _ $0 Fun ifSome: _ (T&, $0) Fun ^$0]",
+				"T? $0 [ifNone: _ $0 Fun ifSome: _ (T&, $0) Fun ^$0]",
 			},
 		},
 		{
@@ -73,7 +73,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type Foo { [bar: Int baz: String ^Float] }
 			`,
 			want: []string{
-				"meth Foo [bar: _ Int64 baz: _ String ^Float64]",
+				"Foo [bar: _ Int64 baz: _ String ^Float64]",
 			},
 		},
 		{
@@ -86,9 +86,9 @@ func TestBuiltInMeths(t *testing.T) {
 				}
 			`,
 			want: []string{
-				"meth Foo [bar]",
-				"meth Foo [baz: _ Int64]",
-				"meth Foo [* _ Foo ^Foo]",
+				"Foo [bar]",
+				"Foo [baz: _ Int64]",
+				"Foo [* _ Foo ^Foo]",
 			},
 		},
 		{
@@ -99,7 +99,7 @@ func TestBuiltInMeths(t *testing.T) {
 				}
 			`,
 			want: []string{
-				"meth T Eq [= _ T& ^Bool]",
+				"T Eq [= _ T& ^Bool]",
 			},
 		},
 	}

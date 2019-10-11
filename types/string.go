@@ -8,11 +8,6 @@ import (
 
 func (n Val) String() string {
 	var s strings.Builder
-	if n.Priv {
-		s.WriteString("val ")
-	} else {
-		s.WriteString("Val ")
-	}
 	s.WriteString(n.Var.Name)
 	if n.Var.TypeName != nil {
 		s.WriteRune(' ')
@@ -24,19 +19,8 @@ func (n Val) String() string {
 func (n Fun) String() string {
 	var s strings.Builder
 	if n.Recv != nil {
-		if n.Priv {
-			s.WriteString("meth ")
-		} else {
-			s.WriteString("Meth ")
-		}
 		buildRecvString(n.Recv, &s)
 		s.WriteRune(' ')
-	} else {
-		if n.Priv {
-			s.WriteString("func ")
-		} else {
-			s.WriteString("Func ")
-		}
 	}
 	if len(n.TParms) > 0 {
 		if len(n.TParms) > 1 || len(n.TParms[0].Ifaces) > 0 {
@@ -69,11 +53,6 @@ func (n FunSig) String() string {
 
 func (n Type) String() string {
 	var s strings.Builder
-	if n.Priv {
-		s.WriteString("type ")
-	} else {
-		s.WriteString("Type ")
-	}
 	buildTypeString(&n, &s)
 	return s.String()
 }

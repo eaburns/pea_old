@@ -1042,7 +1042,7 @@ func TestCallInstRecvType(t *testing.T) {
 				type FloatArray := Float Array.
 				meth FloatArray [foo |]
 			`,
-			err: "type mismatch: have type Int64, want type Float64",
+			err: "type mismatch: have Int64, want Float64",
 		},
 		{
 			name: "recv type arg error",
@@ -1265,7 +1265,7 @@ func TestBlockLiteralError(t *testing.T) {
 					[ :a Int8 :b String :c Float32 | 5 ]
 				]
 			`,
-			err: "have type Int64, want type String",
+			err: "have Int64, want String",
 		},
 	}
 	for _, test := range tests {
@@ -1287,14 +1287,14 @@ func TestBlockTypeInference(t *testing.T) {
 			src: `
 				val x Int64 Fun := [ [5] ]
 			`,
-			want: "type Int64 Fun",
+			want: "Int64 Fun",
 		},
 		{
 			name: "infer result from below",
 			src: `
 				val x := [ ["string"] ]
 			`,
-			want: "type String Fun",
+			want: "String Fun",
 		},
 		{
 			name: "infer args from above",
@@ -1303,7 +1303,7 @@ func TestBlockTypeInference(t *testing.T) {
 					[ :a :b :c | "string" ]
 				]
 			`,
-			want: "type (Int64, Int32, Float64, String) Fun",
+			want: "(Int64, Int32, Float64, String) Fun",
 		},
 		{
 			name: "infer args from below",
@@ -1312,7 +1312,7 @@ func TestBlockTypeInference(t *testing.T) {
 					[ :a Int :b Int32 :c Float | "string" ]
 				]
 			`,
-			want: "type (Int64, Int32, Float64, String) Fun",
+			want: "(Int64, Int32, Float64, String) Fun",
 		},
 	}
 	for _, test := range tests {

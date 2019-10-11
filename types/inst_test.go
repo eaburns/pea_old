@@ -60,7 +60,7 @@ func TestInstCallError(t *testing.T) {
 				val test Int := [ foo: "string" ]
 				func T [foo: _ T ^T |]
 			`,
-			err: "have type String, want type Int64",
+			err: "have String, want Int64",
 		},
 	}
 	for _, test := range tests {
@@ -75,21 +75,21 @@ func TestInstCall(t *testing.T) {
 			src: `
 				val test := [ 1 + 2 ]
 			`,
-			want: "meth Int64 [+ _ Int64 ^Int64]",
+			want: "Int64 [+ _ Int64 ^Int64]",
 		},
 		{
 			name: "ground receiver subs return",
 			src: `
 				val test := [ {String Array|} at: 2 ]
 			`,
-			want: "meth String Array [at: _ Int64 ^String&]",
+			want: "String Array [at: _ Int64 ^String&]",
 		},
 		{
 			name: "ground receiver subs parm",
 			src: `
 				val test := [ {String Array|} at: 2 put: "hello" ]
 			`,
-			want: "meth String Array [at: _ Int64 put: _ String]",
+			want: "String Array [at: _ Int64 put: _ String]",
 		},
 		{
 			name: "ground multi-type-param receiver",
@@ -98,7 +98,7 @@ func TestInstCall(t *testing.T) {
 				type (K, V) Map {}
 				meth (K, V) Map [at: _ K put: _ V |]
 			`,
-			want: "meth (String, Float64) Map [at: _ String put: _ Float64]",
+			want: "(String, Float64) Map [at: _ String put: _ Float64]",
 		},
 		{
 			name: "ground imported receiver type",
@@ -112,7 +112,7 @@ func TestInstCall(t *testing.T) {
 					Meth (K, V) Map [at: _ K put: _ V |]
 				`},
 			},
-			want: "Meth (String, Float64) Map [at: _ String put: _ Float64]",
+			want: "(String, Float64) Map [at: _ String put: _ Float64]",
 		},
 		{
 			name: "ground fun return type",
@@ -121,7 +121,7 @@ func TestInstCall(t *testing.T) {
 					5 < 6 ifTrue: ["hello"] ifFalse: ["goodbye"]
 				]
 			`,
-			want: "meth Bool [ifTrue: _ String Fun ifFalse: _ String Fun ^String]",
+			want: "Bool [ifTrue: _ String Fun ifFalse: _ String Fun ^String]",
 		},
 		{
 			name: "ground fun parameter type",
@@ -131,7 +131,7 @@ func TestInstCall(t *testing.T) {
 					]
 					func T [foo: _ T |]
 				`,
-			want: "func [foo: _ String]",
+			want: "[foo: _ String]",
 		},
 		{
 			name: "ground fun parameter complex type",
@@ -141,7 +141,7 @@ func TestInstCall(t *testing.T) {
 					]
 					func T [foo: _ T Array Array |]
 				`,
-			want: "func [foo: _ String Array Array]",
+			want: "[foo: _ String Array Array]",
 		},
 		{
 			name: "map method",
@@ -151,7 +151,7 @@ func TestInstCall(t *testing.T) {
 					]
 					meth T Array R [map: _ (T, R) Fun ^R Array |]
 				`,
-			want: "meth Int8 Array [map: _ (Int8, String) Fun ^String Array]",
+			want: "Int8 Array [map: _ (Int8, String) Fun ^String Array]",
 		},
 		{
 			name: "reduce method",
@@ -161,7 +161,7 @@ func TestInstCall(t *testing.T) {
 					]
 					meth T Array R [init: _ R fold: _ (T, R, R) Fun ^R |]
 				`,
-			want: "meth Int8 Array [init: _ String fold: _ (Int8, String, String) Fun ^String]",
+			want: "Int8 Array [init: _ String fold: _ (Int8, String, String) Fun ^String]",
 		},
 	}
 	for _, test := range tests {
