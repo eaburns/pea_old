@@ -736,6 +736,7 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 				continue
 			}
 			fun = x.findFun(iface.Type, msg.Sel)
+			recv = iface.Type
 		}
 	case msg.Mod != "":
 		mod = msg.Mod + " "
