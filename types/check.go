@@ -564,8 +564,13 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 	if infer == nil {
 		return expr, errs
 	}
+	x.log("have %s (%p)", expr.Type(), expr.Type())
+	x.log("want %s (%p)", infer, infer)
+
 	gotI, got := refBaseType(x, expr.Type())
 	wantI, want := refBaseType(x, infer)
+	x.log("have base %s (%p)", got, got)
+	x.log("want base %s (%p)", want, want)
 	if got == want && gotI != wantI {
 		expr = &Ctor{
 			Args: []Expr{expr},
@@ -576,7 +581,8 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 	}
 
 	// TODO: implement interface conversion.
-	if got != want && want.Var == nil {
+
+	if got != want {
 		err := x.err(expr, "type mismatch: have %s, want %s", expr.Type(), infer)
 		errs = append(errs, *err)
 	}
