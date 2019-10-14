@@ -57,10 +57,10 @@ func TestInstCallError(t *testing.T) {
 		{
 			name: "multi-binding type mismatch",
 			src: `
-				val test Int := [ foo: "string" ]
+				val test Rune := [ foo: "string" ]
 				func T [foo: _ T ^T |]
 			`,
-			err: "have String, want Int64",
+			err: "have String, want Int32",
 		},
 	}
 	for _, test := range tests {
@@ -75,21 +75,21 @@ func TestInstCall(t *testing.T) {
 			src: `
 				val test := [ 1 + 2 ]
 			`,
-			want: "Int64 [+ _ Int64 ^Int64]",
+			want: "Int [+ _ Int ^Int]",
 		},
 		{
 			name: "ground receiver subs return",
 			src: `
 				val test := [ {String Array|} at: 2 ]
 			`,
-			want: "String Array [at: _ Int64 ^String&]",
+			want: "String Array [at: _ Int ^String&]",
 		},
 		{
 			name: "ground receiver subs parm",
 			src: `
 				val test := [ {String Array|} at: 2 put: "hello" ]
 			`,
-			want: "String Array [at: _ Int64 put: _ String]",
+			want: "String Array [at: _ Int put: _ String]",
 		},
 		{
 			name: "ground multi-type-param receiver",
@@ -98,7 +98,7 @@ func TestInstCall(t *testing.T) {
 				type (K, V) Map {}
 				meth (K, V) Map [at: _ K put: _ V |]
 			`,
-			want: "(String, Float64) Map [at: _ String put: _ Float64]",
+			want: "(String, Float) Map [at: _ String put: _ Float]",
 		},
 		{
 			name: "ground imported receiver type",
@@ -112,7 +112,7 @@ func TestInstCall(t *testing.T) {
 					Meth (K, V) Map [at: _ K put: _ V |]
 				`},
 			},
-			want: "(String, Float64) Map [at: _ String put: _ Float64]",
+			want: "(String, Float) Map [at: _ String put: _ Float]",
 		},
 		{
 			name: "ground fun return type",

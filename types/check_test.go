@@ -183,21 +183,21 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "method redefinition through an alias",
 			src: `
-				meth Int [foo |]
-				meth Int64 [foo |]
+				meth Int32 [foo |]
+				meth Rune [foo |]
 			`,
-			err: "method Int64 foo redefined",
+			err: "method Int32 foo redefined",
 		},
 		{
 			name: "method redefinition through multiple aliases",
 			src: `
-				meth Int [foo |]
+				meth Rune [foo |]
 				meth Abc [foo |]
 				type Abc := Def.
 				type Def := Ghi.
-				type Ghi := Int64.
+				type Ghi := Int32.
 			`,
-			err: "method Int64 foo redefined",
+			err: "method Int32 foo redefined",
 		},
 		{
 			name: "binary method redefinition",
@@ -205,7 +205,7 @@ func TestRedefError(t *testing.T) {
 				meth Int [@@ _ Int |]
 				meth Int [@@ _ Int |]
 			`,
-			err: "method Int64 @@ redefined",
+			err: "method Int @@ redefined",
 		},
 		{
 			name: "nary method redefinition",
@@ -213,7 +213,7 @@ func TestRedefError(t *testing.T) {
 				meth Int [foo: _ String bar: _ Int |]
 				meth Int [foo: _ String bar: _ Int |]
 			`,
-			err: "method Int64 foo:bar: redefined",
+			err: "method Int foo:bar: redefined",
 		},
 		{
 			name: "method redefinition with different param types",
@@ -221,7 +221,7 @@ func TestRedefError(t *testing.T) {
 				meth Int [foo: _ Int bar: _ Float |]
 				meth Int [foo: _ String bar: _ Int |]
 			`,
-			err: "method Int64 foo:bar: redefined",
+			err: "method Int foo:bar: redefined",
 		},
 		{
 			name: "method redefinition with receiver type params",
@@ -529,13 +529,13 @@ func TestAssignError(t *testing.T) {
 			name: "shadow a local",
 			src: `
 				meth Int [foo |
-					x Int64 := 5.
+					x Int := 5.
 					x String := "hello".
 					x := "hello".
 					x := 5.
 				]
 			`,
-			err: "have Int64, want String",
+			err: "have Int, want String",
 		},
 		{
 			name: "shadow a parm",
@@ -624,8 +624,8 @@ func TestAssignToNewVariable(t *testing.T) {
 	if assign0.Var != l {
 		t.Errorf("assign0.Van (%p) != val.Locals[0] (%p)", assign0.Var, l)
 	}
-	if l.typ == nil || l.typ.Name != "Int64" || l.typ.Mod != "" {
-		t.Errorf("got %v, expected Int64", l.typ)
+	if l.typ == nil || l.typ.Name != "Int" || l.typ.Mod != "" {
+		t.Errorf("got %v, expected Int", l.typ)
 	}
 }
 
@@ -682,7 +682,7 @@ func TestCallError(t *testing.T) {
 			src: `
 				val x := [ 5 foo: 5 bar: 6 ]
 			`,
-			err: "method Int64 foo:bar: not found",
+			err: "method Int foo:bar: not found",
 		},
 		{
 			name: "method found",
@@ -714,7 +714,7 @@ func TestCallError(t *testing.T) {
 				val x := [ 5 foo: 5 bar: 6 ]
 				meth Bad [foo: _ Int bar: _ Int |]
 			`,
-			err: "method Int64 foo:bar: not found",
+			err: "method Int foo:bar: not found",
 		},
 		{
 			name: "module not found",
@@ -773,7 +773,7 @@ func TestCallError(t *testing.T) {
 					meth Int [foo: _ Int bar: _ Int |]
 				`},
 			},
-			err: "method Int64 #found foo:bar: not found",
+			err: "method Int #found foo:bar: not found",
 		},
 		{
 			name: "type variable method not found",
@@ -804,7 +804,7 @@ func TestCallError(t *testing.T) {
 				val x := [ 5 foo: 5 bar: 6 ]
 				func [foo: _ Int bar: _ Int |]
 			`,
-			err: "method Int64 foo:bar: not found",
+			err: "method Int foo:bar: not found",
 		},
 	}
 	for _, test := range tests {
@@ -826,7 +826,7 @@ func TestCtorError(t *testing.T) {
 			src: `
 				val x := [ {Int | 5} ]
 			`,
-			err: "cannot construct built-in type Int64",
+			err: "cannot construct built-in type Int",
 		},
 		{
 			name: "alias is OK",
@@ -876,7 +876,7 @@ func TestCtorError(t *testing.T) {
 			src: `
 				val x := [ {Int Array | 1; 2; 3.14} ]
 			`,
-			err: "Int64 cannot represent 3.14",
+			err: "Int cannot represent 3.14",
 		},
 		{
 			name: "or-type constructor",
@@ -1053,16 +1053,16 @@ func TestCallInstRecvType(t *testing.T) {
 			name: "inst receiver",
 			src: `
 				val x := [
-					({Int FloatFoo | } at: 0) + 5.
+					({Rune FloatFoo | } at: 0) + 5.
 
-					// But Int has no xyz: so this will error and say Int64.
-					({Int FloatFoo | } at: 0) xyz: 2
+					// But Int32 has no xyz: so this will error and say Int32.
+					({Rune FloatFoo | } at: 0) xyz: 2
 				]
 				type (X, Y) Foo { }
 				type T FloatFoo := (T, Float) Foo.
 				meth T FloatFoo [at: _ Float ^T |]
 			`,
-			err: "Int64 xyz: not found",
+			err: "Int32 xyz: not found",
 		},
 		{
 			name: "recv type arg mismatch",
@@ -1073,7 +1073,7 @@ func TestCallInstRecvType(t *testing.T) {
 				type FloatArray := Float Array.
 				meth FloatArray [foo |]
 			`,
-			err: "type mismatch: have Int64, want Float64",
+			err: "type mismatch: have Int, want Float",
 		},
 		{
 			name: "recv type arg error",
@@ -1086,23 +1086,21 @@ func TestCallInstRecvType(t *testing.T) {
 			`,
 			err: "Unknown not found",
 		},
-		// This is broken because Int Array at: returns Int&,
-		// and Int&+ is not found, because we don't do auto deref yet.
 		{
 			name: "inst built-in type receiver",
 			src: `
 					val x := [
-						// If we instantiated Int Array correctly,
+						// If we instantiated Rune Array correctly,
 						// then the at: method should return Int
 						// and we will succssfully find the + method.
 						// If we didn't instantiated Int Array, + should fail.
-						({Int Array | } at: 0) + 5.
+						({Rune Array | } at: 0) + 5.
 
-						// But Int has no xyz: so this will error and say Int64.
-						({Int Array | } at: 0) xyz: 2
+						// But Int32 has no xyz: so this will error and say Int32.
+						({Rune Array | } at: 0) xyz: 2
 					]
 				`,
-			err: "Int64 xyz: not found",
+			err: "Int32 xyz: not found",
 		},
 	}
 	for _, test := range tests {
@@ -1296,7 +1294,7 @@ func TestBlockLiteralError(t *testing.T) {
 					[ :a Int8 :b String :c Float32 | 5 ]
 				]
 			`,
-			err: "have Int64, want String",
+			err: "have Int, want String",
 		},
 	}
 	for _, test := range tests {
@@ -1334,7 +1332,7 @@ func TestBlockTypeInference(t *testing.T) {
 					[ :a :b :c | "string" ]
 				]
 			`,
-			want: "(Int64, Int32, Float64, String) Fun",
+			want: "(Int64, Int32, Float, String) Fun",
 		},
 		{
 			name: "infer args from below",
@@ -1343,7 +1341,7 @@ func TestBlockTypeInference(t *testing.T) {
 					[ :a Int :b Int32 :c Float | "string" ]
 				]
 			`,
-			want: "(Int64, Int32, Float64, String) Fun",
+			want: "(Int, Int32, Float, String) Fun",
 		},
 	}
 	for _, test := range tests {
@@ -1579,7 +1577,7 @@ func TestFloatLit(t *testing.T) {
 		{
 			name: "bad truncation",
 			src:  "val x Int := [3.14]",
-			err:  "Int64 cannot represent 3.14: truncation",
+			err:  "Int cannot represent 3.14: truncation",
 		},
 	}
 	for _, test := range tests {
@@ -1618,68 +1616,68 @@ func TestTypeInstSub(t *testing.T) {
 		{
 			name: "sub type parm",
 			src: `
-				type Test := Int List.
+				type Test := Rune List.
 				type T List { data: T, next: T List ? }
 				type T ? { Nil, Some: T }
 			`,
-			want: "type Int64 List { data: Int64, next: Int64 List? }",
+			want: "type Int32 List { data: Int32, next: Int32 List? }",
 		},
 		{
 			name: "sub type parms",
 			src: `
-				type Test := (Int, String) Pair.
+				type Test := (Rune, String) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Int64, String) Pair { x: Int64 y: String }",
+			want: "type (Int32, String) Pair { x: Int32 y: String }",
 		},
 		{
 			name: "sub only some type parms",
 			src: `
-				type T Test := (Int, T) Pair.
+				type T Test := (Rune, T) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Int64, T) Pair { x: Int64 y: T }",
+			want: "type (Int32, T) Pair { x: Int32 y: T }",
 		},
 		{
 			name: "sub alias",
 			src: `
-				type Test := Int DifferentArray.
+				type Test := Rune DifferentArray.
 				type T DifferentArray := T Array.
 			`,
-			want: "type Int64 Array {}",
+			want: "type Int32 Array {}",
 		},
 		{
 			name: "sub fields",
 			src: `
-				type Test := (Int, String) Pair.
+				type Test := (Rune, String) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Int64, String) Pair { x: Int64 y: String }",
+			want: "type (Int32, String) Pair { x: Int32 y: String }",
 		},
 		{
 			name: "sub cases",
 			src: `
-				type Test := Int?.
+				type Test := Rune?.
 				type T? { none, some: T }
 			`,
-			want: "type Int64? { none, some: Int64 }",
+			want: "type Int32? { none, some: Int32 }",
 		},
 		{
 			name: "sub virts",
 			src: `
-				type Test := Int Eq.
+				type Test := Rune Eq.
 				type T Eq { [= T& ^Bool] }
 			`,
-			want: "type Int64 Eq { [= Int64& ^Bool] }",
+			want: "type Int32 Eq { [= Int32& ^Bool] }",
 		},
 		{
 			name: "recursive type",
 			src: `
-				type Test := Int List.
+				type Test := Rune List.
 				type T List { data: T& next: T List? }
 				type T? { none, some: T }
 			`,
-			want: "type Int64 List { data: Int64& next: Int64 List? }",
+			want: "type Int32 List { data: Int32& next: Int32 List? }",
 		},
 	}
 	for _, test := range tests {
@@ -1738,9 +1736,9 @@ func TestTypeInstMemo(t *testing.T) {
 		{
 			name: "basic follow different alias",
 			src: `
-				type Test0 := Int.
+				type Test0 := Rune.
 				type Test1 := Abc.
-				type Abc := Int64.
+				type Abc := Int32.
 			`,
 		},
 		{
@@ -1753,9 +1751,9 @@ func TestTypeInstMemo(t *testing.T) {
 		{
 			name: "inst built-in type with aliases",
 			src: `
-				type Test0 := Int Array.
+				type Test0 := Rune Array.
 				type Test1 := Abc Array.
-				type Abc := Int64.
+				type Abc := Int32.
 			`,
 		},
 		{
@@ -1769,9 +1767,9 @@ func TestTypeInstMemo(t *testing.T) {
 		{
 			name: "multiple type parms and aliases",
 			src: `
-				type Test0 := (Int64, String) Map.
+				type Test0 := (Int32, String) Map.
 				type Test1 := Abc.
-				type Abc := (Int, OtherString) Map.
+				type Abc := (Rune, OtherString) Map.
 				type OtherString := String.
 				type (K, V) Map {}
 			`,
@@ -1787,11 +1785,11 @@ func TestTypeInstMemo(t *testing.T) {
 			imports: [][2]string{
 				{"foo", `
 					import "map"
-					Type IntStringMap := (Int, String) #map Map.
+					Type IntStringMap := (Rune, String) #map Map.
 				`},
 				{"bar", `
 					import "map"
-					Type IntStringMap := (Int, String) #map Map.
+					Type IntStringMap := (Rune, String) #map Map.
 				`},
 				{"map", `
 					Type (K, V) Map {}

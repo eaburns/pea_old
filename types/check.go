@@ -14,9 +14,6 @@ type Config struct {
 	// IntSize is the bit size of the Int, UInt, and Word alias types.
 	// It must be a valid int size: 8, 16, 32, or 64 (default=64).
 	IntSize int
-	// FloatSize is the bit size of the Float type alias.
-	// It must be a valid float size: 32 or 64 (default=64).
-	FloatSize int
 	// Importer is used for importing modules.
 	// The default importer reads packages from the local file system.
 	Importer Importer
@@ -1207,6 +1204,8 @@ func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
 
 func disectIntType(x *scope, typ *Type) (bool, int) {
 	switch typ {
+	case builtInType(x, "Int"):
+		return true, x.cfg.IntSize
 	case builtInType(x, "Int8"):
 		return true, 7
 	case builtInType(x, "Int16"):
@@ -1215,6 +1214,8 @@ func disectIntType(x *scope, typ *Type) (bool, int) {
 		return true, 31
 	case builtInType(x, "Int64"):
 		return true, 63
+	case builtInType(x, "UInt"):
+		return false, x.cfg.IntSize
 	case builtInType(x, "UInt8"):
 		return false, 8
 	case builtInType(x, "UInt16"):
@@ -1257,10 +1258,12 @@ func isInt(x *scope, typ *Type) bool {
 		return false
 	default:
 		return false
-	case typ == builtInType(x, "Int8") ||
+	case typ == builtInType(x, "Int") ||
+		typ == builtInType(x, "Int8") ||
 		typ == builtInType(x, "Int16") ||
 		typ == builtInType(x, "Int32") ||
 		typ == builtInType(x, "Int64") ||
+		typ == builtInType(x, "UInt") ||
 		typ == builtInType(x, "UInt8") ||
 		typ == builtInType(x, "UInt16") ||
 		typ == builtInType(x, "UInt32") ||
@@ -1275,7 +1278,8 @@ func isFloat(x *scope, typ *Type) bool {
 		return false
 	default:
 		return false
-	case typ == builtInType(x, "Float32") ||
+	case typ == builtInType(x, "Float") ||
+		typ == builtInType(x, "Float32") ||
 		typ == builtInType(x, "Float64"):
 		return true
 	}

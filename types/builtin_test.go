@@ -41,12 +41,12 @@ func TestBuiltInMeths(t *testing.T) {
 			},
 		},
 		{
-			name: "typeed case",
+			name: "typed case",
 			src: `
 				type IntOrString { int: Int, string: String }
 			`,
 			want: []string{
-				"IntOrString $0 [ifInt: _ (Int64&, $0) Fun ifString: _ (String&, $0) Fun ^$0]",
+				"IntOrString $0 [ifInt: _ (Int&, $0) Fun ifString: _ (String&, $0) Fun ^$0]",
 			},
 		},
 		{
@@ -55,7 +55,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type IntOpt { int: Int, none }
 			`,
 			want: []string{
-				"IntOpt $0 [ifInt: _ (Int64&, $0) Fun ifNone: _ $0 Fun ^$0]",
+				"IntOpt $0 [ifInt: _ (Int&, $0) Fun ifNone: _ $0 Fun ^$0]",
 			},
 		},
 		{
@@ -73,7 +73,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type Foo { [bar: Int baz: String ^Float] }
 			`,
 			want: []string{
-				"Foo [bar: _ Int64 baz: _ String ^Float64]",
+				"Foo [bar: _ Int baz: _ String ^Float]",
 			},
 		},
 		{
@@ -87,7 +87,7 @@ func TestBuiltInMeths(t *testing.T) {
 			`,
 			want: []string{
 				"Foo [bar]",
-				"Foo [baz: _ Int64]",
+				"Foo [baz: _ Int]",
 				"Foo [* _ Foo ^Foo]",
 			},
 		},

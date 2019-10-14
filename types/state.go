@@ -53,14 +53,6 @@ func setConfigDefaults(x *state) {
 	default:
 		panic("bad IntSize " + strconv.Itoa(x.cfg.IntSize))
 	}
-	switch x.cfg.FloatSize {
-	case 0:
-		x.cfg.FloatSize = 64
-	case 32, 64:
-		break
-	default:
-		panic("bad FloatSize " + strconv.Itoa(x.cfg.FloatSize))
-	}
 	if x.cfg.Importer == nil {
 		x.cfg.Importer = &dirImporter{}
 	}
