@@ -525,6 +525,37 @@ func TestAssignError(t *testing.T) {
 			`,
 			err: "",
 		},
+		{
+			name: "shadow a local",
+			src: `
+				meth Int [foo |
+					x Int64 := 5.
+					x String := "hello".
+					x := "hello".
+					x := 5.
+				]
+			`,
+			err: "have Int64, want String",
+		},
+		{
+			name: "shadow a parm",
+			src: `
+				meth Int [foo: x Int |
+					x String := "hello".
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "shadow a val",
+			src: `
+				val x Int := [ 5 ]
+				meth Int [foo |
+					x String := "hello".
+				]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

@@ -494,7 +494,12 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 			errs = append(errs, es...)
 		}
 
-		switch found := x.findIdent(astVar.Name).(type) {
+		var found interface{}
+		if astVar.Type == nil {
+			// If the Type is specified, this is always a new definition.
+			found = x.findIdent(astVar.Name)
+		}
+		switch found := found.(type) {
 		case nil:
 			x.log("adding local %s", astVar.Name)
 			loc := x.locals()
@@ -513,6 +518,11 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 			newLocal[i] = true
 		case *Var:
 			if !found.isSelf() {
+				if astVar.Type != nil {
+					err := x.err(astVar, "%s redefined", astVar.Name)
+					note(err, "previous definition at %s", x.loc(found))
+					errs = append(errs, *err)
+				}
 				vars[i] = found
 				break
 			}
