@@ -562,6 +562,121 @@ func TestAssignError(t *testing.T) {
 	}
 }
 
+func TestAssignConvert(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "add a ref",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Int & := x.
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "add a multiple refs",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Int & & & & := x.
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "remove a ref",
+			src: `
+				val _ := [
+					x Int & := 5.
+					y Int := x.
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "remove multiple refs",
+			src: `
+				val _ := [
+					x Int & & & & & := 5.
+					y Int := x.
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "interface conversion",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Int Eq := x.
+				]
+				type T Eq { [= T ^Bool] }
+			`,
+			err: "",
+		},
+		{
+			name: "interface arg type mismatch",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Float Eq := x.
+				]
+				type T Eq { [= T ^Bool] }
+			`,
+			err: "Int does not implement Float Eq",
+		},
+		{
+			name: "interface return type mismatch",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Eq := x.
+				]
+				type Eq { [= T ^Int] }
+			`,
+			err: "Int does not implement Eq",
+		},
+		{
+			name: "interface got a return want none",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Eq := x.
+				]
+				type Eq { [= T] }
+			`,
+			err: "Int does not implement Eq",
+		},
+		{
+			name: "interface want return got none",
+			src: `
+				val _ := [
+					x Int := 5.
+					y Eq := x.
+				]
+				meth Int [ === _ T |]
+				type Eq { [=== T ^Bool] }
+			`,
+			err: "Int does not implement Eq",
+		},
+		{
+			name: "deref then interface conversions",
+			src: `
+				val _ := [
+					x Int & & := 5.
+					y Int Eq := x.
+				]
+				type T Eq { [= T ^Bool] }
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestMethError(t *testing.T) {
 	tests := []errorTest{
 		{
@@ -695,7 +810,10 @@ func TestCallError(t *testing.T) {
 		{
 			name: "method found from ref receiver",
 			src: `
-				val x := [ {Int&| 5} foo: 5 bar: 6 ]
+				val x := [
+					x Int& := 12.
+					x foo: 5 bar: 6
+				]
 				meth Int [foo: _ Int bar: _ Int |]
 			`,
 			err: "",
@@ -703,7 +821,10 @@ func TestCallError(t *testing.T) {
 		{
 			name: "method found from multi-ref receiver",
 			src: `
-				val x := [ {Int& & & & | 5} foo: 5 bar: 6 ]
+				val x := [
+					x Int& & & & := 12.
+					x foo: 5 bar: 6
+				]
 				meth Int [foo: _ Int bar: _ Int |]
 			`,
 			err: "",
@@ -837,34 +958,6 @@ func TestCtorError(t *testing.T) {
 			err: "",
 		},
 		{
-			name: "add a ref",
-			src: `
-				val x := [ {Int& | 5} ]
-			`,
-			err: "",
-		},
-		{
-			name: "add multiple refs",
-			src: `
-				val x := [ {Int& & & | 5} ]
-			`,
-			err: "",
-		},
-		{
-			name: "remove a ref",
-			src: `
-				val x := [ {Int | {Int& | 5}} ]
-			`,
-			err: "",
-		},
-		{
-			name: "remove multiple refs",
-			src: `
-				val x := [ {Int | {Int& & & | 5}} ]
-			`,
-			err: "",
-		},
-		{
 			name: "array OK",
 			src: `
 				val x := [ {Int Array | 1; 2; 3} ]
@@ -984,86 +1077,13 @@ func TestCtorError(t *testing.T) {
 			err: "malformed and-type constructor",
 		},
 		{
-			name: "virt-type ok",
+			name: "virt-type disallowed",
 			src: `
 				val x := [ {Fooer | 5} ]
 				meth Int [foo: _ Int ^Int|]
 				type Fooer { [foo: Int ^Int] }
 			`,
-			err: "",
-		},
-		{
-			name: "virt-type bad argument",
-			src: `
-				val x := [ {Fooer | xyz} ]
-				meth Int [foo: _ Int ^Int|]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "xyz not found",
-		},
-		{
-			name: "malformed virt-type: no expressions",
-			src: `
-				val x := [ {Fooer | } ]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "malformed virtual-type constructor",
-		},
-		{
-			name: "malformed virt-type: multiple expressions",
-			src: `
-				val x := [ {Fooer | 5; 6; 7} ]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "malformed virtual-type constructor",
-		},
-		{
-			name: "virt-type single selector OK",
-			src: `
-				val x := [
-					xyz := 5.
-					{Fooer | xyz}
-				]
-				meth Int [foo: _ Int ^Int|]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "",
-		},
-		{
-			name: "virt-type missing method",
-			src: `
-				val x := [ {Fooer | 7} ]
-				meth Int [notFoo: _ Float64 ^Int|]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "no method foo:",
-		},
-		{
-			name: "virt-type different arg type",
-			src: `
-				val x := [ {Fooer | 7} ]
-				meth Int [foo: _ Float64 ^Int|]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "wrong type for method foo:",
-		},
-		{
-			name: "virt-type different return type",
-			src: `
-				val x := [ {Fooer | 7} ]
-				meth Int [foo: _ Int ^Float|]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "wrong type for method foo:",
-		},
-		{
-			name: "virt-type different return and no return",
-			src: `
-				val x := [ {Fooer | 7} ]
-				meth Int [foo: _ Int|]
-				type Fooer { [foo: Int ^Int] }
-			`,
-			err: "wrong type for method foo:",
+			err: "cannot construct virtual type Fooer",
 		},
 	}
 	for _, test := range tests {

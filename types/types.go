@@ -285,6 +285,29 @@ type Expr interface {
 	Type() *Type
 }
 
+// A Convert is an expression node added by the type checker
+// to represent a type conversion.
+type Convert struct {
+	// Expr is the converted expression; it is never nil.
+	Expr Expr
+
+	// One of the following is non-zero:
+
+	// Ref is non-0 for a reference conversion.
+	// A negative value is the number of references to remove,
+	// and a positive value is the number of references to add.
+	Ref int
+
+	// Virts is non-nil for a virtual conversion;
+	// Virts[i] is the function implementing typ.Virts[i].
+	Virts []*Fun
+
+	typ *Type
+}
+
+func (n *Convert) ast() ast.Node { return n.Expr.ast() }
+func (n *Convert) Type() *Type   { return n.typ }
+
 // A Call is a method call or a cascade.
 type Call struct {
 	// AST is *ast.Call or *ast.Ident if in-module unary function call.
@@ -331,15 +354,6 @@ type Ctor struct {
 	// Case is non-nil if this is an or-type constructor.
 	// It is an index into the typ.Cases array.
 	Case *int
-
-	// Ref is non-0 for a reference conversion.
-	// A negative value is the number of references to remove,
-	// and a positive value is the number of references to add.
-	Ref int
-
-	// Funs is non-nil for a virtual conversion;
-	// Funs[i] is the function implementing typ.Virts[i].
-	Funs []*Fun
 
 	typ *Type
 }

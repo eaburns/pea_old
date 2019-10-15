@@ -579,15 +579,18 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 	x.log("have base %s (%p)", got, got)
 	x.log("want base %s (%p)", want, want)
 	if got == want && gotI != wantI {
-		expr = &Ctor{
-			Args: []Expr{expr},
-			Ref:  wantI - gotI,
-			typ:  want,
-		}
-		return expr, errs
+		return &Convert{Expr: expr, Ref: wantI - gotI, typ: want}, errs
 	}
 
-	// TODO: implement interface conversion.
+	if got != want && len(want.Virts) > 0 {
+		funs, notes := findVirts(x, got, want.Virts)
+		if len(notes) == 0 {
+			return &Convert{Expr: expr, Virts: funs, typ: want}, errs
+		}
+		err := x.err(astExpr, "type %s does not implement %s", got, want)
+		err.notes = notes
+		errs = append(errs, *err)
+	}
 
 	if got != want {
 		err := x.err(expr, "type mismatch: have %s, want %s", expr.Type(), infer)
@@ -606,6 +609,65 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 		errs = append(errs, *err)
 	}
 	return expr, errs
+}
+
+func refBaseType(x *scope, typ *Type) (int, *Type) {
+	var i int
+	for isRef(x, typ) {
+		i++
+		typ = typ.Args[0].Type
+	}
+	return i, typ
+}
+
+func findVirts(x *scope, recv *Type, virts []FunSig) ([]*Fun, []string) {
+	var funs []*Fun
+	var notes []string
+
+	funs = make([]*Fun, len(virts))
+	for i, want := range virts {
+		got := x.findFun(recv, want.Sel)
+		if got == nil {
+			notes = append(notes, fmt.Sprintf("no method %s", want.Sel))
+			continue
+		}
+
+		// Make a copy and remove the self parameter.
+		gotSig := got.Sig
+		gotSig.Parms = gotSig.Parms[1:]
+
+		if funSigEq(&gotSig, &want) {
+			funs[i] = got
+			continue
+		}
+		// Clear the parameter names for printing the error note.
+		for i := range gotSig.Parms {
+			gotSig.Parms[i].Name = ""
+		}
+		var where string
+		if got.AST != nil {
+			where = fmt.Sprintf(", defined at %s", x.loc(got.AST))
+		}
+		notes = append(notes,
+			fmt.Sprintf("wrong type for method %s", want.Sel),
+			fmt.Sprintf("	have %s%s", gotSig, where),
+			fmt.Sprintf("	want %s", want))
+	}
+	return funs, notes
+}
+
+func funSigEq(a, b *FunSig) bool {
+	if a.Sel != b.Sel || len(a.Parms) != len(b.Parms) || (a.Ret == nil) != (b.Ret == nil) {
+		return false
+	}
+	for i := range a.Parms {
+		aParm := &a.Parms[i]
+		bParm := &b.Parms[i]
+		if aParm.typ != bParm.typ {
+			return false
+		}
+	}
+	return a.Ret == nil || a.Ret.Type == b.Ret.Type
 }
 
 func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
@@ -663,14 +725,14 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 			}
 			return call, errs
 		case isRef(x, recvType) && isRef(x, recvType.Args[0].Type):
-			r := &Ctor{Args: []Expr{recv}, Ref: -1}
+			r := &Convert{Expr: recv, Ref: -1}
 			for isRef(x, recvType.Args[0].Type) {
 				r.Ref--
 				recvType = recvType.Args[0].Type
 			}
 			recv = r
 		case !isRef(x, recvType):
-			recv = &Ctor{Args: []Expr{recv}, Ref: 1}
+			recv = &Convert{Expr: recv, Ref: 1}
 			recvType = builtInType(x, "&", *makeTypeName(recvType))
 		}
 		if !isRef(x, recvType) || isRef(x, recvType.Args[0].Type) {
@@ -797,65 +859,32 @@ func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 
 	switch ctor.typ = name.Type; {
 	case ctor.typ == nil:
-		// There was an error in the type name; do best-effort arg checking.
-		args, es := checkExprs(x, astCtor.Args)
-		errs = append(errs, es...)
-		ctor.Args = args
+		break
 	case ctor.typ.Alias != nil:
 		// This should have already been resolved by gatherTypeName.
 		panic("impossible alias")
-	case handleRefConvert(x, ctor):
-		// if handleRefConvert returns true,
-		// ctor.Args is the converted expr, and
-		// ctor.Ref is the reference differenc.
-		break
 	case isAry(x, ctor.typ):
 		errs = append(errs, checkAryCtor(x, ctor)...)
+		return ctor, errs
 	case ctor.typ.Cases != nil:
 		errs = append(errs, checkOrCtor(x, ctor)...)
+		return ctor, errs
 	case ctor.typ.Virts != nil:
-		errs = append(errs, checkVirtCtor(x, ctor)...)
+		err := x.err(astCtor, "cannot construct virtual type %s", ctor.TypeName)
+		errs = append(errs, *err)
 	case isBuiltIn(x, ctor.typ):
 		err := x.err(astCtor, "cannot construct built-in type %s", ctor.TypeName)
 		errs = append(errs, *err)
-		args, es := checkExprs(x, astCtor.Args)
-		errs = append(errs, es...)
-		ctor.Args = args
 	default:
 		errs = append(errs, checkAndCtor(x, ctor)...)
+		return ctor, errs
 	}
+
+	// There was an error in the type name; do best-effort arg checking.
+	args, es := checkExprs(x, astCtor.Args)
+	errs = append(errs, es...)
+	ctor.Args = args
 	return ctor, errs
-}
-
-func handleRefConvert(x *scope, ctor *Ctor) bool {
-	if ctor.Sel != "" || len(ctor.AST.Args) != 1 || ctor.TypeName.Type == nil {
-		return false
-	}
-
-	expr, errs := checkExpr(x, nil, ctor.AST.Args[0])
-	if len(errs) > 0 {
-		// Ignore the errors, they will be reported elsewhere
-		// as we try non-reference conversions.
-		return false
-	}
-
-	gotI, got := refBaseType(x, expr.Type())
-	wantI, want := refBaseType(x, ctor.TypeName.Type)
-	if want != got || gotI == wantI {
-		return false
-	}
-	ctor.Args = []Expr{expr}
-	ctor.Ref = wantI - gotI
-	return true
-}
-
-func refBaseType(x *scope, typ *Type) (int, *Type) {
-	var i int
-	for isRef(x, typ) {
-		i++
-		typ = typ.Args[0].Type
-	}
-	return i, typ
 }
 
 func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
@@ -922,83 +951,6 @@ func findCase(typ *Type, name string) *int {
 		}
 	}
 	return nil
-}
-
-func checkVirtCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkVirtCtor(%s)", ctor.TypeName)(&errs)
-
-	var es []checkError
-	ctor.Args, es = checkExprs(x, ctor.AST.Args)
-	errs = append(errs, es...)
-
-	if len(ctor.AST.Args) != 1 {
-		err := x.err(ctor, "malformed virtual-type constructor")
-		return append(errs, *err)
-	}
-
-	recv := ctor.Args[0].Type()
-	if recv == nil {
-		return errs
-	}
-
-	var notes []string
-	ctor.Funs, notes = findVirts(x, recv, ctor.typ.Virts)
-	if len(notes) > 0 {
-		err := x.err(ctor, "type %s does not implement %s", recv.name(), ctor.typ.name())
-		err.notes = notes
-		errs = append(errs, *err)
-	}
-	return errs
-}
-
-func findVirts(x *scope, recv *Type, virts []FunSig) ([]*Fun, []string) {
-	var funs []*Fun
-	var notes []string
-
-	funs = make([]*Fun, len(virts))
-	for i, want := range virts {
-		got := x.findFun(recv, want.Sel)
-		if got == nil {
-			notes = append(notes, fmt.Sprintf("no method %s", want.Sel))
-			continue
-		}
-
-		// Make a copy and remove the self parameter.
-		gotSig := got.Sig
-		gotSig.Parms = gotSig.Parms[1:]
-
-		if !funSigEq(&gotSig, &want) {
-			// Clear the parameter names for printing the error note.
-			for i := range gotSig.Parms {
-				gotSig.Parms[i].Name = ""
-			}
-			var where string
-			if got.AST != nil {
-				where = fmt.Sprintf(", defined at %s", x.loc(got.AST))
-			}
-			notes = append(notes,
-				fmt.Sprintf("wrong type for method %s", want.Sel),
-				fmt.Sprintf("	have %s%s", gotSig, where),
-				fmt.Sprintf("	want %s", want))
-			continue
-		}
-		funs[i] = got
-	}
-	return funs, notes
-}
-
-func funSigEq(a, b *FunSig) bool {
-	if a.Sel != b.Sel || len(a.Parms) != len(b.Parms) || (a.Ret == nil) != (b.Ret == nil) {
-		return false
-	}
-	for i := range a.Parms {
-		aParm := &a.Parms[i]
-		bParm := &b.Parms[i]
-		if aParm.typ != bParm.typ {
-			return false
-		}
-	}
-	return a.Ret == nil || a.Ret.Type == b.Ret.Type
 }
 
 func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
