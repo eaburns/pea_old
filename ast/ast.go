@@ -201,7 +201,6 @@ type Msg struct {
 type Ctor struct {
 	location
 	Type TypeName
-	Sel  string
 	Args []Expr
 }
 

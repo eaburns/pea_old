@@ -793,7 +793,7 @@ func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 	name, es := gatherTypeName(x, &astCtor.Type)
 	errs = append(errs, es...)
 
-	ctor := &Ctor{AST: astCtor, TypeName: *name, Sel: astCtor.Sel}
+	ctor := &Ctor{AST: astCtor, TypeName: *name}
 
 	switch ctor.typ = name.Type; {
 	case ctor.typ == nil:
@@ -873,44 +873,46 @@ func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
 func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	defer x.tr("checkOrCtor(%s)", ctor.typ)(&errs)
 
-	if len(ctor.AST.Args) > 1 || ctor.Sel == "" {
+	sel, arg, ok := disectOrCtorArg(ctor.AST)
+	if !ok {
 		err := x.err(ctor, "malformed or-type constructor")
+		return append(errs, *err)
+	}
+
+	ctor.Case = findCase(ctor.typ, sel)
+	if ctor.Case == nil {
+		err := x.err(ctor, "case %s not found", sel)
 		errs = append(errs, *err)
 		var es []checkError
 		ctor.Args, es = checkExprs(x, ctor.AST.Args)
 		return append(errs, es...)
 	}
-
-	ctor.Case = findCase(ctor.typ, ctor.Sel)
-	if ctor.Case == nil {
-		err := x.err(ctor, "case %s not found", ctor.Sel)
-		errs = append(errs, *err)
-		expr, es := checkExpr(x, nil, ctor.AST.Args[0])
-		ctor.Args = []Expr{expr}
-		return append(errs, es...)
-	}
 	c := &ctor.typ.Cases[*ctor.Case]
 
 	if c.TypeName == nil {
-		// Or-type constructors have a bit of a grammar ambiguity:
-		// Is the argument a no-type case constructor or an identifier?
-		// So, it ends up looking like both:
-		// There is a single argument that is an identifier
-		// with the name equal to the selector.
-		// If the argument isn't such, then this was an array-style constructor
-		// and thus there are too many arguments.
-		//
-		// If it is not just a single identifier, the parser sets Sel=="",
-		// which is handled in the mal-formed error returned above.
-		if id, ok := ctor.AST.Args[0].(*ast.Ident); !ok || id.Text != c.Name {
+		if arg != nil {
 			panic("impossible")
 		}
 		return errs
 	}
 
-	expr, es := checkExpr(x, c.typ, ctor.AST.Args[0])
+	expr, es := checkExpr(x, c.typ, arg)
 	ctor.Args = []Expr{expr}
 	return append(errs, es...)
+}
+
+func disectOrCtorArg(ctor *ast.Ctor) (string, ast.Expr, bool) {
+	if len(ctor.Args) != 1 {
+		return "", nil, false
+	}
+	if id, ok := ctor.Args[0].(*ast.Ident); ok {
+		return id.Text, nil, true
+	}
+	call, ok := ctor.Args[0].(*ast.Call)
+	if !ok || len(call.Msgs) != 1 || call.Msgs[0].Mod != nil || len(call.Msgs[0].Args) != 1 {
+		return "", nil, false
+	}
+	return call.Msgs[0].Sel, call.Msgs[0].Args[0], true
 }
 
 func findCase(typ *Type, name string) *int {
@@ -1002,35 +1004,72 @@ func funSigEq(a, b *FunSig) bool {
 func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	defer x.tr("checkAndCtor(%s)", ctor.TypeName)(&errs)
 
-	if ctor.Sel == "" && len(ctor.AST.Args) > 0 {
+	typ := ctor.typ
+	astArgs, es := matchAndCtorArgs(x, typ, ctor.AST)
+	if len(es) > 0 {
 		err := x.err(ctor, "malformed and-type constructor")
-		errs = append(errs, *err)
-		var es []checkError
-		ctor.Args, es = checkExprs(x, ctor.AST.Args)
-		return append(errs, es...)
+		err.cause = es
+		return append(errs, *err)
 	}
-
-	var s strings.Builder
-	for _, v := range ctor.typ.Fields {
-		s.WriteString(v.Name)
-		s.WriteRune(':')
-	}
-	if want := s.String(); ctor.Sel != want {
-		err := x.err(ctor, "bad and-type constructor: got %s, expected %s", ctor.Sel, want)
-		errs = append(errs, *err)
+	ctor.Args = make([]Expr, len(astArgs))
+	for i := range typ.Fields {
+		field := &typ.Fields[i]
 		var es []checkError
-		ctor.Args, es = checkExprs(x, ctor.AST.Args)
-		return append(errs, es...)
-	}
-
-	ctor.Args = make([]Expr, len(ctor.AST.Args))
-	for i, astArg := range ctor.AST.Args {
-		field := &ctor.typ.Fields[i]
-		var es []checkError
-		ctor.Args[i], es = checkExpr(x, field.typ, astArg)
+		ctor.Args[i], es = checkExpr(x, field.typ, astArgs[i])
 		errs = append(errs, es...)
 	}
 	return errs
+}
+
+func matchAndCtorArgs(x *scope, typ *Type, astCtor *ast.Ctor) ([]ast.Expr, []checkError) {
+	args := astCtor.Args
+	var errs []checkError
+	prev := make([]ast.Expr, len(typ.Fields))
+	matched := make([]ast.Expr, len(typ.Fields))
+	for i := range args {
+		sel, arg, ok := disectAndCtorArg(args[i])
+		if !ok {
+			err := x.err(args[i], "malformed field")
+			errs = append(errs, *err)
+			continue
+		}
+		var found bool
+		for j := range typ.Fields {
+			f := &typ.Fields[j]
+			if f.Name != sel {
+				continue
+			}
+			found = true
+			if prev[j] != nil {
+				err := x.err(args[i], "duplicate field name: %s", sel)
+				note(err, "previous at %s", x.loc(prev[j]))
+				errs = append(errs, *err)
+				break
+			}
+			prev[j] = args[i]
+			matched[j] = arg
+			break
+		}
+		if !found {
+			err := x.err(args[i], "unknown field name: %s", sel)
+			errs = append(errs, *err)
+		}
+	}
+	for i := range typ.Fields {
+		if i >= len(matched) || matched[i] == nil {
+			err := x.err(astCtor, "missing field: %s", typ.Fields[i].Name)
+			errs = append(errs, *err)
+		}
+	}
+	return matched, errs
+}
+
+func disectAndCtorArg(arg ast.Expr) (string, ast.Expr, bool) {
+	call, ok := arg.(*ast.Call)
+	if !ok || len(call.Msgs) != 1 || call.Msgs[0].Mod != nil || len(call.Msgs[0].Args) != 1 {
+		return "", nil, false
+	}
+	return strings.TrimSuffix(call.Msgs[0].Sel, ":"), call.Msgs[0].Args[0], true
 }
 
 func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {

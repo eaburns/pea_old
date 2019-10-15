@@ -888,6 +888,14 @@ func TestCtorError(t *testing.T) {
 			err: "",
 		},
 		{
+			name: "or-type malformed no arguments",
+			src: `
+				type T? { none, some: T }
+				val x Int? := [ {Int?| } ]
+			`,
+			err: "malformed or-type constructor",
+		},
+		{
 			name: "or-type malformed single argument",
 			src: `
 				type T? { none, some: T }
@@ -928,6 +936,14 @@ func TestCtorError(t *testing.T) {
 			err: "",
 		},
 		{
+			name: "and-type reordered fields OK",
+			src: `
+				val x := [ {(Int, Float) Pair | y: 5; x: 2} ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "",
+		},
+		{
 			name: "and-type empty OK",
 			src: `
 				val x := [ {Empty | } ]
@@ -938,15 +954,23 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "and-type malformed",
 			src: `
-				val x := [ {(Int, Float) Pair | 5; 6; 7} ]
+				val x := [ {(Int, Float) Pair | x: 5; 6; 7} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "malformed and-type constructor",
 		},
 		{
-			name: "and-type malformed",
+			name: "and-type duplicate field",
 			src: `
-				val x := [ {(Int, Float) Pair | 5; 6; 7} ]
+				val x := [ {(Int, Float) Pair | x: 6; y: 7; x: 8} ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "malformed and-type constructor",
+		},
+		{
+			name: "and-type missing field",
+			src: `
+				val x := [ {(Int, Float) Pair | x: 6} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "malformed and-type constructor",
@@ -957,7 +981,7 @@ func TestCtorError(t *testing.T) {
 				val x := [ {(Int, Float) Pair | x: 5; y: 6; z: 7} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			err: "bad and-type constructor: got x:y:z:, expected x:y:",
+			err: "malformed and-type constructor",
 		},
 		{
 			name: "virt-type ok",

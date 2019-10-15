@@ -471,29 +471,22 @@ Primary <-
 	Block /
 	_ "(" e:Expr _ ")" { return Expr(e) }
 
-Ctor <- _ ( "{" t:TypeName _"|" as:(
-	Struct /
-	id:Ident { return []arg{{name: id, val: &id}} } /
-	a:Ary? { if a != nil { return *a }; return []arg{} }
-) _"}" ) {
-	ctor := &Ctor{location: loc(parser, start, end), Type: t}
-	for _, a := range as {
-		ctor.Sel += a.name.Text
-		if a.val != nil {
-			ctor.Args = append(ctor.Args, a.val)
-		}
+Ctor <- _ ctor:( "{" t:TypeName _"|" es:Exprs?  _"}"  {
+	var args []Expr
+	if es != nil {
+		args = *es
 	}
+	return &Ctor{
+		location: loc(parser, start, end),
+		Type: t,
+		Args: args,
+	}
+} ) {
 	return Expr(ctor)
 }
 
-Struct <- i0:IdentC e0:Expr args:(
-	_ ";" i1:IdentC e1:Expr { return arg{name: i1, val: e1} }
-)* ( _";" )? {
-	return []arg(append([]arg{{name: i0, val:e0}}, args...))
-}
-
-Ary <- e0:Expr  es:( _ ";" e:Expr { return arg{val: e} } )* ( _";" )? {
-	return []arg(append([]arg{{val: e0}}, es...))
+Exprs <- e0:Expr  es:( _ ";" e:Expr { return Expr(e) } )* ( _";" )? {
+	return ([]Expr)(append([]Expr{e0}, es...))
 }
 
 Block <- _ b:( "[" (
