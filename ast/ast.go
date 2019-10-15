@@ -200,7 +200,6 @@ type Msg struct {
 // A Ctor type constructor literal.
 type Ctor struct {
 	location
-	Type TypeName
 	Args []Expr
 }
 

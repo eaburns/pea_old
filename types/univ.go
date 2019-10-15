@@ -19,8 +19,8 @@ var univ = `
 	type T& {}
 
 	type Bool { true, false }
-	val true := [ {Bool | true} ]
-	val false := [ {Bool | true} ]
+	val true Bool := [ {true} ]
+	val false Bool := [ {false} ]
 
 	type String {}
 	meth String [ byteSize ^Int |]

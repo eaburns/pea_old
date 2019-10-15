@@ -675,7 +675,7 @@ func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	case *ast.Call:
 		return checkCall(x, infer, astExpr)
 	case *ast.Ctor:
-		return checkCtor(x, astExpr)
+		return checkCtor(x, infer, astExpr)
 	case *ast.Block:
 		return checkBlock(x, infer, astExpr)
 	case *ast.Ident:
@@ -849,17 +849,14 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	return errs
 }
 
-func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
-	defer x.tr("checkCtor(%s)", astCtor.Type)(&errs)
+func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
+	defer x.tr("checkCtor(infer=%s)", infer)(&errs)
 
-	name, es := gatherTypeName(x, &astCtor.Type)
-	errs = append(errs, es...)
-
-	ctor := &Ctor{AST: astCtor, TypeName: *name}
-
-	switch ctor.typ = name.Type; {
+	ctor := &Ctor{AST: astCtor, typ: infer}
+	switch {
 	case ctor.typ == nil:
-		break
+		err := x.err(ctor, "cannot infer constructor type")
+		errs = append(errs, *err)
 	case ctor.typ.Alias != nil:
 		// This should have already been resolved by gatherTypeName.
 		panic("impossible alias")
@@ -870,10 +867,10 @@ func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 		errs = append(errs, checkOrCtor(x, ctor)...)
 		return ctor, errs
 	case ctor.typ.Virts != nil:
-		err := x.err(astCtor, "cannot construct virtual type %s", ctor.TypeName)
+		err := x.err(astCtor, "cannot construct virtual type %s", ctor.typ)
 		errs = append(errs, *err)
-	case isBuiltIn(x, ctor.typ):
-		err := x.err(astCtor, "cannot construct built-in type %s", ctor.TypeName)
+	case isBuiltIn(x, ctor.typ) && !isNil(x, ctor.typ):
+		err := x.err(astCtor, "cannot construct built-in type %s", ctor.typ)
 		errs = append(errs, *err)
 	default:
 		errs = append(errs, checkAndCtor(x, ctor)...)
@@ -888,8 +885,8 @@ func checkCtor(x *scope, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 }
 
 func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkAryCtor(%s)", ctor.TypeName)(&errs)
-	want := ctor.TypeName.Type.Args[0].Type
+	defer x.tr("checkAryCtor(%s)", ctor.typ)(&errs)
+	want := ctor.typ.Args[0].Type
 	ctor.Args = make([]Expr, len(ctor.AST.Args))
 	for i, expr := range ctor.AST.Args {
 		var es []checkError
@@ -904,7 +901,7 @@ func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
 
 	sel, arg, ok := disectOrCtorArg(ctor.AST)
 	if !ok {
-		err := x.err(ctor, "malformed or-type constructor")
+		err := x.err(ctor, "malformed %s constructor", ctor.typ)
 		return append(errs, *err)
 	}
 
@@ -954,18 +951,17 @@ func findCase(typ *Type, name string) *int {
 }
 
 func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkAndCtor(%s)", ctor.TypeName)(&errs)
+	defer x.tr("checkAndCtor(%s)", ctor.typ)(&errs)
 
-	typ := ctor.typ
-	astArgs, es := matchAndCtorArgs(x, typ, ctor.AST)
+	astArgs, es := matchAndCtorArgs(x, ctor.typ, ctor.AST)
 	if len(es) > 0 {
-		err := x.err(ctor, "malformed and-type constructor")
+		err := x.err(ctor, "malformed %s constructor", ctor.typ)
 		err.cause = es
 		return append(errs, *err)
 	}
 	ctor.Args = make([]Expr, len(astArgs))
-	for i := range typ.Fields {
-		field := &typ.Fields[i]
+	for i := range ctor.typ.Fields {
+		field := &ctor.typ.Fields[i]
 		var es []checkError
 		ctor.Args[i], es = checkExpr(x, field.typ, astArgs[i])
 		errs = append(errs, es...)
@@ -993,7 +989,7 @@ func matchAndCtorArgs(x *scope, typ *Type, astCtor *ast.Ctor) ([]ast.Expr, []che
 			}
 			found = true
 			if prev[j] != nil {
-				err := x.err(args[i], "duplicate field name: %s", sel)
+				err := x.err(args[i], "duplicate field: %s", sel)
 				note(err, "previous at %s", x.loc(prev[j]))
 				errs = append(errs, *err)
 				break
@@ -1003,7 +999,7 @@ func matchAndCtorArgs(x *scope, typ *Type, astCtor *ast.Ctor) ([]ast.Expr, []che
 			break
 		}
 		if !found {
-			err := x.err(args[i], "unknown field name: %s", sel)
+			err := x.err(args[i], "unknown field: %s", sel)
 			errs = append(errs, *err)
 		}
 	}
@@ -1312,6 +1308,10 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
 	}
 	return typ
+}
+
+func isNil(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Name == "Nil"
 }
 
 func isAry(x *scope, typ *Type) bool {

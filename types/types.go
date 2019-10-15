@@ -346,10 +346,8 @@ func (n Msg) name() string {
 
 // A Ctor type constructor literal.
 type Ctor struct {
-	AST      *ast.Ctor
-	TypeName TypeName
-	Sel      string
-	Args     []Expr
+	AST  *ast.Ctor
+	Args []Expr
 
 	// Case is non-nil if this is an or-type constructor.
 	// It is an index into the typ.Cases array.

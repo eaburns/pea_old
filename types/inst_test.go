@@ -25,7 +25,10 @@ func TestInstCallError(t *testing.T) {
 		{
 			name: "infer arg expr error",
 			src: `
-				val test := [ foo: {Unknown | } ]
+				val test := [
+					u Unknown := {}.
+					foo: u.
+				]
 				func T [foo: _ T |]
 			`,
 			err: "Unknown not found",
@@ -80,21 +83,30 @@ func TestInstCall(t *testing.T) {
 		{
 			name: "ground receiver subs return",
 			src: `
-				val test := [ {String Array|} at: 2 ]
+				val test := [
+					recv String Array := {}.
+					recv at: 2
+				]
 			`,
 			want: "String Array [at: _ Int ^String&]",
 		},
 		{
 			name: "ground receiver subs parm",
 			src: `
-				val test := [ {String Array|} at: 2 put: "hello" ]
+				val test := [
+					recv String Array := {}.
+					recv at: 2 put: "hello"
+				]
 			`,
 			want: "String Array [at: _ Int put: _ String]",
 		},
 		{
 			name: "ground multi-type-param receiver",
 			src: `
-				val test := [ {(String, Float) Map|} at: "pi" put: 3.14 ]
+				val test := [
+					recv (String, Float) Map := {}.
+					recv at: "pi" put: 3.14
+				]
 				type (K, V) Map {}
 				meth (K, V) Map [at: _ K put: _ V |]
 			`,
@@ -104,7 +116,10 @@ func TestInstCall(t *testing.T) {
 			name: "ground imported receiver type",
 			src: `
 				import "map"
-				val test := [ {(String, Float) #map Map|} #map at: "pi" put: 3.14 ]
+				val test := [
+					recv (String, Float) #map Map := {}.
+					recv #map at: "pi" put: 3.14
+				]
 			`,
 			imports: [][2]string{
 				{"map", `
@@ -126,41 +141,44 @@ func TestInstCall(t *testing.T) {
 		{
 			name: "ground fun parameter type",
 			src: `
-					val test := [
-						foo: "Hello"
-					]
-					func T [foo: _ T |]
-				`,
+				val test := [
+					foo: "Hello"
+				]
+				func T [foo: _ T |]
+			`,
 			want: "[foo: _ String]",
 		},
 		{
 			name: "ground fun parameter complex type",
 			src: `
-					val test := [
-						foo: { String Array Array | }
-					]
-					func T [foo: _ T Array Array |]
-				`,
+				val test := [
+					arg String Array Array := {}.
+					foo: arg
+				]
+				func T [foo: _ T Array Array |]
+			`,
 			want: "[foo: _ String Array Array]",
 		},
 		{
 			name: "map method",
 			src: `
-					val test String Array := [
-						{Int8 Array|} map: [:i Int8 | "foo"]
-					]
-					meth T Array R [map: _ (T, R) Fun ^R Array |]
-				`,
+				val test String Array := [
+					recv Int8 Array := {}.
+					recv map: [:i Int8 | "foo"]
+				]
+				meth T Array R [map: _ (T, R) Fun ^R Array |]
+			`,
 			want: "Int8 Array [map: _ (Int8, String) Fun ^String Array]",
 		},
 		{
 			name: "reduce method",
 			src: `
-					val test String := [
-						{Int8 Array|} init: "hello" fold: [:i Int8 :s String | "foo"]
-					]
-					meth T Array R [init: _ R fold: _ (T, R, R) Fun ^R |]
-				`,
+				val test String := [
+					recv Int8 Array :={}.
+					recv init: "hello" fold: [:i Int8 :s String | "foo"]
+				]
+				meth T Array R [init: _ R fold: _ (T, R, R) Fun ^R |]
+			`,
 			want: "Int8 Array [init: _ String fold: _ (Int8, String, String) Fun ^String]",
 		},
 	}

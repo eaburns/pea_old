@@ -471,16 +471,11 @@ Primary <-
 	Block /
 	_ "(" e:Expr _ ")" { return Expr(e) }
 
-Ctor <- _ ctor:( "{" t:TypeName _"|" es:Exprs?  _"}"  {
-	var args []Expr
-	if es != nil {
-		args = *es
+Ctor <- _ ctor:( "{" es:Exprs?  _"}"  {
+	if es == nil {
+		return &Ctor{location: loc(parser, start, end)}
 	}
-	return &Ctor{
-		location: loc(parser, start, end),
-		Type: t,
-		Args: args,
-	}
+	return &Ctor{location: loc(parser, start, end), Args: *es}
 } ) {
 	return Expr(ctor)
 }

@@ -938,21 +938,21 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "bad type",
 			src: `
-				val x := [ {Unknown | 5} ]
+				val _ Unknown := [ {5} ]
 			`,
-			err: "type Unknown not found",
+			err: "cannot infer constructor type",
 		},
 		{
 			name: "disallowed built-in type",
 			src: `
-				val x := [ {Int | 5} ]
+				val _ Int := [ {5} ]
 			`,
 			err: "cannot construct built-in type Int",
 		},
 		{
 			name: "alias is OK",
 			src: `
-				val x := [ {Int Ary | 5} ]
+				val _ Int Ary := [ {5} ]
 				type T Ary := T Array.
 			`,
 			err: "",
@@ -960,14 +960,14 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "array OK",
 			src: `
-				val x := [ {Int Array | 1; 2; 3} ]
+				val _ Int Array := [ {1; 2; 3} ]
 			`,
 			err: "",
 		},
 		{
 			name: "array element error",
 			src: `
-				val x := [ {Int Array | 1; 2; 3.14} ]
+				val _ Int Array := [ {1; 2; 3.14} ]
 			`,
 			err: "Int cannot represent 3.14",
 		},
@@ -975,8 +975,8 @@ func TestCtorError(t *testing.T) {
 			name: "or-type constructor",
 			src: `
 				type T? { none, some: T }
-				val x Int? := [ {Int?| none} ]
-				val y Int? := [ {Int?| some: 5} ]
+				val x Int? := [ {none} ]
+				val y Int? := [ {some: 5} ]
 			`,
 			err: "",
 		},
@@ -984,31 +984,31 @@ func TestCtorError(t *testing.T) {
 			name: "or-type malformed no arguments",
 			src: `
 				type T? { none, some: T }
-				val x Int? := [ {Int?| } ]
+				val _ Int? := [ {} ]
 			`,
-			err: "malformed or-type constructor",
+			err: "malformed Int\\? constructor",
 		},
 		{
 			name: "or-type malformed single argument",
 			src: `
 				type T? { none, some: T }
-				val x Int? := [ {Int?| 5} ]
+				val _ Int? := [ {5} ]
 			`,
-			err: "malformed or-type constructor",
+			err: "malformed Int\\? constructor",
 		},
 		{
 			name: "or-type malformed too many arguments",
 			src: `
 				type T? { none, some: T }
-				val x Int? := [ {Int?| a: 5; b: 6; c: 7} ]
+				val _ Int? := [ {a: 5; b: 6; c: 7} ]
 			`,
-			err: "malformed or-type constructor",
+			err: "malformed Int\\? constructor",
 		},
 		{
 			name: "or-type case not found",
 			src: `
 				type T? { none, some: T }
-				val x Int? := [ {Int?| noCase} ]
+				val _ Int? := [ {noCase} ]
 			`,
 			err: "case noCase not found",
 		},
@@ -1016,14 +1016,14 @@ func TestCtorError(t *testing.T) {
 			name: "or-type case: not found",
 			src: `
 				type T? { none, some: T }
-				val x Int? := [ {Int?| noCase: 4} ]
+				val _ Int? := [ {noCase: 4} ]
 			`,
 			err: "case noCase: not found",
 		},
 		{
 			name: "and-type OK",
 			src: `
-				val x := [ {(Int, Float) Pair | x: 5; y: 2} ]
+				val _ (Int, Float) Pair := [ {x: 5; y: 2} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "",
@@ -1031,15 +1031,22 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "and-type reordered fields OK",
 			src: `
-				val x := [ {(Int, Float) Pair | y: 5; x: 2} ]
+				val _ (Int, Float) Pair := [ {y: 5; x: 2} ]
 				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "",
+		},
+		{
+			name: "nil constructor OK",
+			src: `
+				val _ Nil := [ {} ]
 			`,
 			err: "",
 		},
 		{
 			name: "and-type empty OK",
 			src: `
-				val x := [ {Empty | } ]
+				val _ Empty := [ {} ]
 				type Empty {}
 			`,
 			err: "",
@@ -1047,39 +1054,39 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "and-type malformed",
 			src: `
-				val x := [ {(Int, Float) Pair | x: 5; 6; 7} ]
+				val _ (Int, Float) Pair := [ {x: 5; 6; 7} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			err: "malformed and-type constructor",
+			err: "malformed \\(Int, Float\\) Pair constructor",
 		},
 		{
 			name: "and-type duplicate field",
 			src: `
-				val x := [ {(Int, Float) Pair | x: 6; y: 7; x: 8} ]
+				val _ (Int, Float) Pair := [ {x: 6; y: 7; x: 8} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			err: "malformed and-type constructor",
+			err: "duplicate field: x",
 		},
 		{
 			name: "and-type missing field",
 			src: `
-				val x := [ {(Int, Float) Pair | x: 6} ]
+				val _ (Int, Float) Pair := [ {x: 6} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			err: "malformed and-type constructor",
+			err: "missing field: y",
 		},
 		{
 			name: "and-type unknown field",
 			src: `
-				val x := [ {(Int, Float) Pair | x: 5; y: 6; z: 7} ]
+				val _ (Int, Float) Pair := [ {x: 5; y: 6; z: 7} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			err: "malformed and-type constructor",
+			err: "unknown field: z",
 		},
 		{
 			name: "virt-type disallowed",
 			src: `
-				val x := [ {Fooer | 5} ]
+				val _ Fooer := [ {5} ]
 				meth Int [foo: _ Int ^Int|]
 				type Fooer { [foo: Int ^Int] }
 			`,
@@ -1097,10 +1104,12 @@ func TestCallInstRecvType(t *testing.T) {
 			name: "inst receiver",
 			src: `
 				val x := [
-					({Rune FloatFoo | } at: 0) + 5.
+					recv Rune FloatFoo := {}.
+
+					(recv at: 0) + 5.
 
 					// But Int32 has no xyz: so this will error and say Int32.
-					({Rune FloatFoo | } at: 0) xyz: 2
+					(recv at: 0) xyz: 2
 				]
 				type (X, Y) Foo { }
 				type T FloatFoo := (T, Float) Foo.
@@ -1112,7 +1121,8 @@ func TestCallInstRecvType(t *testing.T) {
 			name: "recv type arg mismatch",
 			src: `
 				val x := [
-					{Int Array | } foo
+					recv Int Array := {}.
+					recv foo
 				]
 				type FloatArray := Float Array.
 				meth FloatArray [foo |]
@@ -1123,7 +1133,8 @@ func TestCallInstRecvType(t *testing.T) {
 			name: "recv type arg error",
 			src: `
 				val x := [
-					{Unknown Array | } foo
+					recv Unknown Array := {}.
+					recv foo
 				]
 				type FloatArray := Float Array.
 				meth FloatArray [foo |]
@@ -1133,16 +1144,17 @@ func TestCallInstRecvType(t *testing.T) {
 		{
 			name: "inst built-in type receiver",
 			src: `
-					val x := [
-						// If we instantiated Rune Array correctly,
-						// then the at: method should return Int
-						// and we will succssfully find the + method.
-						// If we didn't instantiated Int Array, + should fail.
-						({Rune Array | } at: 0) + 5.
+				val x := [
+					recv Rune Array := {}.
+					// If we instantiated Rune Array correctly,
+					// then the at: method should return Int
+					// and we will succssfully find the + method.
+					// If we didn't instantiated Int Array, + should fail.
+					(recv at: 0) + 5.
 
-						// But Int32 has no xyz: so this will error and say Int32.
-						({Rune Array | } at: 0) xyz: 2
-					]
+					// But Int32 has no xyz: so this will error and say Int32.
+					(recv at: 0) xyz: 2
+				]
 				`,
 			err: "Int32 xyz: not found",
 		},

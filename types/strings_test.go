@@ -16,7 +16,7 @@ func TestString(t *testing.T) {
 		{src: "val x := [5]", want: "x"},
 		{src: "Val x := [5]", want: "x"},
 		{src: "val x Int32 := [5]", want: "x Int32"},
-		{src: "val x Int Array := [{Int Array|5}]", want: "x Int Array"},
+		{src: "val x Int Array := [{5}]", want: "x Int Array"},
 		{src: "type Xyz { }", want: "Xyz"},
 		{src: "Type Xyz { }", want: "Xyz"},
 		{src: "type X Xyz { }", want: "X Xyz"},
