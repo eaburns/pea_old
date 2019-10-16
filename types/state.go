@@ -16,10 +16,11 @@ type state struct {
 	gathered   map[Def]bool
 	aliasStack []*Type
 
-	typeInsts  map[interface{}]*Type
-	recvInsts  map[interface{}]*Fun
-	funInsts   map[interface{}]*Fun
-	origFunDef map[*Fun]*Fun
+	typeInsts   map[interface{}]*Type
+	recvInsts   map[interface{}]*Fun
+	funInsts    map[interface{}]*Fun
+	origTypeDef map[*Type]*Type
+	origFunDef  map[*Fun]*Fun
 
 	nextID int
 	indent string
@@ -27,14 +28,15 @@ type state struct {
 
 func newState(cfg Config, astMod *ast.Mod) *state {
 	return &state{
-		astMod:     astMod,
-		cfg:        cfg,
-		defFiles:   make(map[Def]*file),
-		gathered:   make(map[Def]bool),
-		typeInsts:  make(map[interface{}]*Type),
-		recvInsts:  make(map[interface{}]*Fun),
-		funInsts:   make(map[interface{}]*Fun),
-		origFunDef: make(map[*Fun]*Fun),
+		astMod:      astMod,
+		cfg:         cfg,
+		defFiles:    make(map[Def]*file),
+		gathered:    make(map[Def]bool),
+		typeInsts:   make(map[interface{}]*Type),
+		recvInsts:   make(map[interface{}]*Fun),
+		funInsts:    make(map[interface{}]*Fun),
+		origTypeDef: make(map[*Type]*Type),
+		origFunDef:  make(map[*Fun]*Fun),
 	}
 }
 

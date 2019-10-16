@@ -89,6 +89,11 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
 	defer func() { x.log("inst=%p", res) }()
 
+	if t, ok := x.origTypeDef[typ]; ok {
+		x.log("original type: %s (%p)", t, t)
+		typ = t
+	}
+
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
 	// that they are populated by this call.
@@ -145,11 +150,13 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	inst = *typ
 	x.log("memoizing %s (%p)", inst, &inst)
 	x.typeInsts[key] = &inst
+	x.origTypeDef[&inst] = typ
 
 	sub := make(map[*TypeVar]TypeName)
 	for i := range inst.Parms {
 		sub[&inst.Parms[i]] = args[i]
 	}
+
 	seen := make(map[*Type]*Type)
 	seen[typ] = &inst
 	subTypeBody(x, seen, sub, &inst)
