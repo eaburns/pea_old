@@ -1023,7 +1023,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "and-type OK",
 			src: `
-				val _ (Int, Float) Pair := [ {x: 5; y: 2} ]
+				val _ (Int, Float) Pair := [ {x: 5 y: 2} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "",
@@ -1031,7 +1031,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "and-type reordered fields OK",
 			src: `
-				val _ (Int, Float) Pair := [ {y: 5; x: 2} ]
+				val _ (Int, Float) Pair := [ {y: 5 x: 2} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "",
@@ -1052,7 +1052,7 @@ func TestCtorError(t *testing.T) {
 			err: "",
 		},
 		{
-			name: "and-type malformed",
+			name: "and-type multiple arguments",
 			src: `
 				val _ (Int, Float) Pair := [ {x: 5; 6; 7} ]
 				type (X, Y) Pair { x: X y: Y }
@@ -1060,9 +1060,33 @@ func TestCtorError(t *testing.T) {
 			err: "malformed \\(Int, Float\\) Pair constructor",
 		},
 		{
+			name: "and-type non-call",
+			src: `
+				val _ (Int, Float) Pair := [ { 12 } ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "malformed \\(Int, Float\\) Pair constructor",
+		},
+		{
+			name: "and-type cascade",
+			src: `
+				val _ (Int, Float) Pair := [ { 12 x; y; z } ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "malformed \\(Int, Float\\) Pair constructor",
+		},
+		{
+			name: "and-type method call",
+			src: `
+				val _ (Int, Float) Pair := [ { 12 x: 12 y: 12 } ]
+				type (X, Y) Pair { x: X y: Y }
+			`,
+			err: "malformed \\(Int, Float\\) Pair constructor",
+		},
+		{
 			name: "and-type duplicate field",
 			src: `
-				val _ (Int, Float) Pair := [ {x: 6; y: 7; x: 8} ]
+				val _ (Int, Float) Pair := [ {x: 6 y: 7 x: 8} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "duplicate field: x",
@@ -1078,7 +1102,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "and-type unknown field",
 			src: `
-				val _ (Int, Float) Pair := [ {x: 5; y: 6; z: 7} ]
+				val _ (Int, Float) Pair := [ {x: 5 y: 6 z: 7} ]
 				type (X, Y) Pair { x: X y: Y }
 			`,
 			err: "unknown field: z",

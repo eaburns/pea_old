@@ -953,15 +953,42 @@ func findCase(typ *Type, name string) *int {
 func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	defer x.tr("checkAndCtor(%s)", ctor.typ)(&errs)
 
-	astArgs, es := matchAndCtorArgs(x, ctor.typ, ctor.AST)
-	if len(es) > 0 {
+	if len(ctor.AST.Args) == 0 {
+		return errs
+	}
+	call, ok := ctor.AST.Args[0].(*ast.Call)
+	if !ok || len(ctor.AST.Args) > 1 || call.Recv != nil || len(call.Msgs) != 1 {
 		err := x.err(ctor, "malformed %s constructor", ctor.typ)
-		err.cause = es
 		return append(errs, *err)
 	}
-	ctor.Args = make([]Expr, len(astArgs))
+
+	astArgs := make([]ast.Expr, len(ctor.typ.Fields))
+	fieldNames := strings.Split(call.Msgs[0].Sel, ":")
+	for i, astArg := range call.Msgs[0].Args {
+		fieldName := fieldNames[i]
+		field := findField(ctor.typ, fieldName)
+		if field < 0 {
+			err := x.err(astArg, "unknown field: %s", fieldName)
+			errs = append(errs, *err)
+			continue
+		}
+		if prev := astArgs[field]; prev != nil {
+			err := x.err(astArg, "duplicate field: %s", fieldName)
+			note(err, "previous at %s", x.loc(prev))
+			errs = append(errs, *err)
+			continue
+		}
+		astArgs[field] = astArg
+	}
+
+	ctor.Args = make([]Expr, len(ctor.typ.Fields))
 	for i := range ctor.typ.Fields {
 		field := &ctor.typ.Fields[i]
+		if astArgs[i] == nil {
+			err := x.err(ctor, "missing field: %s", field.Name)
+			errs = append(errs, *err)
+			continue
+		}
 		var es []checkError
 		ctor.Args[i], es = checkExpr(x, field.typ, astArgs[i])
 		errs = append(errs, es...)
@@ -969,55 +996,13 @@ func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	return errs
 }
 
-func matchAndCtorArgs(x *scope, typ *Type, astCtor *ast.Ctor) ([]ast.Expr, []checkError) {
-	args := astCtor.Args
-	var errs []checkError
-	prev := make([]ast.Expr, len(typ.Fields))
-	matched := make([]ast.Expr, len(typ.Fields))
-	for i := range args {
-		sel, arg, ok := disectAndCtorArg(args[i])
-		if !ok {
-			err := x.err(args[i], "malformed field")
-			errs = append(errs, *err)
-			continue
-		}
-		var found bool
-		for j := range typ.Fields {
-			f := &typ.Fields[j]
-			if f.Name != sel {
-				continue
-			}
-			found = true
-			if prev[j] != nil {
-				err := x.err(args[i], "duplicate field: %s", sel)
-				note(err, "previous at %s", x.loc(prev[j]))
-				errs = append(errs, *err)
-				break
-			}
-			prev[j] = args[i]
-			matched[j] = arg
-			break
-		}
-		if !found {
-			err := x.err(args[i], "unknown field: %s", sel)
-			errs = append(errs, *err)
-		}
-	}
+func findField(typ *Type, name string) int {
 	for i := range typ.Fields {
-		if i >= len(matched) || matched[i] == nil {
-			err := x.err(astCtor, "missing field: %s", typ.Fields[i].Name)
-			errs = append(errs, *err)
+		if typ.Fields[i].Name == name {
+			return i
 		}
 	}
-	return matched, errs
-}
-
-func disectAndCtorArg(arg ast.Expr) (string, ast.Expr, bool) {
-	call, ok := arg.(*ast.Call)
-	if !ok || len(call.Msgs) != 1 || call.Msgs[0].Mod != nil || len(call.Msgs[0].Args) != 1 {
-		return "", nil, false
-	}
-	return strings.TrimSuffix(call.Msgs[0].Sel, ":"), call.Msgs[0].Args[0], true
+	return -1
 }
 
 func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {
