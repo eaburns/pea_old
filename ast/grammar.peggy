@@ -263,7 +263,7 @@ Field <- n:IdentC t:TypeName {
 	}
 }
 
-Or <- _ "{" c:Case cs:( _ "," c1:Case { return Var(c1) } )* ( _ "," )? _ "}" {
+Or <- _ "{" ( _ "|" )? c:Case cs:( _ "|" c1:Case { return Var(c1) } )* _ "}" {
 	return Type{Cases: append([]Var{c}, cs...)}
 }
 

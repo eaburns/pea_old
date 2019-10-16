@@ -187,12 +187,12 @@ func TestFullString(t *testing.T) {
 			"type Abc { x0: Int x1: Int }",
 		},
 		{
-			"type Abc { x0: Int, x1: Int }",
-			"type Abc { x0: Int, x1: Int }",
+			"type Abc { x0: Int | x1: Int }",
+			"type Abc { x0: Int | x1: Int }",
 		},
 		{
-			"type T? { None, Some: T }",
-			"type T? { None, Some: T }",
+			"type T? { None | Some: T }",
+			"type T? { None | Some: T }",
 		},
 		{
 			"type Abc { [foo] [bar: Int] [baz ^Bool] [= Int ^Bool] }",

@@ -34,7 +34,7 @@ func TestBuiltInMeths(t *testing.T) {
 		{
 			name: "typeless cases",
 			src: `
-				type Nums { one, two, three, four }
+				type Nums { one | two | three | four }
 			`,
 			want: []string{
 				"Nums $0 [ifOne: _ $0 Fun ifTwo: _ $0 Fun ifThree: _ $0 Fun ifFour: _ $0 Fun ^$0]",
@@ -43,7 +43,7 @@ func TestBuiltInMeths(t *testing.T) {
 		{
 			name: "typed case",
 			src: `
-				type IntOrString { int: Int, string: String }
+				type IntOrString { int: Int | string: String }
 			`,
 			want: []string{
 				"IntOrString $0 [ifInt: _ (Int&, $0) Fun ifString: _ (String&, $0) Fun ^$0]",
@@ -52,7 +52,7 @@ func TestBuiltInMeths(t *testing.T) {
 		{
 			name: "mixed case",
 			src: `
-				type IntOpt { int: Int, none }
+				type IntOpt { int: Int | none }
 			`,
 			want: []string{
 				"IntOpt $0 [ifInt: _ (Int&, $0) Fun ifNone: _ $0 Fun ^$0]",
@@ -61,7 +61,7 @@ func TestBuiltInMeths(t *testing.T) {
 		{
 			name: "parameterized or-type receiver",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 			`,
 			want: []string{
 				"T? $0 [ifNone: _ $0 Fun ifSome: _ (T&, $0) Fun ^$0]",

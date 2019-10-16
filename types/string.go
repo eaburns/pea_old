@@ -81,7 +81,7 @@ func (n Type) fullString() string {
 	}
 	for i, v := range n.Cases {
 		if i > 0 {
-			s.WriteString(", ")
+			s.WriteString(" | ")
 		} else {
 			s.WriteRune(' ')
 		}

@@ -18,7 +18,7 @@ var univ = `
 
 	type T& {}
 
-	type Bool { true, false }
+	type Bool { true | false }
 	val true Bool := [ {true} ]
 	val false Bool := [ {false} ]
 

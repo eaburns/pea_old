@@ -259,7 +259,7 @@ func TestRedefError(t *testing.T) {
 			name: "built-in case method redefined",
 			src: `
 				meth T? [ifNone: _ Int ifSome: _ String |]
-				type T? { none, some: T }
+				type T? { none | some: T }
 			`,
 			err: "method \\(1\\)\\? ifNone:ifSome: redefined",
 		},
@@ -281,21 +281,21 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "type case",
 			src: `
-				type Test { a, a }
+				type Test { a | a }
 			`,
 			err: "case a redefined",
 		},
 		{
 			name: "type case:",
 			src: `
-				type Test { a: Int, a: Float }
+				type Test { a: Int | a: Float }
 			`,
 			err: "case a: redefined",
 		},
 		{
 			name: "type case not redefined with case:",
 			src: `
-				type Test { a, a: Float }
+				type Test { a | a: Float }
 			`,
 			err: "",
 		},
@@ -974,7 +974,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "or-type constructor",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 				val x Int? := [ {none} ]
 				val y Int? := [ {some: 5} ]
 			`,
@@ -983,7 +983,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "or-type malformed no arguments",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 				val _ Int? := [ {} ]
 			`,
 			err: "malformed Int\\? constructor",
@@ -991,7 +991,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "or-type malformed single argument",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 				val _ Int? := [ {5} ]
 			`,
 			err: "malformed Int\\? constructor",
@@ -999,7 +999,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "or-type malformed too many arguments",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 				val _ Int? := [ {a: 5; b: 6; c: 7} ]
 			`,
 			err: "malformed Int\\? constructor",
@@ -1007,7 +1007,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "or-type case not found",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 				val _ Int? := [ {noCase} ]
 			`,
 			err: "case noCase not found",
@@ -1015,7 +1015,7 @@ func TestCtorError(t *testing.T) {
 		{
 			name: "or-type case: not found",
 			src: `
-				type T? { none, some: T }
+				type T? { none | some: T }
 				val _ Int? := [ {noCase: 4} ]
 			`,
 			err: "case noCase: not found",
@@ -1697,10 +1697,10 @@ func TestTypeInstSub(t *testing.T) {
 			name: "sub type parm",
 			src: `
 				type Test := Rune List.
-				type T List { data: T, next: T List ? }
-				type T ? { Nil, Some: T }
+				type T List { data: T | next: T List? }
+				type T ? { none | some: T }
 			`,
-			want: "type Int32 List { data: Int32, next: Int32 List? }",
+			want: "type Int32 List { data: Int32 | next: Int32 List? }",
 		},
 		{
 			name: "sub type parms",
@@ -1738,9 +1738,9 @@ func TestTypeInstSub(t *testing.T) {
 			name: "sub cases",
 			src: `
 				type Test := Rune?.
-				type T? { none, some: T }
+				type T? { none | some: T }
 			`,
-			want: "type Int32? { none, some: Int32 }",
+			want: "type Int32? { none | some: Int32 }",
 		},
 		{
 			name: "sub virts",
@@ -1755,7 +1755,7 @@ func TestTypeInstSub(t *testing.T) {
 			src: `
 				type Test := Rune List.
 				type T List { data: T& next: T List? }
-				type T? { none, some: T }
+				type T? { none | some: T }
 			`,
 			want: "type Int32 List { data: Int32& next: Int32 List? }",
 		},

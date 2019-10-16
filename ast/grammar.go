@@ -6112,7 +6112,7 @@ func _OrAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 	}
 	pos, perr := start, -1
 	// action
-	// _ "{" c:Case cs:(_ "," c1:Case {…})* (_ ",")? _ "}"
+	// _ "{" (_ "|")? c:Case cs:(_ "|" c1:Case {…})* _ "}"
 	// _
 	if !_accept(parser, __Accepts, &pos, &perr) {
 		goto fail
@@ -6123,69 +6123,69 @@ func _OrAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		goto fail
 	}
 	pos++
+	// (_ "|")?
+	{
+		pos2 := pos
+		// (_ "|")
+		// _ "|"
+		// _
+		if !_accept(parser, __Accepts, &pos, &perr) {
+			goto fail3
+		}
+		// "|"
+		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "|" {
+			perr = _max(perr, pos)
+			goto fail3
+		}
+		pos++
+		goto ok5
+	fail3:
+		pos = pos2
+	ok5:
+	}
 	// c:Case
 	{
-		pos1 := pos
+		pos6 := pos
 		// Case
 		if !_accept(parser, _CaseAccepts, &pos, &perr) {
 			goto fail
 		}
-		labels[0] = parser.text[pos1:pos]
+		labels[0] = parser.text[pos6:pos]
 	}
-	// cs:(_ "," c1:Case {…})*
+	// cs:(_ "|" c1:Case {…})*
 	{
-		pos2 := pos
-		// (_ "," c1:Case {…})*
+		pos7 := pos
+		// (_ "|" c1:Case {…})*
 		for {
-			pos4 := pos
-			// (_ "," c1:Case {…})
+			pos9 := pos
+			// (_ "|" c1:Case {…})
 			// action
-			// _ "," c1:Case
+			// _ "|" c1:Case
 			// _
 			if !_accept(parser, __Accepts, &pos, &perr) {
-				goto fail6
+				goto fail11
 			}
-			// ","
-			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
+			// "|"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "|" {
 				perr = _max(perr, pos)
-				goto fail6
+				goto fail11
 			}
 			pos++
 			// c1:Case
 			{
-				pos8 := pos
+				pos13 := pos
 				// Case
 				if !_accept(parser, _CaseAccepts, &pos, &perr) {
-					goto fail6
+					goto fail11
 				}
-				labels[1] = parser.text[pos8:pos]
+				labels[1] = parser.text[pos13:pos]
 			}
 			continue
-		fail6:
-			pos = pos4
+		fail11:
+			pos = pos9
 			break
 		}
-		labels[2] = parser.text[pos2:pos]
-	}
-	// (_ ",")?
-	{
-		pos10 := pos
-		// (_ ",")
-		// _ ","
-		// _
-		if !_accept(parser, __Accepts, &pos, &perr) {
-			goto fail11
-		}
-		// ","
-		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
-			perr = _max(perr, pos)
-			goto fail11
-		}
-		pos++
-		goto ok13
-	fail11:
-		pos = pos10
-	ok13:
+		labels[2] = parser.text[pos7:pos]
 	}
 	// _
 	if !_accept(parser, __Accepts, &pos, &perr) {
@@ -6215,7 +6215,7 @@ func _OrFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Or}
 	// action
-	// _ "{" c:Case cs:(_ "," c1:Case {…})* (_ ",")? _ "}"
+	// _ "{" (_ "|")? c:Case cs:(_ "|" c1:Case {…})* _ "}"
 	// _
 	if !_fail(parser, __Fail, errPos, failure, &pos) {
 		goto fail
@@ -6231,79 +6231,79 @@ func _OrFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		goto fail
 	}
 	pos++
+	// (_ "|")?
+	{
+		pos2 := pos
+		// (_ "|")
+		// _ "|"
+		// _
+		if !_fail(parser, __Fail, errPos, failure, &pos) {
+			goto fail3
+		}
+		// "|"
+		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "|" {
+			if pos >= errPos {
+				failure.Kids = append(failure.Kids, &peg.Fail{
+					Pos:  int(pos),
+					Want: "\"|\"",
+				})
+			}
+			goto fail3
+		}
+		pos++
+		goto ok5
+	fail3:
+		pos = pos2
+	ok5:
+	}
 	// c:Case
 	{
-		pos1 := pos
+		pos6 := pos
 		// Case
 		if !_fail(parser, _CaseFail, errPos, failure, &pos) {
 			goto fail
 		}
-		labels[0] = parser.text[pos1:pos]
+		labels[0] = parser.text[pos6:pos]
 	}
-	// cs:(_ "," c1:Case {…})*
+	// cs:(_ "|" c1:Case {…})*
 	{
-		pos2 := pos
-		// (_ "," c1:Case {…})*
+		pos7 := pos
+		// (_ "|" c1:Case {…})*
 		for {
-			pos4 := pos
-			// (_ "," c1:Case {…})
+			pos9 := pos
+			// (_ "|" c1:Case {…})
 			// action
-			// _ "," c1:Case
+			// _ "|" c1:Case
 			// _
 			if !_fail(parser, __Fail, errPos, failure, &pos) {
-				goto fail6
+				goto fail11
 			}
-			// ","
-			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
+			// "|"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "|" {
 				if pos >= errPos {
 					failure.Kids = append(failure.Kids, &peg.Fail{
 						Pos:  int(pos),
-						Want: "\",\"",
+						Want: "\"|\"",
 					})
 				}
-				goto fail6
+				goto fail11
 			}
 			pos++
 			// c1:Case
 			{
-				pos8 := pos
+				pos13 := pos
 				// Case
 				if !_fail(parser, _CaseFail, errPos, failure, &pos) {
-					goto fail6
+					goto fail11
 				}
-				labels[1] = parser.text[pos8:pos]
+				labels[1] = parser.text[pos13:pos]
 			}
 			continue
-		fail6:
-			pos = pos4
+		fail11:
+			pos = pos9
 			break
 		}
-		labels[2] = parser.text[pos2:pos]
-	}
-	// (_ ",")?
-	{
-		pos10 := pos
-		// (_ ",")
-		// _ ","
-		// _
-		if !_fail(parser, __Fail, errPos, failure, &pos) {
-			goto fail11
-		}
-		// ","
-		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
-			if pos >= errPos {
-				failure.Kids = append(failure.Kids, &peg.Fail{
-					Pos:  int(pos),
-					Want: "\",\"",
-				})
-			}
-			goto fail11
-		}
-		pos++
-		goto ok13
-	fail11:
-		pos = pos10
-	ok13:
+		labels[2] = parser.text[pos7:pos]
 	}
 	// _
 	if !_fail(parser, __Fail, errPos, failure, &pos) {
@@ -6348,7 +6348,7 @@ func _OrAction(parser *_Parser, start int) (int, *Type) {
 	// action
 	{
 		start0 := pos
-		// _ "{" c:Case cs:(_ "," c1:Case {…})* (_ ",")? _ "}"
+		// _ "{" (_ "|")? c:Case cs:(_ "|" c1:Case {…})* _ "}"
 		// _
 		if p, n := __Action(parser, pos); n == nil {
 			goto fail
@@ -6360,9 +6360,30 @@ func _OrAction(parser *_Parser, start int) (int, *Type) {
 			goto fail
 		}
 		pos++
+		// (_ "|")?
+		{
+			pos3 := pos
+			// (_ "|")
+			// _ "|"
+			// _
+			if p, n := __Action(parser, pos); n == nil {
+				goto fail4
+			} else {
+				pos = p
+			}
+			// "|"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "|" {
+				goto fail4
+			}
+			pos++
+			goto ok6
+		fail4:
+			pos = pos3
+		ok6:
+		}
 		// c:Case
 		{
-			pos2 := pos
+			pos7 := pos
 			// Case
 			if p, n := _CaseAction(parser, pos); n == nil {
 				goto fail
@@ -6370,77 +6391,56 @@ func _OrAction(parser *_Parser, start int) (int, *Type) {
 				label0 = *n
 				pos = p
 			}
-			labels[0] = parser.text[pos2:pos]
+			labels[0] = parser.text[pos7:pos]
 		}
-		// cs:(_ "," c1:Case {…})*
+		// cs:(_ "|" c1:Case {…})*
 		{
-			pos3 := pos
-			// (_ "," c1:Case {…})*
+			pos8 := pos
+			// (_ "|" c1:Case {…})*
 			for {
-				pos5 := pos
-				var node6 Var
-				// (_ "," c1:Case {…})
+				pos10 := pos
+				var node11 Var
+				// (_ "|" c1:Case {…})
 				// action
 				{
-					start8 := pos
-					// _ "," c1:Case
+					start13 := pos
+					// _ "|" c1:Case
 					// _
 					if p, n := __Action(parser, pos); n == nil {
-						goto fail7
+						goto fail12
 					} else {
 						pos = p
 					}
-					// ","
-					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
-						goto fail7
+					// "|"
+					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "|" {
+						goto fail12
 					}
 					pos++
 					// c1:Case
 					{
-						pos10 := pos
+						pos15 := pos
 						// Case
 						if p, n := _CaseAction(parser, pos); n == nil {
-							goto fail7
+							goto fail12
 						} else {
 							label1 = *n
 							pos = p
 						}
-						labels[1] = parser.text[pos10:pos]
+						labels[1] = parser.text[pos15:pos]
 					}
-					node6 = func(
+					node11 = func(
 						start, end int, c Var, c1 Var) Var {
 						return Var(c1)
 					}(
-						start8, pos, label0, label1)
+						start13, pos, label0, label1)
 				}
-				label2 = append(label2, node6)
+				label2 = append(label2, node11)
 				continue
-			fail7:
-				pos = pos5
+			fail12:
+				pos = pos10
 				break
 			}
-			labels[2] = parser.text[pos3:pos]
-		}
-		// (_ ",")?
-		{
-			pos12 := pos
-			// (_ ",")
-			// _ ","
-			// _
-			if p, n := __Action(parser, pos); n == nil {
-				goto fail13
-			} else {
-				pos = p
-			}
-			// ","
-			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
-				goto fail13
-			}
-			pos++
-			goto ok15
-		fail13:
-			pos = pos12
-		ok15:
+			labels[2] = parser.text[pos8:pos]
 		}
 		// _
 		if p, n := __Action(parser, pos); n == nil {
