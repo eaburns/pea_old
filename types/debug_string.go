@@ -11,6 +11,12 @@ func (n Fun) debugString(x *scope) string {
 	return s.String()
 }
 
+func (n *Type) debugString(x *scope) string {
+	var s strings.Builder
+	buildTypeDebugString(x, n, &s)
+	return s.String()
+}
+
 func buildFunDebugString(x *scope, n *Fun, s *strings.Builder) {
 	if n.Recv == nil {
 		if n.Priv {
@@ -45,7 +51,7 @@ func buildFunDebugString(x *scope, n *Fun, s *strings.Builder) {
 		if n.Recv.Type == nil {
 			s.WriteString("\n\t\t<error>")
 		} else {
-			buildTypeDebugString(x, "\t\t", n.Recv.Type, s)
+			buildTypeSigDebugString(x, "\t\t", n.Recv.Type, s)
 		}
 		s.WriteRune('\n')
 	}
@@ -54,7 +60,7 @@ func buildFunDebugString(x *scope, n *Fun, s *strings.Builder) {
 		for i := range n.Sig.Parms {
 			p := &n.Sig.Parms[i]
 			s.WriteString("\n\t\t" + p.Name)
-			buildTypeDebugString(x, "\t\t\t", p.typ, s)
+			buildTypeSigDebugString(x, "\t\t\t", p.typ, s)
 		}
 		s.WriteRune('\n')
 	}
@@ -62,6 +68,48 @@ func buildFunDebugString(x *scope, n *Fun, s *strings.Builder) {
 		s.WriteString("\treturn:")
 		buildTypeNameDebugString(x, "\t\t", n.Sig.Ret, s)
 		s.WriteRune('\n')
+	}
+}
+
+func buildTypeDebugString(x *scope, n *Type, s *strings.Builder) {
+	buildTypeSigDebugString(x, "", n, s)
+	switch {
+	case n.Var != nil:
+		s.WriteString("\n\tvariable:")
+		buildTypeVarDebugString(x, "\t", n.Var, s)
+	case len(n.Fields) > 0:
+		s.WriteString("\n\tfields:")
+		for _, f := range n.Fields {
+			s.WriteString("\n\t\t")
+			s.WriteString(f.Name)
+			buildTypeNameDebugString(x, "\t\t\t", f.TypeName, s)
+		}
+	case len(n.Cases) > 0:
+		s.WriteString("\n\tcases:")
+		for _, f := range n.Cases {
+			s.WriteString("\n\t\t")
+			s.WriteString(f.Name)
+			if f.TypeName != nil {
+				buildTypeNameDebugString(x, "\t\t\t", f.TypeName, s)
+			}
+		}
+	case len(n.Virts) > 0:
+		s.WriteString("\n\tvirts:")
+		for _, v := range n.Virts {
+			s.WriteString("\n\t\t")
+			s.WriteString(v.Sel)
+			if len(v.Parms) > 0 {
+				s.WriteString("\n\t\t\tparameters:")
+				for i := range v.Parms {
+					p := &v.Parms[i]
+					buildTypeSigDebugString(x, "\t\t\t\t", p.typ, s)
+				}
+			}
+			if v.Ret != nil {
+				s.WriteString("\n\t\t\treturn:")
+				buildTypeNameDebugString(x, "\t\t\t\t", v.Ret, s)
+			}
+		}
 	}
 }
 
@@ -76,7 +124,7 @@ func buildTypeVarDebugString(x *scope, indent string, n *TypeVar, s *strings.Bui
 	}
 }
 
-func buildTypeDebugString(x *scope, indent string, n *Type, s *strings.Builder) {
+func buildTypeSigDebugString(x *scope, indent string, n *Type, s *strings.Builder) {
 	s.WriteString("\n" + indent)
 	if n.Priv {
 		s.WriteString("type ")
@@ -109,5 +157,5 @@ func buildTypeNameDebugString(x *scope, indent string, n *TypeName, s *strings.B
 		s.WriteString(fmt.Sprintf("(%d)%s — <error>", len(n.Args), n.Name))
 		return
 	}
-	buildTypeDebugString(x, indent, n.Type, s)
+	buildTypeSigDebugString(x, indent, n.Type, s)
 }
