@@ -16,18 +16,20 @@ func subTypeNames(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, nam
 }
 
 func subTypeName(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, name0 *TypeName) *TypeName {
-	if name0 == nil || name0.Type == nil {
+	if name0 == nil {
 		return nil
 	}
-	defer x.tr("subTypeName(%s, %s [var=%p])", subDebugString(sub), name0.name(), name0.Type.Var)()
+	defer x.tr("subTypeName(%s, %s)", subDebugString(sub), name0.name())()
 
-	if s, ok := sub[name0.Type.Var]; ok {
-		return &s
+	if name0.Type != nil {
+		if s, ok := sub[name0.Type.Var]; ok {
+			return &s
+		}
 	}
 
 	name1 := *name0
-	name1.Args = subTypeNames(x, seen, sub, name1.Args)
-	name1.Type = subType(x, seen, sub, name1.Type)
+	name1.Args = subTypeNames(x, seen, sub, name0.Args)
+	name1.Type = subType(x, seen, sub, name0.Type)
 	return &name1
 }
 
