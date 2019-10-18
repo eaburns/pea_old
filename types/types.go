@@ -139,7 +139,13 @@ func (n *FunSig) ast() ast.Node { return n.AST }
 
 // A Type defines a type.
 type Type struct {
-	AST   ast.Node // *ast.Type or *ast.Var
+	AST ast.Node // *ast.Type or *ast.Var
+	// Def is the original definition.
+	// If the type is not an instance, Def points to itself.
+	// If the type is an instance, Def points to the non-instantiated *Type.
+	Def *Type
+	// Insts are all instances of this type.
+	Insts []*Type
 	Priv  bool
 	Mod   string
 	Arity int

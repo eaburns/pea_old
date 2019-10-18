@@ -7,30 +7,6 @@ import (
 	"github.com/eaburns/pea/ast"
 )
 
-func TestInstAlreadyInstantiatedType(t *testing.T) {
-	tests := []errorTest{
-		{
-			name: "ok",
-			src: `
-				// There is a parameterized type as
-				// the field of a parameterized type.
-				// When instantiating T Foo,
-				// T Bar will have already been instantiated.
-				// We should still re-substitute it with the new T.
-				type T Foo { data: T Bar Array }
-				type T Bar { x: T }
-				meth T Foo [ blah: t T |
-					data at: 5 put: {x: t}
-				]
-			`,
-			err: "",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, test.run)
-	}
-}
-
 func TestInstCallError(t *testing.T) {
 	tests := []errorTest{
 		{
@@ -151,7 +127,7 @@ func TestInstCall(t *testing.T) {
 					Meth (K, V) Map [at: _ K put: _ V |]
 				`},
 			},
-			want: "(String, Float) Map [at: _ String put: _ Float]",
+			want: "(String, Float) #map Map [at: _ String put: _ Float]",
 		},
 		{
 			name: "ground fun return type",

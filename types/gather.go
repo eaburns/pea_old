@@ -256,9 +256,6 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	x, def.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
 	errs = append(errs, es...)
 
-	x.log("memoizing %s (%p)", def, def)
-	x.typeInsts[makeTypeKey(def)] = def
-
 	switch {
 	case astType.Alias != nil:
 		def.Alias, es = gatherTypeName(x, astType.Alias)

@@ -11,6 +11,43 @@ import (
 	"github.com/eaburns/pretty"
 )
 
+func TestBugRegressions(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "1",
+			src: `
+				// There is a parameterized type as
+				// the field of a parameterized type.
+				// When instantiating T Foo,
+				// T Bar will have already been instantiated.
+				// We should still re-substitute it with the new T.
+				type T Foo { data: T Bar Array }
+				type T Bar { x: T }
+				meth T Foo [ blah: t T |
+					data at: 5 put: {x: t}
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "2",
+			src: `
+				func T [newArray: _ Int init: _ (Int, T) Fun ^T Array |]
+				type (X, Y) Bucket := (X, Y) Elem Array.
+				type (X, Y) Elem {x: X y: Y}
+				type (X, Y) Table {data: (X, Y) Bucket Array}
+				meth (X, Y) Table [foo |
+					data := newArray: 100 init: [:_ | {}].
+				]
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestImportError(t *testing.T) {
 	tests := []errorTest{
 		{

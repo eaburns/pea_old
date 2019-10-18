@@ -9,49 +9,35 @@ import (
 type typeKey struct {
 	// Either mod+name+args or Var.
 
-	mod  string
-	name string
-	args interface{}
+	Mod  string
+	Name string
+	Args interface{}
 
 	Var *TypeVar
 }
 
 func makeTypeKey(sig *Type) typeKey {
-	k := typeKey{mod: sig.Mod, name: sig.Name}
+	k := typeKey{Mod: sig.Mod, Name: sig.Name}
 	for i := len(sig.Parms) - 1; i >= 0; i-- {
-		k.args = argsKey{
-			typ:  typeKey{Var: &sig.Parms[i]},
-			next: k.args,
-		}
+		k.Args = argsKey{Typ: sig.Parms[i].Type, Next: k.Args}
 	}
 	return k
 }
 
 func makeTypeNameKey(mod, name string, args []TypeName) typeKey {
-	return typeKey{mod: mod, name: name, args: makeArgsKey(args)}
+	return typeKey{Mod: mod, Name: name, Args: makeArgsKey(args)}
 }
 
 type argsKey struct {
-	typ  typeKey
-	next interface{}
+	Typ  *Type
+	Next interface{}
 }
 
 func makeArgsKey(args []TypeName) interface{} {
 	if len(args) == 0 {
 		return nil
 	}
-	var tkey typeKey
-	switch a := args[0]; {
-	case a.Type == nil:
-		// This case indicates an error somwhere in the args.
-		// The error was reported elsewhere; just use the empty key.
-		break
-	case a.Type.Var != nil:
-		tkey = typeKey{Var: a.Type.Var}
-	default:
-		tkey = makeTypeNameKey(a.Type.Mod, a.Type.Name, a.Args)
-	}
-	return argsKey{typ: tkey, next: makeArgsKey(args[1:])}
+	return argsKey{Typ: args[0].Type, Next: makeArgsKey(args[1:])}
 }
 
 type recvKey struct {
@@ -89,11 +75,6 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
 	defer func() { x.log("inst=%p", res) }()
 
-	if t, ok := x.origTypeDef[typ]; ok {
-		x.log("original type: %s (%p)", t, t)
-		typ = t
-	}
-
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
 	// that they are populated by this call.
@@ -106,26 +87,27 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		if typ.Alias.Type == nil {
 			return nil, errs // error reported elsewhere
 		}
-		sub := make(map[*TypeVar]TypeName)
-		for i := range typ.Parms {
-			sub[&typ.Parms[i]] = args[i]
-		}
-		seen := make(map[*Type]*Type)
-		args = subTypeNames(x, seen, sub, typ.Alias.Args)
+		sub := subMap(typ.Parms, args)
+		args = subTypeNames(x, map[*Type]*Type{}, sub, typ.Alias.Args)
 		typ = typ.Alias.Type
+		x.log("using alias type %s %p", typ, typ)
 	}
 	if len(args) == 0 {
 		return typ, nil
 	}
 
-	key := makeTypeNameKey(typ.Mod, typ.Name, args)
-	if inst, ok := x.typeInsts[key]; ok {
-		return inst, nil
+	// Instantiate using the original, parameterized definition.
+	typ = typ.Def
+
+	for _, inst := range typ.Insts {
+		if typeNamesEq(inst.Args, args) {
+			x.log("found existing instance %p", inst)
+			return inst, errs
+		}
 	}
 
-	var inst Type
+	inst := new(Type)
 	if file, ok := x.defFiles[typ]; ok {
-		x.defFiles[&inst] = file
 		// The type was defined within this module.
 		// It may not be fully gathered; we need to gather our new instance.
 		//
@@ -140,29 +122,39 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		// fixes the scope to file-scope and does alias cycle checking.
 		es := gatherDef(x, typ)
 		errs = append(errs, es...)
-
-		// Mark our instance as now gathered
-		// since it will be subbed from
-		// a fully-gathered type definition.
-		x.gathered[&inst] = true
+		x.defFiles[inst] = file
+		x.gathered[inst] = true
 	}
-
-	inst = *typ
-	x.log("memoizing %s (%p)", inst, &inst)
-	x.typeInsts[key] = &inst
-	x.origTypeDef[&inst] = typ
-
-	sub := make(map[*TypeVar]TypeName)
-	for i := range inst.Parms {
-		sub[&inst.Parms[i]] = args[i]
-	}
-
-	seen := make(map[*Type]*Type)
-	seen[typ] = &inst
-	subTypeBody(x, seen, sub, &inst)
-	inst.Parms = nil
+	x.log("new instance %p", inst)
+	*inst = *typ
 	inst.Args = args
-	return &inst, errs
+	inst.Parms = nil
+	inst.Insts = nil
+	// add to typ.Insts before subTypeBody, so recursive insts find this inst.
+	typ.Insts = append(typ.Insts, inst)
+	sub := subMap(typ.Parms, args)
+	subTypeBody(x, map[*Type]*Type{typ: inst}, sub, inst)
+	return inst, errs
+}
+
+func typeNamesEq(as, bs []TypeName) bool {
+	if len(as) != len(bs) {
+		return false
+	}
+	for i := range as {
+		if as[i].Type != bs[i].Type {
+			return false
+		}
+	}
+	return true
+}
+
+func subMap(parms []TypeVar, args []TypeName) map[*TypeVar]TypeName {
+	sub := make(map[*TypeVar]TypeName)
+	for i := range parms {
+		sub[&parms[i]] = args[i]
+	}
+	return sub
 }
 
 func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
@@ -197,13 +189,6 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	}
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
 	x.recvInsts[key] = inst
-	// Save the original function definition so that later we can find it
-	// in order to substitute the statements of this definition.
-	if orig, ok := x.origFunDef[fun]; ok {
-		x.origFunDef[inst] = orig
-	} else {
-		x.origFunDef[inst] = fun
-	}
 	return inst, errs
 }
 
@@ -245,13 +230,6 @@ func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkErr
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
 	inst.TParms = nil // all should be subbed
 	x.funInsts[key] = inst
-	// Save the original function definition so that later we can find it
-	// in order to substitute the statements of this definition.
-	if orig, ok := x.origFunDef[fun]; ok {
-		x.origFunDef[inst] = orig
-	} else {
-		x.origFunDef[inst] = fun
-	}
 	return inst, nil
 }
 

@@ -155,7 +155,7 @@ func makeDef(astDef ast.Def) Def {
 		val.Var.Val = val
 		return val
 	case *ast.Fun:
-		return &Fun{
+		fun := &Fun{
 			AST:  astDef,
 			Priv: astDef.Priv(),
 			Sig: FunSig{
@@ -163,13 +163,16 @@ func makeDef(astDef ast.Def) Def {
 				Sel: astDef.Sig.Sel,
 			},
 		}
+		return fun
 	case *ast.Type:
-		return &Type{
+		typ := &Type{
 			AST:   astDef,
 			Priv:  astDef.Priv(),
 			Arity: len(astDef.Sig.Parms),
 			Name:  astDef.Sig.Name,
 		}
+		typ.Def = typ
+		return typ
 	default:
 		panic(fmt.Sprintf("impossible type %T", astDef))
 	}
