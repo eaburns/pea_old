@@ -6,71 +6,6 @@ import (
 	"github.com/eaburns/pea/ast"
 )
 
-type typeKey struct {
-	// Either mod+name+args or Var.
-
-	Mod  string
-	Name string
-	Args interface{}
-
-	Var *TypeVar
-}
-
-func makeTypeKey(sig *Type) typeKey {
-	k := typeKey{Mod: sig.Mod, Name: sig.Name}
-	for i := len(sig.Parms) - 1; i >= 0; i-- {
-		k.Args = argsKey{Typ: sig.Parms[i].Type, Next: k.Args}
-	}
-	return k
-}
-
-func makeTypeNameKey(mod, name string, args []TypeName) typeKey {
-	return typeKey{Mod: mod, Name: name, Args: makeArgsKey(args)}
-}
-
-type argsKey struct {
-	Typ  *Type
-	Next interface{}
-}
-
-func makeArgsKey(args []TypeName) interface{} {
-	if len(args) == 0 {
-		return nil
-	}
-	return argsKey{Typ: args[0].Type, Next: makeArgsKey(args[1:])}
-}
-
-type recvKey struct {
-	recvType typeKey
-	sel      string
-}
-
-func makeRecvKey(fun *Fun, args []TypeName) recvKey {
-	r := fun.Recv.Type
-	return recvKey{
-		recvType: makeTypeNameKey(r.Mod, r.Name, args),
-		sel:      fun.Sig.Sel,
-	}
-}
-
-type funKey struct {
-	recv typeKey
-	sel  string
-	args interface{}
-}
-
-func makeFunKey(recv *Recv, sel string, args []TypeName) funKey {
-	var recvKey typeKey
-	if recv != nil && recv.Type != nil {
-		recvKey = makeTypeKey(recv.Type)
-	}
-	return funKey{
-		recv: recvKey,
-		sel:  sel,
-		args: makeArgsKey(args),
-	}
-}
-
 func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkError) {
 	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
 	defer func() { x.log("inst=%p", res) }()
@@ -137,36 +72,14 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	return inst, errs
 }
 
-func typeNamesEq(as, bs []TypeName) bool {
-	if len(as) != len(bs) {
-		return false
-	}
-	for i := range as {
-		if as[i].Type != bs[i].Type {
-			return false
-		}
-	}
-	return true
-}
-
-func subMap(parms []TypeVar, args []TypeName) map[*TypeVar]TypeName {
-	sub := make(map[*TypeVar]TypeName)
-	for i := range parms {
-		sub[&parms[i]] = args[i]
-	}
-	return sub
-}
-
 func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	defer x.tr("instRecv(%s, %s)", recv, fun)(&errs)
 
-	sub := make(map[*TypeVar]TypeName)
+	var sub map[*TypeVar]TypeName
 	if fun.Recv.Type.Parms != nil {
-		for i, arg := range recv.Args {
-			parm := &fun.Recv.Type.Parms[i]
-			sub[parm] = arg
-		}
+		sub = subMap(fun.Recv.Type.Parms, recv.Args)
 	} else {
+		sub = make(map[*TypeVar]TypeName)
 		for i, arg := range recv.Args {
 			switch parm := fun.Recv.Type.Args[i].Type; {
 			case parm == nil || arg.Type == nil:
@@ -183,12 +96,23 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 		return nil, errs
 	}
 
-	key := makeRecvKey(fun, recv.Args)
-	if inst := x.recvInsts[key]; inst != nil {
-		return inst, errs
+	for _, inst := range fun.Def.Insts {
+		if len(fun.Def.TParms) > 0 && len(inst.TParms) == 0 {
+			// This is a fully-instantiated function.
+			// We only want a receiver-instantiated instance.
+			continue
+		}
+		if typeNamesEq(inst.Recv.Args, recv.Args) {
+			return inst, errs
+		}
 	}
+
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
-	x.recvInsts[key] = inst
+	inst.Def = fun.Def
+	fun.Def.Insts = append(fun.Def.Insts, inst)
+	inst.Insts = nil
+	inst.Recv.Parms = nil
+	inst.Recv.Args = recv.Args
 	return inst, errs
 }
 
@@ -207,11 +131,10 @@ func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkErr
 		tvar := &fun.TParms[i]
 		var ok bool
 		if args[i], ok = sub[tvar]; !ok {
-			// TODO: Detect unused type vars at function def and emit an error.
+			// TODO: Detect unused type vars at fun def and emit an error.
 			// Currently the error will happen at the callsite,
 			// but really this is an error in the def:
 			// not all type vars are used.
-			x.log("var=%p", tvar)
 			notes = append(notes, fmt.Sprintf("cannot infer type of %s", tvar.Name))
 		}
 	}
@@ -223,13 +146,18 @@ func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkErr
 		return nil, errs
 	}
 
-	key := makeFunKey(fun.Recv, fun.Sig.Sel, args)
-	if inst := x.funInsts[key]; inst != nil {
-		return inst, nil
+	for _, inst := range fun.Def.Insts {
+		if (fun.Recv == nil || fun.Recv.Type == inst.Recv.Type) &&
+			typeNamesEq(inst.TArgs, args) {
+			return inst, errs
+		}
 	}
+
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
+	inst.Def = fun.Def
+	fun.Def.Insts = append(fun.Def.Insts, inst)
 	inst.TParms = nil // all should be subbed
-	x.funInsts[key] = inst
+	inst.TArgs = args
 	return inst, nil
 }
 
@@ -347,4 +275,24 @@ func unify(x *scope, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*Type
 		return err
 	}
 	return nil
+}
+
+func typeNamesEq(as, bs []TypeName) bool {
+	if len(as) != len(bs) {
+		return false
+	}
+	for i := range as {
+		if as[i].Type != bs[i].Type {
+			return false
+		}
+	}
+	return true
+}
+
+func subMap(parms []TypeVar, args []TypeName) map[*TypeVar]TypeName {
+	sub := make(map[*TypeVar]TypeName)
+	for i := range parms {
+		sub[&parms[i]] = args[i]
+	}
+	return sub
 }

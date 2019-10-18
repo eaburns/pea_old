@@ -163,6 +163,7 @@ func makeDef(astDef ast.Def) Def {
 				Sel: astDef.Sig.Sel,
 			},
 		}
+		fun.Def = fun
 		return fun
 	case *ast.Type:
 		typ := &Type{

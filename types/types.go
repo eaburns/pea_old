@@ -66,11 +66,18 @@ type Fun struct {
 	// 	*ast.Fun for a function or method defintion
 	// 	*ast.FunSig for a virtual function definition
 	// 	*ast.Type for a case-method definition
-	AST    ast.Node
+	AST ast.Node
+	// Def is the original definition.
+	// If the fun is not an instance, Def points to itself.
+	// If the fun is an instance, Def points to the non-instantiated *Fun.
+	Def *Fun
+	// Insts are all instances of this fun.
+	Insts  []*Fun
 	Priv   bool
 	Mod    string
 	Recv   *Recv
 	TParms []TypeVar
+	TArgs  []TypeName
 	Sig    FunSig
 	Stmts  []Stmt
 
@@ -103,6 +110,7 @@ func (n *Fun) name() string {
 type Recv struct {
 	AST   *ast.Recv
 	Parms []TypeVar
+	Args  []TypeName
 	Mod   string
 	Arity int
 	Name  string

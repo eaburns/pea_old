@@ -54,7 +54,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			typ:      parmType,
 		})
 	}
-	return &Fun{
+	fun := &Fun{
 		AST:  typ.AST,
 		Priv: typ.Priv,
 		Mod:  typ.Mod,
@@ -72,6 +72,8 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			Ret:   &retName,
 		},
 	}
+	fun.Def = fun
+	return fun
 }
 
 func upperCase(s string) string {
@@ -95,7 +97,7 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 		parms[i+1] = p
 	}
 	sig.Parms = parms
-	return &Fun{
+	fun := &Fun{
 		AST:  sig.AST,
 		Priv: typ.Priv,
 		Mod:  typ.Mod,
@@ -108,6 +110,8 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 		},
 		Sig: sig,
 	}
+	fun.Def = fun
+	return fun
 }
 
 func makeTypeName(typ *Type) *TypeName {
