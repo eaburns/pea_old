@@ -866,10 +866,8 @@ func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkE
 		panic("impossible alias")
 	case isAry(x, ctor.typ):
 		errs = append(errs, checkAryCtor(x, ctor)...)
-		return ctor, errs
 	case ctor.typ.Cases != nil:
 		errs = append(errs, checkOrCtor(x, ctor)...)
-		return ctor, errs
 	case ctor.typ.Virts != nil:
 		err := x.err(astCtor, "cannot construct virtual type %s", ctor.typ)
 		errs = append(errs, *err)
@@ -878,13 +876,7 @@ func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkE
 		errs = append(errs, *err)
 	default:
 		errs = append(errs, checkAndCtor(x, ctor)...)
-		return ctor, errs
 	}
-
-	// There was an error in the type name; do best-effort arg checking.
-	args, es := checkExprs(x, astCtor.Args)
-	errs = append(errs, es...)
-	ctor.Args = args
 	return ctor, errs
 }
 
