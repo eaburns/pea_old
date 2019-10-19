@@ -96,7 +96,7 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	}
 
 	for _, inst := range fun.Def.Insts {
-		if len(fun.Def.TParms) > 0 && len(inst.TParms) == 0 {
+		if len(inst.TArgs) > 0 {
 			// This is a fully-instantiated function.
 			// We only want a receiver-instantiated instance.
 			continue
@@ -154,7 +154,6 @@ func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkErr
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
 	inst.Def = fun.Def
 	fun.Def.Insts = append(fun.Def.Insts, inst)
-	inst.TParms = nil // all should be subbed
 	inst.TArgs = args
 	return inst, nil
 }

@@ -22,7 +22,7 @@ func (n Fun) String() string {
 		buildRecvString(n.Recv, &s)
 		s.WriteRune(' ')
 	}
-	if len(n.TParms) > 0 {
+	if len(n.TArgs) == 0 && len(n.TParms) > 0 {
 		if len(n.TParms) > 1 || len(n.TParms[0].Ifaces) > 0 {
 			s.WriteRune('(')
 		}
