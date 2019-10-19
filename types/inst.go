@@ -110,7 +110,6 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	inst.Def = fun.Def
 	fun.Def.Insts = append(fun.Def.Insts, inst)
 	inst.Insts = nil
-	inst.Recv.Parms = nil
 	inst.Recv.Args = recv.Args
 	return inst, errs
 }
