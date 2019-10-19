@@ -58,6 +58,7 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 }
 
 func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
+	typ.Parms = subTypeParms(x, seen, sub, typ.Parms)
 	switch {
 	case typ.Var != nil:
 		subTypeVar(x, seen, sub, typ)

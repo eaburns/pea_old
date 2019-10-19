@@ -31,7 +31,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		return typ, nil
 	}
 
-	// Instantiate using the original, parameterized definition.
+	// Instantiate using the original definition.
 	typ = typ.Def
 
 	for _, inst := range typ.Insts {
@@ -63,7 +63,6 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	x.log("new instance %p", inst)
 	*inst = *typ
 	inst.Args = args
-	inst.Parms = nil
 	inst.Insts = nil
 	// add to typ.Insts before subTypeBody, so recursive insts find this inst.
 	typ.Insts = append(typ.Insts, inst)
@@ -76,9 +75,7 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	defer x.tr("instRecv(%s, %s)", recv, fun)(&errs)
 
 	var sub map[*TypeVar]TypeName
-	if fun.Recv.Type.Parms != nil {
-		sub = subMap(fun.Recv.Type.Parms, recv.Args)
-	} else {
+	if fun.Recv.Type.Args != nil {
 		sub = make(map[*TypeVar]TypeName)
 		for i, arg := range recv.Args {
 			switch parm := fun.Recv.Type.Args[i].Type; {
@@ -91,6 +88,8 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 				errs = append(errs, *err)
 			}
 		}
+	} else {
+		sub = subMap(fun.Recv.Type.Parms, recv.Args)
 	}
 	if len(errs) > 0 {
 		return nil, errs

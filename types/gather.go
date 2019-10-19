@@ -261,18 +261,6 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	case astType.Alias != nil:
 		def.Alias, es = gatherTypeName(x, astType.Alias)
 		errs = append(errs, es...)
-		if def.Alias.Type != nil && def.Parms != nil {
-			// TODO: error on unused type parameters.
-			// The following comment is only true if the type params
-			// are all referenced by the alias target type.
-
-			// If Parms is non-nil, def.Alias.Type
-			// must be a new type instance,
-			// because it was created
-			// with freshly gathered type arguments
-			// from this type name.
-			def.Alias.Type.Parms = def.Parms
-		}
 	case astType.Fields != nil:
 		def.Fields, es = gatherVars(x, astType.Fields)
 		errs = append(errs, es...)
