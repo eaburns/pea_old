@@ -86,6 +86,7 @@ func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *
 		Name: var1.Name,
 		Var:  &var1,
 	}
+	var1.Type.Def = var1.Type
 	seen[var0.Type] = var1.Type
 	typ.Var = &var1
 }

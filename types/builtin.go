@@ -28,6 +28,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		Name: tmp,
 		Var:  &tparms[0],
 	}
+	retType.Def = retType
 	tparms[0].Type = retType
 	retName := TypeName{Name: tmp, Type: retType}
 

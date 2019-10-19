@@ -201,6 +201,7 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 			Name: astVar.Name,
 			Var:  &vars[i],
 		}
+		typ.Def = typ
 		vars[i] = TypeVar{
 			AST:  astVar,
 			Name: astVar.Name,
