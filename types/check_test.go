@@ -798,7 +798,7 @@ func TestAssignConvert(t *testing.T) {
 					x Int := 5.
 					y Int Eq := x.
 				]
-				type T Eq { [= T ^Bool] }
+				type T Eq { [= T& ^Bool] }
 			`,
 			err: "",
 		},
@@ -809,7 +809,7 @@ func TestAssignConvert(t *testing.T) {
 					x Int := 5.
 					y Float Eq := x.
 				]
-				type T Eq { [= T ^Bool] }
+				type T Eq { [= T& ^Bool] }
 			`,
 			err: "Int does not implement Float Eq",
 		},
@@ -820,7 +820,7 @@ func TestAssignConvert(t *testing.T) {
 					x Int := 5.
 					y Eq := x.
 				]
-				type Eq { [= T ^Int] }
+				type Eq { [= T& ^Int] }
 			`,
 			err: "Int does not implement Eq",
 		},
@@ -831,7 +831,7 @@ func TestAssignConvert(t *testing.T) {
 					x Int := 5.
 					y Eq := x.
 				]
-				type Eq { [= T] }
+				type Eq { [= T&] }
 			`,
 			err: "Int does not implement Eq",
 		},
@@ -842,8 +842,8 @@ func TestAssignConvert(t *testing.T) {
 					x Int := 5.
 					y Eq := x.
 				]
-				meth Int [ === _ T |]
-				type Eq { [=== T ^Bool] }
+				meth Int [ === _ T& |]
+				type Eq { [=== T& ^Bool] }
 			`,
 			err: "Int does not implement Eq",
 		},
@@ -854,7 +854,7 @@ func TestAssignConvert(t *testing.T) {
 					x Int & & := 5.
 					y Int Eq := x.
 				]
-				type T Eq { [= T ^Bool] }
+				type T Eq { [= T& ^Bool] }
 			`,
 			err: "",
 		},

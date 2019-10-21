@@ -78,7 +78,7 @@ func TestInstCall(t *testing.T) {
 			src: `
 				val test := [ 1 + 2 ]
 			`,
-			want: "Int [+ _ Int ^Int]",
+			want: "Int [+ _ Int& ^Int]",
 		},
 		{
 			name: "ground receiver subs return",
