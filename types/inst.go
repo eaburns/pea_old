@@ -114,11 +114,36 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	return inst, errs
 }
 
-// instFun returns the *Fun instance; on error the *Fun is nil.
-func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkError) {
-	defer x.tr("instFun(infer=%s, %s, %s)", infer, fun, msg.Sel)(&errs)
+type argTypes interface {
+	ast() ast.Node
+	arg(*scope, int) (*Type, ast.Node, []checkError)
+}
 
-	sub, errs := unifyFunTParms(x, infer, fun, msg)
+func (m *Msg) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
+	// The type assertion to *ast.Msg is OK,
+	// since Msg.AST is only not a *ast.Msg
+	// for a 0-ary function call, but this has args.
+	arg, errs := checkExpr(x, nil, m.AST.(*ast.Msg).Args[i])
+	m.Args[i] = arg
+	return arg.Type(), arg.ast(), errs
+}
+
+type funSigArgTypes struct {
+	loc ast.Node
+	sig *FunSig
+}
+
+func (s funSigArgTypes) ast() ast.Node { return s.loc }
+
+func (s funSigArgTypes) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
+	return s.sig.Parms[i].typ, s.sig.Parms[i].AST, nil
+}
+
+// instFun returns the *Fun instance; on error the *Fun is nil.
+func instFun(x *scope, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs []checkError) {
+	defer x.tr("instFun(infer=%s, %s)", infer, fun)(&errs)
+
+	sub, errs := unifyFunTParms(x, infer, fun, argTypes)
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -137,7 +162,7 @@ func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkErr
 		}
 	}
 	if len(notes) > 0 {
-		err := x.err(msg, "cannot infer type parameters of %s", msg.Sel)
+		err := x.err(argTypes.ast(), "cannot infer type parameters of %s", fun.Sig.Sel)
 		note(err, "%s", fun)
 		err.notes = append(err.notes, notes...)
 		errs = append(errs, *err)
@@ -161,8 +186,8 @@ func instFun(x *scope, infer *Type, fun *Fun, msg *Msg) (_ *Fun, errs []checkErr
 // unifyFunTParms sets msg.Args for each arg passed to
 // a fun param with a type variable in its type.
 // The rest of msg.Args are left nil.
-func unifyFunTParms(x *scope, infer *Type, fun *Fun, msg *Msg) (sub map[*TypeVar]TypeName, errs []checkError) {
-	defer x.tr("unifyFunTParms(infer=%s, %s, %s)", infer, fun, msg.Sel)(&errs)
+func unifyFunTParms(x *scope, infer *Type, fun *Fun, argTypes argTypes) (sub map[*TypeVar]TypeName, errs []checkError) {
+	defer x.tr("unifyFunTParms(infer=%s, %s)", infer, fun)(&errs)
 	defer func() { x.log("sub=%s", subDebugString(sub)) }()
 
 	sub = make(map[*TypeVar]TypeName)
@@ -177,7 +202,7 @@ func unifyFunTParms(x *scope, infer *Type, fun *Fun, msg *Msg) (sub map[*TypeVar
 		// Until then, create a transient TypeName so unify
 		// has a locatable node to use for error reporting.
 		inferName := makeTypeName(infer)
-		inferName.AST = msg.AST
+		inferName.AST = argTypes.ast()
 		if err := unify(x, fun.Sig.Ret, inferName, tparms, sub); err != nil {
 			errs = append(errs, *err)
 		}
@@ -190,23 +215,22 @@ func unifyFunTParms(x *scope, infer *Type, fun *Fun, msg *Msg) (sub map[*TypeVar
 	seen := make(map[*Type]*Type)
 	for i := range parms {
 		parm := &parms[i]
-		x.log("%s parm %d %s %s", msg.Sel, i, parm.Name, parm.TypeName)
+		x.log("%s parm %d %s %s", fun.Sig.Sel, i, parm.Name, parm.TypeName)
 		tname := subTypeName(x, seen, sub, parm.TypeName)
 		x.log("subbed name: %s", tname)
 		if !hasTParm(tparms, tname) {
 			continue
 		}
-		// The type assertion to *ast.Msg is OK,
-		// since Msg.AST is only not a *ast.Msg
-		// for a 0-ary function call, but this has args.
-		arg, es := checkExpr(x, nil, msg.AST.(*ast.Msg).Args[i])
-		errs = append(errs, es...)
-		msg.Args[i] = arg
-		if arg.Type() == nil {
+		argType, argAST, es := argTypes.arg(x, i)
+		if len(es) > 0 {
+			errs = append(errs, es...)
 			continue
 		}
-		argTypeName := makeTypeName(arg.Type())
-		argTypeName.AST = arg.ast()
+		if argType == nil {
+			continue
+		}
+		argTypeName := makeTypeName(argType)
+		argTypeName.AST = argAST
 		if err := unify(x, tname, argTypeName, tparms, sub); err != nil {
 			errs = append(errs, *err)
 		}
@@ -229,6 +253,7 @@ func hasTParm(tparms map[*TypeVar]bool, name *TypeName) bool {
 	return false
 }
 
+// TODO: unify should handle the case that typ.AST is nil.
 func unify(x *scope, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*TypeVar]TypeName) (err *checkError) {
 	defer x.tr("unify(%s, %s, sub=%s)", pat, typ, subDebugString(sub))(err)
 

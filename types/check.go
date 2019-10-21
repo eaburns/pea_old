@@ -250,8 +250,13 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	defer x.tr("checkFun(%s)", def.name())(&errs)
 	if def.Recv != nil {
 		for i := range def.Recv.Parms {
+			parm := &def.Recv.Parms[i]
+			for j := range parm.Ifaces {
+				iface := &parm.Ifaces[j]
+				errs = append(errs, checkTypeName(x, iface)...)
+			}
 			x = x.new()
-			x.typeVar = def.Recv.Parms[i].Type
+			x.typeVar = parm.Type
 		}
 		if isRef(x, def.Recv.Type) {
 			err := x.err(def.Recv, "invalid receiver type: cannot add a method to &")
@@ -278,6 +283,12 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
+	for i := range def.Parms {
+		for j := range def.Parms[i].Ifaces {
+			iface := &def.Parms[i].Ifaces[j]
+			errs = append(errs, checkTypeName(x, iface)...)
+		}
+	}
 	defer x.tr("checkType(%s)", def.name())(&errs)
 	switch {
 	case def.Alias != nil:
@@ -352,8 +363,32 @@ func checkVirts(x *scope, virts []FunSig) []checkError {
 }
 
 func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
-	defer x.tr("checkTypeName(%s)", name.name())(&errs)
-	// TODO: implement checkTypeName.
+	defer x.tr("checkTypeName(%s)", name)(&errs)
+
+	if name.Type == nil {
+		return nil
+	}
+
+	for i := range name.Type.Args {
+		arg := &name.Type.Args[i]
+		parm := &name.Type.Parms[i]
+		if arg.Type == nil {
+			continue
+		}
+		for _, iface := range parm.Ifaces {
+			if iface.Type == nil {
+				continue
+			}
+			_, es := findVirts(x, arg.AST, arg.Type, iface.Type.Virts)
+			if len(es) == 0 {
+				continue
+			}
+			err := x.err(arg, "type %s does not implement %s (%s)", arg.Type, parm.Type, iface)
+			err.cause = es
+			errs = append(errs, *err)
+		}
+	}
+
 	return errs
 }
 
@@ -587,12 +622,12 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 	}
 
 	if got != want && len(want.Virts) > 0 {
-		funs, notes := findVirts(x, got, want.Virts)
-		if len(notes) == 0 {
+		funs, es := findVirts(x, astExpr, got, want.Virts)
+		if len(es) == 0 {
 			return &Convert{Expr: expr, Virts: funs, typ: want}, errs
 		}
 		err := x.err(astExpr, "type %s does not implement %s", got, want)
-		err.notes = notes
+		err.cause = es
 		errs = append(errs, *err)
 	}
 
@@ -624,40 +659,49 @@ func refBaseType(x *scope, typ *Type) (int, *Type) {
 	return i, typ
 }
 
-func findVirts(x *scope, recv *Type, virts []FunSig) ([]*Fun, []string) {
-	var funs []*Fun
-	var notes []string
+func findVirts(x *scope, loc ast.Node, recv *Type, virts []FunSig) (funs []*Fun, errs []checkError) {
+	defer x.tr("findVirts(%s %v)", recv, virts)(&errs)
 
 	funs = make([]*Fun, len(virts))
 	for i, want := range virts {
-		got := x.findFun(recv, want.Sel)
-		if got == nil {
-			notes = append(notes, fmt.Sprintf("no method %s", want.Sel))
+		var ret *Type
+		if want.Ret != nil {
+			ret = want.Ret.Type
+		}
+		argTypes := funSigArgTypes{loc: loc, sig: &want}
+		fun, es := findFunInst(x, ret, recv, nil, want.Sel, argTypes)
+		if fun == nil {
+			err := x.err(loc, "method %s %s not found", recv, want.Sel)
+			err.cause = es
+			errs = append(errs, *err)
 			continue
 		}
 
 		// Make a copy and remove the self parameter.
-		gotSig := got.Sig
-		gotSig.Parms = gotSig.Parms[1:]
+		funSig := fun.Sig
+		funSig.Parms = funSig.Parms[1:]
 
-		if funSigEq(&gotSig, &want) {
-			funs[i] = got
+		if funSigEq(&funSig, &want) {
+			funs[i] = fun
 			continue
 		}
 		// Clear the parameter names for printing the error note.
-		for i := range gotSig.Parms {
-			gotSig.Parms[i].Name = ""
+		for i := range funSig.Parms {
+			funSig.Parms[i].Name = ""
 		}
 		var where string
-		if got.AST != nil {
-			where = fmt.Sprintf(", defined at %s", x.loc(got.AST))
+		if fun.AST != nil {
+			where = fmt.Sprintf(", defined at %s", x.loc(fun.AST))
 		}
-		notes = append(notes,
+		err := x.err(loc, "wrong type for method %s", want.Sel)
+		err.notes = []string{
 			fmt.Sprintf("wrong type for method %s", want.Sel),
-			fmt.Sprintf("	have %s%s", gotSig, where),
-			fmt.Sprintf("	want %s", want))
+			fmt.Sprintf("	have %s%s", funSig, where),
+			fmt.Sprintf("	want %s", want),
+		}
+		errs = append(errs, *err)
 	}
-	return funs, notes
+	return funs, errs
 }
 
 func funSigEq(a, b *FunSig) bool {
@@ -766,16 +810,15 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 	defer x.tr("checkMsg(infer=%s, %s, %s)", infer, recv, astMsg.Sel)(&errs)
 
 	msg := Msg{
-		AST: astMsg,
-		Mod: identString(astMsg.Mod),
-		Sel: astMsg.Sel,
+		AST:  astMsg,
+		Mod:  identString(astMsg.Mod),
+		Sel:  astMsg.Sel,
+		Args: make([]Expr, len(astMsg.Args)),
 	}
-	msg.Args = make([]Expr, len(astMsg.Args))
 	es := findMsgFun(x, infer, recv, &msg)
 	errs = append(errs, es...)
 	if msg.Fun == nil {
 		// findMsgFun failed; best-effort check the arguments.
-		var es []checkError
 		msg.Args, es = checkExprs(x, astMsg.Args)
 		return msg, append(errs, es...)
 	}
@@ -799,8 +842,34 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 
 func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
-	var fun *Fun
-	var mod string
+
+	var mod *ast.Ident
+	var modName string
+	if msg.Mod != "" {
+		// msg.ast must be an *ast.Msg,
+		// since the only other case is ast.Ident,
+		// which is only for in-module function calls,
+		// and this is not in-module.
+		mod = msg.AST.(*ast.Msg).Mod
+		modName = mod.Text + " "
+	}
+	fun, es := findFunInst(x, infer, recv, mod, msg.Sel, msg)
+	if fun == nil {
+		var err *checkError
+		if recv == nil {
+			err = x.err(msg, "function %s%s not found", modName, msg.Sel)
+		} else {
+			err = x.err(msg, "method %s %s%s not found", recv, modName, msg.Sel)
+		}
+		err.cause = es
+		errs = append(errs, *err)
+	}
+	msg.Fun = fun
+	return errs
+}
+
+func findFunInst(x *scope, infer, recv *Type, mod *ast.Ident, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
+	x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
 
 	switch {
 	case recv != nil && recv.Var != nil:
@@ -808,49 +877,33 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 			if iface.Type == nil {
 				continue
 			}
-			fun = x.findFun(iface.Type, msg.Sel)
+			fun = x.findFun(iface.Type, sel)
 			recv = iface.Type
 		}
-	case msg.Mod != "":
-		mod = msg.Mod + " "
-		imp := x.findImport(msg.Mod)
+	case mod != nil:
+		imp := x.findImport(mod.Text)
 		if imp == nil {
-			// msg.ast must be an *ast.Msg,
-			// since the only other case is ast.Ident,
-			// which is only for in-module function calls,
-			// and this is not in-module.
-			err := x.err(msg.AST.(*ast.Msg).Mod, "module %s not found", msg.Mod)
-			return append(errs, *err)
+			err := x.err(mod, "module %s not found", mod.Text)
+			return nil, []checkError{*err}
 		}
-		fun = imp.findFun(recv, msg.Sel)
+		fun = imp.findFun(recv, sel)
 	default:
-		fun = x.findFun(recv, msg.Sel)
+		fun = x.findFun(recv, sel)
 	}
 	if fun == nil {
-		if recv == nil {
-			err := x.err(msg, "function %s%s not found", mod, msg.Sel)
-			return append(errs, *err)
-		}
-		err := x.err(msg, "method %s %s%s not found", recv.name(), mod, msg.Sel)
-		return append(errs, *err)
+		return nil, nil
 	}
-
 	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
-		if f, es := instRecv(x, recv, fun); len(es) > 0 {
-			errs = append(errs, es...)
-		} else {
-			fun = f
+		if fun, errs = instRecv(x, recv, fun); len(errs) > 0 {
+			return nil, errs
 		}
 	}
 	if len(fun.TParms) > 0 {
-		if f, es := instFun(x, infer, fun, msg); len(es) > 0 {
-			errs = append(errs, es...)
-		} else {
-			fun = f
+		if fun, errs = instFun(x, infer, fun, argTypes); len(errs) > 0 {
+			return nil, errs
 		}
 	}
-	msg.Fun = fun
-	return errs
+	return fun, nil
 }
 
 func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {

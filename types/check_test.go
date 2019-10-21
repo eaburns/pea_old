@@ -450,6 +450,156 @@ func TestAlias(t *testing.T) {
 	}
 }
 
+func TestTypeNameError(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "simple type",
+			src: `
+				val _ Int := [5]
+			`,
+			err: "",
+		},
+		{
+			name: "unconstrained parameterized type",
+			src: `
+				val _ Int Test := [{}]
+				type T Test {}
+			`,
+			err: "",
+		},
+		{
+			name: "unconstrained nested parameterized type",
+			src: `
+				val _ Int Test Test Test Test := [{}]
+				type T Test {}
+			`,
+			err: "",
+		},
+		{
+			name: "constraint: OK",
+			src: `
+				val _ Int Test := [{}]
+				type (T Fooer) Test {}
+				type Fooer {[foo]}
+				meth Int [foo |]
+			`,
+			err: "",
+		},
+		{
+			name: "constraint: no method",
+			src: `
+				val _ Int Test := [{}]
+				type (T Fooer) Test {}
+				type Fooer {[foo]}
+			`,
+			err: "method Int foo not found",
+		},
+		{
+			name: "constraint: unexpected return",
+			src: `
+				val _ Int Test := [{}]
+				type (T Fooer) Test {}
+				type Fooer {[foo]}
+				meth Int [foo ^Bool|]
+			`,
+			err: "wrong type for method foo",
+		},
+		{
+			name: "constraint: missing return",
+			src: `
+				val _ Int Test := [{}]
+				type (T Fooer) Test {}
+				type Fooer {[foo ^Bool]}
+				meth Int [foo|]
+			`,
+			err: "wrong type for method foo",
+		},
+		{
+			name: "constraint: mismatching param type",
+			src: `
+				val _ Int Test := [{}]
+				type (T Fooer) Test {}
+				type Fooer {[foo: Int]}
+				meth Int [foo: _ String|]
+			`,
+			err: "wrong type for method foo",
+		},
+		{
+			name: "parameterized constraint",
+			src: `
+				val _ Int Test := [{}]
+				type (T T Eq) Test {}
+				type X Eq {[eq: X& ^Bool]}
+				meth Int [eq: _ Int& ^Bool |]
+			`,
+			err: "",
+		},
+		{
+			name: "constrained constraint: OK",
+			src: `
+				val _ Int Test := [{}]
+				type (T T Foo) Test {}
+				type (X Bar) Foo {[foo] [bar]}
+				type Bar {[bar]}
+				meth Int [foo |]
+				meth Int [bar |]
+			`,
+			err: "",
+		},
+		{
+			name: "constrained constraint: unsatisfied",
+			src: `
+				val _ Int Test := [{}]
+				// Foo doesn't implement Bar,
+				// so T==Foo can't be an argument to Foo.
+				type (T T Foo) Test {}
+				type (X Bar) Foo {[foo]}
+				type Bar {[bar]}
+				meth Int [foo |]
+				meth Int [bar |]
+			`,
+			err: "method T bar not found",
+		},
+		{
+			name: "alias type",
+			src: `
+				val _ Test := [{}]
+				type Test := Test1.
+				type Test1 := (Rune, OtherString) Map.
+				type OtherString := String.
+				type (K, V) Map {}
+			`,
+			err: "",
+		},
+		{
+			name: "multiple constraints: OK",
+			src: `
+				val _ (Int, String) Test := [{}]
+				type (X Fooer, Y Barer) Test {}
+				type Fooer {[foo]}
+				type Barer {[bar]}
+				meth Int [foo|]
+				meth String [bar|]
+			`,
+			err: "",
+		},
+		{
+			name: "multiple constraints: second not met",
+			src: `
+				val _ (Int, String) Test := [{}]
+				type (X Fooer, Y Barer) Test {}
+				type Fooer {[foo]}
+				type Barer {[bar]}
+				meth Int [foo|]
+			`,
+			err: "method String bar not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestRetError(t *testing.T) {
 	tests := []errorTest{
 		{
