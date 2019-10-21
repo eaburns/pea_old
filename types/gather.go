@@ -249,7 +249,7 @@ func gatherFunSig(x *scope, astSig *ast.FunSig) (_ *FunSig, errs []checkError) {
 }
 
 func gatherType(x *scope, def *Type) (errs []checkError) {
-	defer x.tr("gatherType(%p %s)", def, def.ast)(&errs)
+	defer x.tr("gatherType(%p %s)", def, def.AST)(&errs)
 
 	astType := def.AST.(*ast.Type)
 
