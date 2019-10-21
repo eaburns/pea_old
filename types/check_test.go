@@ -363,7 +363,85 @@ func TestRedefError(t *testing.T) {
 	}
 }
 
-func TestAlias(t *testing.T) {
+func TestValDef(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				val _ Int := [5]
+			`,
+			err: "",
+		},
+		{
+			name: "type not found",
+			src: `
+				val _ Unknown := [5]
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "type constraints not met",
+			src: `
+				val _ Int Test := [5]
+				type (T Foo) Test {}
+				type Foo {[foo]}
+			`,
+			err: "method Int foo not found",
+		},
+		{
+			name: "type mismatch",
+			src: `
+				val _ Int := ["string"]
+			`,
+			err: "type mismatch: have String, want Int",
+		},
+		{
+			name: "infer simple type",
+			src: `
+				val x := ["string"]
+				val y Int := [x]
+			`,
+			err: "type mismatch: have String, want Int",
+		},
+		{
+			name: "infer complex type",
+			src: `
+				val x := [foo]
+				val y Int := [x]
+				func [foo ^Int Array Array |]
+			`,
+			err: "type mismatch: have Int Array Array, want Int",
+		},
+		{
+			name: "infer nil: no statements",
+			src: `
+				val x := []
+				val y Int := [x]
+			`,
+			err: "type mismatch: have Nil, want Int",
+		},
+		{
+			name: "infer nil: final statement",
+			src: `
+				val x := [_ := 5]
+				val y Int := [x]
+			`,
+			err: "type mismatch: have Nil, want Int",
+		},
+		{
+			name: "statement error",
+			src: `
+				val x := [z := {}. z]
+			`,
+			err: "cannot infer constructor type",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestAliasDef(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "target not found",

@@ -243,6 +243,16 @@ func checkVal(x *scope, def *Val) (errs []checkError) {
 
 	var es []checkError
 	def.Init, es = checkStmts(x, def.Var.typ, def.AST.Init)
+
+	if def.Var.typ == nil {
+		def.Var.typ = builtInType(x, "Nil")
+		if len(def.Init) > 0 {
+			if expr, ok := def.Init[len(def.Init)-1].(Expr); ok {
+				def.Var.typ = expr.Type()
+			}
+		}
+	}
+
 	return append(errs, es...)
 }
 
