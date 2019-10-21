@@ -441,6 +441,108 @@ func TestValDef(t *testing.T) {
 	}
 }
 
+func TestFuncDef(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				func [foo |]
+			`,
+			err: "",
+		},
+		{
+			name: "unknown param type",
+			src: `
+				func [foo: _ Unknown |]
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "unknown return type",
+			src: `
+				func [foo ^Unknown |]
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "param type constraint not met",
+			src: `
+				func [foo: _ Int Test |]
+				type (T Foor) Test {}
+				type Foor {[foo]}
+			`,
+			err: "method Int foo not found",
+		},
+		{
+			name: "return type constraint not met",
+			src: `
+				func [foo ^Int Test |]
+				type (T Foor) Test {}
+				type Foor {[foo]}
+			`,
+			err: "method Int foo not found",
+		},
+		{
+			name: "return type constraint not met",
+			src: `
+				func [foo ^Int Test |]
+				type (T Foor) Test {}
+				type Foor {[foo]}
+			`,
+			err: "method Int foo not found",
+		},
+		{
+			name: "missing return",
+			src: `
+				func [foo ^Int | _ := 5]
+			`,
+			err: "missing return at the end of foo",
+		},
+		{
+			name: "type parameter: OK",
+			src: `
+				func T [foo |]
+			`,
+			err: "",
+		},
+		{
+			name: "constrained type parameter: OK",
+			src: `
+				func (T Fooer) [foo |]
+				type Fooer {[foo]}
+			`,
+			err: "",
+		},
+		{
+			name: "constrained type parameter: bad constraint",
+			src: `
+				func (T T Fooer) [foo |]
+				type (T Barer) Fooer {[foo]}
+				type Barer {[bar]}
+			`,
+			err: "method T bar not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestMethDef(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				meth Int [foo |]
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestAliasDef(t *testing.T) {
 	tests := []errorTest{
 		{

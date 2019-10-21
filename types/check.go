@@ -274,8 +274,13 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 		}
 	}
 	for i := range def.TParms {
+		parm := &def.TParms[i]
+		for j := range parm.Ifaces {
+			iface := &parm.Ifaces[j]
+			errs = append(errs, checkTypeName(x, iface)...)
+		}
 		x = x.new()
-		x.typeVar = def.TParms[i].Type
+		x.typeVar = parm.Type
 	}
 
 	x = x.new()
@@ -289,7 +294,24 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 
 	var es []checkError
 	def.Stmts, es = checkStmts(x, nil, def.AST.(*ast.Fun).Stmts)
-	return append(errs, es...)
+	errs = append(errs, es...)
+
+	if def.Sig.Ret != nil {
+		errs = append(errs, checkTypeName(x, def.Sig.Ret)...)
+
+		// TODO: check missing return for non-decl funcs with no statements.
+		// We currently have no way to diferentiate a declaration and a function with no statements.
+		if len(def.Stmts) > 0 && !isRet(def.Stmts[len(def.Stmts)-1]) {
+			err := x.err(def, "missing return at the end of %s", def.name())
+			errs = append(errs, *err)
+		}
+	}
+	return errs
+}
+
+func isRet(s Stmt) bool {
+	_, ok := s.(*Ret)
+	return ok
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
