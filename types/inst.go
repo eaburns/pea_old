@@ -8,7 +8,7 @@ import (
 
 func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkError) {
 	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
-	defer func() { x.log("inst=%p", res) }()
+	defer func() { x.log("inst: %s (%p)", res, res) }()
 
 	// We access typ.Alias and typ.Sig.Parms.
 	// Both of these must be cycle free to guarantee
