@@ -1152,7 +1152,7 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	errs = append(errs, es...)
 
 	if len(blk.Parms) >= MaxValueParms {
-		err := x.err(astBlock, "too many block parameters: got %, max %d",
+		err := x.err(astBlock, "too many block parameters: got %d, max %d",
 			len(astBlock.Parms), MaxValueParms)
 		errs = append(errs, *err)
 		return blk, errs
@@ -1208,7 +1208,7 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 	case *Var:
 		ident.Var = vr
 	case *Fun:
-		defer x.tr("checkMsg(infer=%s, %s, %s)", infer, nil, astIdent.Text)(&errs)
+		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
 		msg := Msg{AST: astIdent, Sel: astIdent.Text}
 		es := findMsgFun(x, infer, nil, &msg)
 		errs = append(errs, es...)
