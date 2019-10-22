@@ -74,7 +74,11 @@ Val <- _ v:(key:("val" / "Val") id:Ident typ:TypeName? _":=" _"[" stmts:Stmts _"
 	}
 }) { return Def(v) }
 
-Fun <- _ f:(key:("func" / "Func") tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts _"]" {
+Fun <- _ f:(
+	key:("func" / "Func") tps:TParms _ "[" sig:FunSig body:(_ "|" stmts:Stmts { return []Stmt(stmts) })? _"]" {
+	if body != nil && stmts == nil {
+		stmts = []Stmt{}
+	}
 	return &Fun{
 		location: loc(parser, start, end),
 		priv: key == "func",
@@ -84,7 +88,10 @@ Fun <- _ f:(key:("func" / "Func") tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts 
 	}
 })   { return Def(f) }
 
-Meth <- _ m:(key:("meth" / "Meth") recv:Recv tps:TParms _ "[" sig:FunSig _ "|" stmts:Stmts _"]" {
+Meth <- _ m:(key:("meth" / "Meth") recv:Recv tps:TParms _ "[" sig:FunSig body: (_ "|" stmts:Stmts { return []Stmt(stmts)})? _"]" {
+	if body != nil && stmts == nil {
+		stmts = []Stmt{}
+	}
 	return &Fun{
 		location: loc(parser, start, end),
 		priv: key == "meth",

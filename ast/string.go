@@ -57,7 +57,7 @@ func (n Fun) String() string {
 		}
 		s.WriteRune(' ')
 	}
-	buildFunSigString(&n.Sig, &s)
+	buildFunSigString(&n.Sig, n.Stmts != nil, &s)
 	return s.String()
 }
 
@@ -74,7 +74,7 @@ func (n Type) String() string {
 
 func (n FunSig) String() string {
 	var s strings.Builder
-	buildFunSigString(&n, &s)
+	buildFunSigString(&n, false, &s)
 	return s.String()
 }
 
@@ -90,7 +90,7 @@ func (n TypeName) String() string {
 	return s.String()
 }
 
-func buildFunSigString(n *FunSig, s *strings.Builder) {
+func buildFunSigString(n *FunSig, def bool, s *strings.Builder) {
 	s.WriteRune('[')
 	if len(n.Parms) == 0 { // unary
 		s.WriteString(n.Sel)
@@ -117,6 +117,9 @@ func buildFunSigString(n *FunSig, s *strings.Builder) {
 	if n.Ret != nil {
 		s.WriteString(" ^")
 		buildTypeNameString(n.Ret, s)
+	}
+	if def {
+		s.WriteString(" |")
 	}
 	s.WriteRune(']')
 }

@@ -63,7 +63,11 @@ type Fun struct {
 	Recv   *Recv
 	TParms []Var // types may be nil
 	Sig    FunSig
-	Stmts  []Stmt
+	// Stmts are the body of the function or method.
+	// If Stmts==nil, this is a declaration only;
+	// for a function or method definition with no body
+	// Stmts will be non-nil with length 0.
+	Stmts []Stmt
 }
 
 func (n *Fun) Priv() bool { return n.priv }

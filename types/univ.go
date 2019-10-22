@@ -23,30 +23,30 @@ var univ = `
 	val false Bool := [ {false} ]
 
 	type String {}
-	meth String [ byteSize ^Int |]
-	meth String [ atByte: _ Int ^Byte |]
-	meth String [ fromByte: _ Int toByte: _ Int ^String |]
+	meth String [ byteSize ^Int]
+	meth String [ atByte: _ Int ^Byte]
+	meth String [ fromByte: _ Int toByte: _ Int ^String]
 
 	type T Array {}
-	meth T Array [ size ^Int |]
-	meth T Array [ at: _ Int ^T& |]
-	meth T Array [ at: _ Int put: _ T |]
-	meth T Array [ from: _ Int to: _ Int ^T Array |]
+	meth T Array [ size ^Int]
+	meth T Array [ at: _ Int ^T&]
+	meth T Array [ at: _ Int put: _ T]
+	meth T Array [ from: _ Int to: _ Int ^T Array]
 
 	type T Fun {}
-	meth T Fun [ value ^T |]
+	meth T Fun [ value ^T]
 
 	type (T, U) Fun {}
-	meth (T, U) Fun [ value: _ T ^U |]
+	meth (T, U) Fun [ value: _ T ^U]
 
 	type (T, U, V) Fun {}
-	meth (T, U, V) Fun [ value: _ T value: _ U ^V |]
+	meth (T, U, V) Fun [ value: _ T value: _ U ^V]
 
 	type (T, U, V, W) Fun {}
-	meth (T, U, V, W) Fun [ value: _ T value: _ U  value: _ V ^W |]
+	meth (T, U, V, W) Fun [ value: _ T value: _ U  value: _ V ^W]
 
 	type (T, U, V, W, X) Fun {}
-	meth (T, U, V, W, X) Fun [ value: _ T value: _ U  value: _ V value: _ W ^ X |]
+	meth (T, U, V, W, X) Fun [ value: _ T value: _ U  value: _ V value: _ W ^ X]
 
 	type Byte := UInt8.
 	type Word := UInt.
@@ -54,50 +54,50 @@ var univ = `
 
 	{{range $_, $t := $.IntTypes}}
 		type {{$t}} {}
-		meth {{$t}} [ & _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ | _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ not ^{{$t}} |]
-		meth {{$t}} [ >> _ Int ^{{$t}} |]
-		meth {{$t}} [ << _ Int ^{{$t}} |]
-		meth {{$t}} [ neg ^{{$t}} |]
-		meth {{$t}} [ + _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ - _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ * _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ / _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ % _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ = _ {{$t}}& ^Bool |]
-		meth {{$t}} [ != _ {{$t}}& ^Bool |]
-		meth {{$t}} [ < _ {{$t}}& ^Bool |]
-		meth {{$t}} [ <= _ {{$t}}& ^Bool |]
-		meth {{$t}} [ > _ {{$t}}& ^Bool |]
-		meth {{$t}} [ >= _ {{$t}}& ^Bool |]
+		meth {{$t}} [ & _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ | _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ not ^{{$t}}]
+		meth {{$t}} [ >> _ Int ^{{$t}}]
+		meth {{$t}} [ << _ Int ^{{$t}}]
+		meth {{$t}} [ neg ^{{$t}}]
+		meth {{$t}} [ + _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ - _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ * _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ / _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ % _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ = _ {{$t}}& ^Bool]
+		meth {{$t}} [ != _ {{$t}}& ^Bool]
+		meth {{$t}} [ < _ {{$t}}& ^Bool]
+		meth {{$t}} [ <= _ {{$t}}& ^Bool]
+		meth {{$t}} [ > _ {{$t}}& ^Bool]
+		meth {{$t}} [ >= _ {{$t}}& ^Bool]
 		{{range $_, $r := $.IntTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}} |]
+			meth {{$t}} [ as{{$r}} ^{{$r}}]
 		{{end}}
 		{{range $_, $r := $.FloatTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}} |]
+			meth {{$t}} [ as{{$r}} ^{{$r}}]
 		{{end}}
 	{{end}}
 
 	{{range $_, $t := $.FloatTypes}}
 		type {{$t}} {}
-		meth {{$t}} [ neg ^{{$t}} |]
-		meth {{$t}} [ + _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ - _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ * _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ / _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ % _ {{$t}}& ^{{$t}} |]
-		meth {{$t}} [ = _ {{$t}}& ^Bool |]
-		meth {{$t}} [ != _ {{$t}}& ^Bool |]
-		meth {{$t}} [ < _ {{$t}}& ^Bool |]
-		meth {{$t}} [ <= _ {{$t}}& ^Bool |]
-		meth {{$t}} [ > _ {{$t}}& ^Bool |]
-		meth {{$t}} [ >= _ {{$t}}& ^Bool |]
+		meth {{$t}} [ neg ^{{$t}}]
+		meth {{$t}} [ + _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ - _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ * _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ / _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ % _ {{$t}}& ^{{$t}}]
+		meth {{$t}} [ = _ {{$t}}& ^Bool]
+		meth {{$t}} [ != _ {{$t}}& ^Bool]
+		meth {{$t}} [ < _ {{$t}}& ^Bool]
+		meth {{$t}} [ <= _ {{$t}}& ^Bool]
+		meth {{$t}} [ > _ {{$t}}& ^Bool]
+		meth {{$t}} [ >= _ {{$t}}& ^Bool]
 		{{range $_, $r := $.IntTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}} |]
+			meth {{$t}} [ as{{$r}} ^{{$r}}]
 		{{end}}
 		{{range $_, $r := $.FloatTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}} |]
+			meth {{$t}} [ as{{$r}} ^{{$r}}]
 		{{end}}
 	{{end}}
 `

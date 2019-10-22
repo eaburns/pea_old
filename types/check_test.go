@@ -32,7 +32,7 @@ func TestBugRegressions(t *testing.T) {
 		{
 			name: "2",
 			src: `
-				func T [newArray: _ Int init: _ (Int, T) Fun ^T Array |]
+				func T [newArray: _ Int init: _ (Int, T) Fun ^T Array]
 				type (X, Y) Bucket := (X, Y) Elem Array.
 				type (X, Y) Elem {x: X y: Y}
 				type (X, Y) Table {data: (X, Y) Bucket Array}
@@ -106,7 +106,7 @@ func TestRedefError(t *testing.T) {
 			name: "val and unary func",
 			src: `
 				val Abc := [5]
-				func [Abc ^Int |]
+				func [Abc ^Int]
 			`,
 			err: "Abc redefined",
 		},
@@ -148,14 +148,14 @@ func TestRedefError(t *testing.T) {
 			name: "type and unary func",
 			src: `
 				type Abc {}
-				func [Abc ^Int |]
+				func [Abc ^Int]
 			`,
 			err: "Abc redefined",
 		},
 		{
 			name: "unary func and val",
 			src: `
-				func [Abc ^Float |]
+				func [Abc ^Float]
 				val Abc := [6]
 			`,
 			err: "Abc redefined",
@@ -163,7 +163,7 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "unary func and type",
 			src: `
-				func [Abc ^Float |]
+				func [Abc ^Float]
 				type Abc {}
 			`,
 			err: "Abc redefined",
@@ -171,25 +171,25 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "unary func and unary func",
 			src: `
-				func [Abc ^Float |]
-				func [Abc ^Int |]
+				func [Abc ^Float]
+				func [Abc ^Int]
 			`,
 			err: "Abc redefined",
 		},
 		{
 			name: "nary func and nary func",
 			src: `
-				func [foo: _ Int bar: _ Float |]
-				func [foo: _ Int bar: _ Float |]
+				func [foo: _ Int bar: _ Float]
+				func [foo: _ Int bar: _ Float]
 			`,
 			err: "foo:bar: redefined",
 		},
 		{
 			name: "nary func and different nary func is OK",
 			src: `
-				func [foo: _ Int bar: _ Float |]
-				func [foo: _ Int bar: _ Float baz: _ String |]
-				func [bar: _ Int foo: _ Float |]
+				func [foo: _ Int bar: _ Float]
+				func [foo: _ Int bar: _ Float baz: _ String]
+				func [bar: _ Int foo: _ Float]
 			`,
 			err: "",
 		},
@@ -408,7 +408,7 @@ func TestValDef(t *testing.T) {
 			src: `
 				val x := [foo]
 				val y Int := [x]
-				func [foo ^Int Array Array |]
+				func [foo ^Int Array Array]
 			`,
 			err: "type mismatch: have Int Array Array, want Int",
 		},
@@ -453,21 +453,21 @@ func TestFuncDef(t *testing.T) {
 		{
 			name: "unknown param type",
 			src: `
-				func [foo: _ Unknown |]
+				func [foo: _ Unknown]
 			`,
 			err: "type Unknown not found",
 		},
 		{
 			name: "unknown return type",
 			src: `
-				func [foo ^Unknown |]
+				func [foo ^Unknown]
 			`,
 			err: "type Unknown not found",
 		},
 		{
 			name: "param type constraint not met",
 			src: `
-				func [foo: _ Int Test |]
+				func [foo: _ Int Test]
 				type (T Foor) Test {}
 				type Foor {[foo]}
 			`,
@@ -476,7 +476,7 @@ func TestFuncDef(t *testing.T) {
 		{
 			name: "return type constraint not met",
 			src: `
-				func [foo ^Int Test |]
+				func [foo ^Int Test]
 				type (T Foor) Test {}
 				type Foor {[foo]}
 			`,
@@ -485,7 +485,7 @@ func TestFuncDef(t *testing.T) {
 		{
 			name: "return type constraint not met",
 			src: `
-				func [foo ^Int Test |]
+				func [foo ^Int Test]
 				type (T Foor) Test {}
 				type Foor {[foo]}
 			`,
@@ -499,16 +499,30 @@ func TestFuncDef(t *testing.T) {
 			err: "missing return at the end of foo",
 		},
 		{
+			name: "missing return: no statemets",
+			src: `
+				func [foo ^Int |]
+			`,
+			err: "missing return at the end of foo",
+		},
+		{
+			name: "no missing return for decl",
+			src: `
+				func [foo ^Int]
+			`,
+			err: "",
+		},
+		{
 			name: "type parameter: OK",
 			src: `
-				func T [foo |]
+				func T [foo]
 			`,
 			err: "",
 		},
 		{
 			name: "constrained type parameter: OK",
 			src: `
-				func (T Fooer) [foo |]
+				func (T Fooer) [foo]
 				type Fooer {[foo]}
 			`,
 			err: "",
@@ -516,7 +530,7 @@ func TestFuncDef(t *testing.T) {
 		{
 			name: "constrained type parameter: bad constraint",
 			src: `
-				func (T T Fooer) [foo |]
+				func (T T Fooer) [foo]
 				type (T Barer) Fooer {[foo]}
 				type Barer {[bar]}
 			`,
@@ -540,14 +554,14 @@ func TestMethDef(t *testing.T) {
 		{
 			name: "unknown receiver type",
 			src: `
-				meth Unknown [foo |]
+				meth Unknown [foo]
 			`,
 			err: "type Unknown not found",
 		},
 		{
 			name: "receiver constraint not met",
 			src: `
-				meth (T T Fooer) Test [foo |]
+				meth (T T Fooer) Test [foo]
 				type T Test {}
 				type (T Barer) Fooer {[foo]}
 				type Barer {[bar]}
@@ -557,7 +571,7 @@ func TestMethDef(t *testing.T) {
 		{
 			name: "reference receiver is not allowed",
 			src: `
-				meth T& [foo |]
+				meth T& [foo]
 			`,
 			err: "cannot add a method to &",
 		},
@@ -898,7 +912,7 @@ func TestTypeNameError(t *testing.T) {
 				val _ Int Test := [{}]
 				type (T Fooer) Test {}
 				type Fooer {[foo]}
-				meth Int [foo |]
+				meth Int [foo]
 			`,
 			err: "",
 		},
@@ -947,7 +961,7 @@ func TestTypeNameError(t *testing.T) {
 				val _ Int Test := [{}]
 				type (T T Eq) Test {}
 				type X Eq {[eq: X& ^Bool]}
-				meth Int [eq: _ Int& ^Bool |]
+				meth Int [eq: _ Int& ^Bool]
 			`,
 			err: "",
 		},
@@ -958,8 +972,8 @@ func TestTypeNameError(t *testing.T) {
 				type (T T Foo) Test {}
 				type (X Bar) Foo {[foo] [bar]}
 				type Bar {[bar]}
-				meth Int [foo |]
-				meth Int [bar |]
+				meth Int [foo]
+				meth Int [bar]
 			`,
 			err: "",
 		},
@@ -972,8 +986,8 @@ func TestTypeNameError(t *testing.T) {
 				type (T T Foo) Test {}
 				type (X Bar) Foo {[foo]}
 				type Bar {[bar]}
-				meth Int [foo |]
-				meth Int [bar |]
+				meth Int [foo]
+				meth Int [bar]
 			`,
 			err: "method T bar not found",
 		},
@@ -1259,7 +1273,7 @@ func TestAssignConvert(t *testing.T) {
 					x Int := 5.
 					y Eq := x.
 				]
-				meth Int [ === _ T& |]
+				meth Int [ === _ T&]
 				type Eq { [=== T& ^Bool] }
 			`,
 			err: "Int does not implement Eq",
@@ -1286,14 +1300,14 @@ func TestMethError(t *testing.T) {
 		{
 			name: "reference receiver",
 			src: `
-				meth T& [foo |]
+				meth T& [foo]
 			`,
 			err: "invalid receiver type",
 		},
 		{
 			name: "alias to a ref",
 			src: `
-				meth Xyz [foo |]
+				meth Xyz [foo]
 				type Xyz := Int & & &.
 			`,
 			err: "invalid receiver type",
@@ -1407,7 +1421,7 @@ func TestCallError(t *testing.T) {
 			name: "method found",
 			src: `
 				val x := [ 5 foo: 5 bar: 6 ]
-				meth Int [foo: _ Int bar: _ Int |]
+				meth Int [foo: _ Int bar: _ Int]
 			`,
 			err: "",
 		},
@@ -1418,7 +1432,7 @@ func TestCallError(t *testing.T) {
 					x Int& := 12.
 					x foo: 5 bar: 6
 				]
-				meth Int [foo: _ Int bar: _ Int |]
+				meth Int [foo: _ Int bar: _ Int]
 			`,
 			err: "",
 		},
@@ -1429,7 +1443,7 @@ func TestCallError(t *testing.T) {
 					x Int& & & & := 12.
 					x foo: 5 bar: 6
 				]
-				meth Int [foo: _ Int bar: _ Int |]
+				meth Int [foo: _ Int bar: _ Int]
 			`,
 			err: "",
 		},
@@ -1437,7 +1451,7 @@ func TestCallError(t *testing.T) {
 			name: "method on bad type is not found",
 			src: `
 				val x := [ 5 foo: 5 bar: 6 ]
-				meth Bad [foo: _ Int bar: _ Int |]
+				meth Bad [foo: _ Int bar: _ Int]
 			`,
 			err: "method Int foo:bar: not found",
 		},
@@ -1456,7 +1470,7 @@ func TestCallError(t *testing.T) {
 			`,
 			imports: [][2]string{
 				{"found", `
-					Func [foo: _ Int bar: _ Int |]
+					Func [foo: _ Int bar: _ Int]
 				`},
 			},
 			err: "",
@@ -1469,7 +1483,7 @@ func TestCallError(t *testing.T) {
 			`,
 			imports: [][2]string{
 				{"found", `
-					Meth Int [foo: _ Int bar: _ Int |]
+					Meth Int [foo: _ Int bar: _ Int]
 				`},
 			},
 			err: "",
@@ -1482,7 +1496,7 @@ func TestCallError(t *testing.T) {
 			`,
 			imports: [][2]string{
 				{"found", `
-					func [foo: _ Int bar: _ Int |]
+					func [foo: _ Int bar: _ Int]
 				`},
 			},
 			err: "function #found foo:bar: not found",
@@ -1495,7 +1509,7 @@ func TestCallError(t *testing.T) {
 			`,
 			imports: [][2]string{
 				{"found", `
-					meth Int [foo: _ Int bar: _ Int |]
+					meth Int [foo: _ Int bar: _ Int]
 				`},
 			},
 			err: "method Int #found foo:bar: not found",
@@ -1519,7 +1533,7 @@ func TestCallError(t *testing.T) {
 			name: "function call does not find a method",
 			src: `
 				val x := [ foo: 5 bar: 6 ]
-				meth Int [foo: _ Int bar: _ Int |]
+				meth Int [foo: _ Int bar: _ Int]
 			`,
 			err: "function foo:bar: not found",
 		},
@@ -1527,7 +1541,7 @@ func TestCallError(t *testing.T) {
 			name: "method call does not find a function",
 			src: `
 				val x := [ 5 foo: 5 bar: 6 ]
-				func [foo: _ Int bar: _ Int |]
+				func [foo: _ Int bar: _ Int]
 			`,
 			err: "method Int foo:bar: not found",
 		},
@@ -1741,7 +1755,7 @@ func TestCallInstRecvType(t *testing.T) {
 				]
 				type (X, Y) Foo { }
 				type T FloatFoo := (T, Float) Foo.
-				meth T FloatFoo [at: _ Float ^T |]
+				meth T FloatFoo [at: _ Float ^T]
 			`,
 			err: "Int32 xyz: not found",
 		},
@@ -1753,7 +1767,7 @@ func TestCallInstRecvType(t *testing.T) {
 					recv foo
 				]
 				type FloatArray := Float Array.
-				meth FloatArray [foo |]
+				meth FloatArray [foo]
 			`,
 			err: "type mismatch: have Int, want Float",
 		},
@@ -1765,7 +1779,7 @@ func TestCallInstRecvType(t *testing.T) {
 					recv foo
 				]
 				type FloatArray := Float Array.
-				meth FloatArray [foo |]
+				meth FloatArray [foo]
 			`,
 			err: "Unknown not found",
 		},
@@ -1823,7 +1837,7 @@ func TestIdentLookup(t *testing.T) {
 		]
 		val modVar := [5]
 		type Test { ignore: Float fieldVar: Int }
-		func [ unaryFun |]
+		func [unaryFun]
 	`
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {

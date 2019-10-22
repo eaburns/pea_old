@@ -18,7 +18,7 @@ func TestInstCallError(t *testing.T) {
 					foo: 6.
 					foo: "another string".
 				]
-				func T [foo: _ T |]
+				func T [foo: _ T]
 			`,
 			err: "",
 		},
@@ -29,7 +29,7 @@ func TestInstCallError(t *testing.T) {
 					u Unknown := {}.
 					foo: u.
 				]
-				func T [foo: _ T |]
+				func T [foo: _ T]
 			`,
 			err: "Unknown not found",
 		},
@@ -37,7 +37,7 @@ func TestInstCallError(t *testing.T) {
 			name: "not all vars bound",
 			src: `
 				val test := [ foo: 5 ]
-				func T [foo: _ Int |]
+				func T [foo: _ Int]
 			`,
 			err: "cannot infer",
 		},
@@ -45,7 +45,7 @@ func TestInstCallError(t *testing.T) {
 			name: "return unify fails",
 			src: `
 				val test String := [ foo ]
-				func T [foo ^T Array |]
+				func T [foo ^T Array]
 			`,
 			err: "type mismatch",
 		},
@@ -53,7 +53,7 @@ func TestInstCallError(t *testing.T) {
 			name: "param unify fails",
 			src: `
 				val test := [ foo: "string" ]
-				func T [foo: _ T Array |]
+				func T [foo: _ T Array]
 			`,
 			err: "type mismatch",
 		},
@@ -61,7 +61,7 @@ func TestInstCallError(t *testing.T) {
 			name: "multi-binding type mismatch",
 			src: `
 				val test Rune := [ foo: "string" ]
-				func T [foo: _ T ^T |]
+				func T [foo: _ T ^T]
 			`,
 			err: "have String, want Int32",
 		},
@@ -108,7 +108,7 @@ func TestInstCall(t *testing.T) {
 					recv at: "pi" put: 3.14
 				]
 				type (K, V) Map {}
-				meth (K, V) Map [at: _ K put: _ V |]
+				meth (K, V) Map [at: _ K put: _ V]
 			`,
 			want: "(String, Float) Map [at: _ String put: _ Float]",
 		},
@@ -124,7 +124,7 @@ func TestInstCall(t *testing.T) {
 			imports: [][2]string{
 				{"map", `
 					Type (K, V) Map {}
-					Meth (K, V) Map [at: _ K put: _ V |]
+					Meth (K, V) Map [at: _ K put: _ V]
 				`},
 			},
 			want: "(String, Float) #map Map [at: _ String put: _ Float]",
@@ -144,7 +144,7 @@ func TestInstCall(t *testing.T) {
 				val test := [
 					foo: "Hello"
 				]
-				func T [foo: _ T |]
+				func T [foo: _ T]
 			`,
 			want: "[foo: _ String]",
 		},
@@ -155,7 +155,7 @@ func TestInstCall(t *testing.T) {
 					arg String Array Array := {}.
 					foo: arg
 				]
-				func T [foo: _ T Array Array |]
+				func T [foo: _ T Array Array]
 			`,
 			want: "[foo: _ String Array Array]",
 		},
@@ -166,7 +166,7 @@ func TestInstCall(t *testing.T) {
 					recv Int8 Array := {}.
 					recv map: [:i Int8 | "foo"]
 				]
-				meth T Array R [map: _ (T, R) Fun ^R Array |]
+				meth T Array R [map: _ (T, R) Fun ^R Array]
 			`,
 			want: "Int8 Array [map: _ (Int8, String) Fun ^String Array]",
 		},
@@ -177,7 +177,7 @@ func TestInstCall(t *testing.T) {
 					recv Int8 Array :={}.
 					recv init: "hello" fold: [:i Int8 :s String | "foo"]
 				]
-				meth T Array R [init: _ R fold: _ (T, R, R) Fun ^R |]
+				meth T Array R [init: _ R fold: _ (T, R, R) Fun ^R]
 			`,
 			want: "Int8 Array [init: _ String fold: _ (Int8, String, String) Fun ^String]",
 		},
