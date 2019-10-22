@@ -537,6 +537,45 @@ func TestMethDef(t *testing.T) {
 			`,
 			err: "",
 		},
+		{
+			name: "unknown receiver type",
+			src: `
+				meth Unknown [foo |]
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "receiver constraint not met",
+			src: `
+				meth (T T Fooer) Test [foo |]
+				type T Test {}
+				type (T Barer) Fooer {[foo]}
+				type Barer {[bar]}
+			`,
+			err: "method T bar not found",
+		},
+		{
+			name: "reference receiver is not allowed",
+			src: `
+				meth T& [foo |]
+			`,
+			err: "cannot add a method to &",
+		},
+		{
+			name: "self has expected type",
+			src: `
+				meth T Array [foo | _ Int := self ]
+			`,
+			err: "have T Array, want Int",
+		},
+		{
+			name: "alias receiver with bound type arg",
+			src: `
+				meth IntArray [foo | _ String := self at: 0 ]
+				type IntArray := Int Array.
+			`,
+			err: "have Int&, want String",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
