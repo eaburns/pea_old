@@ -315,24 +315,25 @@ func isRet(s Stmt) bool {
 }
 
 func checkType(x *scope, def *Type) (errs []checkError) {
+	defer x.tr("checkType(%s)", def)(&errs)
 	for i := range def.Parms {
 		for j := range def.Parms[i].Ifaces {
 			iface := &def.Parms[i].Ifaces[j]
 			errs = append(errs, checkTypeName(x, iface)...)
 		}
 	}
-	defer x.tr("checkType(%s)", def.name())(&errs)
+	var es []checkError
 	switch {
 	case def.Alias != nil:
-		errs = checkTypeName(x, def.Alias)
+		es = checkTypeName(x, def.Alias)
 	case def.Fields != nil:
-		errs = checkFields(x, def.Fields)
+		es = checkFields(x, def.Fields)
 	case def.Cases != nil:
-		errs = checkCases(x, def.Cases)
+		es = checkCases(x, def.Cases)
 	case def.Virts != nil:
-		errs = checkVirts(x, def.Virts)
+		es = checkVirts(x, def.Virts)
 	}
-	return errs
+	return append(errs, es...)
 }
 
 func checkFields(x *scope, fields []Var) []checkError {
