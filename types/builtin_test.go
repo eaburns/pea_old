@@ -148,3 +148,46 @@ func TestCaseMethod(t *testing.T) {
 		t.Run(test.name, test.run)
 	}
 }
+
+func TestBuiltInMethSelfIsRef(t *testing.T) {
+	src := `
+		type Virt {[foo]}
+		type T Opt {some: T | none}
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+
+	var foo *Fun
+	var ifSomeIfNone *Fun
+	for _, def := range mod.Defs {
+		fun, ok := def.(*Fun)
+		if !ok {
+			continue
+		}
+		switch fun.Sig.Sel {
+		case "ifSome:ifNone:":
+			ifSomeIfNone = fun
+		case "foo":
+			foo = fun
+		}
+	}
+
+	if ifSomeIfNone == nil {
+		t.Fatal("ifSome:ifNone: not found")
+	}
+	if ifSomeIfNone.Sig.Parms[0].typ.Name != "&" {
+		t.Errorf("ifSome:ifNone: non-reference self")
+	}
+	if foo == nil {
+		t.Fatal("foo not found")
+	}
+	if foo.Sig.Parms[0].typ.Name != "&" {
+		t.Error("foo non-reference self")
+	}
+}

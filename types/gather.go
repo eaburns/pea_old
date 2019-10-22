@@ -104,18 +104,20 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	def.Sig = *sig
 
 	if def.Recv != nil {
-		self := Var{
-			Name: "self",
-			TypeName: &TypeName{
-				AST:  def.Recv.AST,
-				Mod:  def.Recv.Mod,
-				Name: def.Recv.Name,
-				Type: def.Recv.Type,
-			},
-			typ: def.Recv.Type,
+		selfBaseTypeName := TypeName{
+			AST:  def.Recv.AST,
+			Mod:  def.Recv.Mod,
+			Name: def.Recv.Name,
+			Type: def.Recv.Type,
 		}
 		if def.Recv.Type != nil {
-			self.TypeName.Args = def.Recv.Type.Args
+			selfBaseTypeName.Args = def.Recv.Type.Args
+		}
+		selfType := builtInType(x, "&", selfBaseTypeName)
+		self := Var{
+			Name:     "self",
+			TypeName: makeTypeName(selfType),
+			typ:      selfType,
 		}
 		def.Sig.Parms = append([]Var{self}, def.Sig.Parms...)
 	}

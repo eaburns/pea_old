@@ -14,9 +14,9 @@ const MaxValueParms = 4
 // univ are the definitions of the universal package.
 // This is executed with text/template.
 var univ = `
-	type Nil {}
-
 	type T& {}
+
+	type Nil {}
 
 	type Bool { true | false }
 	val true Bool := [ {true} ]

@@ -34,10 +34,11 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 	retName := TypeName{Name: tmp, Type: retType}
 
 	var sel strings.Builder
+	selfType := builtInType(x, "&", *makeTypeName(typ))
 	parms := []Var{{
 		Name:     "self",
-		TypeName: makeTypeName(typ),
-		typ:      typ,
+		TypeName: makeTypeName(selfType),
+		typ:      selfType,
 	}}
 	for _, c := range typ.Cases {
 		sel.WriteString("if")
@@ -93,7 +94,12 @@ func makeVirtMeths(x *scope, typ *Type) []Def {
 
 func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 	parms := make([]Var, len(sig.Parms)+1)
-	parms[0] = Var{Name: "self", TypeName: makeTypeName(typ), typ: typ}
+	selfType := builtInType(x, "&", *makeTypeName(typ))
+	parms[0] = Var{
+		Name:     "self",
+		TypeName: makeTypeName(selfType),
+		typ:      selfType,
+	}
 	for i, p := range sig.Parms {
 		p.Name = "_"
 		parms[i+1] = p

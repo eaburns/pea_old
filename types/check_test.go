@@ -566,7 +566,7 @@ func TestMethDef(t *testing.T) {
 			src: `
 				meth T Array [foo | _ Int := self ]
 			`,
-			err: "have T Array, want Int",
+			err: "have T Array&, want Int",
 		},
 		{
 			name: "alias receiver with bound type arg",

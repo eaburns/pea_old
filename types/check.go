@@ -41,13 +41,13 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	x.mod = mod
 
 	mod.Defs, errs = makeDefs(x, astMod.Files)
-	errs = append(errs, checkDups(x, mod.Defs)...)
-	errs = append(errs, gatherDefs(x, mod.Defs)...)
 	if isUniv {
 		// In this case, we are checking the univ mod.
 		// We've only now just gathered the defs, so set them in the state.
 		x.up.univ = mod.Defs
 	}
+	errs = append(errs, checkDups(x, mod.Defs)...)
+	errs = append(errs, gatherDefs(x, mod.Defs)...)
 	mod.Defs = append(mod.Defs, builtInMeths(x, mod.Defs)...)
 	if isUniv {
 		// In this case, we are checking the univ mod.
