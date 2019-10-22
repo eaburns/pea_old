@@ -358,12 +358,16 @@ func checkCases(x *scope, cases []Var) []checkError {
 	seen := make(map[string]*Var)
 	for i := range cases {
 		cas := &cases[i]
-		if prev, ok := seen[cas.Name]; ok {
-			err := x.err(cas, "case %s redefined", cas.Name)
+		lower := strings.ToLower(cas.Name)
+		if prev, ok := seen[lower]; ok {
+			err := x.err(cas, "case %s redefined", prev.Name)
+			if prev.Name != cas.Name {
+				note(err, "cases cannot differ in only capitalization")
+			}
 			note(err, "previous definition at %s", x.loc(prev))
 			errs = append(errs, *err)
 		} else {
-			seen[cas.Name] = cas
+			seen[lower] = cas
 		}
 		if cas.TypeName != nil {
 			errs = append(errs, checkTypeName(x, cas.TypeName)...)
