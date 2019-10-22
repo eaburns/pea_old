@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -133,4 +134,44 @@ func makeTypeName(typ *Type) *TypeName {
 		Args: args,
 		Type: typ,
 	}
+}
+
+func builtInType(x *scope, name string, args ...TypeName) *Type {
+	// Silence tracing for looking up built-in types.
+	savedTrace := x.cfg.Trace
+	x.cfg.Trace = false
+	defer func() { x.cfg.Trace = savedTrace }()
+
+	for x.univ == nil {
+		x = x.up
+	}
+	typ := findType(len(args), name, x.univ)
+	if typ == nil {
+		panic(fmt.Sprintf("built-in type (%d)%s not found", len(args), name))
+	}
+	typ, errs := instType(x, typ, args)
+	if len(errs) > 0 {
+		panic(fmt.Sprintf("failed to inst built-in type: %v", errs))
+	}
+	return typ
+}
+
+func isNil(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Name == "Nil"
+}
+
+func isAry(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Name == "Array"
+}
+
+func isRef(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Name == "&"
+}
+
+func isFun(x *scope, typ *Type) bool {
+	return isBuiltIn(x, typ) && typ.Name == "Fun"
+}
+
+func isBuiltIn(x *scope, typ *Type) bool {
+	return typ != nil && typ.Mod == "" && x.defFiles[typ] == nil
 }
