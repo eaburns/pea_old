@@ -582,7 +582,32 @@ func TestMethDef(t *testing.T) {
 	}
 }
 
-func TestAliasDef(t *testing.T) {
+func TestTypeDefParms(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "constraint ok",
+			src: `
+				type (K K Key, V) Map {keys: K Array vals: V Array}
+				type T Key {[= T& ^Bool]}
+			`,
+			err: "",
+		},
+		{
+			name: "constraint not met",
+			src: `
+				type (T T Fooer) Test {f: T}
+				type (T Barer) Fooer {[foo]}
+				type Barer {[bar]}
+			`,
+			err: "method T bar not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestAliasTypeDef(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "target not found",
@@ -662,6 +687,179 @@ func TestAliasDef(t *testing.T) {
 				type AbcXyz123 := Abc.
 			`,
 			err: "type alias cycle",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestAndTypeDef(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "empty ok",
+			src: `
+				type Test {}
+			`,
+			err: "",
+		},
+		{
+			name: "ok",
+			src: `
+				type Test {x: Int y: Int}
+			`,
+			err: "",
+		},
+		{
+			name: "type param ok",
+			src: `
+				type (X, Y) Pair {x: X y: Y}
+			`,
+			err: "",
+		},
+		{
+			name: "unknown field type",
+			src: `
+				type Test {f: Unknown}
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "field redefined",
+			src: `
+				type Test {f: Int f: Int}
+			`,
+			err: "field f redefined",
+		},
+		{
+			name: "fields differing in capitalization are OK",
+			src: `
+				type Test {field: Int Field: String}
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestOrTypeDef(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				type Test {a | b: Int | c: String | d}
+			`,
+			err: "",
+		},
+		{
+			name: "type param OK",
+			src: `
+				type T Test {a | b: T}
+			`,
+			err: "",
+		},
+		{
+			name: "unknown type",
+			src: `
+				type Test {a: Unknown}
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "ident case redefined",
+			src: `
+				type T Test {a | a}
+			`,
+			err: "case a redefined",
+		},
+		{
+			name: "identC case redefined",
+			src: `
+				type T Test {a: Int | a: Float}
+			`,
+			err: "case a: redefined",
+		},
+		{
+			name: "ident and indentC cases are OK",
+			src: `
+				type T Test {a | a: Float}
+			`,
+			err: "",
+		},
+		{
+			name: "cases differ only in capitalization",
+			src: `
+				type T Test {abc: Int | Abc: Float}
+			`,
+			err: "case abc: redefined",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestVirtTypeDef(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				type Test {[foo] [bar: Int] [baz ^Bool]}
+			`,
+			err: "",
+		},
+		{
+			name: "type param ok",
+			src: `
+				type T Test {[foo: T]}
+			`,
+			err: "",
+		},
+		{
+			name: "unknown param type",
+			src: `
+				type Test {[foo: Unknown]}
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "unknown return type",
+			src: `
+				type Test {[foo ^Unknown]}
+			`,
+			err: "type Unknown not found",
+		},
+		{
+			name: "method redefined",
+			src: `
+				type Test {[foo] [foo]}
+			`,
+			err: "method foo redefined",
+		},
+		{
+			name: "complex method redefined",
+			src: `
+				type Test {
+					[foo: Int bar: String baz: String]
+					[foo: String bar: Float baz: Int&]
+				}
+			`,
+			err: "method foo:bar:baz: redefined",
+		},
+		{
+			name: "methods not redefined",
+			src: `
+				type Test {
+					[foo: Int bar: String baz: String]
+					[foo: String baz: Int& bar: Float]
+					[foo: Int]
+					[foo]
+					[foo: Int BAR: String baz: String]
+				}
+			`,
+			err: "",
 		},
 	}
 	for _, test := range tests {
