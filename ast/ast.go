@@ -20,6 +20,10 @@ type File struct {
 // An Import is an import statement.
 type Import struct {
 	location
+	// All indicates whether the keyword was "Import",
+	// which imports all the exported symbols
+	// in addition to the module name.
+	All  bool
 	Path string
 }
 

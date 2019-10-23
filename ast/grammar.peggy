@@ -48,9 +48,10 @@ File <- imports:Import* defs:Def* _ EOF {
 	}
 }
 
-Import <- _ i:( "import" path:String {
+Import <- _ i:( kw:( "import" / "Import" ) path:String {
 	return Import{
 		location: loc(parser, start, end),
+		All: kw == "Import",
 		Path: path.Text,
 	}
 }) { return Import(i) }

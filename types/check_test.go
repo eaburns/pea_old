@@ -357,6 +357,156 @@ func TestRedefError(t *testing.T) {
 			`,
 			err: "virtual method foo:bar: redefined",
 		},
+		{
+			name: "Import val redef",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					"Val x := [5]",
+				},
+				{
+					"bar",
+					"Val x := [5]",
+				},
+			},
+			err: "previous definition imported at",
+		},
+		{
+			name: "Import type redef",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					"Type Point {x: Int y: Int}",
+				},
+				{
+					"bar",
+					"Type Point {x: String y: Float}",
+				},
+			},
+			err: "previous definition imported at",
+		},
+		{
+			name: "Import type versus value redef",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					"Val Point := [5]",
+				},
+				{
+					"bar",
+					"Type Point {x: String y: Float}",
+				},
+			},
+			err: "previous definition imported at",
+		},
+		{
+			name: "Import non-exported, no refed",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						val Point := [5]
+						Val Abc := [5]
+						type Def {}
+					`,
+				},
+				{
+					"bar",
+					`
+						type Point {x: String y: Float}
+						val Abc := [5]
+						Type Def {}
+					`,
+				},
+			},
+			err: "",
+		},
+		{
+			name: "Import method redef",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					"Meth Int [foo: _ String bar: _ Int]",
+				},
+				{
+					"bar",
+					"Meth Int [foo: _ String bar: _ Int]",
+				},
+			},
+			err: "previous definition imported at",
+		},
+		{
+			name: "Import method non-dup with diff recv",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					"Meth Int [foo: _ String bar: _ Int]",
+				},
+				{
+					"bar",
+					"Meth Float [foo: _ String bar: _ Int]",
+				},
+			},
+			err: "",
+		},
+		{
+			name: "Import method non-dup with diff recv, but same name",
+			src: `
+				Import "foo"
+				Import "bar"
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Import "baz"
+						// #baz Test
+						Meth Test [foo: _ String bar: _ Int]
+					`,
+				},
+				{
+					"bar",
+					`
+						Import "qux"
+						// #qux Test
+						Meth Test [foo: _ String bar: _ Int]
+					`,
+				},
+				{
+					"baz",
+					"Type Test {}",
+				},
+				{
+					"qux",
+					"Type Test {}",
+				},
+			},
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -881,7 +1031,7 @@ func TestVirtTypeDef(t *testing.T) {
 	}
 }
 
-func TestTypeNameError(t *testing.T) {
+func TestTypeName(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "simple type",
@@ -1024,6 +1174,72 @@ func TestTypeNameError(t *testing.T) {
 				meth Int [foo|]
 			`,
 			err: "method String bar not found",
+		},
+		{
+			name: "imported type name",
+			src: `
+				import "foo"
+				val x #foo Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+			},
+			err: "",
+		},
+		{
+			name: "imported private type name not found",
+			src: `
+				import "foo"
+				val x #foo Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "type Test {x: Int}"},
+			},
+			err: "type #foo Test not found",
+		},
+		{
+			name: "imported type name not found with out mod tag",
+			src: `
+				import "foo"
+				val x Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+			},
+			err: "type Test not found",
+		},
+		{
+			name: "Imported type name",
+			src: `
+				Import "foo"
+				val x Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+			},
+			err: "",
+		},
+		{
+			name: "Imported private type name not found",
+			src: `
+				Import "foo"
+				val x Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "type Test {x: Int}"},
+			},
+			err: "type Test not found",
+		},
+		{
+			name: "Imported type name with mod tag",
+			src: `
+				Import "foo"
+				val x #foo Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+			},
+			err: "",
 		},
 	}
 	for _, test := range tests {
@@ -1393,7 +1609,7 @@ func TestAssignToExistingVariable(t *testing.T) {
 	}
 }
 
-func TestCallError(t *testing.T) {
+func TestCall(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "function not found",
@@ -1544,6 +1760,138 @@ func TestCallError(t *testing.T) {
 				func [foo: _ Int bar: _ Int]
 			`,
 			err: "method Int foo:bar: not found",
+		},
+		{
+			name: "imported func",
+			src: `
+				import "foo"
+				val _ String := [#foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo ^Int]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "imported priv func not found",
+			src: `
+				import "foo"
+				val _ String := [#foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "func [foo ^Int]"},
+			},
+			err: "function #foo foo not found",
+		},
+		{
+			name: "imported func not found without mod tag",
+			src: `
+				import "foo"
+				val _ String := [foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo ^Int]"},
+			},
+			err: "identifier foo not found",
+		},
+		{
+			name: "Imported func",
+			src: `
+				Import "foo"
+				val _ String := [foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo ^Int]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "Imported priv func not found",
+			src: `
+				Import "foo"
+				val _ String := [foo]
+			`,
+			imports: [][2]string{
+				{"foo", "func [foo ^Int]"},
+			},
+			err: "identifier foo not found",
+		},
+		{
+			name: "Imported func with mod tag",
+			src: `
+				Import "foo"
+				val _ String := [#foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo ^Int]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "imported meth",
+			src: `
+				import "foo"
+				val _ String := [5 #foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "imported priv meth not found",
+			src: `
+				import "foo"
+				val _ String := [5 #foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "meth Int [foo ^Int]"},
+			},
+			err: "method Int #foo foo not found",
+		},
+		{
+			name: "imported meth not found without mod tag",
+			src: `
+				import "foo"
+				val _ String := [5 foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+			},
+			err: "method Int foo not found",
+		},
+		{
+			name: "Imported meth",
+			src: `
+				Import "foo"
+				val _ String := [5 foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "Imported priv meth not found",
+			src: `
+				Import "foo"
+				val _ String := [5 foo]
+			`,
+			imports: [][2]string{
+				{"foo", "meth Int [foo ^Int]"},
+			},
+			err: "method Int foo not found",
+		},
+		{
+			name: "Imported func with mod tag",
+			src: `
+				Import "foo"
+				val _ String := [5 #foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+			},
+			err: "have Int, want String",
 		},
 	}
 	for _, test := range tests {
@@ -1806,16 +2154,132 @@ func TestCallInstRecvType(t *testing.T) {
 	}
 }
 
-func TestIdentError(t *testing.T) {
+func TestIdent(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "not found",
 			src: `
 				val x := [
-					unknown.
+					unknown
 				]
 			`,
 			err: "unknown not found",
+		},
+		{
+			name: "param",
+			src: `
+				func [foo: x Int |
+					_ String := x
+				]
+			`,
+			err: "have Int, want String",
+		},
+		{
+			name: "local",
+			src: `
+				func [foo |
+					x Int := 5.
+					_ String := x
+				]
+			`,
+			err: "have Int, want String",
+		},
+		{
+			name: "field",
+			src: `
+				meth Test [foo |
+					_ String := x
+				]
+				type Test {x: Int}
+			`,
+			err: "have Int, want String",
+		},
+		{
+			name: "self",
+			src: `
+				meth Int [foo |
+					_ String := self
+				]
+			`,
+			err: "have Int&, want String",
+		},
+		{
+			name: "val",
+			src: `
+				val x Int := [5]
+				val _ String := [x]
+			`,
+			err: "have Int, want String",
+		},
+		{
+			// TODO: implement mod paths on identifiers.
+			name: "SKIP: imported val",
+			src: `
+				import "foo"
+				val _ String := [#foo x]
+			`,
+			imports: [][2]string{{
+				"foo", "Val x Int := [5]",
+			}},
+			err: "",
+		},
+		{
+			// TODO: implement mod paths on identifiers.
+			name: "SKIP: private imported val not found",
+			src: `
+				import "foo"
+				val _ String := [#foo x]
+			`,
+			imports: [][2]string{{
+				"foo", "val x Int := [5]",
+			}},
+			err: "identifier #foo x not found",
+		},
+		{
+			// TODO: implement mod paths on identifiers.
+			name: "SKIP: imported val not found with mod tag",
+			src: `
+				import "foo"
+				val _ String := [x]
+			`,
+			imports: [][2]string{{
+				"foo", "Val x Int := [5]",
+			}},
+			err: "identifier x not found",
+		},
+		{
+			name: "Imported val",
+			src: `
+				Import "foo"
+				val _ String := [x]
+			`,
+			imports: [][2]string{{
+				"foo", "Val x Int := [5]",
+			}},
+			err: "have Int, want String",
+		},
+		{
+			name: "private Imported val not found",
+			src: `
+				Import "foo"
+				val _ String := [x]
+			`,
+			imports: [][2]string{{
+				"foo", "val x Int := [5]",
+			}},
+			err: "identifier x not found",
+		},
+		{
+			// TODO: implement mod paths on identifiers.
+			name: "SKIP: private Imported val with mod tag",
+			src: `
+				Import "foo"
+				val _ String := [#foo x]
+			`,
+			imports: [][2]string{{
+				"foo", "Val x Int := [5]",
+			}},
+			err: "",
 		},
 	}
 	for _, test := range tests {
@@ -2553,6 +3017,9 @@ type errorTest struct {
 }
 
 func (test errorTest) run(t *testing.T) {
+	if strings.HasPrefix(test.name, "SKIP:") {
+		return
+	}
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)

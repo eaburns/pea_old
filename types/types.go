@@ -26,7 +26,10 @@ type Node interface {
 type Def interface {
 	Node
 
-	// type, method, function, value.
+	// priv is whether the definition is private.
+	priv() bool
+
+	// kind is the name of the definition kind: type, method, function, value.
 	kind() string
 
 	// name returns the name of the definition.
@@ -51,6 +54,7 @@ type Val struct {
 }
 
 func (n *Val) ast() ast.Node { return n.AST }
+func (n *Val) priv() bool    { return n.Priv }
 func (n *Val) kind() string  { return "value" }
 
 func (n *Val) name() string {
@@ -89,6 +93,8 @@ type Fun struct {
 }
 
 func (n *Fun) ast() ast.Node { return n.AST }
+
+func (n *Fun) priv() bool { return n.Priv }
 
 func (n *Fun) kind() string {
 	if n.Recv != nil {
@@ -187,7 +193,10 @@ type Type struct {
 }
 
 func (n *Type) ast() ast.Node { return n.AST }
-func (n *Type) kind() string  { return "type" }
+
+func (n *Type) priv() bool { return n.Priv }
+
+func (n *Type) kind() string { return "type" }
 
 func (n *Type) name() string {
 	switch {

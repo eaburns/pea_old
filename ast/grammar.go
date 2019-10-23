@@ -448,40 +448,64 @@ fail:
 }
 
 func _ImportAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [2]string
+	var labels [3]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _Import, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// _ i:("import" path:String {…})
+	// _ i:(kw:("import"/"Import") path:String {…})
 	// _
 	if !_accept(parser, __Accepts, &pos, &perr) {
 		goto fail
 	}
-	// i:("import" path:String {…})
+	// i:(kw:("import"/"Import") path:String {…})
 	{
 		pos1 := pos
-		// ("import" path:String {…})
+		// (kw:("import"/"Import") path:String {…})
 		// action
-		// "import" path:String
-		// "import"
-		if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "import" {
-			perr = _max(perr, pos)
-			goto fail
-		}
-		pos += 6
-		// path:String
+		// kw:("import"/"Import") path:String
+		// kw:("import"/"Import")
 		{
 			pos3 := pos
+			// ("import"/"Import")
+			// "import"/"Import"
+			{
+				pos7 := pos
+				// "import"
+				if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "import" {
+					perr = _max(perr, pos)
+					goto fail8
+				}
+				pos += 6
+				goto ok4
+			fail8:
+				pos = pos7
+				// "Import"
+				if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "Import" {
+					perr = _max(perr, pos)
+					goto fail9
+				}
+				pos += 6
+				goto ok4
+			fail9:
+				pos = pos7
+				goto fail
+			ok4:
+			}
+			labels[0] = parser.text[pos3:pos]
+		}
+		// path:String
+		{
+			pos10 := pos
 			// String
 			if !_accept(parser, _StringAccepts, &pos, &perr) {
 				goto fail
 			}
-			labels[0] = parser.text[pos3:pos]
+			labels[1] = parser.text[pos10:pos]
 		}
-		labels[1] = parser.text[pos1:pos]
+		labels[2] = parser.text[pos1:pos]
 	}
 	return _memoize(parser, _Import, start, pos, perr)
 fail:
@@ -489,7 +513,7 @@ fail:
 }
 
 func _ImportFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [2]string
+	var labels [3]string
 	use(labels)
 	pos, failure := _failMemo(parser, _Import, start, errPos)
 	if failure != nil {
@@ -501,38 +525,67 @@ func _ImportFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _Import}
 	// action
-	// _ i:("import" path:String {…})
+	// _ i:(kw:("import"/"Import") path:String {…})
 	// _
 	if !_fail(parser, __Fail, errPos, failure, &pos) {
 		goto fail
 	}
-	// i:("import" path:String {…})
+	// i:(kw:("import"/"Import") path:String {…})
 	{
 		pos1 := pos
-		// ("import" path:String {…})
+		// (kw:("import"/"Import") path:String {…})
 		// action
-		// "import" path:String
-		// "import"
-		if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "import" {
-			if pos >= errPos {
-				failure.Kids = append(failure.Kids, &peg.Fail{
-					Pos:  int(pos),
-					Want: "\"import\"",
-				})
-			}
-			goto fail
-		}
-		pos += 6
-		// path:String
+		// kw:("import"/"Import") path:String
+		// kw:("import"/"Import")
 		{
 			pos3 := pos
+			// ("import"/"Import")
+			// "import"/"Import"
+			{
+				pos7 := pos
+				// "import"
+				if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "import" {
+					if pos >= errPos {
+						failure.Kids = append(failure.Kids, &peg.Fail{
+							Pos:  int(pos),
+							Want: "\"import\"",
+						})
+					}
+					goto fail8
+				}
+				pos += 6
+				goto ok4
+			fail8:
+				pos = pos7
+				// "Import"
+				if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "Import" {
+					if pos >= errPos {
+						failure.Kids = append(failure.Kids, &peg.Fail{
+							Pos:  int(pos),
+							Want: "\"Import\"",
+						})
+					}
+					goto fail9
+				}
+				pos += 6
+				goto ok4
+			fail9:
+				pos = pos7
+				goto fail
+			ok4:
+			}
+			labels[0] = parser.text[pos3:pos]
+		}
+		// path:String
+		{
+			pos10 := pos
 			// String
 			if !_fail(parser, _StringFail, errPos, failure, &pos) {
 				goto fail
 			}
-			labels[0] = parser.text[pos3:pos]
+			labels[1] = parser.text[pos10:pos]
 		}
-		labels[1] = parser.text[pos1:pos]
+		labels[2] = parser.text[pos1:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -542,10 +595,11 @@ fail:
 }
 
 func _ImportAction(parser *_Parser, start int) (int, *Import) {
-	var labels [2]string
+	var labels [3]string
 	use(labels)
-	var label0 String
-	var label1 Import
+	var label0 string
+	var label1 String
+	var label2 Import
 	dp := parser.deltaPos[start][_Import]
 	if dp < 0 {
 		return -1, nil
@@ -561,54 +615,83 @@ func _ImportAction(parser *_Parser, start int) (int, *Import) {
 	// action
 	{
 		start0 := pos
-		// _ i:("import" path:String {…})
+		// _ i:(kw:("import"/"Import") path:String {…})
 		// _
 		if p, n := __Action(parser, pos); n == nil {
 			goto fail
 		} else {
 			pos = p
 		}
-		// i:("import" path:String {…})
+		// i:(kw:("import"/"Import") path:String {…})
 		{
 			pos2 := pos
-			// ("import" path:String {…})
+			// (kw:("import"/"Import") path:String {…})
 			// action
 			{
 				start3 := pos
-				// "import" path:String
-				// "import"
-				if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "import" {
-					goto fail
-				}
-				pos += 6
-				// path:String
+				// kw:("import"/"Import") path:String
+				// kw:("import"/"Import")
 				{
 					pos5 := pos
+					// ("import"/"Import")
+					// "import"/"Import"
+					{
+						pos9 := pos
+						var node8 string
+						// "import"
+						if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "import" {
+							goto fail10
+						}
+						label0 = parser.text[pos : pos+6]
+						pos += 6
+						goto ok6
+					fail10:
+						label0 = node8
+						pos = pos9
+						// "Import"
+						if len(parser.text[pos:]) < 6 || parser.text[pos:pos+6] != "Import" {
+							goto fail11
+						}
+						label0 = parser.text[pos : pos+6]
+						pos += 6
+						goto ok6
+					fail11:
+						label0 = node8
+						pos = pos9
+						goto fail
+					ok6:
+					}
+					labels[0] = parser.text[pos5:pos]
+				}
+				// path:String
+				{
+					pos12 := pos
 					// String
 					if p, n := _StringAction(parser, pos); n == nil {
 						goto fail
 					} else {
-						label0 = *n
+						label1 = *n
 						pos = p
 					}
-					labels[0] = parser.text[pos5:pos]
+					labels[1] = parser.text[pos12:pos]
 				}
-				label1 = func(
-					start, end int, path String) Import {
+				label2 = func(
+					start, end int, kw string, path String) Import {
 					return Import{
 						location: loc(parser, start, end),
+						All:      kw == "Import",
 						Path:     path.Text,
 					}
 				}(
-					start3, pos, label0)
+					start3, pos, label0, label1)
 			}
-			labels[1] = parser.text[pos2:pos]
+			labels[2] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, i Import, path String) Import {
+			start, end int, i Import, kw string, path String) Import {
 			return Import(i)
 		}(
-			start0, pos, label1, label0)
+			start0, pos, label2, label0, label1)
 	}
 	parser.act[key] = node
 	return pos, &node

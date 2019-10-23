@@ -28,6 +28,7 @@ type file struct {
 }
 
 type imp struct {
+	all  bool
 	path string
 	name string
 	defs []Def
@@ -96,6 +97,16 @@ func (x *scope) findType(arity int, name string) *Type {
 		if arity == 0 && x.typeVar.Name == name {
 			return x.typeVar
 		}
+	case x.file != nil:
+		for i := range x.file.imports {
+			imp := &x.file.imports[i]
+			if !imp.all {
+				continue
+			}
+			if t := imp.findType(arity, name); t != nil {
+				return t
+			}
+		}
 	case x.mod != nil:
 		if t := findType(arity, name, x.mod.Defs); t != nil {
 			return t
@@ -139,6 +150,16 @@ func (x *scope) findIdent(name string) interface{} {
 				return f
 			}
 		}
+	case x.file != nil:
+		for i := range x.file.imports {
+			imp := &x.file.imports[i]
+			if !imp.all {
+				continue
+			}
+			if i := imp.findIdent(name); i != nil {
+				return i
+			}
+		}
 	case x.mod != nil:
 		if fun := findIdent(name, x.mod.Defs); fun != nil {
 			return fun
@@ -149,6 +170,23 @@ func (x *scope) findIdent(name string) interface{} {
 		}
 	}
 	return x.up.findIdent(name)
+}
+
+// findIdent returns either a *Fun that is a unary function or
+// a *Var that is a module-level Val.Var.
+func (imp *imp) findIdent(name string) interface{} {
+	for _, def := range imp.defs {
+		if def.priv() {
+			continue
+		}
+		if fun, ok := def.(*Fun); ok && fun.Recv == nil && fun.Sig.Sel == name {
+			return fun
+		}
+		if val, ok := def.(*Val); ok && val.Var.Name == name {
+			return &val.Var
+		}
+	}
+	return nil
 }
 
 // findIdent returns either a *Fun that is a unary function or
@@ -169,6 +207,16 @@ func (x *scope) findFun(recv *Type, sel string) *Fun {
 	switch {
 	case x == nil:
 		return nil
+	case x.file != nil:
+		for i := range x.file.imports {
+			imp := &x.file.imports[i]
+			if !imp.all {
+				continue
+			}
+			if f := imp.findFun(recv, sel); f != nil {
+				return f
+			}
+		}
 	case x.mod != nil:
 		if f := findFun(recv, sel, x.mod.Defs); f != nil {
 			return f
