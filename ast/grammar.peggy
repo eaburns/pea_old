@@ -21,7 +21,7 @@ type arg struct {
 }
 
 type tname struct {
-	mod *Ident
+	mod *ModTag
 	name Ident
 }
 
@@ -470,7 +470,7 @@ NaryMsg <- mod:ModName? as:(
 }
 
 Primary <-
-	i:Ident { return Expr(&i) }/
+	mod:ModName? i:Ident { i.Mod = mod; return Expr(&i) }/
 	Float /
 	Int /
 	Rune /
@@ -558,8 +558,8 @@ TypeOp "type operator" <- _ tok:( text:( [!&?]+ ) {
 } ) { return Ident(tok) }
 
 ModName "module name" <- _ tok:( text:( "#" [_a-zA-Z][_a-zA-Z0-9]* ) {
-	return Ident{location: loc(parser, start, end), Text: text}
-} ) { return Ident(tok) }
+	return ModTag{location: loc(parser, start, end), Text: text}
+} ) { return ModTag(tok) }
 
 IdentC "identifier:" <- _ !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ":" ) {
 	return Ident{location: loc(parser, start, end), Text: text}

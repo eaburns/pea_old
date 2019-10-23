@@ -20,7 +20,7 @@ type arg struct {
 }
 
 type tname struct {
-	mod  *Ident
+	mod  *ModTag
 	name Ident
 }
 
@@ -2468,7 +2468,7 @@ func _RecvAction(parser *_Parser, start int) (int, *Recv) {
 	var labels [3]string
 	use(labels)
 	var label0 ([]Var)
-	var label1 *Ident
+	var label1 *ModTag
 	var label2 Ident
 	dp := parser.deltaPos[start][_Recv]
 	if dp < 0 {
@@ -2504,7 +2504,7 @@ func _RecvAction(parser *_Parser, start int) (int, *Recv) {
 			// ModName?
 			{
 				pos5 := pos
-				label1 = new(Ident)
+				label1 = new(ModTag)
 				// ModName
 				if p, n := _ModNameAction(parser, pos); n == nil {
 					goto fail6
@@ -2556,7 +2556,7 @@ func _RecvAction(parser *_Parser, start int) (int, *Recv) {
 			labels[2] = parser.text[pos8:pos]
 		}
 		node = func(
-			start, end int, mod *Ident, n Ident, tps []Var) Recv {
+			start, end int, mod *ModTag, n Ident, tps []Var) Recv {
 			l := loc(parser, start, end)
 			if len(tps) > 0 {
 				l.start = tps[0].start
@@ -5325,7 +5325,7 @@ fail:
 func _TNameAction(parser *_Parser, start int) (int, *tname) {
 	var labels [2]string
 	use(labels)
-	var label0 *Ident
+	var label0 *ModTag
 	var label1 Ident
 	dp := parser.deltaPos[start][_TName]
 	if dp < 0 {
@@ -5349,7 +5349,7 @@ func _TNameAction(parser *_Parser, start int) (int, *tname) {
 			// ModName?
 			{
 				pos4 := pos
-				label0 = new(Ident)
+				label0 = new(ModTag)
 				// ModName
 				if p, n := _ModNameAction(parser, pos); n == nil {
 					goto fail5
@@ -5401,7 +5401,7 @@ func _TNameAction(parser *_Parser, start int) (int, *tname) {
 			labels[1] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, mod *Ident, n Ident) tname {
+			start, end int, mod *ModTag, n Ident) tname {
 			return tname{mod: mod, name: n}
 		}(
 			start0, pos, label0, label1)
@@ -9764,7 +9764,7 @@ fail:
 func _UnaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 	var labels [2]string
 	use(labels)
-	var label0 *Ident
+	var label0 *ModTag
 	var label1 Ident
 	dp := parser.deltaPos[start][_UnaryMsg]
 	if dp < 0 {
@@ -9788,7 +9788,7 @@ func _UnaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 			// ModName?
 			{
 				pos4 := pos
-				label0 = new(Ident)
+				label0 = new(ModTag)
 				// ModName
 				if p, n := _ModNameAction(parser, pos); n == nil {
 					goto fail5
@@ -9817,7 +9817,7 @@ func _UnaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 			labels[1] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, i Ident, mod *Ident) Msg {
+			start, end int, i Ident, mod *ModTag) Msg {
 			return Msg{location: i.location, Mod: mod, Sel: i.Text}
 		}(
 			start0, pos, label1, label0)
@@ -10225,7 +10225,7 @@ fail:
 func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 	var labels [5]string
 	use(labels)
-	var label0 *Ident
+	var label0 *ModTag
 	var label1 Ident
 	var label2 *Call
 	var label3 *Call
@@ -10252,7 +10252,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 			// ModName?
 			{
 				pos4 := pos
-				label0 = new(Ident)
+				label0 = new(ModTag)
 				// ModName
 				if p, n := _ModNameAction(parser, pos); n == nil {
 					goto fail5
@@ -10304,7 +10304,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[2] = parser.text[pos15:pos]
 					}
 					label4 = func(
-						start, end int, b *Call, mod *Ident, n Ident) Expr {
+						start, end int, b *Call, mod *ModTag, n Ident) Expr {
 						return Expr(b)
 					}(
 						start14, pos, label2, label0, label1)
@@ -10329,7 +10329,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[3] = parser.text[pos18:pos]
 					}
 					label4 = func(
-						start, end int, b *Call, mod *Ident, n Ident, u *Call) Expr {
+						start, end int, b *Call, mod *ModTag, n Ident, u *Call) Expr {
 						return Expr(u)
 					}(
 						start17, pos, label2, label0, label1, label3)
@@ -10355,7 +10355,7 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 			labels[4] = parser.text[pos8:pos]
 		}
 		node = func(
-			start, end int, a Expr, b *Call, mod *Ident, n Ident, u *Call) Msg {
+			start, end int, a Expr, b *Call, mod *ModTag, n Ident, u *Call) Msg {
 			return Msg{
 				location: location{n.start, loc1(parser, end)},
 				Mod:      mod,
@@ -10997,7 +10997,7 @@ fail:
 func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 	var labels [6]string
 	use(labels)
-	var label0 *Ident
+	var label0 *ModTag
 	var label1 Ident
 	var label2 *Call
 	var label3 *Call
@@ -11025,7 +11025,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 			// ModName?
 			{
 				pos4 := pos
-				label0 = new(Ident)
+				label0 = new(ModTag)
 				// ModName
 				if p, n := _ModNameAction(parser, pos); n == nil {
 					goto fail5
@@ -11088,7 +11088,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[2] = parser.text[pos22:pos]
 								}
 								label4 = func(
-									start, end int, b *Call, mod *Ident, n Ident) Expr {
+									start, end int, b *Call, mod *ModTag, n Ident) Expr {
 									return Expr(b)
 								}(
 									start21, pos, label2, label0, label1)
@@ -11113,7 +11113,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[3] = parser.text[pos25:pos]
 								}
 								label4 = func(
-									start, end int, b *Call, mod *Ident, n Ident, u *Call) Expr {
+									start, end int, b *Call, mod *ModTag, n Ident, u *Call) Expr {
 									return Expr(u)
 								}(
 									start24, pos, label2, label0, label1, label3)
@@ -11139,7 +11139,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[4] = parser.text[pos15:pos]
 					}
 					node10 = func(
-						start, end int, b *Call, mod *Ident, n Ident, u *Call, v Expr) arg {
+						start, end int, b *Call, mod *ModTag, n Ident, u *Call, v Expr) arg {
 						return arg{n, v}
 					}(
 						start12, pos, label2, label0, label1, label3, label4)
@@ -11190,7 +11190,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[2] = parser.text[pos37:pos]
 								}
 								label4 = func(
-									start, end int, b *Call, mod *Ident, n Ident) Expr {
+									start, end int, b *Call, mod *ModTag, n Ident) Expr {
 									return Expr(b)
 								}(
 									start36, pos, label2, label0, label1)
@@ -11215,7 +11215,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 									labels[3] = parser.text[pos40:pos]
 								}
 								label4 = func(
-									start, end int, b *Call, mod *Ident, n Ident, u *Call) Expr {
+									start, end int, b *Call, mod *ModTag, n Ident, u *Call) Expr {
 									return Expr(u)
 								}(
 									start39, pos, label2, label0, label1, label3)
@@ -11241,7 +11241,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 						labels[4] = parser.text[pos30:pos]
 					}
 					node10 = func(
-						start, end int, b *Call, mod *Ident, n Ident, u *Call, v Expr) arg {
+						start, end int, b *Call, mod *ModTag, n Ident, u *Call, v Expr) arg {
 						return arg{n, v}
 					}(
 						start27, pos, label2, label0, label1, label3, label4)
@@ -11255,7 +11255,7 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 			labels[5] = parser.text[pos7:pos]
 		}
 		node = func(
-			start, end int, as []arg, b *Call, mod *Ident, n Ident, u *Call, v Expr) Msg {
+			start, end int, as []arg, b *Call, mod *ModTag, n Ident, u *Call, v Expr) Msg {
 			var sel string
 			var es []Expr
 			for _, a := range as {
@@ -11278,109 +11278,127 @@ fail:
 }
 
 func _PrimaryAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [3]string
+	var labels [4]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _Primary, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
-	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// mod:ModName? i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		// action
+		// mod:ModName? i:Ident
+		// mod:ModName?
+		{
+			pos6 := pos
+			// ModName?
+			{
+				pos8 := pos
+				// ModName
+				if !_accept(parser, _ModNameAccepts, &pos, &perr) {
+					goto fail9
+				}
+				goto ok10
+			fail9:
+				pos = pos8
+			ok10:
+			}
+			labels[0] = parser.text[pos6:pos]
+		}
 		// i:Ident
 		{
-			pos5 := pos
+			pos11 := pos
 			// Ident
 			if !_accept(parser, _IdentAccepts, &pos, &perr) {
 				goto fail4
 			}
-			labels[0] = parser.text[pos5:pos]
+			labels[1] = parser.text[pos11:pos]
 		}
 		goto ok0
 	fail4:
 		pos = pos3
 		// Float
 		if !_accept(parser, _FloatAccepts, &pos, &perr) {
-			goto fail6
-		}
-		goto ok0
-	fail6:
-		pos = pos3
-		// Int
-		if !_accept(parser, _IntAccepts, &pos, &perr) {
-			goto fail7
-		}
-		goto ok0
-	fail7:
-		pos = pos3
-		// Rune
-		if !_accept(parser, _RuneAccepts, &pos, &perr) {
-			goto fail8
-		}
-		goto ok0
-	fail8:
-		pos = pos3
-		// action
-		// s:String
-		{
-			pos10 := pos
-			// String
-			if !_accept(parser, _StringAccepts, &pos, &perr) {
-				goto fail9
-			}
-			labels[1] = parser.text[pos10:pos]
-		}
-		goto ok0
-	fail9:
-		pos = pos3
-		// Ctor
-		if !_accept(parser, _CtorAccepts, &pos, &perr) {
-			goto fail11
-		}
-		goto ok0
-	fail11:
-		pos = pos3
-		// Block
-		if !_accept(parser, _BlockAccepts, &pos, &perr) {
 			goto fail12
 		}
 		goto ok0
 	fail12:
 		pos = pos3
+		// Int
+		if !_accept(parser, _IntAccepts, &pos, &perr) {
+			goto fail13
+		}
+		goto ok0
+	fail13:
+		pos = pos3
+		// Rune
+		if !_accept(parser, _RuneAccepts, &pos, &perr) {
+			goto fail14
+		}
+		goto ok0
+	fail14:
+		pos = pos3
+		// action
+		// s:String
+		{
+			pos16 := pos
+			// String
+			if !_accept(parser, _StringAccepts, &pos, &perr) {
+				goto fail15
+			}
+			labels[2] = parser.text[pos16:pos]
+		}
+		goto ok0
+	fail15:
+		pos = pos3
+		// Ctor
+		if !_accept(parser, _CtorAccepts, &pos, &perr) {
+			goto fail17
+		}
+		goto ok0
+	fail17:
+		pos = pos3
+		// Block
+		if !_accept(parser, _BlockAccepts, &pos, &perr) {
+			goto fail18
+		}
+		goto ok0
+	fail18:
+		pos = pos3
 		// action
 		// _ "(" e:Expr _ ")"
 		// _
 		if !_accept(parser, __Accepts, &pos, &perr) {
-			goto fail13
+			goto fail19
 		}
 		// "("
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
 			perr = _max(perr, pos)
-			goto fail13
+			goto fail19
 		}
 		pos++
 		// e:Expr
 		{
-			pos15 := pos
+			pos21 := pos
 			// Expr
 			if !_accept(parser, _ExprAccepts, &pos, &perr) {
-				goto fail13
+				goto fail19
 			}
-			labels[2] = parser.text[pos15:pos]
+			labels[3] = parser.text[pos21:pos]
 		}
 		// _
 		if !_accept(parser, __Accepts, &pos, &perr) {
-			goto fail13
+			goto fail19
 		}
 		// ")"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ")" {
 			perr = _max(perr, pos)
-			goto fail13
+			goto fail19
 		}
 		pos++
 		goto ok0
-	fail13:
+	fail19:
 		pos = pos3
 		goto fail
 	ok0:
@@ -11391,7 +11409,7 @@ fail:
 }
 
 func _PrimaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [3]string
+	var labels [4]string
 	use(labels)
 	pos, failure := _failMemo(parser, _Primary, start, errPos)
 	if failure != nil {
@@ -11402,75 +11420,93 @@ func _PrimaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _Primary}
-	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// mod:ModName? i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		// action
+		// mod:ModName? i:Ident
+		// mod:ModName?
+		{
+			pos6 := pos
+			// ModName?
+			{
+				pos8 := pos
+				// ModName
+				if !_fail(parser, _ModNameFail, errPos, failure, &pos) {
+					goto fail9
+				}
+				goto ok10
+			fail9:
+				pos = pos8
+			ok10:
+			}
+			labels[0] = parser.text[pos6:pos]
+		}
 		// i:Ident
 		{
-			pos5 := pos
+			pos11 := pos
 			// Ident
 			if !_fail(parser, _IdentFail, errPos, failure, &pos) {
 				goto fail4
 			}
-			labels[0] = parser.text[pos5:pos]
+			labels[1] = parser.text[pos11:pos]
 		}
 		goto ok0
 	fail4:
 		pos = pos3
 		// Float
 		if !_fail(parser, _FloatFail, errPos, failure, &pos) {
-			goto fail6
-		}
-		goto ok0
-	fail6:
-		pos = pos3
-		// Int
-		if !_fail(parser, _IntFail, errPos, failure, &pos) {
-			goto fail7
-		}
-		goto ok0
-	fail7:
-		pos = pos3
-		// Rune
-		if !_fail(parser, _RuneFail, errPos, failure, &pos) {
-			goto fail8
-		}
-		goto ok0
-	fail8:
-		pos = pos3
-		// action
-		// s:String
-		{
-			pos10 := pos
-			// String
-			if !_fail(parser, _StringFail, errPos, failure, &pos) {
-				goto fail9
-			}
-			labels[1] = parser.text[pos10:pos]
-		}
-		goto ok0
-	fail9:
-		pos = pos3
-		// Ctor
-		if !_fail(parser, _CtorFail, errPos, failure, &pos) {
-			goto fail11
-		}
-		goto ok0
-	fail11:
-		pos = pos3
-		// Block
-		if !_fail(parser, _BlockFail, errPos, failure, &pos) {
 			goto fail12
 		}
 		goto ok0
 	fail12:
 		pos = pos3
+		// Int
+		if !_fail(parser, _IntFail, errPos, failure, &pos) {
+			goto fail13
+		}
+		goto ok0
+	fail13:
+		pos = pos3
+		// Rune
+		if !_fail(parser, _RuneFail, errPos, failure, &pos) {
+			goto fail14
+		}
+		goto ok0
+	fail14:
+		pos = pos3
+		// action
+		// s:String
+		{
+			pos16 := pos
+			// String
+			if !_fail(parser, _StringFail, errPos, failure, &pos) {
+				goto fail15
+			}
+			labels[2] = parser.text[pos16:pos]
+		}
+		goto ok0
+	fail15:
+		pos = pos3
+		// Ctor
+		if !_fail(parser, _CtorFail, errPos, failure, &pos) {
+			goto fail17
+		}
+		goto ok0
+	fail17:
+		pos = pos3
+		// Block
+		if !_fail(parser, _BlockFail, errPos, failure, &pos) {
+			goto fail18
+		}
+		goto ok0
+	fail18:
+		pos = pos3
 		// action
 		// _ "(" e:Expr _ ")"
 		// _
 		if !_fail(parser, __Fail, errPos, failure, &pos) {
-			goto fail13
+			goto fail19
 		}
 		// "("
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
@@ -11480,21 +11516,21 @@ func _PrimaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 					Want: "\"(\"",
 				})
 			}
-			goto fail13
+			goto fail19
 		}
 		pos++
 		// e:Expr
 		{
-			pos15 := pos
+			pos21 := pos
 			// Expr
 			if !_fail(parser, _ExprFail, errPos, failure, &pos) {
-				goto fail13
+				goto fail19
 			}
-			labels[2] = parser.text[pos15:pos]
+			labels[3] = parser.text[pos21:pos]
 		}
 		// _
 		if !_fail(parser, __Fail, errPos, failure, &pos) {
-			goto fail13
+			goto fail19
 		}
 		// ")"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ")" {
@@ -11504,11 +11540,11 @@ func _PrimaryFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 					Want: "\")\"",
 				})
 			}
-			goto fail13
+			goto fail19
 		}
 		pos++
 		goto ok0
-	fail13:
+	fail19:
 		pos = pos3
 		goto fail
 	ok0:
@@ -11521,11 +11557,12 @@ fail:
 }
 
 func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
-	var labels [3]string
+	var labels [4]string
 	use(labels)
-	var label0 Ident
-	var label1 String
-	var label2 Expr
+	var label0 *ModTag
+	var label1 Ident
+	var label2 String
+	var label3 Expr
 	dp := parser.deltaPos[start][_Primary]
 	if dp < 0 {
 		return -1, nil
@@ -11538,77 +11575,42 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	}
 	var node Expr
 	pos := start
-	// i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
+	// mod:ModName? i:Ident {…}/Float/Int/Rune/s:String {…}/Ctor/Block/_ "(" e:Expr _ ")" {…}
 	{
 		pos3 := pos
 		var node2 Expr
 		// action
 		{
 			start5 := pos
+			// mod:ModName? i:Ident
+			// mod:ModName?
+			{
+				pos7 := pos
+				// ModName?
+				{
+					pos9 := pos
+					label0 = new(ModTag)
+					// ModName
+					if p, n := _ModNameAction(parser, pos); n == nil {
+						goto fail10
+					} else {
+						*label0 = *n
+						pos = p
+					}
+					goto ok11
+				fail10:
+					label0 = nil
+					pos = pos9
+				ok11:
+				}
+				labels[0] = parser.text[pos7:pos]
+			}
 			// i:Ident
 			{
-				pos6 := pos
+				pos12 := pos
 				// Ident
 				if p, n := _IdentAction(parser, pos); n == nil {
 					goto fail4
-				} else {
-					label0 = *n
-					pos = p
-				}
-				labels[0] = parser.text[pos6:pos]
-			}
-			node = func(
-				start, end int, i Ident) Expr {
-				return Expr(&i)
-			}(
-				start5, pos, label0)
-		}
-		goto ok0
-	fail4:
-		node = node2
-		pos = pos3
-		// Float
-		if p, n := _FloatAction(parser, pos); n == nil {
-			goto fail7
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail7:
-		node = node2
-		pos = pos3
-		// Int
-		if p, n := _IntAction(parser, pos); n == nil {
-			goto fail8
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail8:
-		node = node2
-		pos = pos3
-		// Rune
-		if p, n := _RuneAction(parser, pos); n == nil {
-			goto fail9
-		} else {
-			node = *n
-			pos = p
-		}
-		goto ok0
-	fail9:
-		node = node2
-		pos = pos3
-		// action
-		{
-			start11 := pos
-			// s:String
-			{
-				pos12 := pos
-				// String
-				if p, n := _StringAction(parser, pos); n == nil {
-					goto fail10
 				} else {
 					label1 = *n
 					pos = p
@@ -11616,17 +11618,18 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 				labels[1] = parser.text[pos12:pos]
 			}
 			node = func(
-				start, end int, i Ident, s String) Expr {
-				return Expr(&s)
+				start, end int, i Ident, mod *ModTag) Expr {
+				i.Mod = mod
+				return Expr(&i)
 			}(
-				start11, pos, label0, label1)
+				start5, pos, label1, label0)
 		}
 		goto ok0
-	fail10:
+	fail4:
 		node = node2
 		pos = pos3
-		// Ctor
-		if p, n := _CtorAction(parser, pos); n == nil {
+		// Float
+		if p, n := _FloatAction(parser, pos); n == nil {
 			goto fail13
 		} else {
 			node = *n
@@ -11636,8 +11639,8 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	fail13:
 		node = node2
 		pos = pos3
-		// Block
-		if p, n := _BlockAction(parser, pos); n == nil {
+		// Int
+		if p, n := _IntAction(parser, pos); n == nil {
 			goto fail14
 		} else {
 			node = *n
@@ -11647,52 +11650,110 @@ func _PrimaryAction(parser *_Parser, start int) (int, *Expr) {
 	fail14:
 		node = node2
 		pos = pos3
+		// Rune
+		if p, n := _RuneAction(parser, pos); n == nil {
+			goto fail15
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail15:
+		node = node2
+		pos = pos3
 		// action
 		{
-			start16 := pos
-			// _ "(" e:Expr _ ")"
-			// _
-			if p, n := __Action(parser, pos); n == nil {
-				goto fail15
-			} else {
-				pos = p
-			}
-			// "("
-			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
-				goto fail15
-			}
-			pos++
-			// e:Expr
+			start17 := pos
+			// s:String
 			{
 				pos18 := pos
-				// Expr
-				if p, n := _ExprAction(parser, pos); n == nil {
-					goto fail15
+				// String
+				if p, n := _StringAction(parser, pos); n == nil {
+					goto fail16
 				} else {
 					label2 = *n
 					pos = p
 				}
 				labels[2] = parser.text[pos18:pos]
 			}
+			node = func(
+				start, end int, i Ident, mod *ModTag, s String) Expr {
+				return Expr(&s)
+			}(
+				start17, pos, label1, label0, label2)
+		}
+		goto ok0
+	fail16:
+		node = node2
+		pos = pos3
+		// Ctor
+		if p, n := _CtorAction(parser, pos); n == nil {
+			goto fail19
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail19:
+		node = node2
+		pos = pos3
+		// Block
+		if p, n := _BlockAction(parser, pos); n == nil {
+			goto fail20
+		} else {
+			node = *n
+			pos = p
+		}
+		goto ok0
+	fail20:
+		node = node2
+		pos = pos3
+		// action
+		{
+			start22 := pos
+			// _ "(" e:Expr _ ")"
 			// _
 			if p, n := __Action(parser, pos); n == nil {
-				goto fail15
+				goto fail21
+			} else {
+				pos = p
+			}
+			// "("
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
+				goto fail21
+			}
+			pos++
+			// e:Expr
+			{
+				pos24 := pos
+				// Expr
+				if p, n := _ExprAction(parser, pos); n == nil {
+					goto fail21
+				} else {
+					label3 = *n
+					pos = p
+				}
+				labels[3] = parser.text[pos24:pos]
+			}
+			// _
+			if p, n := __Action(parser, pos); n == nil {
+				goto fail21
 			} else {
 				pos = p
 			}
 			// ")"
 			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ")" {
-				goto fail15
+				goto fail21
 			}
 			pos++
 			node = func(
-				start, end int, e Expr, i Ident, s String) Expr {
+				start, end int, e Expr, i Ident, mod *ModTag, s String) Expr {
 				return Expr(e)
 			}(
-				start16, pos, label2, label0, label1)
+				start22, pos, label3, label1, label0, label2)
 		}
 		goto ok0
-	fail15:
+	fail21:
 		node = node2
 		pos = pos3
 		goto fail
@@ -16185,11 +16246,11 @@ fail:
 	return -1, failure
 }
 
-func _ModNameAction(parser *_Parser, start int) (int, *Ident) {
+func _ModNameAction(parser *_Parser, start int) (int, *ModTag) {
 	var labels [2]string
 	use(labels)
 	var label0 string
-	var label1 Ident
+	var label1 ModTag
 	dp := parser.deltaPos[start][_ModName]
 	if dp < 0 {
 		return -1, nil
@@ -16197,10 +16258,10 @@ func _ModNameAction(parser *_Parser, start int) (int, *Ident) {
 	key := _key{start: start, rule: _ModName}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(Ident)
+		n := n.(ModTag)
 		return start + int(dp-1), &n
 	}
-	var node Ident
+	var node ModTag
 	pos := start
 	// action
 	{
@@ -16263,16 +16324,16 @@ func _ModNameAction(parser *_Parser, start int) (int, *Ident) {
 					labels[0] = parser.text[pos4:pos]
 				}
 				label1 = func(
-					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					start, end int, text string) ModTag {
+					return ModTag{location: loc(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
 			labels[1] = parser.text[pos2:pos]
 		}
 		node = func(
-			start, end int, text string, tok Ident) Ident {
-			return Ident(tok)
+			start, end int, text string, tok ModTag) ModTag {
+			return ModTag(tok)
 		}(
 			start0, pos, label0, label1)
 	}

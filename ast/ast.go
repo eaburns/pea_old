@@ -79,7 +79,7 @@ func (n *Fun) Priv() bool { return n.priv }
 // Recv is a method receiver.
 type Recv struct {
 	TypeSig
-	Mod *Ident
+	Mod *ModTag
 }
 
 // A FunSig is the signature of a function.
@@ -132,7 +132,7 @@ func (n Type) Priv() bool { return n.priv }
 type TypeName struct {
 	location
 	Var  bool
-	Mod  *Ident
+	Mod  *ModTag
 	Name string
 	Args []TypeName
 }
@@ -200,7 +200,7 @@ func (*Call) isExpr() {}
 // A Msg is a message, sent to a value.
 type Msg struct {
 	location
-	Mod  *Ident
+	Mod  *ModTag
 	Sel  string
 	Args []Expr
 }
@@ -225,10 +225,17 @@ func (*Block) isExpr() {}
 // An Ident is a variable name as an expression.
 type Ident struct {
 	location
+	Mod  *ModTag
 	Text string
 }
 
 func (*Ident) isExpr() {}
+
+// A ModTag is a module name preceeded by #.
+type ModTag struct {
+	location
+	Text string
+}
 
 // An Int is an integer literal.
 type Int struct {

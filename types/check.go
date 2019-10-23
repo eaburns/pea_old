@@ -863,7 +863,7 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 				astMsg := &astCall.Msgs[i]
 				call.Msgs[i] = Msg{
 					AST: astMsg,
-					Mod: identString(astMsg.Mod),
+					Mod: modString(astMsg.Mod),
 					Sel: astMsg.Sel,
 				}
 				var es []checkError
@@ -910,7 +910,7 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 
 	msg := Msg{
 		AST:  astMsg,
-		Mod:  identString(astMsg.Mod),
+		Mod:  modString(astMsg.Mod),
 		Sel:  astMsg.Sel,
 		Args: make([]Expr, len(astMsg.Args)),
 	}
@@ -942,14 +942,17 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
 
-	var mod *ast.Ident
+	var mod *ast.ModTag
 	var modName string
 	if msg.Mod != "" {
-		// msg.ast must be an *ast.Msg,
-		// since the only other case is ast.Ident,
-		// which is only for in-module function calls,
-		// and this is not in-module.
-		mod = msg.AST.(*ast.Msg).Mod
+		switch astMsg := msg.AST.(type) {
+		case *ast.Msg:
+			mod = astMsg.Mod
+		case *ast.Ident:
+			mod = astMsg.Mod
+		default:
+			panic(fmt.Sprintf("impossible type: %T", msg.AST))
+		}
 		modName = mod.Text + " "
 	}
 	fun, es := findFunInst(x, infer, recv, mod, msg.Sel, msg)
@@ -967,7 +970,7 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	return errs
 }
 
-func findFunInst(x *scope, infer, recv *Type, mod *ast.Ident, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
+func findFunInst(x *scope, infer, recv *Type, mod *ast.ModTag, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
 	x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
 
 	switch {
@@ -1259,16 +1262,34 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	defer x.tr("checkIdent(infer=%s, %s)", infer, astIdent.Text)(&errs)
 
+	var found interface{}
+	var modName string
+	if astIdent.Mod == nil {
+		found = x.findIdent(astIdent.Text)
+	} else {
+		modName = astIdent.Mod.Text + " "
+		imp := x.findImport(astIdent.Mod.Text)
+		if imp == nil {
+			err := x.err(astIdent.Mod, "module %s not found", astIdent.Mod.Text)
+			return nil, []checkError{*err}
+		}
+		found = imp.findIdent(astIdent.Text)
+	}
+
 	ident := &Ident{AST: astIdent, Text: astIdent.Text}
-	switch vr := x.findIdent(astIdent.Text).(type) {
+	switch vr := found.(type) {
 	case nil:
-		err := x.err(astIdent, "identifier %s not found", astIdent.Text)
+		err := x.err(astIdent, "identifier %s%s not found", modName, astIdent.Text)
 		errs = append(errs, *err)
 	case *Var:
 		ident.Var = vr
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
-		msg := Msg{AST: astIdent, Sel: astIdent.Text}
+		msg := Msg{
+			AST: astIdent,
+			Mod: modString(astIdent.Mod),
+			Sel: astIdent.Text,
+		}
 		es := findMsgFun(x, infer, nil, &msg)
 		errs = append(errs, es...)
 		call := &Call{AST: astIdent, Msgs: []Msg{msg}}
@@ -1428,4 +1449,11 @@ func identString(id *ast.Ident) string {
 		return ""
 	}
 	return id.Text
+}
+
+func modString(m *ast.ModTag) string {
+	if m == nil {
+		return ""
+	}
+	return m.Text
 }

@@ -140,7 +140,7 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 		AST:   astRecv,
 		Arity: len(astRecv.Parms),
 		Name:  astRecv.Name,
-		Mod:   identString(astRecv.Mod),
+		Mod:   modString(astRecv.Mod),
 	}
 	var es []checkError
 	x, recv.Parms, es = gatherTypeParms(x, astRecv.Parms)
@@ -316,7 +316,7 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 	name := &TypeName{
 		AST:  astName,
 		Name: astName.Name,
-		Mod:  identString(astName.Mod),
+		Mod:  modString(astName.Mod),
 	}
 	var es []checkError
 	name.Args, es = gatherTypeNames(x, astName.Args)

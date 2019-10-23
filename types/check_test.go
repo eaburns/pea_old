@@ -1781,7 +1781,7 @@ func TestCall(t *testing.T) {
 			imports: [][2]string{
 				{"foo", "func [foo ^Int]"},
 			},
-			err: "function #foo foo not found",
+			err: "identifier #foo foo not found",
 		},
 		{
 			name: "imported func not found without mod tag",
@@ -2212,8 +2212,7 @@ func TestIdent(t *testing.T) {
 			err: "have Int, want String",
 		},
 		{
-			// TODO: implement mod paths on identifiers.
-			name: "SKIP: imported val",
+			name: "imported val",
 			src: `
 				import "foo"
 				val _ String := [#foo x]
@@ -2221,11 +2220,17 @@ func TestIdent(t *testing.T) {
 			imports: [][2]string{{
 				"foo", "Val x Int := [5]",
 			}},
-			err: "",
+			err: "have Int, want String",
 		},
 		{
-			// TODO: implement mod paths on identifiers.
-			name: "SKIP: private imported val not found",
+			name: "import not found",
+			src: `
+				val _ String := [#foo x]
+			`,
+			err: "module #foo not found",
+		},
+		{
+			name: "private imported val not found",
 			src: `
 				import "foo"
 				val _ String := [#foo x]
@@ -2236,8 +2241,7 @@ func TestIdent(t *testing.T) {
 			err: "identifier #foo x not found",
 		},
 		{
-			// TODO: implement mod paths on identifiers.
-			name: "SKIP: imported val not found with mod tag",
+			name: "imported val not found with mod tag",
 			src: `
 				import "foo"
 				val _ String := [x]
@@ -2270,8 +2274,7 @@ func TestIdent(t *testing.T) {
 			err: "identifier x not found",
 		},
 		{
-			// TODO: implement mod paths on identifiers.
-			name: "SKIP: private Imported val with mod tag",
+			name: "private Imported val with mod tag",
 			src: `
 				Import "foo"
 				val _ String := [#foo x]
@@ -2279,7 +2282,7 @@ func TestIdent(t *testing.T) {
 			imports: [][2]string{{
 				"foo", "Val x Int := [5]",
 			}},
-			err: "",
+			err: "have Int, want String",
 		},
 	}
 	for _, test := range tests {
