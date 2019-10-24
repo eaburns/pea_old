@@ -129,6 +129,7 @@ func imports(x *scope, file *file) []checkError {
 			continue
 		}
 		file.imports = append(file.imports, imp{
+			ast:  astImp,
 			all:  astImp.All,
 			path: p,
 			name: path.Base(p),
@@ -630,9 +631,16 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 		}
 
 		var found interface{}
+		// If the Type is specified, this is always a new definition;
+		// there is nothing to find.
 		if astVar.Type == nil {
-			// If the Type is specified, this is always a new definition.
-			found = x.findIdent(astVar.Name)
+			var err *checkError
+			// We call scope.findIdent here, since there cannot be a mod tag.
+			// Also we do not want an error on not-found, scope.findIdent
+			// doesn't error in this case, but findIdent does.
+			if found, err = x.findIdent(astVar, astVar.Name); err != nil {
+				errs = append(errs, *err)
+			}
 		}
 		switch found := found.(type) {
 		case nil:
@@ -768,11 +776,9 @@ func findVirts(x *scope, loc ast.Node, recv *Type, virts []FunSig) (funs []*Fun,
 			ret = want.Ret.Type
 		}
 		argTypes := funSigArgTypes{loc: loc, sig: &want}
-		fun, es := findFunInst(x, ret, recv, nil, want.Sel, argTypes)
-		if fun == nil {
-			err := x.err(loc, "method %s %s not found", recv, want.Sel)
-			err.cause = es
-			errs = append(errs, *err)
+		fun, es := findFunInst(x, loc, ret, recv, nil, want.Sel, argTypes)
+		if len(es) > 0 {
+			errs = append(errs, es...)
 			continue
 		}
 
@@ -943,7 +949,6 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
 
 	var mod *ast.ModTag
-	var modName string
 	if msg.Mod != "" {
 		switch astMsg := msg.AST.(type) {
 		case *ast.Msg:
@@ -953,47 +958,38 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 		default:
 			panic(fmt.Sprintf("impossible type: %T", msg.AST))
 		}
-		modName = mod.Text + " "
 	}
-	fun, es := findFunInst(x, infer, recv, mod, msg.Sel, msg)
-	if fun == nil {
-		var err *checkError
-		if recv == nil {
-			err = x.err(msg, "function %s%s not found", modName, msg.Sel)
-		} else {
-			err = x.err(msg, "method %s %s%s not found", recv, modName, msg.Sel)
-		}
-		err.cause = es
-		errs = append(errs, *err)
-	}
-	msg.Fun = fun
+	msg.Fun, errs = findFunInst(x, msg.AST, infer, recv, mod, msg.Sel, msg)
 	return errs
 }
 
-func findFunInst(x *scope, infer, recv *Type, mod *ast.ModTag, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
+func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
 	x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
 
-	switch {
-	case recv != nil && recv.Var != nil:
+	if recv != nil && recv.Var != nil {
 		for _, iface := range recv.Var.Ifaces {
 			if iface.Type == nil {
 				continue
 			}
-			fun = x.findFun(iface.Type, sel)
-			recv = iface.Type
+			var err *checkError
+			fun, err = x.findFun(loc, iface.Type, sel)
+			if err != nil {
+				return nil, append(errs, *err)
+			}
+			if fun != nil {
+				recv = iface.Type
+				break
+			}
 		}
-	case mod != nil:
-		imp := x.findImport(mod.Text)
-		if imp == nil {
-			err := x.err(mod, "module %s not found", mod.Text)
-			return nil, []checkError{*err}
+		if fun == nil {
+			err := x.err(loc, "method %s %s not found", recv, sel)
+			return nil, append(errs, *err)
 		}
-		fun = imp.findFun(recv, sel)
-	default:
-		fun = x.findFun(recv, sel)
-	}
-	if fun == nil {
-		return nil, nil
+	} else {
+		var err *checkError
+		if fun, err = findFun(x, loc, recv, mod, sel); err != nil {
+			return nil, append(errs, *err)
+		}
 	}
 	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
 		if fun, errs = instRecv(x, recv, fun); len(errs) > 0 {
@@ -1262,25 +1258,13 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	defer x.tr("checkIdent(infer=%s, %s)", infer, astIdent.Text)(&errs)
 
-	var found interface{}
-	var modName string
-	if astIdent.Mod == nil {
-		found = x.findIdent(astIdent.Text)
-	} else {
-		modName = astIdent.Mod.Text + " "
-		imp := x.findImport(astIdent.Mod.Text)
-		if imp == nil {
-			err := x.err(astIdent.Mod, "module %s not found", astIdent.Mod.Text)
-			return nil, []checkError{*err}
-		}
-		found = imp.findIdent(astIdent.Text)
-	}
-
 	ident := &Ident{AST: astIdent, Text: astIdent.Text}
+
+	found, err := findIdent(x, astIdent, astIdent.Mod, astIdent.Text)
+	if err != nil {
+		return ident, append(errs, *err)
+	}
 	switch vr := found.(type) {
-	case nil:
-		err := x.err(astIdent, "identifier %s%s not found", modName, astIdent.Text)
-		errs = append(errs, *err)
 	case *Var:
 		ident.Var = vr
 	case *Fun:

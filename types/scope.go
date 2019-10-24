@@ -28,6 +28,7 @@ type file struct {
 }
 
 type imp struct {
+	ast  ast.Node
 	all  bool
 	path string
 	name string
@@ -71,11 +72,15 @@ func (x *scope) locals() *[]*Var {
 	}
 }
 
-func (x *scope) findImport(name string) *imp {
-	return x._findImport(strings.TrimPrefix(name, "#"))
+func findImport(x *scope, mod *ast.ModTag) (*imp, *checkError) {
+	imp := x.findImport(strings.TrimPrefix(mod.Text, "#"))
+	if imp == nil {
+		return nil, x.err(mod, "module %s not found", mod.Text)
+	}
+	return imp, nil
 }
 
-func (x *scope) _findImport(name string) *imp {
+func (x *scope) findImport(name string) *imp {
 	switch {
 	case x == nil:
 		return nil
@@ -86,48 +91,98 @@ func (x *scope) _findImport(name string) *imp {
 			}
 		}
 	}
-	return x.up._findImport(name)
+	return x.up.findImport(name)
 }
 
-func (x *scope) findType(arity int, name string) *Type {
+func findType(x *scope, loc ast.Node, mod *ast.ModTag, arity int, name string) (*Type, *checkError) {
+	if mod != nil {
+		imp, err := findImport(x, mod)
+		if err != nil {
+			return nil, err
+		}
+		if t := imp.findType(arity, name); t != nil {
+			return t, nil
+		}
+		if arity == 0 {
+			return nil, x.err(loc, "type %s %s not found", mod.Text, name)
+		}
+		return nil, x.err(loc, "type (%d) %s %s not found", arity, mod.Text, name)
+	}
+	t, err := x.findType(loc, arity, name)
+	if err != nil {
+		return nil, err
+	}
+	if t != nil {
+		return t, nil
+	}
+	if arity == 0 {
+		return nil, x.err(loc, "type %s not found", name)
+	}
+	return nil, x.err(loc, "type (%d)%s not found", arity, name)
+}
+
+func (x *scope) findType(loc ast.Node, arity int, name string) (*Type, *checkError) {
 	switch {
 	case x == nil:
-		return nil
+		return nil, nil
 	case x.typeVar != nil:
 		if arity == 0 && x.typeVar.Name == name {
-			return x.typeVar
+			return x.typeVar, nil
 		}
 	case x.file != nil:
-		for i := range x.file.imports {
-			imp := &x.file.imports[i]
-			if !imp.all {
-				continue
-			}
-			if t := imp.findType(arity, name); t != nil {
-				return t
-			}
+		switch t, err := x.file.findType(loc, arity, name); {
+		case err != nil:
+			return nil, err
+		case t != nil:
+			return t, nil
 		}
 	case x.mod != nil:
-		if t := findType(arity, name, x.mod.Defs); t != nil {
-			return t
+		if t := findTypeInDefs(arity, name, x.mod.Defs); t != nil {
+			return t, nil
 		}
 	case x.univ != nil:
-		if t := findType(arity, name, x.univ); t != nil {
-			return t
+		if t := findTypeInDefs(arity, name, x.univ); t != nil {
+			return t, nil
 		}
 	}
-	return x.up.findType(arity, name)
+	return x.up.findType(loc, arity, name)
+}
+
+func (f *file) findType(loc ast.Node, arity int, name string) (*Type, *checkError) {
+	var ts []*Type
+	var imps []*imp
+	for i := range f.imports {
+		imp := &f.imports[i]
+		if !imp.all {
+			continue
+		}
+		if t := imp.findType(arity, name); t != nil {
+			ts = append(ts, t)
+			imps = append(imps, imp)
+		}
+	}
+	if len(ts) == 0 {
+		return nil, nil
+	}
+	if len(ts) == 1 {
+		return ts[0], nil
+	}
+	err := f.x.err(loc, "ambiguous type (%d)%s)", arity, name)
+	for _, imp := range imps {
+		note(err, "imported from %s at %s", imp.name, f.x.loc(imp.ast))
+	}
+	return nil, err
 }
 
 func (imp *imp) findType(arity int, name string) *Type {
-	t := findType(arity, name, imp.defs)
+	t := findTypeInDefs(arity, name, imp.defs)
 	if t == nil || t.Priv {
 		return nil
 	}
 	return t
 }
 
-func findType(arity int, name string, defs []Def) *Type {
+func findTypeInDefs(arity int, name string, defs []Def) *Type {
 	for _, d := range defs {
 		if t, ok := d.(*Type); ok && t.Arity == arity && t.Name == name {
 			return t
@@ -138,38 +193,84 @@ func findType(arity int, name string, defs []Def) *Type {
 
 // findIdent returns a *Var or *Fun.
 // In the *Fun case, the identifier is a unary function in the current module.
-func (x *scope) findIdent(name string) interface{} {
+func findIdent(x *scope, loc ast.Node, mod *ast.ModTag, name string) (interface{}, *checkError) {
+	if mod != nil {
+		imp, err := findImport(x, mod)
+		if err != nil {
+			return nil, err
+		}
+		if id := imp.findIdent(name); id != nil {
+			return id, nil
+		}
+		return nil, x.err(loc, "identifier %s %s not found", mod.Text, name)
+	}
+	id, err := x.findIdent(loc, name)
+	if err != nil {
+		return nil, err
+	}
+	if id == nil {
+		return nil, x.err(loc, "identifier %s not found", name)
+	}
+	return id, nil
+}
+
+// findIdent returns a *Var or *Fun.
+// In the *Fun case, the identifier is a unary function in the current module.
+func (x *scope) findIdent(loc ast.Node, name string) (interface{}, *checkError) {
 	switch {
 	case x == nil:
-		return nil
+		return nil, nil
 	case x.variable != nil && x.variable.Name == name:
-		return x.variable
+		return x.variable, nil
 	case x.fun != nil && x.fun.Recv != nil && x.fun.Recv.Type != nil:
 		for i := range x.fun.Recv.Type.Fields {
 			if f := &x.fun.Recv.Type.Fields[i]; f.Name == name {
-				return f
+				return f, nil
 			}
 		}
 	case x.file != nil:
-		for i := range x.file.imports {
-			imp := &x.file.imports[i]
-			if !imp.all {
-				continue
-			}
-			if i := imp.findIdent(name); i != nil {
-				return i
-			}
+		switch f, err := x.file.findIdent(loc, name); {
+		case err != nil:
+			return nil, err
+		case f != nil:
+			return f, nil
 		}
 	case x.mod != nil:
-		if fun := findIdent(name, x.mod.Defs); fun != nil {
-			return fun
+		if fun := findIdentInDefs(name, x.mod.Defs); fun != nil {
+			return fun, nil
 		}
 	case x.univ != nil:
-		if fun := findIdent(name, x.univ); fun != nil {
-			return fun
+		if fun := findIdentInDefs(name, x.univ); fun != nil {
+			return fun, nil
 		}
 	}
-	return x.up.findIdent(name)
+	return x.up.findIdent(loc, name)
+}
+
+func (f *file) findIdent(loc ast.Node, name string) (interface{}, *checkError) {
+	var ids []interface{}
+	var imps []*imp
+	for i := range f.imports {
+		imp := &f.imports[i]
+		if !imp.all {
+			continue
+		}
+		if id := imp.findIdent(name); id != nil {
+			ids = append(ids, id)
+			imps = append(imps, imp)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if len(ids) == 1 {
+		return ids[0], nil
+	}
+	err := f.x.err(loc, "ambiguous identifier %s", name)
+	for _, imp := range imps {
+		note(err, "imported from %s at %s", imp.name, f.x.loc(imp.ast))
+	}
+	return nil, err
 }
 
 // findIdent returns either a *Fun that is a unary function or
@@ -189,9 +290,9 @@ func (imp *imp) findIdent(name string) interface{} {
 	return nil
 }
 
-// findIdent returns either a *Fun that is a unary function or
+// findIdentInDefs returns either a *Fun that is a unary function or
 // a *Var that is a module-level Val.Var.
-func findIdent(name string, defs []Def) interface{} {
+func findIdentInDefs(name string, defs []Def) interface{} {
 	for _, def := range defs {
 		if fun, ok := def.(*Fun); ok && fun.Recv == nil && fun.Sig.Sel == name {
 			return fun
@@ -203,34 +304,84 @@ func findIdent(name string, defs []Def) interface{} {
 	return nil
 }
 
-func (x *scope) findFun(recv *Type, sel string) *Fun {
-	switch {
-	case x == nil:
-		return nil
-	case x.file != nil:
-		for i := range x.file.imports {
-			imp := &x.file.imports[i]
-			if !imp.all {
-				continue
-			}
-			if f := imp.findFun(recv, sel); f != nil {
-				return f
-			}
+func findFun(x *scope, loc ast.Node, recv *Type, mod *ast.ModTag, sel string) (*Fun, *checkError) {
+	var modName string
+	if mod != nil {
+		imp, err := findImport(x, mod)
+		if err != nil {
+			return nil, err
 		}
-	case x.mod != nil:
-		if f := findFun(recv, sel, x.mod.Defs); f != nil {
-			return f
+		if fun := imp.findFun(recv, sel); fun != nil {
+			return fun, nil
 		}
-	case x.univ != nil:
-		if f := findFun(recv, sel, x.univ); f != nil {
-			return f
+		modName = mod.Text + " "
+	} else {
+		fun, err := x.findFun(loc, recv, sel)
+		if err != nil {
+			return nil, err
+		}
+		if fun != nil {
+			return fun, nil
 		}
 	}
-	return x.up.findFun(recv, sel)
+	if recv == nil {
+		return nil, x.err(loc, "function %s%s not found", modName, sel)
+	}
+	return nil, x.err(loc, "method %s %s%s not found", recv, modName, sel)
+}
+
+func (x *scope) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError) {
+	switch {
+	case x == nil:
+		return nil, nil
+	case x.file != nil:
+		fun, err := x.file.findFun(loc, recv, sel)
+		if err != nil {
+			return nil, err
+		}
+		if fun != nil {
+			return fun, nil
+		}
+	case x.mod != nil:
+		if f := findFunInDefs(recv, sel, x.mod.Defs); f != nil {
+			return f, nil
+		}
+	case x.univ != nil:
+		if f := findFunInDefs(recv, sel, x.univ); f != nil {
+			return f, nil
+		}
+	}
+	return x.up.findFun(loc, recv, sel)
+}
+
+func (f *file) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError) {
+	var funs []*Fun
+	var imps []*imp
+	for i := range f.imports {
+		imp := &f.imports[i]
+		if !imp.all {
+			continue
+		}
+		if fun := imp.findFun(recv, sel); fun != nil {
+			funs = append(funs, fun)
+			imps = append(imps, imp)
+		}
+	}
+	if len(funs) == 0 {
+		return nil, nil
+	}
+	if len(funs) == 1 {
+		return funs[0], nil
+	}
+	err := f.x.err(loc, "ambiguous function call %s", sel)
+	for _, imp := range imps {
+		note(err, "imported from %s at %s", imp.name, f.x.loc(imp.ast))
+	}
+	return nil, err
 }
 
 func (imp *imp) findFun(recv *Type, sel string) *Fun {
-	f := findFun(recv, sel, imp.defs)
+	f := findFunInDefs(recv, sel, imp.defs)
 	// TODO: give a different error message if a method or type is not found becasue it's private.
 	if f == nil || f.Priv {
 		return nil
@@ -238,7 +389,7 @@ func (imp *imp) findFun(recv *Type, sel string) *Fun {
 	return f
 }
 
-func findFun(recv *Type, sel string, defs []Def) *Fun {
+func findFunInDefs(recv *Type, sel string, defs []Def) *Fun {
 	for _, def := range defs {
 		switch fun, ok := def.(*Fun); {
 		case !ok:

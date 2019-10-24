@@ -146,24 +146,9 @@ func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkErr
 	x, recv.Parms, es = gatherTypeParms(x, astRecv.Parms)
 	errs = append(errs, es...)
 
-	var typ *Type
-	if recv.Mod == "" {
-		typ = x.findType(recv.Arity, recv.Name)
-	} else {
-		imp := x.findImport(recv.Mod)
-		if imp == nil {
-			err := x.err(astRecv.Mod, "module %s not found", recv.Mod)
-			errs = append(errs, *err)
-			return x, recv, errs
-		}
-		typ = imp.findType(recv.Arity, recv.Name)
-	}
-	if typ == nil {
-		var err *checkError
-		err = x.err(astRecv, "type %s not found", recv.name())
-		// TODO: note candidate types of different arity if a type is not found.
-		errs = append(errs, *err)
-		return x, recv, errs
+	typ, err := findType(x, astRecv, astRecv.Mod, len(astRecv.Parms), astRecv.Name)
+	if err != nil {
+		return x, recv, append(errs, *err)
 	}
 
 	// We access typ.Alias; it must be cycle free to guarantee
@@ -322,26 +307,10 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 	name.Args, es = gatherTypeNames(x, astName.Args)
 	errs = append(errs, es...)
 
-	var typ *Type
-	if name.Mod == "" {
-		typ = x.findType(len(name.Args), name.Name)
-	} else {
-		imp := x.findImport(name.Mod)
-		if imp == nil {
-			err := x.err(astName.Mod, "module %s not found", name.Mod)
-			errs = append(errs, *err)
-			return name, errs
-		}
-		typ = imp.findType(len(name.Args), name.Name)
+	typ, err := findType(x, astName, astName.Mod, len(astName.Args), astName.Name)
+	if err != nil {
+		return name, append(errs, *err)
 	}
-	if typ == nil {
-		var err *checkError
-		err = x.err(astName, "type %s not found", name.name())
-		// TODO: note candidate types of different arity if a type is not found.
-		errs = append(errs, *err)
-		return name, errs
-	}
-
 	name.Type, es = instType(x, typ, name.Args)
 	errs = append(errs, es...)
 	return name, errs

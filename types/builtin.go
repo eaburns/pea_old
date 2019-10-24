@@ -151,7 +151,7 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 	for x.univ == nil {
 		x = x.up
 	}
-	typ := findType(len(args), name, x.univ)
+	typ := findTypeInDefs(len(args), name, x.univ)
 	if typ == nil {
 		panic(fmt.Sprintf("built-in type (%d)%s not found", len(args), name))
 	}
