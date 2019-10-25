@@ -1893,6 +1893,131 @@ func TestCall(t *testing.T) {
 			},
 			err: "have Int, want String",
 		},
+		{
+			name: "virtual call",
+			src: `
+				val _ String := [
+					x Fooer := 1.
+					x foo
+				]
+				type Fooer {[foo ^Int]}
+				meth Int [foo ^Int]
+			`,
+			err: "have Int, want String",
+		},
+		{
+			name: "static call on virtual type",
+			src: `
+				val _ String := [
+					x Fooer := 1.
+					x bar
+				]
+				type Fooer {[foo]}
+				meth Int [foo]
+				meth Fooer [bar ^Int]
+			`,
+			err: "have Int, want String",
+		},
+		{
+			name: "method not found on virtual type",
+			src: `
+				val _ String := [
+					x Fooer := 1.
+					x baz
+				]
+				type Fooer {[foo]}
+				meth Int [foo]
+				meth Fooer [bar ^Int]
+			`,
+			err: "method Fooer baz not found",
+		},
+		{
+			name: "type var call",
+			src: `
+				Func (T Fooer) [bar: t T ^String |
+					^t foo
+				]
+				type Fooer {[foo ^Int]}
+			`,
+			err: "have Int, want String",
+		},
+		{
+			name: "type var does not call static method of interface",
+			src: `
+				Func (T Fooer) [bar: t T ^String |
+					^t bar
+				]
+				type Fooer {[foo]}
+				meth Fooer [bar ^Int]
+			`,
+			err: "method T bar not found",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestCallInstRecvType(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "inst receiver",
+			src: `
+				val x := [
+					recv Rune FloatFoo := {}.
+
+					(recv at: 0) + 5.
+
+					// But Int32 has no xyz: so this will error and say Int32.
+					(recv at: 0) xyz: 2
+				]
+				type (X, Y) Foo { }
+				type T FloatFoo := (T, Float) Foo.
+				meth T FloatFoo [at: _ Float ^T]
+			`,
+			err: "Int32 xyz: not found",
+		},
+		{
+			name: "recv type arg mismatch",
+			src: `
+				val x := [
+					recv Int Array := {}.
+					recv foo
+				]
+				type FloatArray := Float Array.
+				meth FloatArray [foo]
+			`,
+			err: "type mismatch: have Int, want Float",
+		},
+		{
+			name: "recv type arg error",
+			src: `
+				val x := [
+					recv Unknown Array := {}.
+					recv foo
+				]
+				type FloatArray := Float Array.
+				meth FloatArray [foo]
+			`,
+			err: "Unknown not found",
+		},
+		{
+			name: "inst built-in type receiver",
+			src: `
+				val x := [
+					recv Rune Array := {}.
+					// If we instantiated Rune Array correctly,
+					// then the at: method should return Int
+					// and we will succssfully find the + method.
+					// If we didn't instantiated Int Array, + should fail.
+					(recv at: 0) + 5.
+
+					// But Int32 has no xyz: so this will error and say Int32.
+					(recv at: 0) xyz: 2
+				]
+				`,
+			err: "Int32 xyz: not found",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -2081,72 +2206,6 @@ func TestCtorError(t *testing.T) {
 				type Fooer { [foo: Int ^Int] }
 			`,
 			err: "cannot construct virtual type Fooer",
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, test.run)
-	}
-}
-
-func TestCallInstRecvType(t *testing.T) {
-	tests := []errorTest{
-		{
-			name: "inst receiver",
-			src: `
-				val x := [
-					recv Rune FloatFoo := {}.
-
-					(recv at: 0) + 5.
-
-					// But Int32 has no xyz: so this will error and say Int32.
-					(recv at: 0) xyz: 2
-				]
-				type (X, Y) Foo { }
-				type T FloatFoo := (T, Float) Foo.
-				meth T FloatFoo [at: _ Float ^T]
-			`,
-			err: "Int32 xyz: not found",
-		},
-		{
-			name: "recv type arg mismatch",
-			src: `
-				val x := [
-					recv Int Array := {}.
-					recv foo
-				]
-				type FloatArray := Float Array.
-				meth FloatArray [foo]
-			`,
-			err: "type mismatch: have Int, want Float",
-		},
-		{
-			name: "recv type arg error",
-			src: `
-				val x := [
-					recv Unknown Array := {}.
-					recv foo
-				]
-				type FloatArray := Float Array.
-				meth FloatArray [foo]
-			`,
-			err: "Unknown not found",
-		},
-		{
-			name: "inst built-in type receiver",
-			src: `
-				val x := [
-					recv Rune Array := {}.
-					// If we instantiated Rune Array correctly,
-					// then the at: method should return Int
-					// and we will succssfully find the + method.
-					// If we didn't instantiated Int Array, + should fail.
-					(recv at: 0) + 5.
-
-					// But Int32 has no xyz: so this will error and say Int32.
-					(recv at: 0) xyz: 2
-				]
-				`,
-			err: "Int32 xyz: not found",
 		},
 	}
 	for _, test := range tests {

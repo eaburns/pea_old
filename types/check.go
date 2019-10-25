@@ -967,18 +967,12 @@ func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel
 	x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
 
 	if recv != nil && recv.Var != nil {
-		for _, iface := range recv.Var.Ifaces {
-			if iface.Type == nil {
-				continue
-			}
-			var err *checkError
-			fun, err = x.findFun(loc, iface.Type, sel)
-			if err != nil {
+		if mod == nil {
+			switch r, f, err := findIfaceMeth(x, loc, sel, recv.Var.Ifaces); {
+			case err != nil:
 				return nil, append(errs, *err)
-			}
-			if fun != nil {
-				recv = iface.Type
-				break
+			case f != nil:
+				recv, fun = r, f
 			}
 		}
 		if fun == nil {
@@ -1002,6 +996,30 @@ func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel
 		}
 	}
 	return fun, nil
+}
+
+func findIfaceMeth(x *scope, loc ast.Node, sel string, ifaces []TypeName) (*Type, *Fun, *checkError) {
+	for _, iface := range ifaces {
+		if iface.Type == nil || !hasVirt(iface.Type, sel) {
+			continue
+		}
+		switch fun, err := x.findFun(loc, iface.Type, sel); {
+		case err != nil:
+			return nil, nil, err
+		case fun != nil:
+			return iface.Type, fun, nil
+		}
+	}
+	return nil, nil, nil
+}
+
+func hasVirt(typ *Type, sel string) bool {
+	for _, virt := range typ.Virts {
+		if virt.Sel == sel {
+			return true
+		}
+	}
+	return false
 }
 
 func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
