@@ -14,6 +14,7 @@ type scope struct {
 	univ     []Def
 	mod      *Mod
 	file     *file
+	def      Def
 	typeVar  *Type
 	val      *Val
 	fun      *Fun
@@ -45,6 +46,30 @@ func newUnivScope(x *state) *scope {
 
 func (x *scope) new() *scope {
 	return &scope{state: x.state, up: x}
+}
+
+func use(x *scope, def Def, loc ast.Node) {
+	if _, ok := x.defFiles[def]; !ok {
+		return
+	}
+	if fun, ok := def.(*Fun); ok {
+		def = fun.Def
+	}
+	x.use(def, loc)
+}
+
+func (x *scope) use(def Def, loc ast.Node) {
+	if x.def == nil {
+		x.up.use(def, loc)
+		return
+	}
+	uses := x.initDeps[def]
+	for _, w := range uses {
+		if w.def == x.def {
+			return
+		}
+	}
+	x.initDeps[def] = append(uses, witness{x.def, loc})
 }
 
 func (x *scope) function() *Fun {
@@ -94,7 +119,7 @@ func (x *scope) findImport(name string) *imp {
 	return x.up.findImport(name)
 }
 
-func findType(x *scope, loc ast.Node, mod *ast.ModTag, arity int, name string) (*Type, *checkError) {
+func findType(x *scope, loc ast.Node, mod *ast.ModTag, arity int, name string) (typ *Type, err *checkError) {
 	if mod != nil {
 		imp, err := findImport(x, mod)
 		if err != nil {
@@ -193,7 +218,17 @@ func findTypeInDefs(arity int, name string, defs []Def) *Type {
 
 // findIdent returns a *Var or *Fun.
 // In the *Fun case, the identifier is a unary function in the current module.
-func findIdent(x *scope, loc ast.Node, mod *ast.ModTag, name string) (interface{}, *checkError) {
+func findIdent(x *scope, loc ast.Node, mod *ast.ModTag, name string) (id interface{}, err *checkError) {
+	defer func() {
+		switch id := id.(type) {
+		case *Var:
+			if id.Val != nil {
+				use(x, id.Val, loc)
+			}
+		case *Fun:
+			use(x, id, loc)
+		}
+	}()
 	if mod != nil {
 		imp, err := findImport(x, mod)
 		if err != nil {
@@ -204,7 +239,7 @@ func findIdent(x *scope, loc ast.Node, mod *ast.ModTag, name string) (interface{
 		}
 		return nil, x.err(loc, "identifier %s %s not found", mod.Text, name)
 	}
-	id, err := x.findIdent(loc, name)
+	id, err = x.findIdent(loc, name)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +339,12 @@ func findIdentInDefs(name string, defs []Def) interface{} {
 	return nil
 }
 
-func findFun(x *scope, loc ast.Node, recv *Type, mod *ast.ModTag, sel string) (*Fun, *checkError) {
+func findFun(x *scope, loc ast.Node, recv *Type, mod *ast.ModTag, sel string) (fun *Fun, err *checkError) {
+	defer func() {
+		if fun != nil {
+			use(x, fun, loc)
+		}
+	}()
 	var modName string
 	if mod != nil {
 		imp, err := findImport(x, mod)

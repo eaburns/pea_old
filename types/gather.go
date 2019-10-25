@@ -19,7 +19,8 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 		defer x.tr("gatherDef(%s) from other module", def.name())(&errs)
 		return nil
 	}
-	x = file.x
+	x = file.x.new()
+	x.def = def
 	if def.ast() == nil {
 		panic("impossible")
 	}

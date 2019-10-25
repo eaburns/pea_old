@@ -56,6 +56,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	}
 	errs = append(errs, checkDupMeths(x, mod.Defs)...)
 	errs = append(errs, checkDefs(x, mod.Defs)...)
+	errs = append(errs, checkInitCycles(x, mod.Defs)...)
 
 	return mod, errs
 }
@@ -208,6 +209,65 @@ func checkDupMeths(x *scope, defs []Def) []checkError {
 	return errs
 }
 
+func checkInitCycles(x *scope, defs []Def) (errs []checkError) {
+	defer x.tr("checkInitCycles()")(&errs)
+
+	seen := make(map[Def]bool)
+	onPath := make(map[*Val]bool)
+	var path []witness
+
+	var check func(Def)
+	check = func(def Def) {
+		defer x.tr("checkInitCycles(%s)", def)(&errs)
+		val, isVal := def.(*Val)
+		if isVal && onPath[val] {
+			err := x.err(val, "initialization cycle")
+			for i := len(path) - 1; i >= 0; i-- {
+				var next string
+				if i == 0 {
+					next = val.Var.Name
+				} else {
+					next = funOrValName(path[i-1].def)
+				}
+				cur := funOrValName(path[i].def)
+				note(err, "%s: %s uses %s", x.loc(path[i].loc), cur, next)
+			}
+			errs = append(errs, *err)
+			return
+		}
+		if seen[def] {
+			return
+		}
+		seen[def] = true
+		if isVal {
+			onPath[val] = true
+			defer func() { onPath[val] = false }()
+		}
+		for _, w := range x.initDeps[def] {
+			path = append(path, w)
+			check(w.def)
+			path = path[:len(path)-1]
+		}
+	}
+	for _, def := range defs {
+		if val, ok := def.(*Val); ok && !seen[def] {
+			check(val)
+		}
+	}
+	return errs
+}
+
+func funOrValName(def Def) string {
+	switch d := def.(type) {
+	case *Val:
+		return d.Var.Name
+	case *Fun:
+		return d.Sig.Sel
+	default:
+		panic("impossible")
+	}
+}
+
 func checkDefs(x *scope, defs []Def) []checkError {
 	var errs []checkError
 	for _, def := range defs {
@@ -221,11 +281,16 @@ func checkDef(x *scope, def Def) []checkError {
 		// This is a built-in method, with no AST and nothing to check.
 		return nil
 	}
+	if x.checked[def] {
+		return nil
+	}
+	x.checked[def] = true
 	file, ok := x.defFiles[def]
 	if !ok {
 		panic("impossible")
 	}
-	x = file.x
+	x = file.x.new()
+	x.def = def
 
 	switch def := def.(type) {
 	case *Val:
@@ -327,6 +392,7 @@ func isRet(s Stmt) bool {
 
 func checkType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("checkType(%s)", def)(&errs)
+
 	for i := range def.Parms {
 		for j := range def.Parms[i].Ifaces {
 			iface := &def.Parms[i].Ifaces[j]
@@ -608,6 +674,9 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 			vars[i] = vr
 			newLocal[i] = true
 		case *Var:
+			if found.Val != nil {
+				x.use(found.Val, astAss)
+			}
 			if !found.isSelf() {
 				if astVar.Type != nil {
 					err := x.err(astVar, "%s redefined", astVar.Name)
@@ -1233,6 +1302,10 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 	switch vr := found.(type) {
 	case *Var:
 		ident.Var = vr
+		if vr.Val != nil {
+			// Recursively check the Val to make sure it's type is inferred.
+			errs = append(errs, checkDef(x, vr.Val)...)
+		}
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
 		msg := Msg{

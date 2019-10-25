@@ -14,10 +14,19 @@ type state struct {
 	cfg        Config
 	defFiles   map[Def]*file
 	gathered   map[Def]bool
+	checked    map[Def]bool
 	aliasStack []*Type
+
+	// initDeps tracks uses of *Fun and *Val for init cycle checking.
+	initDeps map[Def][]witness
 
 	nextID int
 	indent string
+}
+
+type witness struct {
+	def Def
+	loc ast.Node
 }
 
 func newState(cfg Config, astMod *ast.Mod) *state {
@@ -26,6 +35,8 @@ func newState(cfg Config, astMod *ast.Mod) *state {
 		cfg:      cfg,
 		defFiles: make(map[Def]*file),
 		gathered: make(map[Def]bool),
+		checked:  make(map[Def]bool),
+		initDeps: make(map[Def][]witness),
 	}
 }
 

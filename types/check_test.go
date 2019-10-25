@@ -585,6 +585,59 @@ func TestValDef(t *testing.T) {
 			`,
 			err: "cannot infer constructor type",
 		},
+		{
+			name: "simple 1 cycle",
+			src: `
+				val x := [x]
+			`,
+			err: "initialization cycle",
+		},
+		{
+			name: "simple 2 cycle",
+			src: `
+				val x := [y]
+				val y := [x]
+			`,
+			err: "initialization cycle",
+		},
+		{
+			name: "simple 3 cycle",
+			src: `
+				val x := [5 + y]
+				val y := [y / 6 + z neg]
+				val z := [true ifTrue: [x] ifFalse: [4]]
+			`,
+			err: "initialization cycle",
+		},
+		{
+			name: "1 cycle through calls",
+			src: `
+				val x := [foo]
+				func [foo | x]
+			`,
+			err: "initialization cycle",
+		},
+		{
+			name: "3 cycle through calls",
+			src: `
+				val x String := [foo: 5]
+				func [foo: _ Int ^String| ^y]
+				val y String := [bar]
+				func [bar ^String | ^5 baz: 1]
+				meth Int [baz: _ String ^String | ^z]
+				val z String := [x]
+			`,
+			err: "initialization cycle",
+		},
+		{
+			name: "recursive functions are not a cycle",
+			src: `
+				val x := [foo]
+				func [foo | bar]
+				func [bar | foo]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
