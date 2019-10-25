@@ -1428,13 +1428,6 @@ func checkString(x *scope, astString *ast.String) (*String, []checkError) {
 	}, nil
 }
 
-func identString(id *ast.Ident) string {
-	if id == nil {
-		return ""
-	}
-	return id.Text
-}
-
 func modString(m *ast.ModTag) string {
 	if m == nil {
 		return ""
