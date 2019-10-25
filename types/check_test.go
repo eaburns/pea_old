@@ -57,6 +57,26 @@ func TestImportError(t *testing.T) {
 			`,
 			err: "not found",
 		},
+		{
+			name: "unused import",
+			src: `
+				import "foo"
+			`,
+			imports: [][2]string{
+				{"foo", ""},
+			},
+			err: "foo imported and not used",
+		},
+		{
+			name: "unused Import",
+			src: `
+				Import "foo"
+			`,
+			imports: [][2]string{
+				{"foo", ""},
+			},
+			err: "foo imported and not used",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -197,7 +217,7 @@ func TestRedefError(t *testing.T) {
 			name: "no redef with imported",
 			src: `
 				import "xyz"
-				Val Abc := [5]
+				Val Abc := [#xyz Abc]
 			`,
 			imports: [][2]string{
 				{
@@ -362,6 +382,9 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				val useImports := [ #foo x. #bar x. ]
 			`,
 			imports: [][2]string{
 				{
@@ -380,6 +403,10 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				func [useFoo ^#foo Point]
+				func [useBar ^#bar Point]
 			`,
 			imports: [][2]string{
 				{
@@ -398,6 +425,10 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				func [useFoo | #foo Point]
+				func [useBar ^#bar Point]
 			`,
 			imports: [][2]string{
 				{
@@ -416,6 +447,10 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				func [useFoo | #foo Abc]
+				func [useBar ^#bar Def]
 			`,
 			imports: [][2]string{
 				{
@@ -442,6 +477,12 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				val useImports := [
+					5 #foo foo: "" bar: 5.
+					5 #bar foo: "" bar: 5.
+				]
 			`,
 			imports: [][2]string{
 				{
@@ -460,6 +501,12 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				val useImports := [
+					5 #foo foo: "" bar: 5.
+					5.0 #bar foo: "" bar: 5.
+				]
 			`,
 			imports: [][2]string{
 				{
@@ -478,6 +525,9 @@ func TestRedefError(t *testing.T) {
 			src: `
 				Import "foo"
 				Import "bar"
+
+				// to rid unused import errors
+				val useImports := [#foo useMe. #bar useMe.]
 			`,
 			imports: [][2]string{
 				{
@@ -486,6 +536,7 @@ func TestRedefError(t *testing.T) {
 						Import "baz"
 						// #baz Test
 						Meth Test [foo: _ String bar: _ Int]
+						Val useMe := [4]
 					`,
 				},
 				{
@@ -494,6 +545,7 @@ func TestRedefError(t *testing.T) {
 						Import "qux"
 						// #qux Test
 						Meth Test [foo: _ String bar: _ Int]
+						Val useMe := [4]
 					`,
 				},
 				{

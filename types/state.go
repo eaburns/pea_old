@@ -12,6 +12,7 @@ import (
 type state struct {
 	astMod     *ast.Mod
 	cfg        Config
+	files      []*file
 	defFiles   map[Def]*file
 	gathered   map[Def]bool
 	checked    map[Def]bool

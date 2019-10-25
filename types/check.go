@@ -57,6 +57,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	errs = append(errs, checkDupMeths(x, mod.Defs)...)
 	errs = append(errs, checkDefs(x, mod.Defs)...)
 	errs = append(errs, checkInitCycles(x, mod.Defs)...)
+	errs = append(errs, checkUnusedImports(x)...)
 
 	return mod, errs
 }
@@ -66,6 +67,7 @@ func makeDefs(x *scope, files []ast.File) ([]Def, []checkError) {
 	var errs []checkError
 	for i := range files {
 		file := &file{ast: &files[i]}
+		x.files = append(x.files, file)
 		file.x = x.new()
 		file.x.file = file
 		errs = append(errs, imports(x, file)...)
@@ -266,6 +268,22 @@ func funOrValName(def Def) string {
 	default:
 		panic("impossible")
 	}
+}
+
+func checkUnusedImports(x *scope) (errs []checkError) {
+	defer x.tr("checkUnusedImports()")(&errs)
+
+	for _, file := range x.files {
+		for i := range file.imports {
+			imp := &file.imports[i]
+			if imp.used {
+				continue
+			}
+			err := x.err(imp.ast, "%s imported and not used", imp.path)
+			errs = append(errs, *err)
+		}
+	}
+	return errs
 }
 
 func checkDefs(x *scope, defs []Def) []checkError {

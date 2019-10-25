@@ -30,6 +30,7 @@ type file struct {
 
 type imp struct {
 	ast  ast.Node
+	used bool
 	all  bool
 	path string
 	name string
@@ -111,8 +112,10 @@ func (x *scope) findImport(name string) *imp {
 		return nil
 	case x.file != nil:
 		for i := range x.file.imports {
-			if x.file.imports[i].name == name {
-				return &x.file.imports[i]
+			imp := &x.file.imports[i]
+			if imp.name == name {
+				imp.used = true
+				return imp
 			}
 		}
 	}
@@ -182,6 +185,7 @@ func (f *file) findType(loc ast.Node, arity int, name string) (*Type, *checkErro
 			continue
 		}
 		if t := imp.findType(arity, name); t != nil {
+			imp.used = true
 			ts = append(ts, t)
 			imps = append(imps, imp)
 		}
@@ -291,6 +295,7 @@ func (f *file) findIdent(loc ast.Node, name string) (interface{}, *checkError) {
 			continue
 		}
 		if id := imp.findIdent(name); id != nil {
+			imp.used = true
 			ids = append(ids, id)
 			imps = append(imps, imp)
 		}
@@ -403,6 +408,7 @@ func (f *file) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError)
 			continue
 		}
 		if fun := imp.findFun(recv, sel); fun != nil {
+			imp.used = true
 			funs = append(funs, fun)
 			imps = append(imps, imp)
 		}
