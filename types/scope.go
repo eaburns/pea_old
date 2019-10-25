@@ -373,7 +373,12 @@ func (f *file) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError)
 	if len(funs) == 1 {
 		return funs[0], nil
 	}
-	err := f.x.err(loc, "ambiguous function call %s", sel)
+	var err *checkError
+	if recv == nil {
+		err = f.x.err(loc, "ambiguous function %s", sel)
+	} else {
+		err = f.x.err(loc, "ambiguous method %s", sel)
+	}
 	for _, imp := range imps {
 		note(err, "imported from %s at %s", imp.name, f.x.loc(imp.ast))
 	}

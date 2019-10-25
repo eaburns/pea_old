@@ -117,8 +117,6 @@ func makeDef(astDef ast.Def) Def {
 
 func imports(x *scope, file *file) []checkError {
 	var errs []checkError
-	seen := make(map[string]defAST)
-	seenTypes := make(map[string]ast.Node)
 	for i := range file.ast.Imports {
 		astImp := &file.ast.Imports[i]
 		p := astImp.Path[1 : len(astImp.Path)-1] // trim "
@@ -135,18 +133,6 @@ func imports(x *scope, file *file) []checkError {
 			name: path.Base(p),
 			defs: defs,
 		})
-		if !astImp.All {
-			continue
-		}
-		for _, def := range defs {
-			if def.priv() {
-				continue
-			}
-			err := checkDupDef(x, seen, seenTypes, astImp, def)
-			if err != nil {
-				errs = append(errs, *err)
-			}
-		}
 	}
 	return errs
 }
@@ -156,87 +142,49 @@ func imports(x *scope, file *file) []checkError {
 func checkDups(x *scope, defs []Def) (errs []checkError) {
 	defer x.tr("checkDups")(&errs)
 
-	seen := make(map[string]defAST)
-	seenTypes := make(map[string]ast.Node)
+	seen := make(map[string]Def)
+	seenTypes := make(map[string]*Type)
 	for _, def := range defs {
-		err := checkDupDef(x, seen, seenTypes, def.ast(), def)
-		if err != nil {
-			errs = append(errs, *err)
+		var id string
+		switch def := def.(type) {
+		case *Val:
+			id = def.Var.Name
+		case *Type:
+			id = def.Name
+			tid := fmt.Sprintf("(%d)%s", def.Arity, def.Name)
+			if prev, ok := seenTypes[tid]; ok {
+				err := x.err(def, "type %s redefined", tid)
+				note(err, "previous definition is at %s", x.loc(prev))
+				errs = append(errs, *err)
+				continue
+			}
+			seenTypes[tid] = def
+			if prev, ok := seen[id]; ok {
+				if _, ok := prev.(*Type); ok {
+					// Multiple defs of the same type name are OK
+					// as long as their arity is different.
+					continue
+				}
+			}
+		case *Fun:
+			// Defer checking duplicate methods until receiver types are resolved.
+			if astFun, ok := def.AST.(*ast.Fun); ok && astFun.Recv != nil {
+				continue
+			}
+			id = def.Sig.Sel
+		default:
+			panic(fmt.Sprintf("impossible type %T", def))
 		}
+		if prev, ok := seen[id]; ok {
+			err := x.err(def, "%s redefined", id)
+			note(err, "previous definition is at %s", x.loc(prev))
+			errs = append(errs, *err)
+			continue
+		}
+		x.log("id=%s", id)
+		seen[id] = def
 	}
 	return errs
-}
-
-type defAST struct {
-	def Def
-	ast ast.Node
-}
-
-func checkDupDef(x *scope, seen map[string]defAST, seenType map[string]ast.Node, loc ast.Node, def Def) (err *checkError) {
-	defer x.tr("checkDups(%s)", def)(&err)
-
-	var id string
-	switch def := def.(type) {
-	case *Val:
-		id = def.Var.Name
-	case *Type:
-		id = def.Name
-		tid := fmt.Sprintf("(%d)%s", def.Arity, def.Name)
-		if prev, ok := seenType[tid]; ok {
-			err := x.err(def, "type %s redefined", tid)
-			if _, ok := prev.(*ast.Import); ok {
-				note(err, "previous definition imported at %s", x.loc(prev))
-			} else {
-				note(err, "previous definition is at %s", x.loc(prev))
-			}
-			return err
-		}
-		seenType[tid] = loc
-		if ad, ok := seen[id]; ok {
-			if _, ok := ad.def.(*Type); ok {
-				// Multiple defs of the same type name are OK
-				// as long as their arity is different.
-				return nil
-			}
-		}
-	case *Fun:
-		// If loc is not an *ast.Import, we are checking in-module defs.
-		// Types haven't been gathered yet, so we need to defer
-		// checking for duplicate methods, since te don't know
-		// their receiver types yet.
-		//
-		// If loc is an *ast.Import, we are checking imported definitions.
-		// We know the receiver types, and we can check dups now.
-		if _, ok := loc.(*ast.Import); !ok {
-			if astFun, ok := def.AST.(*ast.Fun); ok && astFun.Recv != nil {
-				return nil
-			}
-			id = def.Sig.Sel
-		} else if def.Recv != nil {
-			// Use the entire receiver type name (including module),
-			// since we aren't checking duplicate types,
-			// but duplicate methods on the same type,
-			// regardless of whether other types also have this name
-			// in other modules.
-			id = def.Recv.Type.name() + " " + def.Sig.Sel
-		} else {
-			id = def.Sig.Sel
-		}
-	default:
-		panic(fmt.Sprintf("impossible type %T", def))
-	}
-	if prev, ok := seen[id]; ok {
-		err := x.err(def, "%s redefined", id)
-		if _, ok := prev.ast.(*ast.Import); ok {
-			note(err, "previous definition imported at %s", x.loc(prev.ast))
-		} else {
-			note(err, "previous definition is at %s", x.loc(prev.ast))
-		}
-		return err
-	}
-	x.log("id=%s", id)
-	seen[id] = defAST{def: def, ast: loc}
-	return nil
 }
 
 func checkDupMeths(x *scope, defs []Def) []checkError {

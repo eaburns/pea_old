@@ -358,7 +358,7 @@ func TestRedefError(t *testing.T) {
 			err: "virtual method foo:bar: redefined",
 		},
 		{
-			name: "Import val redef",
+			name: "Import val redef OK",
 			src: `
 				Import "foo"
 				Import "bar"
@@ -373,10 +373,10 @@ func TestRedefError(t *testing.T) {
 					"Val x := [5]",
 				},
 			},
-			err: "previous definition imported at",
+			err: "",
 		},
 		{
-			name: "Import type redef",
+			name: "Import type redef OK",
 			src: `
 				Import "foo"
 				Import "bar"
@@ -391,10 +391,10 @@ func TestRedefError(t *testing.T) {
 					"Type Point {x: String y: Float}",
 				},
 			},
-			err: "previous definition imported at",
+			err: "",
 		},
 		{
-			name: "Import type versus value redef",
+			name: "Import type versus value redef OK",
 			src: `
 				Import "foo"
 				Import "bar"
@@ -409,7 +409,7 @@ func TestRedefError(t *testing.T) {
 					"Type Point {x: String y: Float}",
 				},
 			},
-			err: "previous definition imported at",
+			err: "",
 		},
 		{
 			name: "Import non-exported, no refed",
@@ -438,7 +438,7 @@ func TestRedefError(t *testing.T) {
 			err: "",
 		},
 		{
-			name: "Import method redef",
+			name: "Import method redef OK",
 			src: `
 				Import "foo"
 				Import "bar"
@@ -453,7 +453,7 @@ func TestRedefError(t *testing.T) {
 					"Meth Int [foo: _ String bar: _ Int]",
 				},
 			},
-			err: "previous definition imported at",
+			err: "",
 		},
 		{
 			name: "Import method non-dup with diff recv",
@@ -1241,6 +1241,47 @@ func TestTypeName(t *testing.T) {
 			},
 			err: "",
 		},
+		{
+			name: "ambiguous type",
+			src: `
+				Import "foo"
+				Import "bar"
+				val x Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+				{"bar", "Type Test {x: Float}"},
+			},
+			err: "ambiguous type",
+		},
+		{
+			name: "unambiguous type 1",
+			src: `
+				Import "foo"
+				Import "bar"
+				val x #foo Test := [{x: 5}]
+				val _ String := [x]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+				{"bar", "Type Test {x: Float}"},
+			},
+			err: "have #foo Test, want String",
+		},
+		{
+			name: "unambiguous type 2",
+			src: `
+				Import "foo"
+				Import "bar"
+				val x #bar Test := [{x: 5}]
+				val _ String := [x]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+				{"bar", "Type Test {x: Float}"},
+			},
+			err: "have #bar Test, want String",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -1894,6 +1935,84 @@ func TestCall(t *testing.T) {
 			err: "have Int, want String",
 		},
 		{
+			name: "ambiguous method call",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [5 foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+				{"bar", "Meth Int [foo ^Float]"},
+			},
+			err: "ambiguous method",
+		},
+		{
+			name: "unambiguous method call 1",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [5 #foo foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+				{"bar", "Meth Int [foo ^Float]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "unambiguous method call 2",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [5 #bar foo]
+			`,
+			imports: [][2]string{
+				{"foo", "Meth Int [foo ^Int]"},
+				{"bar", "Meth Int [foo ^Float]"},
+			},
+			err: "have Float, want String",
+		},
+		{
+			name: "ambiguous function call",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [foo: 5]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo: _ Int ^Int]"},
+				{"bar", "Func [foo: _ Float ^Float]"},
+			},
+			err: "ambiguous function",
+		},
+		{
+			name: "unambiguous function call 1",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [#foo foo: 5]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo: _ Int ^Int]"},
+				{"bar", "Func [foo: _ Float ^Float]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "unambiguous function call 2",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [#bar foo: 5]
+			`,
+			imports: [][2]string{
+				{"foo", "Func [foo: _ Int ^Int]"},
+				{"bar", "Func [foo: _ Float ^Float]"},
+			},
+			err: "have Float, want String",
+		},
+		{
 			name: "virtual call",
 			src: `
 				val _ String := [
@@ -2342,6 +2461,45 @@ func TestIdent(t *testing.T) {
 				"foo", "Val x Int := [5]",
 			}},
 			err: "have Int, want String",
+		},
+		{
+			name: "ambiguous ident",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [x]
+			`,
+			imports: [][2]string{
+				{"foo", "Val x Int := [5]"},
+				{"bar", "Val x Float := [5]"},
+			},
+			err: "ambiguous identifier",
+		},
+		{
+			name: "unambiguous ident 1",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [#foo x]
+			`,
+			imports: [][2]string{
+				{"foo", "Val x Int := [5]"},
+				{"bar", "Val x Float := [5]"},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "unambiguous ident 2",
+			src: `
+				Import "foo"
+				Import "bar"
+				val _ String := [#bar x]
+			`,
+			imports: [][2]string{
+				{"foo", "Val x Int := [5]"},
+				{"bar", "Val x Float := [5]"},
+			},
+			err: "have Float, want String",
 		},
 	}
 	for _, test := range tests {
