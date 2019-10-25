@@ -1369,8 +1369,8 @@ func TestAssignError(t *testing.T) {
 			name: "ok",
 			src: `
 				Val x := [
-					a Int := 1.
-					b := 1.
+					_ Int := 1.
+					_ := 2.
 				]
 			`,
 			err: "",
@@ -1379,7 +1379,7 @@ func TestAssignError(t *testing.T) {
 			name: "ok multi-assign",
 			src: `
 				Val x := [
-					a Int, b, c := 1 neg, neg, neg.
+					_ Int, _, _ := 1 neg, neg, neg.
 				]
 			`,
 			err: "",
@@ -1388,7 +1388,7 @@ func TestAssignError(t *testing.T) {
 			name: "count mismatch: no call",
 			src: `
 				Val x := [
-					a, b, c := 1.
+					_, _, _ := 1.
 				]
 			`,
 			err: "assignment count mismatch: got 1, want 3",
@@ -1397,7 +1397,7 @@ func TestAssignError(t *testing.T) {
 			name: "count mismatch: too few messages",
 			src: `
 				Val x := [
-					a, b, c := 1 neg, neg
+					_, _, _ := 1 neg, neg
 				]
 			`,
 			err: "assignment count mismatch: got 2, want 3",
@@ -1406,7 +1406,7 @@ func TestAssignError(t *testing.T) {
 			name: "count mismatch: too many messages",
 			src: `
 				Val x := [
-					a, b, c := 1 neg, neg, neg, neg
+					_, _, _ := 1 neg, neg, neg, neg
 				]
 			`,
 			err: "assignment count mismatch: got 4, want 3",
@@ -1415,7 +1415,7 @@ func TestAssignError(t *testing.T) {
 			name: "bad type name",
 			src: `
 				Val x := [
-					a Unknown := 1
+					_ Unknown := 1
 				]
 			`,
 			err: "type Unknown not found",
@@ -1424,7 +1424,7 @@ func TestAssignError(t *testing.T) {
 			name: "bad type name and argument count mismatch",
 			src: `
 				Val x := [
-					a, b Unknown := 1
+					_, _ Unknown := 1
 				]
 			`,
 			err: "assignment count mismatch: got 1, want 2(.|\n)*type Unknown not found",
@@ -1461,6 +1461,7 @@ func TestAssignError(t *testing.T) {
 					x String := "hello".
 					x := "hello".
 					x := 5.
+					_ := x.
 				]
 			`,
 			err: "have Int, want String",
@@ -1470,6 +1471,7 @@ func TestAssignError(t *testing.T) {
 			src: `
 				meth Int [foo: x Int |
 					x String := "hello".
+					_ := x.
 				]
 			`,
 			err: "",
@@ -1480,6 +1482,49 @@ func TestAssignError(t *testing.T) {
 				val x Int := [ 5 ]
 				meth Int [foo |
 					x String := "hello".
+					_ := x.
+				]
+			`,
+			err: "",
+		},
+		{
+			name: "unused in val",
+			src: `
+				val _ Int := [
+					x := 5.
+					x := 6.
+				]
+			`,
+			err: "x declared and not used",
+		},
+		{
+			name: "unused in fun",
+			src: `
+				func [foo |
+					x := 5.
+					x := 6.
+				]
+			`,
+			err: "x declared and not used",
+		},
+		{
+			name: "unused in block",
+			src: `
+				func [foo |
+					[
+						x := 5.
+						x := 6.
+					]
+				]
+			`,
+			err: "x declared and not used",
+		},
+		{
+			name: "nested use",
+			src: `
+				func [foo |
+					x := 5.
+					[[[[[x]]]]]
 				]
 			`,
 			err: "",
@@ -1497,7 +1542,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Int & := x.
+					_ Int & := x.
 				]
 			`,
 			err: "",
@@ -1507,7 +1552,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Int & & & & := x.
+					_ Int & & & & := x.
 				]
 			`,
 			err: "",
@@ -1517,7 +1562,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int & := 5.
-					y Int := x.
+					_ Int := x.
 				]
 			`,
 			err: "",
@@ -1527,7 +1572,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int & & & & & := 5.
-					y Int := x.
+					_ Int := x.
 				]
 			`,
 			err: "",
@@ -1537,7 +1582,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Int Eq := x.
+					_ Int Eq := x.
 				]
 				type T Eq { [= T& ^Bool] }
 			`,
@@ -1548,7 +1593,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Float Eq := x.
+					_ Float Eq := x.
 				]
 				type T Eq { [= T& ^Bool] }
 			`,
@@ -1559,7 +1604,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Eq := x.
+					_ Eq := x.
 				]
 				type Eq { [= T& ^Int] }
 			`,
@@ -1570,7 +1615,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Eq := x.
+					_ Eq := x.
 				]
 				type Eq { [= T&] }
 			`,
@@ -1581,7 +1626,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int := 5.
-					y Eq := x.
+					_ Eq := x.
 				]
 				meth Int [ === _ T&]
 				type Eq { [=== T& ^Bool] }
@@ -1593,7 +1638,7 @@ func TestAssignConvert(t *testing.T) {
 			src: `
 				val _ := [
 					x Int & & := 5.
-					y Int Eq := x.
+					_ Int Eq := x.
 				]
 				type T Eq { [= T& ^Bool] }
 			`,
@@ -1647,7 +1692,9 @@ func TestAssignToNewVariable(t *testing.T) {
 	const src = `
 		val x := [
 			a := 5.
+			use: a.
 		]
+		func [use: _ Int]
 	`
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
@@ -1677,7 +1724,9 @@ func TestAssignToExistingVariable(t *testing.T) {
 		val x := [
 			a := 5.
 			a := 6.
+			use: a.
 		]
+		func [use: _ Int]
 	`
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
@@ -2571,10 +2620,12 @@ func TestIdentLookup(t *testing.T) {
 			fieldVar.		// 5
 			unaryFun.	// 6
 			self.			// 7
+			use: ignore1.
 		]
 		val modVar := [5]
 		type Test { ignore: Float fieldVar: Int }
 		func [unaryFun]
+		func [use: _ Int]
 	`
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {

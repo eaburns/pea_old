@@ -535,6 +535,12 @@ func checkStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []che
 			panic(fmt.Sprintf("impossible type: %T", astStmt))
 		}
 	}
+	for _, loc := range *x.locals() {
+		if loc.Name != "_" && loc.AST != nil && !x.localRead[loc] {
+			err := x.err(loc, "%s declared and not used", loc.Name)
+			errs = append(errs, *err)
+		}
+	}
 	return stmts, errs
 }
 
@@ -1302,9 +1308,12 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 	switch vr := found.(type) {
 	case *Var:
 		ident.Var = vr
-		if vr.Val != nil {
+		switch {
+		case vr.Val != nil:
 			// Recursively check the Val to make sure it's type is inferred.
 			errs = append(errs, checkDef(x, vr.Val)...)
+		case vr.Local != nil:
+			x.localRead[vr] = true
 		}
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
