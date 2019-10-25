@@ -17,25 +17,25 @@ func TestString(t *testing.T) {
 		{src: "Val x := [5]", want: "x"},
 		{src: "val x Int32 := [5]", want: "x Int32"},
 		{src: "val x Int Array := [{5}]", want: "x Int Array"},
-		{src: "type Xyz { }", want: "Xyz"},
-		{src: "Type Xyz { }", want: "Xyz"},
-		{src: "type X Xyz { }", want: "X Xyz"},
-		{src: "type (X, Y, Z) Xyz { }", want: "(X, Y, Z) Xyz"},
-		{src: "type (X Foo) Xyz { } type Foo{[foo]}", want: "(X Foo) Xyz"},
-		{src: "type (X Foo, Y, Z Foo) Xyz { } type Foo{[foo]}", want: "(X Foo, Y, Z Foo) Xyz"},
-		{src: "type X& { }", want: "X&"},
-		{src: "type (X, Y, Z)& { }", want: "(X, Y, Z)&"},
+		{src: "type Xyz {}", want: "Xyz"},
+		{src: "Type Xyz {}", want: "Xyz"},
+		{src: "type X Xyz {x: X}", want: "X Xyz"},
+		{src: "type (X, Y, Z) Xyz {x: X y: Y z: Z}", want: "(X, Y, Z) Xyz"},
+		{src: "type (X Foo) Xyz {x: X} type Foo{[foo]}", want: "(X Foo) Xyz"},
+		{src: "type (X Foo, Y, Z Foo) Xyz {x: X y: Y z: Z} type Foo{[foo]}", want: "(X Foo, Y, Z Foo) Xyz"},
+		{src: "type X& {x: X}", want: "X&"},
+		{src: "type (X, Y, Z)& {x: X y: Y z: Z}", want: "(X, Y, Z)&"},
 		{src: "func [unary |]", want: "[unary]"},
 		{src: "func [unary]", want: "[unary]"},
-		{src: "func T [unary |]", want: "T [unary]"},
-		{src: "func (T Foo) [unary |] type Foo { [xyz] }", want: "(T Foo) [unary]"},
+		{src: "func T [unary ^T]", want: "T [unary ^T]"},
+		{src: "func (T Foo) [unary ^T] type Foo { [xyz] }", want: "(T Foo) [unary ^T]"},
 		{src: "Func [unary |]", want: "[unary]"},
 		{src: "meth Int [++ abc Int |]", want: "Int [++ abc Int]"},
 		{src: "meth Int [++ abc Int]", want: "Int [++ abc Int]"},
 		{src: "Meth Int [++ abc Int |]", want: "Int [++ abc Int]"},
 		{src: "meth Int [+ abc Int ^Int]", want: "Int [+ abc Int ^Int]"},
 		{src: "meth T Array [at: i Int put: t T |]", want: "T Array [at: i Int put: t T]"},
-		{src: "meth T Array [foo: x Int |]", want: "T Array [foo: x Int]"},
+		{src: "meth _ Array [foo: x Int |]", want: "_ Array [foo: x Int]"},
 		{
 			src: `
 				import "foo"
@@ -47,34 +47,34 @@ func TestString(t *testing.T) {
 		{
 			src: `
 				import "foo"
-				meth T #foo Abc [bar|]
+				meth T #foo Abc [bar ^T]
 			`,
-			want:    "T #foo Abc [bar]",
-			imports: [][2]string{{"foo", "Type T Abc {}"}},
+			want:    "T #foo Abc [bar ^T]",
+			imports: [][2]string{{"foo", "Type T Abc {t: T}"}},
 		},
 		{
 			src: `
 				import "foo"
-				meth (T, U) #foo Abc [bar|]
+				meth (T, U) #foo Abc [bar: _ T baz: _ U]
 			`,
-			want:    "(T, U) #foo Abc [bar]",
-			imports: [][2]string{{"foo", "Type (T, U) Abc {}"}},
+			want:    "(T, U) #foo Abc [bar: _ T baz: _ U]",
+			imports: [][2]string{{"foo", "Type (T, U) Abc {t: T u: U}"}},
 		},
 		{
 			src: `
 				import "foo"
-				meth T #foo ? [bar|]
+				meth T #foo ? [bar ^T]
 			`,
-			want:    "T #foo ? [bar]",
-			imports: [][2]string{{"foo", "Type T ? {}"}},
+			want:    "T #foo ? [bar ^T]",
+			imports: [][2]string{{"foo", "Type T? {t: T}"}},
 		},
 		{
 			src: `
 				import "foo"
-				meth (T, U) #foo ? [bar|]
+				meth (_, _) #foo ? [bar|]
 			`,
-			want:    "(T, U) #foo ? [bar]",
-			imports: [][2]string{{"foo", "Type (T, U) ? {}"}},
+			want:    "(_, _) #foo ? [bar]",
+			imports: [][2]string{{"foo", "Type (T, U)? {t: T u: U}"}},
 		},
 
 		// Tests for TypeName.String.
@@ -83,12 +83,12 @@ func TestString(t *testing.T) {
 		{src: "val x Int := []", want: "x Int"},
 		{src: "val x Float Array := []", want: "x Float Array"},
 		{src: "val x Float Array Array := []", want: "x Float Array Array"},
-		{src: "val x (Float, String) Pair := [] type (X, Y) Pair{}", want: "x (Float, String) Pair"},
-		{src: "val x (Float, String Array) Pair := [] type (X, Y) Pair{}", want: "x (Float, String Array) Pair"},
+		{src: "val x (Float, String) Pair := [] type (X, Y) Pair{x: X y: Y}", want: "x (Float, String) Pair"},
+		{src: "val x (Float, String Array) Pair := [] type (X, Y) Pair{x: X y: Y}", want: "x (Float, String Array) Pair"},
 		{src: "val x Int& := []", want: "x Int&"},
 		{src: "val x Int& & & := []", want: "x Int& & &"},
-		{src: "val x (Int, Float)! := [] type (X, Y)! {}", want: "x (Int, Float)!"},
-		{src: "val x Int& && := [] type T &&{}", want: "x Int& &&"},
+		{src: "val x (Int, Float)! := [] type (X, Y)! {x: X y: Y}", want: "x (Int, Float)!"},
+		{src: "val x Int& && := [] type T&&{t: T}", want: "x Int& &&"},
 		{
 			src: `
 				import "foo"
@@ -103,7 +103,7 @@ func TestString(t *testing.T) {
 				val x Int #foo Abc := []
 			`,
 			want:    "x Int #foo Abc",
-			imports: [][2]string{{"foo", "Type T Abc {}"}},
+			imports: [][2]string{{"foo", "Type T Abc {t: T}"}},
 		},
 		{
 			src: `
@@ -111,7 +111,7 @@ func TestString(t *testing.T) {
 				val x (Int, String) #foo Abc := []
 			`,
 			want:    "x (Int, String) #foo Abc",
-			imports: [][2]string{{"foo", "Type (T, U) Abc {}"}},
+			imports: [][2]string{{"foo", "Type (T, U) Abc {t: T u: U}"}},
 		},
 		{
 			src: `
@@ -127,7 +127,7 @@ func TestString(t *testing.T) {
 				val x Int #foo ? := []
 			`,
 			want:    "x Int #foo ?",
-			imports: [][2]string{{"foo", "Type T ? {}"}},
+			imports: [][2]string{{"foo", "Type T ? {t: T}"}},
 		},
 		{
 			src: `
@@ -135,7 +135,7 @@ func TestString(t *testing.T) {
 				val x (Int, String) #foo ? := []
 			`,
 			want:    "x (Int, String) #foo ?",
-			imports: [][2]string{{"foo", "Type (T, U) ? {}"}},
+			imports: [][2]string{{"foo", "Type (T, U) ? {t: T u: U}"}},
 		},
 	}
 	for _, test := range tests {
@@ -173,8 +173,8 @@ func TestFullString(t *testing.T) {
 			"Type Xyz {}",
 		},
 		{
-			"type X Xyz { }",
-			"type X Xyz {}",
+			"type X Xyz {x: X}",
+			"type X Xyz { x: X }",
 		},
 		{
 			"type Abc := Int.",

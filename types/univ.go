@@ -14,7 +14,7 @@ const MaxValueParms = 4
 // univ are the definitions of the universal package.
 // This is executed with text/template.
 var univ = `
-	type T& {}
+	type _& {}
 
 	type Nil {}
 
@@ -27,25 +27,25 @@ var univ = `
 	meth String [ atByte: _ Int ^Byte]
 	meth String [ fromByte: _ Int toByte: _ Int ^String]
 
-	type T Array {}
-	meth T Array [ size ^Int]
+	type _ Array {}
+	meth _ Array [ size ^Int]
 	meth T Array [ at: _ Int ^T&]
 	meth T Array [ at: _ Int put: _ T]
 	meth T Array [ from: _ Int to: _ Int ^T Array]
 
-	type T Fun {}
+	type _ Fun {}
 	meth T Fun [ value ^T]
 
-	type (T, U) Fun {}
+	type (_, _) Fun {}
 	meth (T, U) Fun [ value: _ T ^U]
 
-	type (T, U, V) Fun {}
+	type (_, _, _) Fun {}
 	meth (T, U, V) Fun [ value: _ T value: _ U ^V]
 
-	type (T, U, V, W) Fun {}
+	type (_, _, _, _) Fun {}
 	meth (T, U, V, W) Fun [ value: _ T value: _ U  value: _ V ^W]
 
-	type (T, U, V, W, X) Fun {}
+	type (_, _, _, _, _) Fun {}
 	meth (T, U, V, W, X) Fun [ value: _ T value: _ U  value: _ V value: _ W ^ X]
 
 	type Byte := UInt8.

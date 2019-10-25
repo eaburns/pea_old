@@ -18,8 +18,9 @@ type state struct {
 	checked    map[Def]bool
 	aliasStack []*Type
 	// initDeps tracks uses of *Fun and *Val for init cycle checking.
-	initDeps  map[Def][]witness
-	localRead map[*Var]bool
+	initDeps map[Def][]witness
+	localUse map[*Var]bool
+	tvarUse  map[*TypeVar]bool
 
 	nextID int
 	indent string
@@ -32,13 +33,14 @@ type witness struct {
 
 func newState(cfg Config, astMod *ast.Mod) *state {
 	return &state{
-		astMod:    astMod,
-		cfg:       cfg,
-		defFiles:  make(map[Def]*file),
-		gathered:  make(map[Def]bool),
-		checked:   make(map[Def]bool),
-		initDeps:  make(map[Def][]witness),
-		localRead: make(map[*Var]bool),
+		astMod:   astMod,
+		cfg:      cfg,
+		defFiles: make(map[Def]*file),
+		gathered: make(map[Def]bool),
+		checked:  make(map[Def]bool),
+		initDeps: make(map[Def][]witness),
+		localUse: make(map[*Var]bool),
+		tvarUse:  make(map[*TypeVar]bool),
 	}
 }
 

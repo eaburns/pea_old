@@ -554,7 +554,7 @@ func checkStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []che
 		}
 	}
 	for _, loc := range *x.locals() {
-		if loc.Name != "_" && loc.AST != nil && !x.localRead[loc] {
+		if loc.Name != "_" && loc.AST != nil && !x.localUse[loc] {
 			err := x.err(loc, "%s declared and not used", loc.Name)
 			errs = append(errs, *err)
 		}
@@ -1331,7 +1331,7 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 			// Recursively check the Val to make sure it's type is inferred.
 			errs = append(errs, checkDef(x, vr.Val)...)
 		case vr.Local != nil:
-			x.localRead[vr] = true
+			x.localUse[vr] = true
 		}
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)

@@ -177,6 +177,9 @@ TParms <- tps:(
 	n:TypeVar {
 		return []Var{{location: n.location, Name: n.Text}}
 	} /
+	_ v:( "_" {
+		return []Var{{location: n.location, Name: "_"}}
+	} ) { return []Var(v) } /
 	_"(" p0:TParm ps:( _"," p1:TParm { return Var(p1) } )* ( _ "," )? _")" {
 		return []Var(append([]Var{p0}, ps...))
 	}
@@ -187,7 +190,12 @@ TParms <- tps:(
 	return ([]Var)(*tps)
 }
 
-TParm <- n:TypeVar t1:TypeName? {
+TParm <- n:(
+	TypeVar /
+	_ empty:( "_" { return Ident{location:loc(parser, start, end), Text: "_"} } ) {
+		 return Ident(empty)
+	}
+) t1:TypeName? {
 	e := n.end
 	if t1 != nil {
 		e = t1.end

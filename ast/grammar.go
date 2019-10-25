@@ -3580,21 +3580,21 @@ fail:
 }
 
 func _TParmsAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [5]string
+	var labels [6]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _TParms, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// tps:(n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
+	// tps:(n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
 	{
 		pos0 := pos
-		// (n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
+		// (n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
 		{
 			pos2 := pos
-			// (n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})
-			// n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…}
+			// (n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})
+			// n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…}
 			{
 				pos7 := pos
 				// action
@@ -3611,109 +3611,131 @@ func _TParmsAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 			fail8:
 				pos = pos7
 				// action
-				// _ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")"
+				// _ v:("_" {…})
 				// _
 				if !_accept(parser, __Accepts, &pos, &perr) {
 					goto fail10
 				}
+				// v:("_" {…})
+				{
+					pos12 := pos
+					// ("_" {…})
+					// action
+					// "_"
+					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "_" {
+						perr = _max(perr, pos)
+						goto fail10
+					}
+					pos++
+					labels[1] = parser.text[pos12:pos]
+				}
+				goto ok4
+			fail10:
+				pos = pos7
+				// action
+				// _ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")"
+				// _
+				if !_accept(parser, __Accepts, &pos, &perr) {
+					goto fail13
+				}
 				// "("
 				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
 					perr = _max(perr, pos)
-					goto fail10
+					goto fail13
 				}
 				pos++
 				// p0:TParm
 				{
-					pos12 := pos
+					pos15 := pos
 					// TParm
 					if !_accept(parser, _TParmAccepts, &pos, &perr) {
-						goto fail10
+						goto fail13
 					}
-					labels[1] = parser.text[pos12:pos]
+					labels[2] = parser.text[pos15:pos]
 				}
 				// ps:(_ "," p1:TParm {…})*
 				{
-					pos13 := pos
+					pos16 := pos
 					// (_ "," p1:TParm {…})*
 					for {
-						pos15 := pos
+						pos18 := pos
 						// (_ "," p1:TParm {…})
 						// action
 						// _ "," p1:TParm
 						// _
 						if !_accept(parser, __Accepts, &pos, &perr) {
-							goto fail17
+							goto fail20
 						}
 						// ","
 						if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
 							perr = _max(perr, pos)
-							goto fail17
+							goto fail20
 						}
 						pos++
 						// p1:TParm
 						{
-							pos19 := pos
+							pos22 := pos
 							// TParm
 							if !_accept(parser, _TParmAccepts, &pos, &perr) {
-								goto fail17
+								goto fail20
 							}
-							labels[2] = parser.text[pos19:pos]
+							labels[3] = parser.text[pos22:pos]
 						}
 						continue
-					fail17:
-						pos = pos15
+					fail20:
+						pos = pos18
 						break
 					}
-					labels[3] = parser.text[pos13:pos]
+					labels[4] = parser.text[pos16:pos]
 				}
 				// (_ ",")?
 				{
-					pos21 := pos
+					pos24 := pos
 					// (_ ",")
 					// _ ","
 					// _
 					if !_accept(parser, __Accepts, &pos, &perr) {
-						goto fail22
+						goto fail25
 					}
 					// ","
 					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
 						perr = _max(perr, pos)
-						goto fail22
+						goto fail25
 					}
 					pos++
-					goto ok24
-				fail22:
-					pos = pos21
-				ok24:
+					goto ok27
+				fail25:
+					pos = pos24
+				ok27:
 				}
 				// _
 				if !_accept(parser, __Accepts, &pos, &perr) {
-					goto fail10
+					goto fail13
 				}
 				// ")"
 				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ")" {
 					perr = _max(perr, pos)
-					goto fail10
+					goto fail13
 				}
 				pos++
 				goto ok4
-			fail10:
+			fail13:
 				pos = pos7
 				goto fail3
 			ok4:
 			}
-			goto ok25
+			goto ok28
 		fail3:
 			pos = pos2
-		ok25:
+		ok28:
 		}
-		labels[4] = parser.text[pos0:pos]
+		labels[5] = parser.text[pos0:pos]
 	}
 	return _memoize(parser, _TParms, start, pos, perr)
 }
 
 func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [5]string
+	var labels [6]string
 	use(labels)
 	pos, failure := _failMemo(parser, _TParms, start, errPos)
 	if failure != nil {
@@ -3725,14 +3747,14 @@ func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _TParms}
 	// action
-	// tps:(n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
+	// tps:(n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
 	{
 		pos0 := pos
-		// (n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
+		// (n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
 		{
 			pos2 := pos
-			// (n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})
-			// n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…}
+			// (n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})
+			// n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…}
 			{
 				pos7 := pos
 				// action
@@ -3749,10 +3771,37 @@ func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 			fail8:
 				pos = pos7
 				// action
-				// _ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")"
+				// _ v:("_" {…})
 				// _
 				if !_fail(parser, __Fail, errPos, failure, &pos) {
 					goto fail10
+				}
+				// v:("_" {…})
+				{
+					pos12 := pos
+					// ("_" {…})
+					// action
+					// "_"
+					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "_" {
+						if pos >= errPos {
+							failure.Kids = append(failure.Kids, &peg.Fail{
+								Pos:  int(pos),
+								Want: "\"_\"",
+							})
+						}
+						goto fail10
+					}
+					pos++
+					labels[1] = parser.text[pos12:pos]
+				}
+				goto ok4
+			fail10:
+				pos = pos7
+				// action
+				// _ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")"
+				// _
+				if !_fail(parser, __Fail, errPos, failure, &pos) {
+					goto fail13
 				}
 				// "("
 				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
@@ -3762,30 +3811,30 @@ func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 							Want: "\"(\"",
 						})
 					}
-					goto fail10
+					goto fail13
 				}
 				pos++
 				// p0:TParm
 				{
-					pos12 := pos
+					pos15 := pos
 					// TParm
 					if !_fail(parser, _TParmFail, errPos, failure, &pos) {
-						goto fail10
+						goto fail13
 					}
-					labels[1] = parser.text[pos12:pos]
+					labels[2] = parser.text[pos15:pos]
 				}
 				// ps:(_ "," p1:TParm {…})*
 				{
-					pos13 := pos
+					pos16 := pos
 					// (_ "," p1:TParm {…})*
 					for {
-						pos15 := pos
+						pos18 := pos
 						// (_ "," p1:TParm {…})
 						// action
 						// _ "," p1:TParm
 						// _
 						if !_fail(parser, __Fail, errPos, failure, &pos) {
-							goto fail17
+							goto fail20
 						}
 						// ","
 						if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
@@ -3795,33 +3844,33 @@ func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 									Want: "\",\"",
 								})
 							}
-							goto fail17
+							goto fail20
 						}
 						pos++
 						// p1:TParm
 						{
-							pos19 := pos
+							pos22 := pos
 							// TParm
 							if !_fail(parser, _TParmFail, errPos, failure, &pos) {
-								goto fail17
+								goto fail20
 							}
-							labels[2] = parser.text[pos19:pos]
+							labels[3] = parser.text[pos22:pos]
 						}
 						continue
-					fail17:
-						pos = pos15
+					fail20:
+						pos = pos18
 						break
 					}
-					labels[3] = parser.text[pos13:pos]
+					labels[4] = parser.text[pos16:pos]
 				}
 				// (_ ",")?
 				{
-					pos21 := pos
+					pos24 := pos
 					// (_ ",")
 					// _ ","
 					// _
 					if !_fail(parser, __Fail, errPos, failure, &pos) {
-						goto fail22
+						goto fail25
 					}
 					// ","
 					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
@@ -3831,17 +3880,17 @@ func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 								Want: "\",\"",
 							})
 						}
-						goto fail22
+						goto fail25
 					}
 					pos++
-					goto ok24
-				fail22:
-					pos = pos21
-				ok24:
+					goto ok27
+				fail25:
+					pos = pos24
+				ok27:
 				}
 				// _
 				if !_fail(parser, __Fail, errPos, failure, &pos) {
-					goto fail10
+					goto fail13
 				}
 				// ")"
 				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ")" {
@@ -3851,34 +3900,35 @@ func _TParmsFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 							Want: "\")\"",
 						})
 					}
-					goto fail10
+					goto fail13
 				}
 				pos++
 				goto ok4
-			fail10:
+			fail13:
 				pos = pos7
 				goto fail3
 			ok4:
 			}
-			goto ok25
+			goto ok28
 		fail3:
 			pos = pos2
-		ok25:
+		ok28:
 		}
-		labels[4] = parser.text[pos0:pos]
+		labels[5] = parser.text[pos0:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
 }
 
 func _TParmsAction(parser *_Parser, start int) (int, *([]Var)) {
-	var labels [5]string
+	var labels [6]string
 	use(labels)
 	var label0 Ident
-	var label1 Var
+	var label1 []Var
 	var label2 Var
-	var label3 []Var
-	var label4 *[]Var
+	var label3 Var
+	var label4 []Var
+	var label5 *[]Var
 	dp := parser.deltaPos[start][_TParms]
 	if dp < 0 {
 		return -1, nil
@@ -3894,15 +3944,15 @@ func _TParmsAction(parser *_Parser, start int) (int, *([]Var)) {
 	// action
 	{
 		start0 := pos
-		// tps:(n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
+		// tps:(n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
 		{
 			pos1 := pos
-			// (n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
+			// (n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})?
 			{
 				pos3 := pos
-				label4 = new([]Var)
-				// (n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})
-				// n:TypeVar {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…}
+				label5 = new([]Var)
+				// (n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…})
+				// n:TypeVar {…}/_ v:("_" {…}) {…}/_ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")" {…}
 				{
 					pos8 := pos
 					var node7 []Var
@@ -3921,7 +3971,7 @@ func _TParmsAction(parser *_Parser, start int) (int, *([]Var)) {
 							}
 							labels[0] = parser.text[pos11:pos]
 						}
-						*label4 = func(
+						*label5 = func(
 							start, end int, n Ident) []Var {
 							return []Var{{location: n.location, Name: n.Text}}
 						}(
@@ -3929,184 +3979,256 @@ func _TParmsAction(parser *_Parser, start int) (int, *([]Var)) {
 					}
 					goto ok5
 				fail9:
-					*label4 = node7
+					*label5 = node7
 					pos = pos8
 					// action
 					{
 						start13 := pos
-						// _ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")"
+						// _ v:("_" {…})
 						// _
 						if p, n := __Action(parser, pos); n == nil {
 							goto fail12
+						} else {
+							pos = p
+						}
+						// v:("_" {…})
+						{
+							pos15 := pos
+							// ("_" {…})
+							// action
+							{
+								start16 := pos
+								// "_"
+								if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "_" {
+									goto fail12
+								}
+								pos++
+								label1 = func(
+									start, end int, n Ident) []Var {
+									return []Var{{location: n.location, Name: "_"}}
+								}(
+									start16, pos, label0)
+							}
+							labels[1] = parser.text[pos15:pos]
+						}
+						*label5 = func(
+							start, end int, n Ident, v []Var) []Var {
+							return []Var(v)
+						}(
+							start13, pos, label0, label1)
+					}
+					goto ok5
+				fail12:
+					*label5 = node7
+					pos = pos8
+					// action
+					{
+						start18 := pos
+						// _ "(" p0:TParm ps:(_ "," p1:TParm {…})* (_ ",")? _ ")"
+						// _
+						if p, n := __Action(parser, pos); n == nil {
+							goto fail17
 						} else {
 							pos = p
 						}
 						// "("
 						if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "(" {
-							goto fail12
+							goto fail17
 						}
 						pos++
 						// p0:TParm
 						{
-							pos15 := pos
+							pos20 := pos
 							// TParm
 							if p, n := _TParmAction(parser, pos); n == nil {
-								goto fail12
+								goto fail17
 							} else {
-								label1 = *n
+								label2 = *n
 								pos = p
 							}
-							labels[1] = parser.text[pos15:pos]
+							labels[2] = parser.text[pos20:pos]
 						}
 						// ps:(_ "," p1:TParm {…})*
 						{
-							pos16 := pos
+							pos21 := pos
 							// (_ "," p1:TParm {…})*
 							for {
-								pos18 := pos
-								var node19 Var
+								pos23 := pos
+								var node24 Var
 								// (_ "," p1:TParm {…})
 								// action
 								{
-									start21 := pos
+									start26 := pos
 									// _ "," p1:TParm
 									// _
 									if p, n := __Action(parser, pos); n == nil {
-										goto fail20
+										goto fail25
 									} else {
 										pos = p
 									}
 									// ","
 									if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
-										goto fail20
+										goto fail25
 									}
 									pos++
 									// p1:TParm
 									{
-										pos23 := pos
+										pos28 := pos
 										// TParm
 										if p, n := _TParmAction(parser, pos); n == nil {
-											goto fail20
+											goto fail25
 										} else {
-											label2 = *n
+											label3 = *n
 											pos = p
 										}
-										labels[2] = parser.text[pos23:pos]
+										labels[3] = parser.text[pos28:pos]
 									}
-									node19 = func(
-										start, end int, n Ident, p0 Var, p1 Var) Var {
+									node24 = func(
+										start, end int, n Ident, p0 Var, p1 Var, v []Var) Var {
 										return Var(p1)
 									}(
-										start21, pos, label0, label1, label2)
+										start26, pos, label0, label2, label3, label1)
 								}
-								label3 = append(label3, node19)
+								label4 = append(label4, node24)
 								continue
-							fail20:
-								pos = pos18
+							fail25:
+								pos = pos23
 								break
 							}
-							labels[3] = parser.text[pos16:pos]
+							labels[4] = parser.text[pos21:pos]
 						}
 						// (_ ",")?
 						{
-							pos25 := pos
+							pos30 := pos
 							// (_ ",")
 							// _ ","
 							// _
 							if p, n := __Action(parser, pos); n == nil {
-								goto fail26
+								goto fail31
 							} else {
 								pos = p
 							}
 							// ","
 							if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "," {
-								goto fail26
+								goto fail31
 							}
 							pos++
-							goto ok28
-						fail26:
-							pos = pos25
-						ok28:
+							goto ok33
+						fail31:
+							pos = pos30
+						ok33:
 						}
 						// _
 						if p, n := __Action(parser, pos); n == nil {
-							goto fail12
+							goto fail17
 						} else {
 							pos = p
 						}
 						// ")"
 						if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != ")" {
-							goto fail12
+							goto fail17
 						}
 						pos++
-						*label4 = func(
-							start, end int, n Ident, p0 Var, p1 Var, ps []Var) []Var {
+						*label5 = func(
+							start, end int, n Ident, p0 Var, p1 Var, ps []Var, v []Var) []Var {
 							return []Var(append([]Var{p0}, ps...))
 						}(
-							start13, pos, label0, label1, label2, label3)
+							start18, pos, label0, label2, label3, label4, label1)
 					}
 					goto ok5
-				fail12:
-					*label4 = node7
+				fail17:
+					*label5 = node7
 					pos = pos8
 					goto fail4
 				ok5:
 				}
-				goto ok29
+				goto ok34
 			fail4:
-				label4 = nil
+				label5 = nil
 				pos = pos3
-			ok29:
+			ok34:
 			}
-			labels[4] = parser.text[pos1:pos]
+			labels[5] = parser.text[pos1:pos]
 		}
 		node = func(
-			start, end int, n Ident, p0 Var, p1 Var, ps []Var, tps *[]Var) []Var {
+			start, end int, n Ident, p0 Var, p1 Var, ps []Var, tps *[]Var, v []Var) []Var {
 			if tps == nil {
 				return ([]Var)(nil)
 			}
 			return ([]Var)(*tps)
 		}(
-			start0, pos, label0, label1, label2, label3, label4)
+			start0, pos, label0, label2, label3, label4, label5, label1)
 	}
 	parser.act[key] = node
 	return pos, &node
 }
 
 func _TParmAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
-	var labels [2]string
+	var labels [3]string
 	use(labels)
 	if dp, de, ok := _memo(parser, _TParm, start); ok {
 		return dp, de
 	}
 	pos, perr := start, -1
 	// action
-	// n:TypeVar t1:TypeName?
-	// n:TypeVar
+	// n:(TypeVar/_ empty:("_" {…}) {…}) t1:TypeName?
+	// n:(TypeVar/_ empty:("_" {…}) {…})
 	{
 		pos1 := pos
-		// TypeVar
-		if !_accept(parser, _TypeVarAccepts, &pos, &perr) {
+		// (TypeVar/_ empty:("_" {…}) {…})
+		// TypeVar/_ empty:("_" {…}) {…}
+		{
+			pos5 := pos
+			// TypeVar
+			if !_accept(parser, _TypeVarAccepts, &pos, &perr) {
+				goto fail6
+			}
+			goto ok2
+		fail6:
+			pos = pos5
+			// action
+			// _ empty:("_" {…})
+			// _
+			if !_accept(parser, __Accepts, &pos, &perr) {
+				goto fail7
+			}
+			// empty:("_" {…})
+			{
+				pos9 := pos
+				// ("_" {…})
+				// action
+				// "_"
+				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "_" {
+					perr = _max(perr, pos)
+					goto fail7
+				}
+				pos++
+				labels[0] = parser.text[pos9:pos]
+			}
+			goto ok2
+		fail7:
+			pos = pos5
 			goto fail
+		ok2:
 		}
-		labels[0] = parser.text[pos1:pos]
+		labels[1] = parser.text[pos1:pos]
 	}
 	// t1:TypeName?
 	{
-		pos2 := pos
+		pos10 := pos
 		// TypeName?
 		{
-			pos4 := pos
+			pos12 := pos
 			// TypeName
 			if !_accept(parser, _TypeNameAccepts, &pos, &perr) {
-				goto fail5
+				goto fail13
 			}
-			goto ok6
-		fail5:
-			pos = pos4
-		ok6:
+			goto ok14
+		fail13:
+			pos = pos12
+		ok14:
 		}
-		labels[1] = parser.text[pos2:pos]
+		labels[2] = parser.text[pos10:pos]
 	}
 	return _memoize(parser, _TParm, start, pos, perr)
 fail:
@@ -4114,7 +4236,7 @@ fail:
 }
 
 func _TParmFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
-	var labels [2]string
+	var labels [3]string
 	use(labels)
 	pos, failure := _failMemo(parser, _TParm, start, errPos)
 	if failure != nil {
@@ -4126,32 +4248,69 @@ func _TParmFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	}
 	key := _key{start: start, rule: _TParm}
 	// action
-	// n:TypeVar t1:TypeName?
-	// n:TypeVar
+	// n:(TypeVar/_ empty:("_" {…}) {…}) t1:TypeName?
+	// n:(TypeVar/_ empty:("_" {…}) {…})
 	{
 		pos1 := pos
-		// TypeVar
-		if !_fail(parser, _TypeVarFail, errPos, failure, &pos) {
+		// (TypeVar/_ empty:("_" {…}) {…})
+		// TypeVar/_ empty:("_" {…}) {…}
+		{
+			pos5 := pos
+			// TypeVar
+			if !_fail(parser, _TypeVarFail, errPos, failure, &pos) {
+				goto fail6
+			}
+			goto ok2
+		fail6:
+			pos = pos5
+			// action
+			// _ empty:("_" {…})
+			// _
+			if !_fail(parser, __Fail, errPos, failure, &pos) {
+				goto fail7
+			}
+			// empty:("_" {…})
+			{
+				pos9 := pos
+				// ("_" {…})
+				// action
+				// "_"
+				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "_" {
+					if pos >= errPos {
+						failure.Kids = append(failure.Kids, &peg.Fail{
+							Pos:  int(pos),
+							Want: "\"_\"",
+						})
+					}
+					goto fail7
+				}
+				pos++
+				labels[0] = parser.text[pos9:pos]
+			}
+			goto ok2
+		fail7:
+			pos = pos5
 			goto fail
+		ok2:
 		}
-		labels[0] = parser.text[pos1:pos]
+		labels[1] = parser.text[pos1:pos]
 	}
 	// t1:TypeName?
 	{
-		pos2 := pos
+		pos10 := pos
 		// TypeName?
 		{
-			pos4 := pos
+			pos12 := pos
 			// TypeName
 			if !_fail(parser, _TypeNameFail, errPos, failure, &pos) {
-				goto fail5
+				goto fail13
 			}
-			goto ok6
-		fail5:
-			pos = pos4
-		ok6:
+			goto ok14
+		fail13:
+			pos = pos12
+		ok14:
 		}
-		labels[1] = parser.text[pos2:pos]
+		labels[2] = parser.text[pos10:pos]
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -4161,10 +4320,11 @@ fail:
 }
 
 func _TParmAction(parser *_Parser, start int) (int, *Var) {
-	var labels [2]string
+	var labels [3]string
 	use(labels)
 	var label0 Ident
-	var label1 *TypeName
+	var label1 Ident
+	var label2 *TypeName
 	dp := parser.deltaPos[start][_TParm]
 	if dp < 0 {
 		return -1, nil
@@ -4180,43 +4340,95 @@ func _TParmAction(parser *_Parser, start int) (int, *Var) {
 	// action
 	{
 		start0 := pos
-		// n:TypeVar t1:TypeName?
-		// n:TypeVar
+		// n:(TypeVar/_ empty:("_" {…}) {…}) t1:TypeName?
+		// n:(TypeVar/_ empty:("_" {…}) {…})
 		{
 			pos2 := pos
-			// TypeVar
-			if p, n := _TypeVarAction(parser, pos); n == nil {
+			// (TypeVar/_ empty:("_" {…}) {…})
+			// TypeVar/_ empty:("_" {…}) {…}
+			{
+				pos6 := pos
+				var node5 Ident
+				// TypeVar
+				if p, n := _TypeVarAction(parser, pos); n == nil {
+					goto fail7
+				} else {
+					label1 = *n
+					pos = p
+				}
+				goto ok3
+			fail7:
+				label1 = node5
+				pos = pos6
+				// action
+				{
+					start9 := pos
+					// _ empty:("_" {…})
+					// _
+					if p, n := __Action(parser, pos); n == nil {
+						goto fail8
+					} else {
+						pos = p
+					}
+					// empty:("_" {…})
+					{
+						pos11 := pos
+						// ("_" {…})
+						// action
+						{
+							start12 := pos
+							// "_"
+							if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "_" {
+								goto fail8
+							}
+							pos++
+							label0 = func(
+								start, end int) Ident {
+								return Ident{location: loc(parser, start, end), Text: "_"}
+							}(
+								start12, pos)
+						}
+						labels[0] = parser.text[pos11:pos]
+					}
+					label1 = func(
+						start, end int, empty Ident) Ident {
+						return Ident(empty)
+					}(
+						start9, pos, label0)
+				}
+				goto ok3
+			fail8:
+				label1 = node5
+				pos = pos6
 				goto fail
-			} else {
-				label0 = *n
-				pos = p
+			ok3:
 			}
-			labels[0] = parser.text[pos2:pos]
+			labels[1] = parser.text[pos2:pos]
 		}
 		// t1:TypeName?
 		{
-			pos3 := pos
+			pos13 := pos
 			// TypeName?
 			{
-				pos5 := pos
-				label1 = new(TypeName)
+				pos15 := pos
+				label2 = new(TypeName)
 				// TypeName
 				if p, n := _TypeNameAction(parser, pos); n == nil {
-					goto fail6
+					goto fail16
 				} else {
-					*label1 = *n
+					*label2 = *n
 					pos = p
 				}
-				goto ok7
-			fail6:
-				label1 = nil
-				pos = pos5
-			ok7:
+				goto ok17
+			fail16:
+				label2 = nil
+				pos = pos15
+			ok17:
 			}
-			labels[1] = parser.text[pos3:pos]
+			labels[2] = parser.text[pos13:pos]
 		}
 		node = func(
-			start, end int, n Ident, t1 *TypeName) Var {
+			start, end int, empty Ident, n Ident, t1 *TypeName) Var {
 			e := n.end
 			if t1 != nil {
 				e = t1.end
@@ -4227,7 +4439,7 @@ func _TParmAction(parser *_Parser, start int) (int, *Var) {
 				Type:     t1,
 			}
 		}(
-			start0, pos, label0, label1)
+			start0, pos, label0, label1, label2)
 	}
 	parser.act[key] = node
 	return pos, &node

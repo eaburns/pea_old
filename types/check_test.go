@@ -36,7 +36,7 @@ func TestBugRegressions(t *testing.T) {
 				type (X, Y) Bucket := (X, Y) Elem Array.
 				type (X, Y) Elem {x: X y: Y}
 				type (X, Y) Table {data: (X, Y) Bucket Array}
-				meth (X, Y) Table [foo |
+				meth (_, _) Table [foo |
 					data := newArray: 100 init: [:_ | {}].
 				]
 			`,
@@ -150,8 +150,8 @@ func TestRedefError(t *testing.T) {
 			name: "type and different arity type is OK",
 			src: `
 				type Abc {}
-				type T Abc {}
-				type (U, V) Abc {}
+				type _ Abc {}
+				type (_, _) Abc {}
 			`,
 			err: "",
 		},
@@ -159,8 +159,8 @@ func TestRedefError(t *testing.T) {
 			name: "type and same arity type",
 			src: `
 				type Abc {}
-				type T Abc {}
-				type T Abc {}
+				type _ Abc {}
+				type _ Abc {}
 			`,
 			err: "\\(1\\)Abc redefined",
 		},
@@ -291,10 +291,10 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "method not redefined when differing receiver",
 			src: `
-				type V Map {}
-				meth V Map [foo |]
-				type (K, V) Map {}
-				meth (K, V) Map [foo |]
+				type _ Map {}
+				meth _ Map [foo]
+				type (_, _) Map {}
+				meth (_, _) Map [foo]
 			`,
 			err: "",
 		},
@@ -585,7 +585,7 @@ func TestValDef(t *testing.T) {
 			name: "type constraints not met",
 			src: `
 				val _ Int Test := [5]
-				type (T Foo) Test {}
+				type (_ Foo) Test {}
 				type Foo {[foo]}
 			`,
 			err: "method Int foo not found",
@@ -723,7 +723,7 @@ func TestFuncDef(t *testing.T) {
 			name: "param type constraint not met",
 			src: `
 				func [foo: _ Int Test]
-				type (T Foor) Test {}
+				type (_ Foor) Test {}
 				type Foor {[foo]}
 			`,
 			err: "method Int foo not found",
@@ -732,7 +732,7 @@ func TestFuncDef(t *testing.T) {
 			name: "return type constraint not met",
 			src: `
 				func [foo ^Int Test]
-				type (T Foor) Test {}
+				type (_ Foor) Test {}
 				type Foor {[foo]}
 			`,
 			err: "method Int foo not found",
@@ -741,7 +741,7 @@ func TestFuncDef(t *testing.T) {
 			name: "return type constraint not met",
 			src: `
 				func [foo ^Int Test]
-				type (T Foor) Test {}
+				type (_ Foor) Test {}
 				type Foor {[foo]}
 			`,
 			err: "method Int foo not found",
@@ -770,14 +770,14 @@ func TestFuncDef(t *testing.T) {
 		{
 			name: "type parameter: OK",
 			src: `
-				func T [foo]
+				func T [foo ^T]
 			`,
 			err: "",
 		},
 		{
 			name: "constrained type parameter: OK",
 			src: `
-				func (T Fooer) [foo]
+				func (T Fooer) [foo ^T]
 				type Fooer {[foo]}
 			`,
 			err: "",
@@ -785,11 +785,25 @@ func TestFuncDef(t *testing.T) {
 		{
 			name: "constrained type parameter: bad constraint",
 			src: `
-				func (T T Fooer) [foo]
-				type (T Barer) Fooer {[foo]}
+				func (T T Fooer) [xyz ^T]
+				type (_ Barer) Fooer {[foo]}
 				type Barer {[bar]}
 			`,
 			err: "method T bar not found",
+		},
+		{
+			name: "unused type variable",
+			src: `
+				func T [xyz]
+			`,
+			err: "T defined and not used",
+		},
+		{
+			name: "illegal _ type variable",
+			src: `
+				func _ [xyz]
+			`,
+			err: "illegal function type variable name",
 		},
 	}
 	for _, test := range tests {
@@ -817,8 +831,8 @@ func TestMethDef(t *testing.T) {
 			name: "receiver constraint not met",
 			src: `
 				meth (T T Fooer) Test [foo]
-				type T Test {}
-				type (T Barer) Fooer {[foo]}
+				type _ Test {}
+				type (_ Barer) Fooer {[foo]}
 				type Barer {[bar]}
 			`,
 			err: "method T bar not found",
@@ -833,9 +847,9 @@ func TestMethDef(t *testing.T) {
 		{
 			name: "self has expected type",
 			src: `
-				meth T Array [foo | _ Int := self ]
+				meth _ Array [foo | _ Int := self ]
 			`,
-			err: "have T Array&, want Int",
+			err: "have _ Array&, want Int",
 		},
 		{
 			name: "alias receiver with bound type arg",
@@ -844,6 +858,27 @@ func TestMethDef(t *testing.T) {
 				type IntArray := Int Array.
 			`,
 			err: "have Int&, want String",
+		},
+		{
+			name: "unused type variable",
+			src: `
+				meth Int T [xyz]
+			`,
+			err: "T defined and not used",
+		},
+		{
+			name: "illegal _ type variable",
+			src: `
+				meth Int _ [xyz]
+			`,
+			err: "illegal function type variable name",
+		},
+		{
+			name: "unused receiver type variable",
+			src: `
+				meth T Array [xyz]
+			`,
+			err: "T defined and not used",
 		},
 	}
 	for _, test := range tests {
@@ -865,10 +900,17 @@ func TestTypeDefParms(t *testing.T) {
 			name: "constraint not met",
 			src: `
 				type (T T Fooer) Test {f: T}
-				type (T Barer) Fooer {[foo]}
+				type (_ Barer) Fooer {[foo]}
 				type Barer {[bar]}
 			`,
 			err: "method T bar not found",
+		},
+		{
+			name: "unused type variable",
+			src: `
+				type T Test {}
+			`,
+			err: "T defined and not used",
 		},
 	}
 	for _, test := range tests {
@@ -1046,21 +1088,21 @@ func TestOrTypeDef(t *testing.T) {
 		{
 			name: "identC case redefined",
 			src: `
-				type T Test {a: Int | a: Float}
+				type _ Test {a: Int | a: Float}
 			`,
 			err: "case a: redefined",
 		},
 		{
-			name: "ident and indentC cases are OK",
+			name: "ident and identC cases are OK",
 			src: `
-				type T Test {a | a: Float}
+				type _ Test {a | a: Float}
 			`,
 			err: "",
 		},
 		{
 			name: "cases differ only in capitalization",
 			src: `
-				type T Test {abc: Int | Abc: Float}
+				type _ Test {abc: Int | Abc: Float}
 			`,
 			err: "case abc: redefined",
 		},
@@ -1149,7 +1191,7 @@ func TestTypeName(t *testing.T) {
 			name: "unconstrained parameterized type",
 			src: `
 				val _ Int Test := [{}]
-				type T Test {}
+				type _ Test {}
 			`,
 			err: "",
 		},
@@ -1157,7 +1199,7 @@ func TestTypeName(t *testing.T) {
 			name: "unconstrained nested parameterized type",
 			src: `
 				val _ Int Test Test Test Test := [{}]
-				type T Test {}
+				type _ Test {}
 			`,
 			err: "",
 		},
@@ -1165,7 +1207,7 @@ func TestTypeName(t *testing.T) {
 			name: "constraint: OK",
 			src: `
 				val _ Int Test := [{}]
-				type (T Fooer) Test {}
+				type (_ Fooer) Test {}
 				type Fooer {[foo]}
 				meth Int [foo]
 			`,
@@ -1175,7 +1217,7 @@ func TestTypeName(t *testing.T) {
 			name: "constraint: no method",
 			src: `
 				val _ Int Test := [{}]
-				type (T Fooer) Test {}
+				type (_ Fooer) Test {}
 				type Fooer {[foo]}
 			`,
 			err: "method Int foo not found",
@@ -1184,7 +1226,7 @@ func TestTypeName(t *testing.T) {
 			name: "constraint: unexpected return",
 			src: `
 				val _ Int Test := [{}]
-				type (T Fooer) Test {}
+				type (_ Fooer) Test {}
 				type Fooer {[foo]}
 				meth Int [foo ^Bool|]
 			`,
@@ -1194,7 +1236,7 @@ func TestTypeName(t *testing.T) {
 			name: "constraint: missing return",
 			src: `
 				val _ Int Test := [{}]
-				type (T Fooer) Test {}
+				type (_ Fooer) Test {}
 				type Fooer {[foo ^Bool]}
 				meth Int [foo|]
 			`,
@@ -1204,7 +1246,7 @@ func TestTypeName(t *testing.T) {
 			name: "constraint: mismatching param type",
 			src: `
 				val _ Int Test := [{}]
-				type (T Fooer) Test {}
+				type (_ Fooer) Test {}
 				type Fooer {[foo: Int]}
 				meth Int [foo: _ String|]
 			`,
@@ -1225,7 +1267,7 @@ func TestTypeName(t *testing.T) {
 			src: `
 				val _ Int Test := [{}]
 				type (T T Foo) Test {}
-				type (X Bar) Foo {[foo] [bar]}
+				type (_ Bar) Foo {[foo] [bar]}
 				type Bar {[bar]}
 				meth Int [foo]
 				meth Int [bar]
@@ -1239,7 +1281,7 @@ func TestTypeName(t *testing.T) {
 				// Foo doesn't implement Bar,
 				// so T==Foo can't be an argument to Foo.
 				type (T T Foo) Test {}
-				type (X Bar) Foo {[foo]}
+				type (_ Bar) Foo {[foo]}
 				type Bar {[bar]}
 				meth Int [foo]
 				meth Int [bar]
@@ -1253,7 +1295,7 @@ func TestTypeName(t *testing.T) {
 				type Test := Test1.
 				type Test1 := (Rune, OtherString) Map.
 				type OtherString := String.
-				type (K, V) Map {}
+				type (_, _) Map {}
 			`,
 			err: "",
 		},
@@ -1261,7 +1303,7 @@ func TestTypeName(t *testing.T) {
 			name: "multiple constraints: OK",
 			src: `
 				val _ (Int, String) Test := [{}]
-				type (X Fooer, Y Barer) Test {}
+				type (_ Fooer, _ Barer) Test {}
 				type Fooer {[foo]}
 				type Barer {[bar]}
 				meth Int [foo|]
@@ -1273,7 +1315,7 @@ func TestTypeName(t *testing.T) {
 			name: "multiple constraints: second not met",
 			src: `
 				val _ (Int, String) Test := [{}]
-				type (X Fooer, Y Barer) Test {}
+				type (_ Fooer, _ Barer) Test {}
 				type Fooer {[foo]}
 				type Barer {[bar]}
 				meth Int [foo|]
@@ -3299,7 +3341,7 @@ func TestTypeInstMemo(t *testing.T) {
 			src: `
 				type Test0 := (Int64, String) Map.
 				type Test1 := (Int64, String) Map.
-				type (K, V) Map {}
+				type (_, _) Map {}
 			`,
 		},
 		{
@@ -3309,7 +3351,7 @@ func TestTypeInstMemo(t *testing.T) {
 				type Test1 := Abc.
 				type Abc := (Rune, OtherString) Map.
 				type OtherString := String.
-				type (K, V) Map {}
+				type (_, _) Map {}
 			`,
 		},
 		{
@@ -3330,7 +3372,7 @@ func TestTypeInstMemo(t *testing.T) {
 					Type IntStringMap := (Rune, String) #map Map.
 				`},
 				{"map", `
-					Type (K, V) Map {}
+					Type (_, _) Map {}
 				`},
 			},
 		},

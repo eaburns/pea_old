@@ -39,7 +39,7 @@ func TestInstCallError(t *testing.T) {
 				val test := [ foo: 5 ]
 				func T [foo: _ Int]
 			`,
-			err: "cannot infer",
+			err: "T defined and not used",
 		},
 		{
 			name: "return unify fails",
@@ -107,7 +107,7 @@ func TestInstCall(t *testing.T) {
 					recv (String, Float) Map := {}.
 					recv at: "pi" put: 3.14
 				]
-				type (K, V) Map {}
+				type (_, _) Map {}
 				meth (K, V) Map [at: _ K put: _ V]
 			`,
 			want: "(String, Float) Map [at: _ String put: _ Float]",
@@ -123,7 +123,7 @@ func TestInstCall(t *testing.T) {
 			`,
 			imports: [][2]string{
 				{"map", `
-					Type (K, V) Map {}
+					Type (_, _) Map {}
 					Meth (K, V) Map [at: _ K put: _ V]
 				`},
 			},

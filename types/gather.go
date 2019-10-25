@@ -128,6 +128,27 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 		def.Sig.Parms[i].Index = i
 	}
 
+	if def.Recv != nil {
+		for i := range def.Recv.Parms {
+			tvar := &def.Recv.Parms[i]
+			if tvar.Name != "_" && !x.tvarUse[tvar] {
+				err := x.err(tvar, "%s defined and not used", tvar.Name)
+				errs = append(errs, *err)
+			}
+		}
+	}
+	for i := range def.TParms {
+		tvar := &def.TParms[i]
+		if tvar.Name == "_" {
+			err := x.err(tvar, "illegal function type variable name")
+			errs = append(errs, *err)
+			continue
+		}
+		if !x.tvarUse[tvar] {
+			err := x.err(tvar, "%s defined and not used", tvar.Name)
+			errs = append(errs, *err)
+		}
+	}
 	return errs
 }
 
@@ -195,6 +216,7 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 			Name: astVar.Name,
 			Type: typ,
 		}
+
 		x = x.new()
 		x.typeVar = vars[i].Type
 
@@ -263,6 +285,14 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 		def.Virts, es = gatherFunSigs(x, astType.Virts)
 		errs = append(errs, es...)
 	}
+
+	for i := range def.Parms {
+		tvar := &def.Parms[i]
+		if tvar.Name != "_" && !x.tvarUse[tvar] {
+			err := x.err(tvar, "%s defined and not used", tvar.Name)
+			errs = append(errs, *err)
+		}
+	}
 	return errs
 }
 
@@ -311,6 +341,9 @@ func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkE
 	typ, err := findType(x, astName, astName.Mod, len(astName.Args), astName.Name)
 	if err != nil {
 		return name, append(errs, *err)
+	}
+	if typ != nil && typ.Var != nil {
+		x.tvarUse[typ.Var] = true
 	}
 	name.Type, es = instType(x, typ, name.Args)
 	errs = append(errs, es...)

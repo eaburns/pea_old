@@ -1,8 +1,6 @@
 package types
 
 import (
-	"fmt"
-
 	"github.com/eaburns/pea/ast"
 )
 
@@ -151,15 +149,7 @@ func instFun(x *scope, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs [
 	var notes []string
 	args := make([]TypeName, len(fun.TParms))
 	for i := range fun.TParms {
-		tvar := &fun.TParms[i]
-		var ok bool
-		if args[i], ok = sub[tvar]; !ok {
-			// TODO: Detect unused type vars at fun def and emit an error.
-			// Currently the error will happen at the callsite,
-			// but really this is an error in the def:
-			// not all type vars are used.
-			notes = append(notes, fmt.Sprintf("cannot infer type of %s", tvar.Name))
-		}
+		args[i] = sub[&fun.TParms[i]]
 	}
 	if len(notes) > 0 {
 		err := x.err(argTypes.ast(), "cannot infer type parameters of %s", fun.Sig.Sel)
