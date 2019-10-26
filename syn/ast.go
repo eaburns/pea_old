@@ -1,4 +1,5 @@
-package ast
+// Package syn defines the syntax. It contains an AST and a parser.
+package syn
 
 //go:generate peggy -t=false -o grammar.go grammar.peggy
 

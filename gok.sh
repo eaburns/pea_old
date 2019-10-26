@@ -32,10 +32,10 @@ misspell . > $o 2>&1 || fail
 echo gocyclo
 gocyclo -over 15 .\
 	| grep -v "grammar.go:" \
-	| grep -v "17 types TestIdentLookup types/check_test.go" \
-	| grep -v "19 types buildTypeString types/string.go" \
-	| grep -v "16 types findMsgFun types/check.go"\
-	| grep -v '16 types [(][*]scope[)].findIdent types/scope.go' \
+	| grep -v "17 sem TestIdentLookup sem/check_test.go" \
+	| grep -v "19 sem buildTypeString sem/string.go" \
+	| grep -v "16 sem findMsgFun sem/check.go"\
+	| grep -v '16 sem [(][*]scope[)].findIdent sem/scope.go' \
 	> $o 2>&1
 e=$(mktemp tmp.XXXXXXXXXX)
 touch $e
@@ -49,7 +49,7 @@ echo golint
 golint ./... \
 	| grep -v "grammar.go:" \
 	| egrep -v "ast.go:.*(Priv) should have comment" \
-	| egrep -v "types.go:.*(AST|ID|Mod|PrettyPrint|Priv|Type) should have comment" \
+	| egrep -v "sem.go:.*(AST|ID|Mod|PrettyPrint|Priv|Type) should have comment" \
 	> $o 2>&1
 # Silly: diff the grepped golint output with empty.
 # If it's non-empty, error, otherwise succeed.

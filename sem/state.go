@@ -1,4 +1,4 @@
-package types
+package sem
 
 import (
 	"fmt"
@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/syn"
 )
 
 type state struct {
-	astMod     *ast.Mod
+	astMod     *syn.Mod
 	cfg        Config
 	files      []*file
 	defFiles   map[Def]*file
@@ -28,10 +28,10 @@ type state struct {
 
 type witness struct {
 	def Def
-	loc ast.Node
+	loc syn.Node
 }
 
-func newState(cfg Config, astMod *ast.Mod) *state {
+func newState(cfg Config, astMod *syn.Mod) *state {
 	return &state{
 		astMod:   astMod,
 		cfg:      cfg,
@@ -44,7 +44,7 @@ func newState(cfg Config, astMod *ast.Mod) *state {
 	}
 }
 
-func newDefaultState(cfg Config, astMod *ast.Mod) *state {
+func newDefaultState(cfg Config, astMod *syn.Mod) *state {
 	x := newState(cfg, astMod)
 	setConfigDefaults(x)
 	return x
@@ -72,9 +72,9 @@ func (x *state) newID() string {
 	return fmt.Sprintf("$%d", x.nextID-1)
 }
 
-func (x *state) loc(n interface{}) ast.Loc {
+func (x *state) loc(n interface{}) syn.Loc {
 	switch n := n.(type) {
-	case ast.Node:
+	case syn.Node:
 		return x.astMod.Loc(n)
 	case Node:
 		return x.astMod.Loc(n.ast())

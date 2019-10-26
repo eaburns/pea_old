@@ -1,10 +1,10 @@
-package types
+package sem
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/syn"
 )
 
 func TestInstCallError(t *testing.T) {
@@ -200,7 +200,7 @@ type instTest struct {
 }
 
 func (test instTest) run(t *testing.T) {
-	p := ast.NewParser("#test")
+	p := syn.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}

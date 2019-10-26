@@ -5,23 +5,23 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/eaburns/pea/ast"
-	"github.com/eaburns/pea/types"
+	"github.com/eaburns/pea/sem"
+	"github.com/eaburns/pea/syn"
 	"github.com/eaburns/peggy/peg"
 	"github.com/eaburns/pretty"
 )
 
 var (
-	printAST  = flag.Bool("ast", false, "print the AST to standard output")
-	printType = flag.Bool("type", false, "print the type tree to standard output")
-	trace     = flag.Bool("trace", false, "enable tracing in the type checker")
+	printSyn = flag.Bool("syn", false, "print the syntax tree to standard output")
+	printSem = flag.Bool("sem", false, "print the semantic tree to standard output")
+	trace    = flag.Bool("trace", false, "enable tracing in the type checker")
 )
 
 func main() {
 	flag.Parse()
 
 	pretty.Indent = "    "
-	parser := ast.NewParser("#main")
+	parser := syn.NewParser("#main")
 	if len(flag.Args()) == 0 {
 		if err := parser.Parse("", os.Stdin); err != nil {
 			die(err)
@@ -35,19 +35,19 @@ func main() {
 	}
 
 	astMod := parser.Mod()
-	if *printAST {
+	if *printSyn {
 		pretty.Print(astMod)
 		fmt.Println("")
 	}
 
-	typeMod, errs := types.Check(astMod, types.Config{Trace: *trace})
+	typeMod, errs := sem.Check(astMod, sem.Config{Trace: *trace})
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
 		os.Exit(1)
 	}
-	if *printType {
+	if *printSem {
 		// Clear out some noisy fields before printing.
 		trimmedTypeMod := *typeMod
 		trimmedTypeMod.AST = nil

@@ -1,15 +1,15 @@
-package types
+package sem
 
 import (
 	"fmt"
 	"sort"
 	"strings"
 
-	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/syn"
 )
 
 type checkError struct {
-	loc   ast.Loc
+	loc   syn.Loc
 	msg   string
 	notes []string
 	cause []checkError

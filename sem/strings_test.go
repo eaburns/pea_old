@@ -1,10 +1,10 @@
-package types
+package sem
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/syn"
 )
 
 func TestString(t *testing.T) {
@@ -139,7 +139,7 @@ func TestString(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		p := ast.NewParser("#test")
+		p := syn.NewParser("#test")
 		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 			continue
@@ -202,7 +202,7 @@ func TestFullString(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		p := ast.NewParser("#test")
+		p := syn.NewParser("#test")
 		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 			continue

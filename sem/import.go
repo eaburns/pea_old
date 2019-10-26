@@ -1,11 +1,11 @@
-package types
+package sem
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/syn"
 )
 
 // An Importer imports modules by path.
@@ -60,7 +60,7 @@ func (ir *dirImporter) Import(cfg Config, path string) ([]Def, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %s", path, err)
 	}
-	p := ast.NewParser(path)
+	p := syn.NewParser(path)
 	for _, fi := range finfos {
 		err := p.ParseFile(filepath.Join(path, fi.Name()))
 		if err != nil {
