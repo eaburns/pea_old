@@ -1074,6 +1074,9 @@ func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkE
 	case ctor.typ.Alias != nil:
 		// This should have already been resolved by gatherTypeName.
 		panic("impossible alias")
+	case ctor.typ.Priv && x.defFiles[ctor.typ] == nil && !isBuiltIn(x, ctor.typ):
+		err := x.err(ctor, "cannot construct unexported type %s", ctor.typ)
+		errs = append(errs, *err)
 	case isAry(x, ctor.typ):
 		errs = append(errs, checkAryCtor(x, ctor)...)
 	case ctor.typ.Cases != nil:

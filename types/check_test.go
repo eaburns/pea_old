@@ -2267,6 +2267,76 @@ func TestCall(t *testing.T) {
 			`,
 			err: "method T bar not found",
 		},
+		{
+			name: "cannot call virtual of unexported type",
+			src: `
+				import "foo"
+				val _ := [(#foo new) #foo foo]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type Foo := foo.
+						Func [new ^Foo]
+						type foo {[foo ^Int]}
+					`,
+				},
+			},
+			err: "method #foo foo #foo foo not found",
+		},
+		{
+			name: "can call virtual of exported type",
+			src: `
+				import "foo"
+				val _ String := [(#foo new) #foo foo]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type Foo {[foo ^Int]}
+						Func [new ^Foo]
+					`,
+				},
+			},
+			err: "have Int, want String",
+		},
+		{
+			name: "cannot call case method of unexported type",
+			src: `
+				import "foo"
+				val _ := [(#foo new) #foo ifA: [] ifB: []]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type Foo := foo.
+						Func [new ^Foo]
+						type foo {a | b}
+					`,
+				},
+			},
+			err: "method #foo foo #foo ifA:ifB: not found",
+		},
+		{
+			name: "can call case method of exported type",
+			src: `
+				import "foo"
+				val _ := [(#foo new) #foo ifA: [] ifB: []]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type Foo {a | b}
+						Func [new ^Foo]
+					`,
+				},
+			},
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -2339,7 +2409,7 @@ func TestCallInstRecvType(t *testing.T) {
 	}
 }
 
-func TestCtorError(t *testing.T) {
+func TestCtor(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "bad type",
@@ -2521,6 +2591,59 @@ func TestCtorError(t *testing.T) {
 				type Fooer { [foo: Int ^Int] }
 			`,
 			err: "cannot construct virtual type Fooer",
+		},
+		{
+			name: "cannot construct exported type",
+			src: `
+				import "foo"
+				val _ #foo Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{"foo", "Type Test {x: Int}"},
+			},
+			err: "",
+		},
+		{
+			name: "cannot construct unexported type",
+			src: `
+				import "foo"
+				val _ #foo Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type Test := test.
+						type test {x: Int}
+					`,
+				},
+			},
+			err: "cannot construct unexported type #foo test",
+		},
+		{
+			name: "cannot construct unexported param type",
+			src: `
+				import "foo"
+				val _ Int #foo Test := [{x: 5}]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type T Test := T test.
+						type T test {x: T}
+					`,
+				},
+			},
+			err: "cannot construct unexported type Int #foo test",
+		},
+		{
+			name: "can construct in-module unexported type",
+			src: `
+				val _ Test := [{x: 5}]
+				type Test {x: Int}
+			`,
+			err: "",
 		},
 	}
 	for _, test := range tests {
