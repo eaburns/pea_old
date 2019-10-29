@@ -433,7 +433,6 @@ func (f *file) findFun(loc syn.Node, recv *Type, sel string) (*Fun, *checkError)
 
 func (imp *imp) findFun(recv *Type, sel string) *Fun {
 	f := findFunInDefs(recv, sel, imp.defs)
-	// TODO: give a different error message if a method or type is not found becasue it's private.
 	if f == nil || f.Priv {
 		return nil
 	}
