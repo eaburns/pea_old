@@ -392,9 +392,6 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 
 	if def.Sig.Ret != nil {
 		errs = append(errs, checkTypeName(x, def.Sig.Ret)...)
-
-		// TODO: check missing return for non-decl funcs with no statements.
-		// We currently have no way to diferentiate a declaration and a function with no statements.
 		if def.Stmts != nil && (len(def.Stmts) == 0 || !isRet(def.Stmts[len(def.Stmts)-1])) {
 			err := x.err(def, "missing return at the end of %s", def.name())
 			errs = append(errs, *err)
