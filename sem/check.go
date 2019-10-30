@@ -40,23 +40,73 @@ func check(x *scope, astMod *syn.Mod) (_ *Mod, errs []checkError) {
 	x = x.new()
 	x.mod = mod
 
+	// Checking happens in multiple passes.
+	// Sorry, but some of the passes need more explanation
+	// than is convenient to put in their function-call name.
+	// Explanations below.
+
+	// Make place-holder nodes for all module-level defs.
+	// These have just enough information to lookup by name.
+	// This also happens to pull in file-level imports,
+	// since we need to hook up defs to their defining file anyway.
 	mod.Defs, errs = makeDefs(x, astMod.Files)
 	if isUniv {
 		// In this case, we are checking the univ mod.
 		// We've only now just gathered the defs, so set them in the state.
 		x.up.univ = mod.Defs
 	}
+
+	// Check duplicates, except method duplicates.
+	// We cannot check method duplicates yet,
+	// because we have not yet resolved alias types;
+	// we just know the names of things.
 	errs = append(errs, checkDups(x, mod.Defs)...)
+
+	// Constructs sem Tree nodes for all ast Nodes
+	// of the definition "headers" — all but statements.
+	// While doing this, we link TypeName.Type
+	// to its definition and report any not-found errors.
 	errs = append(errs, gatherDefs(x, mod.Defs)...)
+
+	// Now that all definitions have all of their nodes
+	// (except for Statement sub-trees),
+	// we instantiate TypeName.Type for any parameterized type,
+	// and resolve aliases to their target type.
+	// After this pass, all TypeName.Types that are non-nil (non-errors)
+	// will point to a Type with len(Args)==len(Parms),
+	// with any type variables corresponding to a Param
+	// substituted with the TypeName of the corresponding Arg.
+	// Finally, TypeName.Type will never point to an alias.
+	// If the TypeName names an alias, it's .Type will be the resolved type.
+	errs = append(errs, instDefTypes(x, mod.Defs)...)
+
 	mod.Defs = append(mod.Defs, builtInMeths(x, mod.Defs)...)
 	if isUniv {
 		// In this case, we are checking the univ mod.
 		// Add the additional built-in defs to the state.
 		x.up.univ = mod.Defs
 	}
+
+	// Now that we have resolved types and added any built-in methods,
+	// we can report duplicate methods.
 	errs = append(errs, checkDupMeths(x, mod.Defs)...)
+
+	// This pass calls check on all the type names
+	// in the def "header", reporting errors if the type cannot be instatiated
+	// (because it's arguments do not satisfy the constraints).
+	// It also finally builds the statement subtrees from the AST nodes.
+	// Statement subtrees are built fully-linked:
+	// 	to instantiated types,
+	// 	identifiers pointing to their variables (tracking uses for init cycles),
+	// 	calls pointing to their instantiated function/method.
+	// Type conversions are added where needed, and
+	// errors are reported for failure to gather and links statements
+	// or for type mismatches.
+	// Phew!
 	errs = append(errs, checkDefs(x, mod.Defs)...)
+
 	errs = append(errs, checkInitCycles(x, mod.Defs)...)
+
 	errs = append(errs, checkUnusedImports(x)...)
 
 	return mod, errs
@@ -494,6 +544,7 @@ func checkVirts(x *scope, virts []FunSig) []checkError {
 func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	defer x.tr("checkTypeName(%s)", name)(&errs)
 
+	errs = instTypeName(x, name)
 	if name.Type == nil {
 		return nil
 	}
@@ -517,7 +568,6 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 			errs = append(errs, *err)
 		}
 	}
-
 	return errs
 }
 
@@ -661,8 +711,9 @@ func checkAssignVars(x *scope, astAss *syn.Assign) (*scope, []*Var, []bool, []ch
 		if astVar.Type != nil {
 			var es []checkError
 			typName, es = gatherTypeName(x, astVar.Type)
-			typ = typName.Type
 			errs = append(errs, es...)
+			errs = append(errs, instTypeName(x, typName)...)
+			typ = typName.Type
 		}
 
 		var found interface{}
@@ -1070,8 +1121,8 @@ func checkCtor(x *scope, infer *Type, astCtor *syn.Ctor) (_ *Ctor, errs []checkE
 		errs = append(errs, *err)
 	case ctor.typ.Alias != nil:
 		// This should have already been resolved by gatherTypeName.
-		panic("impossible alias")
-	case ctor.typ.Priv && x.defFiles[ctor.typ] == nil && !isBuiltIn(x, ctor.typ):
+		errs = append(errs, *x.err(astCtor, "impossible alias")) //panic("impossible alias")
+	case ctor.typ.Priv && x.defFiles[ctor.typ.Def] == nil && !isBuiltIn(x, ctor.typ):
 		err := x.err(ctor, "cannot construct unexported type %s", ctor.typ)
 		errs = append(errs, *err)
 	case isAry(x, ctor.typ):
@@ -1250,8 +1301,9 @@ func checkBlock(x *scope, infer *Type, astBlock *syn.Block) (_ *Block, errs []ch
 		}
 		var es []checkError
 		parm.TypeName, es = gatherTypeName(x, astParm.Type)
-		parm.typ = parm.TypeName.Type
 		errs = append(errs, es...)
+		errs = append(errs, instTypeName(x, parm.TypeName)...)
+		parm.typ = parm.TypeName.Type
 	}
 
 	x = x.new()

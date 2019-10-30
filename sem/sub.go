@@ -19,7 +19,7 @@ func subTypeName(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, name
 	if name0 == nil {
 		return nil
 	}
-	defer x.tr("subTypeName(%s, %s)", subDebugString(sub), name0.name())()
+	defer x.tr("subTypeName(%s, %s)", subDebugString(sub), name0)()
 
 	if name0.Type != nil {
 		if s, ok := sub[name0.Type.Var]; ok {
@@ -44,7 +44,7 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 		return typ1
 	}
 
-	defer x.tr("subType(%s, %p %s)", subDebugString(sub), typ0, typ0)()
+	defer x.tr("subType(%s, %s %p)", subDebugString(sub), typ0, typ0)()
 
 	args := subTypeNames(x, seen, sub, typ0.Args)
 	typ1, es := instType(x, typ0, args)
@@ -58,6 +58,8 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 }
 
 func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
+	defer x.tr("subTypeBody(%s, %s", subDebugString(sub), typ)()
+
 	typ.Parms = subTypeParms(x, seen, sub, typ.Parms)
 	switch {
 	case typ.Var != nil:
@@ -174,6 +176,9 @@ func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *R
 		return nil
 	}
 	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.name())()
+	if recv0.Type != nil {
+		x.log("recv type: %s", recv0.Type.fullString())
+	}
 
 	recv1 := *recv0
 	recv1.Parms = subTypeParms(x, seen, sub, recv0.Parms)
@@ -182,6 +187,8 @@ func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *R
 }
 
 func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun) *Fun {
+	defer x.tr("subFun(%s)", fun)()
+
 	inst := &Fun{
 		AST:    fun.AST,
 		Priv:   fun.Priv,
@@ -199,6 +206,7 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 	for i := range fun.Sig.Parms {
 		parm0 := &fun.Sig.Parms[i]
 		parm1 := &inst.Sig.Parms[i]
+		x.log("sub fun parm %d %s", i, parm0.Name)
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
 		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)

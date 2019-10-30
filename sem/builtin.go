@@ -179,5 +179,5 @@ func isFun(x *scope, typ *Type) bool {
 }
 
 func isBuiltIn(x *scope, typ *Type) bool {
-	return typ != nil && typ.Mod == "" && x.defFiles[typ] == nil
+	return typ != nil && typ.Mod == "" && x.defFiles[typ.Def] == nil
 }

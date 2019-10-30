@@ -1,26 +1,196 @@
 package sem
 
 import (
+	"fmt"
+
 	"github.com/eaburns/pea/syn"
 )
+
+func instDefTypes(x *scope, defs []Def) []checkError {
+	var errs []checkError
+	for _, def := range defs {
+		switch def := def.(type) {
+		case *Val:
+			errs = append(errs, instValTypes(x, def)...)
+		case *Fun:
+			errs = append(errs, instFunTypes(x, def)...)
+		case *Type:
+			errs = append(errs, instTypeTypes(x, def)...)
+		default:
+			panic(fmt.Sprintf("impossible type: %T", def))
+		}
+	}
+	return errs
+}
+
+func instValTypes(x *scope, val *Val) (errs []checkError) {
+	defer x.tr("instValTypes(%s)", val)(&errs)
+	if val.Var.TypeName != nil {
+		errs = instTypeName(x, val.Var.TypeName)
+		val.Var.typ = val.Var.TypeName.Type
+	}
+	return errs
+}
+
+func instFunTypes(x *scope, fun *Fun) (errs []checkError) {
+	defer x.tr("instFunTypes(%s)", fun)(&errs)
+	if fun.Recv != nil {
+		errs = append(errs, instRecvTypes(x, fun.Recv)...)
+		// Set self parameter type.
+		selfBaseTypeName := TypeName{
+			AST:  fun.Recv.AST,
+			Mod:  fun.Recv.Mod,
+			Name: fun.Recv.Name,
+			Type: fun.Recv.Type,
+		}
+		if fun.Recv.Type != nil {
+			selfBaseTypeName.Args = fun.Recv.Type.Args
+		}
+		selfType := builtInType(x, "&", selfBaseTypeName)
+		if fun.Sig.Parms[0].Name != "self" {
+			panic("impossible")
+		}
+		fun.Sig.Parms[0].TypeName = makeTypeName(selfType)
+		fun.Sig.Parms[0].typ = selfType
+	}
+	errs = append(errs, instTypeParamTypes(x, fun.TParms)...)
+	errs = append(errs, instFunSigTypes(x, &fun.Sig)...)
+	return errs
+}
+
+func instRecvTypes(x *scope, recv *Recv) (errs []checkError) {
+	defer x.tr("instRecvTypes(%s)", recv.Name)(&errs)
+	errs = append(errs, instTypeParamTypes(x, recv.Parms)...)
+	errs = append(errs, instTypeNames(x, recv.Args)...)
+
+	if recv.Type == nil {
+		return errs
+	}
+
+	// TODO: make sure we don't instTypeTypes twice on recv.Type.
+	errs = append(errs, instTypeTypes(x, recv.Type)...)
+
+	args := make([]TypeName, len(recv.Parms))
+	for i := range recv.Parms {
+		parm := &recv.Parms[i]
+		args[i] = TypeName{
+			AST:  parm.AST,
+			Name: parm.Name,
+			Type: parm.Type,
+		}
+	}
+	var es []checkError
+	recv.Type, es = instType(x, recv.Type, args)
+	errs = append(errs, es...)
+	x.log("instantiated recv type %s", recv.Type)
+
+	return errs
+}
+
+func instTypeParamTypes(x *scope, parms []TypeVar) (errs []checkError) {
+	defer x.tr("instTypeParamTypes(…)")(&errs)
+	for i := range parms {
+		vr := &parms[i]
+		for j := range vr.Ifaces {
+			iface := &vr.Ifaces[j]
+			errs = append(errs, instTypeName(x, iface)...)
+		}
+	}
+	return errs
+}
+
+func instFunSigTypes(x *scope, sig *FunSig) (errs []checkError) {
+	defer x.tr("instFunSigTypes(%s)", sig)(&errs)
+	errs = append(errs, instVarTypes(x, sig.Parms)...)
+	if sig.Ret != nil {
+		errs = append(errs, instTypeName(x, sig.Ret)...)
+	}
+	return errs
+}
+
+func instVarTypes(x *scope, vars []Var) (errs []checkError) {
+	defer x.tr("instVarTypes(…)")(&errs)
+	for i := range vars {
+		v := &vars[i]
+		x.log("var %s", v.Name)
+		if v.TypeName == nil {
+			continue
+		}
+		errs = append(errs, instTypeName(x, v.TypeName)...)
+		v.typ = v.TypeName.Type
+	}
+	return errs
+}
+
+func instTypeTypes(x *scope, typ *Type) (errs []checkError) {
+	defer x.tr("instTypeTypes(%s)", typ)(&errs)
+
+	if x.insted[typ] {
+		return nil
+	}
+	x.insted[typ] = true
+
+	// TODO: disallow cycles in type parameters?
+	errs = append(errs, instTypeParamTypes(x, typ.Parms)...)
+
+	switch {
+	case typ.Var != nil:
+		// nothing to do
+	case typ.Alias != nil:
+		errs = append(errs, instTypeName(x, typ.Alias)...)
+	case len(typ.Fields) > 0:
+		errs = append(errs, instVarTypes(x, typ.Fields)...)
+	case len(typ.Cases) > 0:
+		errs = append(errs, instVarTypes(x, typ.Cases)...)
+	case len(typ.Virts) > 0:
+		for i := range typ.Virts {
+			errs = append(errs, instFunSigTypes(x, &typ.Virts[i])...)
+		}
+	}
+	return errs
+}
+
+func instTypeNames(x *scope, names []TypeName) (errs []checkError) {
+	defer x.tr("instTypeNames(…)")(&errs)
+	for i := range names {
+		errs = append(errs, instTypeName(x, &names[i])...)
+	}
+	return errs
+}
+
+func instTypeName(x *scope, name *TypeName) (errs []checkError) {
+	defer x.tr("instTypeName(%s)", name)(&errs)
+
+	for i := range name.Args {
+		errs = append(errs, instTypeName(x, &name.Args[i])...)
+	}
+	if name.Type == nil || len(name.Type.Args) > 0 {
+		return errs
+	}
+	errs = append(errs, instTypeTypes(x, name.Type)...)
+	var es []checkError
+	name.Type, es = instType(x, name.Type, name.Args)
+	return append(errs, es...)
+}
 
 func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkError) {
 	defer x.tr("instType(%p %s, %v)", typ, typ, args)(&errs)
 	defer func() { x.log("inst: %s (%p)", res, res) }()
 
-	// We access typ.Alias and typ.Sig.Parms.
-	// Both of these must be cycle free to guarantee
-	// that they are populated by this call.
-	// TODO: check typ.Sig.Parms cycle.
-	if es := gatherDef(x, typ); es != nil {
-		return nil, append(errs, es...)
-	}
-
 	if typ.Alias != nil {
 		if typ.Alias.Type == nil {
 			return nil, errs // error reported elsewhere
 		}
+		// TODO: instTypeName must check alias cycles.
+		if len(typ.Parms) != len(args) {
+			fmt.Println("args", len(args))
+			for _, a := range args {
+				fmt.Println(a.Type.debugString(x))
+			}
+			panic(typ.debugString(x))
+		}
 		sub := subMap(typ.Parms, args)
+		errs = append(errs, instTypeName(x, typ.Alias)...)
 		args = subTypeNames(x, map[*Type]*Type{}, sub, typ.Alias.Args)
 		typ = typ.Alias.Type
 		x.log("using alias type %s %p", typ, typ)
@@ -40,32 +210,17 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	}
 
 	inst := new(Type)
-	if file, ok := x.defFiles[typ]; ok {
-		// The type was defined within this module.
-		// It may not be fully gathered; we need to gather our new instance.
-		//
-		// Further, this call to gatherDef must make a complete *Type.
-		// The only way an incomplete *Type would be made
-		// is if we are currently gathering &inst previously on the call stack
-		// and gatherDef returns true because x.gathered[&inst]=true.
-		// However, if this were the case, x.typeInsts[key] above
-		// would have had an entry, and we would have never gotten here.
-		//
-		// Lastly, call gatherDef, not gatherType, because gatherDef
-		// fixes the scope to file-scope and does alias cycle checking.
-		es := gatherDef(x, typ)
-		errs = append(errs, es...)
-		x.defFiles[inst] = file
-		x.gathered[inst] = true
-	}
 	x.log("new instance %p", inst)
 	*inst = *typ
 	inst.Args = args
 	inst.Insts = nil
 	// add to typ.Insts before subTypeBody, so recursive insts find this inst.
 	typ.Insts = append(typ.Insts, inst)
+	x.log("len(typ.Insts)=%d", len(typ.Insts))
 	sub := subMap(typ.Parms, args)
+	x.log("subbing: %s", inst.debugString(x))
 	subTypeBody(x, map[*Type]*Type{typ: inst}, sub, inst)
+	x.log("subed: %s", inst.fullString())
 	return inst, errs
 }
 

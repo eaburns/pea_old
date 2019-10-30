@@ -39,6 +39,7 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 	if typ, ok := def.(*Type); ok {
 		if astType, ok := typ.AST.(*syn.Type); ok && astType.Alias != nil {
 			if err := aliasCycle(x, typ); err != nil {
+				typ.Alias.Type = nil
 				return append(errs, *err)
 			}
 			x.aliasStack = append(x.aliasStack, typ)
@@ -84,10 +85,10 @@ func aliasCycle(x *scope, typ *Type) *checkError {
 
 func gatherVal(x *scope, def *Val) (errs []checkError) {
 	defer x.tr("gatherVal(%s)", def.name())(&errs)
-	if def.AST.Var.Type != nil {
-		def.Var.TypeName, errs = gatherTypeName(x, def.AST.Var.Type)
-		def.Var.typ = def.Var.TypeName.Type
+	if def.AST.Var.Type == nil {
+		return nil
 	}
+	def.Var.TypeName, errs = gatherTypeName(x, def.AST.Var.Type)
 	return errs
 }
 
@@ -105,20 +106,9 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	def.Sig = *sig
 
 	if def.Recv != nil {
-		selfBaseTypeName := TypeName{
-			AST:  def.Recv.AST,
-			Mod:  def.Recv.Mod,
-			Name: def.Recv.Name,
-			Type: def.Recv.Type,
-		}
-		if def.Recv.Type != nil {
-			selfBaseTypeName.Args = def.Recv.Type.Args
-		}
-		selfType := builtInType(x, "&", selfBaseTypeName)
 		self := Var{
-			Name:     "self",
-			TypeName: makeTypeName(selfType),
-			typ:      selfType,
+			Name: "self",
+			// self.typ is set by instFunTypes later.
 		}
 		def.Sig.Parms = append([]Var{self}, def.Sig.Parms...)
 	}
@@ -179,20 +169,7 @@ func gatherRecv(x *scope, astRecv *syn.Recv) (_ *scope, _ *Recv, errs []checkErr
 		return x, recv, append(errs, es...)
 	}
 
-	args := make([]TypeName, len(recv.Parms))
-	for i := range recv.Parms {
-		parm := &recv.Parms[i]
-		args[i] = TypeName{
-			AST:  parm.AST,
-			Name: parm.Name,
-			Type: parm.Type,
-		}
-	}
-
-	recv.Type, es = instType(x, typ, args)
-	errs = append(errs, es...)
-	x.log("gathered recv type %s", recv.Type)
-
+	recv.Type = typ
 	return x, recv, errs
 }
 
@@ -271,6 +248,14 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	case astType.Alias != nil:
 		def.Alias, es = gatherTypeName(x, astType.Alias)
 		errs = append(errs, es...)
+		if def.Alias.Type != nil {
+			// This checks alias cycles.
+			// TODO: simplify alias cycle checking.
+			if es := gatherDef(x, def.Alias.Type); es != nil {
+				return append(errs, es...)
+			}
+		}
+
 	case astType.Fields != nil:
 		def.Fields, es = gatherVars(x, astType.Fields)
 		errs = append(errs, es...)
@@ -304,7 +289,6 @@ func gatherVars(x *scope, astVars []syn.Var) (_ []Var, errs []checkError) {
 		vr := Var{AST: &astVars[i], Name: astVars[i].Name}
 		if astVars[i].Type != nil {
 			vr.TypeName, es = gatherTypeName(x, astVars[i].Type)
-			vr.typ = vr.TypeName.Type
 		}
 		errs = append(errs, es...)
 		vars = append(vars, vr)
@@ -345,7 +329,6 @@ func gatherTypeName(x *scope, astName *syn.TypeName) (_ *TypeName, errs []checkE
 	if typ != nil && typ.Var != nil {
 		x.tvarUse[typ.Var] = true
 	}
-	name.Type, es = instType(x, typ, name.Args)
-	errs = append(errs, es...)
+	name.Type = typ
 	return name, errs
 }

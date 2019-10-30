@@ -16,6 +16,7 @@ type state struct {
 	defFiles   map[Def]*file
 	gathered   map[Def]bool
 	checked    map[Def]bool
+	insted     map[*Type]bool
 	aliasStack []*Type
 	// initDeps tracks uses of *Fun and *Val for init cycle checking.
 	initDeps map[Def][]witness
@@ -38,6 +39,7 @@ func newState(cfg Config, astMod *syn.Mod) *state {
 		defFiles: make(map[Def]*file),
 		gathered: make(map[Def]bool),
 		checked:  make(map[Def]bool),
+		insted:   make(map[*Type]bool),
 		initDeps: make(map[Def][]witness),
 		localUse: make(map[*Var]bool),
 		tvarUse:  make(map[*TypeVar]bool),

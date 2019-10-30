@@ -7,6 +7,154 @@ import (
 	"github.com/eaburns/pea/syn"
 )
 
+func TestInstType(t *testing.T) {
+	tests := []struct {
+		name string
+		// The src must contain a type named Test.
+		// We compare the want with all .Inst[i].fullString()
+		// and report an error if it is not fonud.
+		src     string
+		imports [][2]string
+		want    string
+		trace   bool
+	}{
+		{
+			name: "inst empty type",
+			src: `
+				type _ Test {}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test {}",
+		},
+		{
+			name: "inst field",
+			src: `
+				type T Test {x: T}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { x: Int }",
+		},
+		{
+			name: "inst case",
+			src: `
+				type T Test {x: T | y}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { x: Int | y }",
+		},
+		{
+			name: "inst virt",
+			src: `
+				type T Test {[foo: T]}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { [foo: Int] }",
+		},
+		{
+			name: "inst cyclic and-type",
+			src: `
+				type T Test {x: T next: T Test& y: T}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { x: Int next: Int Test& y: Int }",
+		},
+		{
+			name: "inst cyclic or-type",
+			src: `
+				type T Test {leaf: T | node: T Test&}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { leaf: Int | node: Int Test& }",
+		},
+		{
+			name: "inst cyclic virt-type",
+			src: `
+				type T Test {[foo: T] [bar: T Test&]}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { [foo: Int] [bar: Int Test&] }",
+		},
+		{
+			name: "constraint",
+			src: `
+				type (T T Eq) Test {x: T}
+				type T Eq {[= T& ^Bool]}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { x: Int }",
+		},
+		{
+			name: "constraint cycle",
+			src: `
+				type (T T Foo) Test {[foo] [bar]}
+				type (T T Test) Foo {[foo] [bar]}
+				meth Int [foo]
+				meth Int [bar]
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { [foo] [bar] }",
+		},
+		{
+			// TODO: something isn't substituted correctly in cyclic constraints?
+			name: "SKIP: constraint cycle 2",
+			src: `
+				type (T T Foo) Test {[foo: T] [bar ^T]}
+				type (T T Test) Foo {[foo: T] [bar ^T]}
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test { [foo: Int] [bar ^Int] }",
+		},
+		{
+			name: "alias type",
+			src: `
+				type T Test := T Array
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test := Int Array",
+		},
+		{
+			name: "alias type with partially bound target type",
+			src: `
+				type T Test := (T, String) Array
+				func [foo ^Int Test]
+			`,
+			want: "type Int Test := (Int, String) Array",
+		},
+	}
+	for _, test := range tests {
+		if strings.HasPrefix(test.name, "SKIP") {
+			t.Skip()
+		}
+		t.Run(test.name, func(t *testing.T) {
+			p := syn.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse source: %s", err)
+			}
+			cfg := Config{
+				Importer: testImporter(test.imports),
+				Trace:    test.trace,
+			}
+			mod, errs := Check(p.Mod(), cfg)
+			if len(errs) > 0 {
+				t.Fatalf("failed to check source: %v", errs)
+			}
+			typ := findTestType(mod, "Test")
+			if typ == nil {
+				t.Fatal("type Test not found")
+			}
+			var insts []string
+			for _, inst := range typ.Insts {
+				got := inst.fullString()
+				if got == test.want {
+					return
+				}
+				insts = append(insts, got)
+			}
+			t.Errorf("got %s, want %s", insts, test.want)
+		})
+	}
+}
+
 func TestInstCallError(t *testing.T) {
 	tests := []errorTest{
 		{
@@ -72,7 +220,17 @@ func TestInstCallError(t *testing.T) {
 }
 
 func TestInstCall(t *testing.T) {
-	tests := []instTest{
+	tests := []struct {
+		name string
+		// The src must contain a val named test with a call statement.
+		// The .String() of the .Fun of the first Msg
+		// of the first call statement is compared to want,
+		// or the string <nil> if the .Fun is nil.
+		src     string
+		imports [][2]string
+		want    string
+		trace   bool
+	}{
 		{
 			name: "fully grounded",
 			src: `
@@ -183,49 +341,35 @@ func TestInstCall(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		t.Run(test.name, test.run)
-	}
-}
-
-type instTest struct {
-	name string
-	// The src must contain a val named test with a call statement.
-	// The .String() of the .Fun of the first Msg
-	// of the first call statement is compared to want,
-	// or the string <nil> if the .Fun is nil.
-	src     string
-	imports [][2]string
-	want    string
-	trace   bool
-}
-
-func (test instTest) run(t *testing.T) {
-	p := syn.NewParser("#test")
-	if err := p.Parse("", strings.NewReader(test.src)); err != nil {
-		t.Fatalf("failed to parse source: %s", err)
-	}
-	cfg := Config{
-		Importer: testImporter(test.imports),
-		Trace:    test.trace,
-	}
-	mod, errs := Check(p.Mod(), cfg)
-	if len(errs) > 0 {
-		t.Fatalf("failed to check source: %v", errs)
-	}
-	val := findTestVal(mod)
-	if val == nil {
-		t.Fatal("val test not found")
-	}
-	call := firstCallStmt(val)
-	if call == nil {
-		t.Fatal("call statement not found")
-	}
-	got := "<nil>"
-	if fun := call.Msgs[0].Fun; fun != nil {
-		got = fun.String()
-	}
-	if got != test.want {
-		t.Errorf("got %s, want %s", got, test.want)
+		t.Run(test.name, func(t *testing.T) {
+			p := syn.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse source: %s", err)
+			}
+			cfg := Config{
+				Importer: testImporter(test.imports),
+				Trace:    test.trace,
+			}
+			mod, errs := Check(p.Mod(), cfg)
+			if len(errs) > 0 {
+				t.Fatalf("failed to check source: %v", errs)
+			}
+			val := findTestVal(mod)
+			if val == nil {
+				t.Fatal("val test not found")
+			}
+			call := firstCallStmt(val)
+			if call == nil {
+				t.Fatal("call statement not found")
+			}
+			got := "<nil>"
+			if fun := call.Msgs[0].Fun; fun != nil {
+				got = fun.String()
+			}
+			if got != test.want {
+				t.Errorf("got %s, want %s", got, test.want)
+			}
+		})
 	}
 }
 
