@@ -102,6 +102,9 @@ func buildTypeDebugString(x *scope, n *Type, s *strings.Builder) {
 				s.WriteString("\n\t\t\tparameters:")
 				for i := range v.Parms {
 					p := &v.Parms[i]
+					if p.typ == nil {
+						continue
+					}
 					buildTypeSigDebugString(x, "\t\t\t\t", p.typ, s)
 				}
 			}
@@ -114,17 +117,33 @@ func buildTypeDebugString(x *scope, n *Type, s *strings.Builder) {
 }
 
 func buildTypeVarDebugString(x *scope, indent string, n *TypeVar, s *strings.Builder) {
+	_buildTypeVarDebugString(x, map[*Type]bool{}, indent, n, s)
+}
+
+func _buildTypeVarDebugString(x *scope, seen map[*Type]bool, indent string, n *TypeVar, s *strings.Builder) {
 	s.WriteString("\n" + indent)
 	s.WriteString(fmt.Sprintf("%s (%p)", n.Name, n.Type))
 	if len(n.Ifaces) > 0 {
 		s.WriteString("\n" + indent + "\tinterfaces")
 		for i := range n.Ifaces {
-			buildTypeNameDebugString(x, indent+"\t\t", &n.Ifaces[i], s)
+			_buildTypeNameDebugString(x, seen, indent+"\t\t", &n.Ifaces[i], s)
 		}
 	}
 }
 
 func buildTypeSigDebugString(x *scope, indent string, n *Type, s *strings.Builder) {
+	_buildTypeSigDebugString(x, map[*Type]bool{}, indent, n, s)
+}
+
+func _buildTypeSigDebugString(x *scope, seen map[*Type]bool, indent string, n *Type, s *strings.Builder) {
+	if seen[n] {
+		s.WriteString("\n" + indent)
+		s.WriteString(fmt.Sprintf("(%d)%s (%p) <cycle>", len(n.Parms), n.Name, n))
+		return
+	}
+	seen[n] = true
+	defer func() { seen[n] = false }()
+
 	s.WriteString("\n" + indent)
 	if n.Priv {
 		s.WriteString("type ")
@@ -140,22 +159,26 @@ func buildTypeSigDebugString(x *scope, indent string, n *Type, s *strings.Builde
 	if len(n.Parms) > 0 {
 		s.WriteString("\n" + indent + "\tparameters:")
 		for i := range n.Parms {
-			buildTypeVarDebugString(x, indent+"\t\t", &n.Parms[i], s)
+			_buildTypeVarDebugString(x, seen, indent+"\t\t", &n.Parms[i], s)
 		}
 	}
 	if len(n.Args) > 0 {
 		s.WriteString("\n" + indent + "\targuments:")
 		for i := range n.Args {
-			buildTypeNameDebugString(x, indent+"\t\t", &n.Args[i], s)
+			_buildTypeNameDebugString(x, seen, indent+"\t\t", &n.Args[i], s)
 		}
 	}
 }
 
 func buildTypeNameDebugString(x *scope, indent string, n *TypeName, s *strings.Builder) {
+	_buildTypeNameDebugString(x, map[*Type]bool{}, indent, n, s)
+}
+
+func _buildTypeNameDebugString(x *scope, seen map[*Type]bool, indent string, n *TypeName, s *strings.Builder) {
 	if n.Type == nil {
 		s.WriteString("\n" + indent)
 		s.WriteString(fmt.Sprintf("(%d)%s — <error>", len(n.Args), n.Name))
 		return
 	}
-	buildTypeSigDebugString(x, indent, n.Type, s)
+	_buildTypeSigDebugString(x, seen, indent, n.Type, s)
 }

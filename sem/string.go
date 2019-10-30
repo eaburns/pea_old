@@ -145,11 +145,24 @@ func buildFunSigString(n *FunSig, stripSelf bool, s *strings.Builder) {
 }
 
 func buildRecvString(n *Recv, s *strings.Builder) {
-	if n.Type != nil {
-		buildTypeString(n.Type, s)
-		return
-	}
 	switch {
+	case len(n.Args) == 1:
+		buildTypeNameString(&n.Args[0], s)
+		if n.Mod != "" || !isOpType(n.Name) || isOpType(n.Args[0].Name) {
+			s.WriteRune(' ')
+		}
+	case len(n.Args) > 1:
+		s.WriteRune('(')
+		for i := range n.Args {
+			if i > 0 {
+				s.WriteString(", ")
+			}
+			buildTypeNameString(&n.Args[i], s)
+		}
+		s.WriteRune(')')
+		if n.Mod != "" || !isOpType(n.Name) {
+			s.WriteRune(' ')
+		}
 	case len(n.Parms) == 0:
 		break
 	case len(n.Parms) == 1 && len(n.Parms[0].Ifaces) == 0:
@@ -231,10 +244,6 @@ func isOpType(s string) bool {
 }
 
 func buildTypeNameString(n *TypeName, s *strings.Builder) {
-	if n.Type != nil {
-		buildTypeString(n.Type, s)
-		return
-	}
 	switch {
 	case len(n.Args) == 0:
 		break

@@ -127,7 +127,7 @@ func TestInstCall(t *testing.T) {
 					Meth (K, V) Map [at: _ K put: _ V]
 				`},
 			},
-			want: "(String, Float) #map Map [at: _ String put: _ Float]",
+			want: "(String, Float) Map [at: _ String put: _ Float]",
 		},
 		{
 			name: "ground fun return type",

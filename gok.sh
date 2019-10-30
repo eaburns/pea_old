@@ -33,6 +33,7 @@ echo gocyclo
 gocyclo -over 15 .\
 	| grep -v "grammar.go:" \
 	| grep -v "17 sem TestIdentLookup sem/check_test.go" \
+	| grep -v "19 sem buildRecvString sem/string.go" \
 	| grep -v "19 sem buildTypeString sem/string.go" \
 	| grep -v "16 sem findMsgFun sem/check.go"\
 	| grep -v '16 sem [(][*]scope[)].findIdent sem/scope.go' \
