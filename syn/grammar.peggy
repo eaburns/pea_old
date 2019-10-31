@@ -585,10 +585,12 @@ TypeVar "type variable" <- _ tok:( text:( [A-Z] ![_a-zA-Z0-9] ) {
 	return Ident{location: loc(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
-_ "" <- ( Space / Cmnt )*
+_ "" <- ( Space / Cmnt )* { return struct{}{} }
 
-Cmnt <- "//" ( !"\n" . )* / "/*" ( !"*/" . )* "*/"
+Cmnt <-
+	"//" ( !"\n" . )* /
+	"/*" ( !"*/" . )* "*/"
 
-Space <- " " / "\t" / "\n"
+Space <- ( " " / "\t" / "\n" )+ { return struct{}{} }
 
 EOF <- !.

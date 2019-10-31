@@ -17877,6 +17877,7 @@ func __Accepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		return dp, de
 	}
 	pos, perr := start, -1
+	// action
 	// (Space/Cmnt)*
 	for {
 		pos1 := pos
@@ -17920,6 +17921,7 @@ func __Fail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: __}
+	// action
 	// (Space/Cmnt)*
 	for {
 		pos1 := pos
@@ -17954,7 +17956,7 @@ func __Fail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 	return pos, failure
 }
 
-func __Action(parser *_Parser, start int) (int, *string) {
+func __Action(parser *_Parser, start int) (int, *struct{}) {
 	dp := parser.deltaPos[start][__]
 	if dp < 0 {
 		return -1, nil
@@ -17962,50 +17964,52 @@ func __Action(parser *_Parser, start int) (int, *string) {
 	key := _key{start: start, rule: __}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(string)
+		n := n.(struct{})
 		return start + int(dp-1), &n
 	}
-	var node string
+	var node struct{}
 	pos := start
-	// (Space/Cmnt)*
-	for {
-		pos1 := pos
-		var node2 string
-		// (Space/Cmnt)
-		// Space/Cmnt
-		{
-			pos7 := pos
-			var node6 string
-			// Space
-			if p, n := _SpaceAction(parser, pos); n == nil {
-				goto fail8
-			} else {
-				node2 = *n
-				pos = p
+	// action
+	{
+		start0 := pos
+		// (Space/Cmnt)*
+		for {
+			pos2 := pos
+			// (Space/Cmnt)
+			// Space/Cmnt
+			{
+				pos8 := pos
+				// Space
+				if p, n := _SpaceAction(parser, pos); n == nil {
+					goto fail9
+				} else {
+					pos = p
+				}
+				goto ok5
+			fail9:
+				pos = pos8
+				// Cmnt
+				if p, n := _CmntAction(parser, pos); n == nil {
+					goto fail10
+				} else {
+					pos = p
+				}
+				goto ok5
+			fail10:
+				pos = pos8
+				goto fail4
+			ok5:
 			}
-			goto ok4
-		fail8:
-			node2 = node6
-			pos = pos7
-			// Cmnt
-			if p, n := _CmntAction(parser, pos); n == nil {
-				goto fail9
-			} else {
-				node2 = *n
-				pos = p
-			}
-			goto ok4
-		fail9:
-			node2 = node6
-			pos = pos7
-			goto fail3
-		ok4:
+			continue
+		fail4:
+			pos = pos2
+			break
 		}
-		node += node2
-		continue
-	fail3:
-		pos = pos1
-		break
+		node = func(
+			start, end int) struct{} {
+			return struct{}{}
+		}(
+			start0, pos)
 	}
 	parser.act[key] = node
 	return pos, &node
@@ -18016,9 +18020,10 @@ func _CmntAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		return dp, de
 	}
 	pos, perr := start, -1
-	// "//" (!"\n" .)*/"/*" (!"*/" .)* "*/"
+	// "//" (!"\n" .)* {…}/"/*" (!"*/" .)* "*/" {…}
 	{
 		pos3 := pos
+		// action
 		// "//" (!"\n" .)*
 		// "//"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "//" {
@@ -18063,6 +18068,7 @@ func _CmntAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		goto ok0
 	fail4:
 		pos = pos3
+		// action
 		// "/*" (!"*/" .)* "*/"
 		// "/*"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "/*" {
@@ -18131,9 +18137,10 @@ func _CmntFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _Cmnt}
-	// "//" (!"\n" .)*/"/*" (!"*/" .)* "*/"
+	// "//" (!"\n" .)* {…}/"/*" (!"*/" .)* "*/" {…}
 	{
 		pos3 := pos
+		// action
 		// "//" (!"\n" .)*
 		// "//"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "//" {
@@ -18199,6 +18206,7 @@ func _CmntFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		goto ok0
 	fail4:
 		pos = pos3
+		// action
 		// "/*" (!"*/" .)* "*/"
 		// "/*"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "/*" {
@@ -18285,7 +18293,7 @@ fail:
 	return -1, failure
 }
 
-func _CmntAction(parser *_Parser, start int) (int, *string) {
+func _CmntAction(parser *_Parser, start int) (int, *struct{}) {
 	dp := parser.deltaPos[start][_Cmnt]
 	if dp < 0 {
 		return -1, nil
@@ -18293,128 +18301,114 @@ func _CmntAction(parser *_Parser, start int) (int, *string) {
 	key := _key{start: start, rule: _Cmnt}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(string)
+		n := n.(struct{})
 		return start + int(dp-1), &n
 	}
-	var node string
+	var node struct{}
 	pos := start
-	// "//" (!"\n" .)*/"/*" (!"*/" .)* "*/"
+	// "//" (!"\n" .)* {…}/"/*" (!"*/" .)* "*/" {…}
 	{
 		pos3 := pos
-		var node2 string
-		// "//" (!"\n" .)*
+		var node2 struct{}
+		// action
 		{
-			var node5 string
+			start5 := pos
+			// "//" (!"\n" .)*
 			// "//"
 			if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "//" {
 				goto fail4
 			}
-			node5 = parser.text[pos : pos+2]
 			pos += 2
-			node, node5 = node+node5, ""
 			// (!"\n" .)*
 			for {
-				pos7 := pos
-				var node8 string
+				pos8 := pos
 				// (!"\n" .)
 				// !"\n" .
+				// !"\n"
 				{
-					var node10 string
-					// !"\n"
-					{
-						pos12 := pos
-						// "\n"
-						if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
-							goto ok11
-						}
-						pos++
-						pos = pos12
-						goto fail9
-					ok11:
-						pos = pos12
-						node10 = ""
+					pos13 := pos
+					// "\n"
+					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
+						goto ok12
 					}
-					node8, node10 = node8+node10, ""
-					// .
-					if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
-						goto fail9
-					} else {
-						node10 = parser.text[pos : pos+w]
-						pos += w
-					}
-					node8, node10 = node8+node10, ""
+					pos++
+					pos = pos13
+					goto fail10
+				ok12:
+					pos = pos13
 				}
-				node5 += node8
+				// .
+				if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
+					goto fail10
+				} else {
+					pos += w
+				}
 				continue
-			fail9:
-				pos = pos7
+			fail10:
+				pos = pos8
 				break
 			}
-			node, node5 = node+node5, ""
+			node = func(
+				start, end int) struct{} {
+				return struct{}{}
+			}(
+				start5, pos)
 		}
 		goto ok0
 	fail4:
 		node = node2
 		pos = pos3
-		// "/*" (!"*/" .)* "*/"
+		// action
 		{
-			var node16 string
+			start17 := pos
+			// "/*" (!"*/" .)* "*/"
 			// "/*"
 			if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "/*" {
-				goto fail15
+				goto fail16
 			}
-			node16 = parser.text[pos : pos+2]
 			pos += 2
-			node, node16 = node+node16, ""
 			// (!"*/" .)*
 			for {
-				pos18 := pos
-				var node19 string
+				pos20 := pos
 				// (!"*/" .)
 				// !"*/" .
+				// !"*/"
 				{
-					var node21 string
-					// !"*/"
-					{
-						pos23 := pos
-						// "*/"
-						if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "*/" {
-							goto ok22
-						}
-						pos += 2
-						pos = pos23
-						goto fail20
-					ok22:
-						pos = pos23
-						node21 = ""
+					pos25 := pos
+					// "*/"
+					if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "*/" {
+						goto ok24
 					}
-					node19, node21 = node19+node21, ""
-					// .
-					if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
-						goto fail20
-					} else {
-						node21 = parser.text[pos : pos+w]
-						pos += w
-					}
-					node19, node21 = node19+node21, ""
+					pos += 2
+					pos = pos25
+					goto fail22
+				ok24:
+					pos = pos25
 				}
-				node16 += node19
+				// .
+				if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
+					goto fail22
+				} else {
+					pos += w
+				}
 				continue
-			fail20:
-				pos = pos18
+			fail22:
+				pos = pos20
 				break
 			}
-			node, node16 = node+node16, ""
 			// "*/"
 			if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "*/" {
-				goto fail15
+				goto fail16
 			}
-			node16 = parser.text[pos : pos+2]
 			pos += 2
-			node, node16 = node+node16, ""
+			node = func(
+				start, end int) struct{} {
+				return struct{}{}
+			}(
+				start17, pos)
 		}
 		goto ok0
-	fail15:
+	fail16:
 		node = node2
 		pos = pos3
 		goto fail
@@ -18431,38 +18425,82 @@ func _SpaceAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		return dp, de
 	}
 	pos, perr := start, -1
+	// action
+	// (" "/"\t"/"\n")+
+	// (" "/"\t"/"\n")
 	// " "/"\t"/"\n"
 	{
-		pos3 := pos
+		pos7 := pos
 		// " "
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
 			perr = _max(perr, pos)
-			goto fail4
+			goto fail8
 		}
 		pos++
-		goto ok0
-	fail4:
-		pos = pos3
+		goto ok4
+	fail8:
+		pos = pos7
 		// "\t"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
 			perr = _max(perr, pos)
-			goto fail5
+			goto fail9
 		}
 		pos++
-		goto ok0
-	fail5:
-		pos = pos3
+		goto ok4
+	fail9:
+		pos = pos7
 		// "\n"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
 			perr = _max(perr, pos)
-			goto fail6
+			goto fail10
 		}
 		pos++
-		goto ok0
-	fail6:
-		pos = pos3
+		goto ok4
+	fail10:
+		pos = pos7
 		goto fail
-	ok0:
+	ok4:
+	}
+	for {
+		pos1 := pos
+		// (" "/"\t"/"\n")
+		// " "/"\t"/"\n"
+		{
+			pos14 := pos
+			// " "
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
+				perr = _max(perr, pos)
+				goto fail15
+			}
+			pos++
+			goto ok11
+		fail15:
+			pos = pos14
+			// "\t"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
+				perr = _max(perr, pos)
+				goto fail16
+			}
+			pos++
+			goto ok11
+		fail16:
+			pos = pos14
+			// "\n"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
+				perr = _max(perr, pos)
+				goto fail17
+			}
+			pos++
+			goto ok11
+		fail17:
+			pos = pos14
+			goto fail3
+		ok11:
+		}
+		continue
+	fail3:
+		pos = pos1
+		break
 	}
 	return _memoize(parser, _Space, start, pos, perr)
 fail:
@@ -18479,9 +18517,12 @@ func _SpaceFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _Space}
+	// action
+	// (" "/"\t"/"\n")+
+	// (" "/"\t"/"\n")
 	// " "/"\t"/"\n"
 	{
-		pos3 := pos
+		pos7 := pos
 		// " "
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
 			if pos >= errPos {
@@ -18490,12 +18531,12 @@ func _SpaceFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 					Want: "\" \"",
 				})
 			}
-			goto fail4
+			goto fail8
 		}
 		pos++
-		goto ok0
-	fail4:
-		pos = pos3
+		goto ok4
+	fail8:
+		pos = pos7
 		// "\t"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
 			if pos >= errPos {
@@ -18504,12 +18545,12 @@ func _SpaceFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 					Want: "\"\\t\"",
 				})
 			}
-			goto fail5
+			goto fail9
 		}
 		pos++
-		goto ok0
-	fail5:
-		pos = pos3
+		goto ok4
+	fail9:
+		pos = pos7
 		// "\n"
 		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
 			if pos >= errPos {
@@ -18518,14 +18559,70 @@ func _SpaceFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 					Want: "\"\\n\"",
 				})
 			}
-			goto fail6
+			goto fail10
 		}
 		pos++
-		goto ok0
-	fail6:
-		pos = pos3
+		goto ok4
+	fail10:
+		pos = pos7
 		goto fail
-	ok0:
+	ok4:
+	}
+	for {
+		pos1 := pos
+		// (" "/"\t"/"\n")
+		// " "/"\t"/"\n"
+		{
+			pos14 := pos
+			// " "
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
+				if pos >= errPos {
+					failure.Kids = append(failure.Kids, &peg.Fail{
+						Pos:  int(pos),
+						Want: "\" \"",
+					})
+				}
+				goto fail15
+			}
+			pos++
+			goto ok11
+		fail15:
+			pos = pos14
+			// "\t"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
+				if pos >= errPos {
+					failure.Kids = append(failure.Kids, &peg.Fail{
+						Pos:  int(pos),
+						Want: "\"\\t\"",
+					})
+				}
+				goto fail16
+			}
+			pos++
+			goto ok11
+		fail16:
+			pos = pos14
+			// "\n"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
+				if pos >= errPos {
+					failure.Kids = append(failure.Kids, &peg.Fail{
+						Pos:  int(pos),
+						Want: "\"\\n\"",
+					})
+				}
+				goto fail17
+			}
+			pos++
+			goto ok11
+		fail17:
+			pos = pos14
+			goto fail3
+		ok11:
+		}
+		continue
+	fail3:
+		pos = pos1
+		break
 	}
 	parser.fail[key] = failure
 	return pos, failure
@@ -18534,7 +18631,7 @@ fail:
 	return -1, failure
 }
 
-func _SpaceAction(parser *_Parser, start int) (int, *string) {
+func _SpaceAction(parser *_Parser, start int) (int, *struct{}) {
 	dp := parser.deltaPos[start][_Space]
 	if dp < 0 {
 		return -1, nil
@@ -18542,47 +18639,89 @@ func _SpaceAction(parser *_Parser, start int) (int, *string) {
 	key := _key{start: start, rule: _Space}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(string)
+		n := n.(struct{})
 		return start + int(dp-1), &n
 	}
-	var node string
+	var node struct{}
 	pos := start
-	// " "/"\t"/"\n"
+	// action
 	{
-		pos3 := pos
-		var node2 string
-		// " "
-		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
-			goto fail4
+		start0 := pos
+		// (" "/"\t"/"\n")+
+		// (" "/"\t"/"\n")
+		// " "/"\t"/"\n"
+		{
+			pos8 := pos
+			// " "
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
+				goto fail9
+			}
+			pos++
+			goto ok5
+		fail9:
+			pos = pos8
+			// "\t"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
+				goto fail10
+			}
+			pos++
+			goto ok5
+		fail10:
+			pos = pos8
+			// "\n"
+			if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
+				goto fail11
+			}
+			pos++
+			goto ok5
+		fail11:
+			pos = pos8
+			goto fail
+		ok5:
 		}
-		node = parser.text[pos : pos+1]
-		pos++
-		goto ok0
-	fail4:
-		node = node2
-		pos = pos3
-		// "\t"
-		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
-			goto fail5
+		for {
+			pos2 := pos
+			// (" "/"\t"/"\n")
+			// " "/"\t"/"\n"
+			{
+				pos15 := pos
+				// " "
+				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != " " {
+					goto fail16
+				}
+				pos++
+				goto ok12
+			fail16:
+				pos = pos15
+				// "\t"
+				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\t" {
+					goto fail17
+				}
+				pos++
+				goto ok12
+			fail17:
+				pos = pos15
+				// "\n"
+				if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
+					goto fail18
+				}
+				pos++
+				goto ok12
+			fail18:
+				pos = pos15
+				goto fail4
+			ok12:
+			}
+			continue
+		fail4:
+			pos = pos2
+			break
 		}
-		node = parser.text[pos : pos+1]
-		pos++
-		goto ok0
-	fail5:
-		node = node2
-		pos = pos3
-		// "\n"
-		if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
-			goto fail6
-		}
-		node = parser.text[pos : pos+1]
-		pos++
-		goto ok0
-	fail6:
-		node = node2
-		pos = pos3
-		goto fail
-	ok0:
+		node = func(
+			start, end int) struct{} {
+			return struct{}{}
+		}(
+			start0, pos)
 	}
 	parser.act[key] = node
 	return pos, &node
