@@ -3559,7 +3559,7 @@ type errorTest struct {
 
 func (test errorTest) run(t *testing.T) {
 	if strings.HasPrefix(test.name, "SKIP:") {
-		return
+		t.Skip()
 	}
 	p := syn.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(test.src)); err != nil {
