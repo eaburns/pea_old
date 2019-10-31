@@ -123,14 +123,9 @@ func subFields(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *T
 	fields0 := typ.Fields
 	typ.Fields = make([]Var, len(fields0))
 	for i := range fields0 {
-		field0 := &fields0[i]
-		field1 := &typ.Fields[i]
-		field1.AST = field0.AST
-		field1.Name = field0.Name
-		field1.TypeName = subTypeName(x, seen, sub, field0.TypeName)
-		field1.typ = subType(x, seen, sub, field0.typ)
-		field1.Field = typ
-		field1.Index = i
+		typ.Fields[i] = subVar(x, seen, sub, &fields0[i])
+		typ.Fields[i].Field = typ
+		typ.Fields[i].Index = i
 	}
 }
 
@@ -139,13 +134,8 @@ func subCases(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 	cases0 := typ.Cases
 	typ.Cases = make([]Var, len(cases0))
 	for i := range cases0 {
-		case0 := &cases0[i]
-		case1 := &typ.Cases[i]
-		case1.AST = case0.AST
-		case1.Name = case0.Name
-		case1.TypeName = subTypeName(x, seen, sub, case0.TypeName)
-		case1.typ = subType(x, seen, sub, case0.typ)
-		case1.Index = i
+		typ.Cases[i] = subVar(x, seen, sub, &cases0[i])
+		typ.Cases[i].Index = i
 	}
 }
 
@@ -160,15 +150,21 @@ func subVirts(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 		sig1.Sel = sig0.Sel
 		sig1.Parms = make([]Var, len(sig0.Parms))
 		for i := range sig0.Parms {
-			parm0 := &sig0.Parms[i]
-			parm1 := &sig1.Parms[i]
-			parm1.AST = parm0.AST
-			parm1.Name = parm0.Name
-			parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
-			parm1.typ = subType(x, seen, sub, parm0.typ)
+			sig1.Parms[i] = subVar(x, seen, sub, &sig0.Parms[i])
 		}
 		sig1.Ret = subTypeName(x, seen, sub, sig0.Ret)
 	}
+}
+
+func subVar(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, vr0 *Var) Var {
+	var vr1 Var
+	vr1.AST = vr0.AST
+	vr1.Name = vr0.Name
+	if vr0.TypeName != nil {
+		vr1.TypeName = subTypeName(x, seen, sub, vr0.TypeName)
+		vr1.typ = vr1.TypeName.Type
+	}
+	return vr1
 }
 
 func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *Recv) *Recv {
@@ -204,15 +200,9 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 
 	inst.Sig.Parms = make([]Var, len(fun.Sig.Parms))
 	for i := range fun.Sig.Parms {
-		parm0 := &fun.Sig.Parms[i]
-		parm1 := &inst.Sig.Parms[i]
-		x.log("sub fun parm %d %s", i, parm0.Name)
-		parm1.AST = parm0.AST
-		parm1.Name = parm0.Name
-		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
-		parm1.typ = subType(x, seen, sub, parm0.typ)
-		parm1.FunParm = fun
-		parm1.Index = i
+		inst.Sig.Parms[i] = subVar(x, seen, sub, &fun.Sig.Parms[i])
+		inst.Sig.Parms[i].FunParm = fun
+		inst.Sig.Parms[i].Index = i
 	}
 
 	inst.Locals = make([]*Var, len(fun.Locals))

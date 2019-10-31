@@ -95,12 +95,13 @@ func TestInstType(t *testing.T) {
 			want: "type Int Test { [foo] [bar] }",
 		},
 		{
-			// TODO: something isn't substituted correctly in cyclic constraints?
-			name: "SKIP: constraint cycle 2",
+			name: "constraint cycle 2",
 			src: `
 				type (T T Foo) Test {[foo: T] [bar ^T]}
 				type (T T Test) Foo {[foo: T] [bar ^T]}
 				func [foo ^Int Test]
+				meth Int [foo: _ Int]
+				meth Int [bar ^Int]
 			`,
 			want: "type Int Test { [foo: Int] [bar ^Int] }",
 		},

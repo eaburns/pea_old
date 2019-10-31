@@ -285,12 +285,12 @@ func gatherVars(x *scope, astVars []syn.Var) (_ []Var, errs []checkError) {
 	defer x.tr("gatherVars(…)")(&errs)
 	var vars []Var
 	for i := range astVars {
-		var es []checkError
 		vr := Var{AST: &astVars[i], Name: astVars[i].Name}
 		if astVars[i].Type != nil {
+			var es []checkError
 			vr.TypeName, es = gatherTypeName(x, astVars[i].Type)
+			errs = append(errs, es...)
 		}
-		errs = append(errs, es...)
 		vars = append(vars, vr)
 	}
 	return vars, errs
