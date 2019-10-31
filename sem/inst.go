@@ -67,7 +67,6 @@ func instRecvTypes(x *scope, recv *Recv) (errs []checkError) {
 		return errs
 	}
 
-	// TODO: make sure we don't instTypeTypes twice on recv.Type.
 	errs = append(errs, instTypeTypes(x, recv.Type)...)
 
 	args := make([]TypeName, len(recv.Parms))
@@ -130,7 +129,6 @@ func instTypeTypes(x *scope, typ *Type) (errs []checkError) {
 	}
 	x.insted[typ] = true
 
-	// TODO: disallow cycles in type parameters?
 	errs = append(errs, instTypeParamTypes(x, typ.Parms)...)
 
 	switch {
@@ -180,14 +178,6 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	if typ.Alias != nil {
 		if typ.Alias.Type == nil {
 			return nil, errs // error reported elsewhere
-		}
-		// TODO: instTypeName must check alias cycles.
-		if len(typ.Parms) != len(args) {
-			fmt.Println("args", len(args))
-			for _, a := range args {
-				fmt.Println(a.Type.debugString(x))
-			}
-			panic(typ.debugString(x))
 		}
 		sub := subMap(typ.Parms, args)
 		errs = append(errs, instTypeName(x, typ.Alias)...)
