@@ -216,9 +216,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	inst.Insts = nil
 	// add to typ.Insts before subTypeBody, so recursive insts find this inst.
 	typ.Insts = append(typ.Insts, inst)
-	x.log("len(typ.Insts)=%d", len(typ.Insts))
 	sub := subMap(typ.Parms, args)
-	x.log("subbing: %s", inst.debugString(x))
 	subTypeBody(x, map[*Type]*Type{typ: inst}, sub, inst)
 	x.log("subed: %s", inst.fullString())
 	return inst, errs
