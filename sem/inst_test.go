@@ -107,25 +107,25 @@ func TestInstType(t *testing.T) {
 		{
 			name: "alias type",
 			src: `
-				type T Test := T Array
+				type T Test := T Array.
 				func [foo ^Int Test]
 			`,
-			want: "type Int Test := Int Array",
+			want: "type Int Array {}",
 		},
 		{
 			name: "alias type with partially bound target type",
 			src: `
-				type T Test := (T, String) Array
+				type T Test := (T, String) Fun.
 				func [foo ^Int Test]
 			`,
-			want: "type Int Test := (Int, String) Array",
+			want: "type (Int, String) Fun {}",
 		},
 	}
 	for _, test := range tests {
-		if strings.HasPrefix(test.name, "SKIP") {
-			t.Skip()
-		}
 		t.Run(test.name, func(t *testing.T) {
+			if strings.HasPrefix(test.name, "SKIP") {
+				t.Skip()
+			}
 			p := syn.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
@@ -139,6 +139,9 @@ func TestInstType(t *testing.T) {
 				t.Fatalf("failed to check source: %v", errs)
 			}
 			typ := findTestType(mod, "Test")
+			for typ != nil && typ.Alias != nil {
+				typ = typ.Alias.Type.Def
+			}
 			if typ == nil {
 				t.Fatal("type Test not found")
 			}
