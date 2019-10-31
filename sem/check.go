@@ -883,15 +883,18 @@ func findVirts(x *scope, loc syn.Node, recv *Type, virts []FunSig) (funs []*Fun,
 		for i := range funSig.Parms {
 			funSig.Parms[i].Name = ""
 		}
-		var where string
+		var gotWhere string
 		if fun.AST != nil {
-			where = fmt.Sprintf(", defined at %s", x.loc(fun.AST))
+			gotWhere = fmt.Sprintf(" from %s", x.loc(fun.AST))
+		}
+		var wantWhere string
+		if want.AST != nil {
+			wantWhere = fmt.Sprintf(" from %s", x.loc(want.AST))
 		}
 		err := x.err(loc, "wrong type for method %s", want.Sel)
 		err.notes = []string{
-			fmt.Sprintf("wrong type for method %s", want.Sel),
-			fmt.Sprintf("	have %s%s", funSig, where),
-			fmt.Sprintf("	want %s", want),
+			fmt.Sprintf("have %s%s", funSig, gotWhere),
+			fmt.Sprintf("want %s%s", want, wantWhere),
 		}
 		errs = append(errs, *err)
 	}
