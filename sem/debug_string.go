@@ -60,7 +60,9 @@ func buildFunDebugString(x *scope, n *Fun, s *strings.Builder) {
 		for i := range n.Sig.Parms {
 			p := &n.Sig.Parms[i]
 			s.WriteString("\n\t\t" + p.Name)
-			buildTypeSigDebugString(x, "\t\t\t", p.typ, s)
+			if p.typ != nil {
+				buildTypeSigDebugString(x, "\t\t\t", p.typ, s)
+			}
 		}
 		s.WriteRune('\n')
 	}
