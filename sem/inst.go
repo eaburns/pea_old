@@ -111,12 +111,13 @@ func instVarTypes(x *scope, vars []Var) (errs []checkError) {
 	defer x.tr("instVarTypes(…)")(&errs)
 	for i := range vars {
 		v := &vars[i]
-		x.log("var %s", v.Name)
+		x.log("instantiating var %s", v.Name)
 		if v.TypeName == nil {
 			continue
 		}
 		errs = append(errs, instTypeName(x, v.TypeName)...)
 		v.typ = v.TypeName.Type
+		x.log("var %s type %s", v.Name, v.typ)
 	}
 	return errs
 }
@@ -179,7 +180,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 		if typ.Alias.Type == nil {
 			return nil, errs // error reported elsewhere
 		}
-		sub := subMap(typ.Parms, args)
+		sub := newSubMap(typ.Parms, args)
 		errs = append(errs, instTypeName(x, typ.Alias)...)
 		args = subTypeNames(x, map[*Type]*Type{}, sub, typ.Alias.Args)
 		typ = typ.Alias.Type
@@ -206,7 +207,7 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	inst.Insts = nil
 	// add to typ.Insts before subTypeBody, so recursive insts find this inst.
 	typ.Insts = append(typ.Insts, inst)
-	sub := subMap(typ.Parms, args)
+	sub := newSubMap(typ.Parms, args)
 	subTypeBody(x, map[*Type]*Type{typ: inst}, sub, inst)
 	x.log("subed: %s", inst.fullString())
 	return inst, errs
@@ -230,13 +231,17 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 			}
 		}
 	} else {
-		sub = subMap(fun.Recv.Type.Parms, recv.Args)
+		sub = newSubMap(fun.Recv.Type.Parms, recv.Args)
 	}
 	if len(errs) > 0 {
 		return nil, errs
 	}
 
-	for _, inst := range fun.Def.Insts {
+	file := x.curFile()
+	for _, inst := range file.funInsts {
+		if inst.Def != fun.Def {
+			continue
+		}
 		if len(inst.TArgs) > 0 {
 			// This is a fully-instantiated function.
 			// We only want a receiver-instantiated instance.
@@ -249,9 +254,10 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
 	inst.Def = fun.Def
-	fun.Def.Insts = append(fun.Def.Insts, inst)
-	inst.Insts = nil
 	inst.Recv.Args = recv.Args
+	file.funInsts = append(file.funInsts, inst)
+	fun.Def.Insts = append(fun.Def.Insts, inst)
+	x.funTodo = append(x.funTodo, funFile{fun: inst, file: file})
 	return inst, errs
 }
 
@@ -302,7 +308,11 @@ func instFun(x *scope, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs [
 		return nil, errs
 	}
 
-	for _, inst := range fun.Def.Insts {
+	file := x.curFile()
+	for _, inst := range file.funInsts {
+		if inst.Def != fun.Def {
+			continue
+		}
 		if (fun.Recv == nil || fun.Recv.Type == inst.Recv.Type) &&
 			typeNamesEq(inst.TArgs, args) {
 			return inst, errs
@@ -311,8 +321,10 @@ func instFun(x *scope, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs [
 
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
 	inst.Def = fun.Def
-	fun.Def.Insts = append(fun.Def.Insts, inst)
 	inst.TArgs = args
+	file.funInsts = append(file.funInsts, inst)
+	fun.Def.Insts = append(fun.Def.Insts, inst)
+	x.funTodo = append(x.funTodo, funFile{fun: inst, file: file})
 	return inst, nil
 }
 
@@ -444,10 +456,87 @@ func typeNamesEq(as, bs []TypeName) bool {
 	return true
 }
 
-func subMap(parms []TypeVar, args []TypeName) map[*TypeVar]TypeName {
+func instFunBodies(x *state) {
+	for len(x.funTodo) > 0 {
+		funFile := x.funTodo[len(x.funTodo)-1]
+		x.funTodo = x.funTodo[:len(x.funTodo)-1]
+		instFunBody(funFile.file.x, funFile.fun)
+	}
+}
+
+func instFunBody(x *scope, fun *Fun) {
+	defer x.tr("instFunStmts(%s)", fun)()
+
+	if x.defFiles[fun.Def] == nil {
+		x.log("skipping built-in")
+		return
+	}
+	if !isGroundFun(fun) {
+		x.log("skipping lifted instance: %s", fun)
+		return
+	}
+
+	// Setup the scope, because subStmts will do scope lookups.
+	x = x.new()
+	x.def = fun
+	if fun.Recv != nil {
+		for i := range fun.Recv.Parms {
+			x = x.new()
+			x.typeVar = fun.Recv.Parms[i].Type
+		}
+	}
+	for i := range fun.TParms {
+		x = x.new()
+		x.typeVar = fun.TParms[i].Type
+	}
+	x = x.new()
+	x.fun = fun
+	for i := range fun.Sig.Parms {
+		x = x.new()
+		x.variable = &fun.Sig.Parms[i]
+	}
+	for i := range fun.Locals {
+		x = x.new()
+		x.variable = fun.Locals[i]
+	}
+
+	sub := newSubMap(fun.Def.TParms, fun.TArgs)
+	if recv := fun.Recv; recv != nil {
+		addSubMap(recv.Type.Parms, recv.Type.Args, sub)
+	}
+	fun.Stmts = subStmts(x, sub, fun.Def.Stmts)
+}
+
+func newSubMap(parms []TypeVar, args []TypeName) map[*TypeVar]TypeName {
 	sub := make(map[*TypeVar]TypeName)
+	addSubMap(parms, args, sub)
+	return sub
+}
+
+func addSubMap(parms []TypeVar, args []TypeName, sub map[*TypeVar]TypeName) {
 	for i := range parms {
 		sub[&parms[i]] = args[i]
 	}
-	return sub
+}
+
+func isGroundFun(fun *Fun) bool {
+	for _, a := range fun.TArgs {
+		if !isGroundType(a.Type) {
+			return false
+		}
+	}
+	return len(fun.TParms) == len(fun.TArgs) &&
+		(fun.Recv == nil || isGroundType(fun.Recv.Type))
+}
+
+func isGroundType(typ *Type) bool {
+	if typ == nil || typ.Var != nil {
+		return false
+	}
+	for _, a := range typ.Args {
+		if !isGroundType(a.Type) {
+			return false
+		}
+	}
+	return true
 }

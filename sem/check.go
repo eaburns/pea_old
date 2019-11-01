@@ -107,6 +107,18 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 
 	errs = append(errs, checkInitCycles(x, mod.Defs)...)
 
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	// At this point, all errors must have been checked.
+	// If there were no errors, then there will be no errors
+	// instantiating function bodies.
+	// The key to this pass is to do method lookup
+	// for substituted parameterized types.
+	// All methods must exist, or we would have errored above.
+	instFunBodies(x.state)
+
 	errs = append(errs, checkUnusedImports(x)...)
 
 	return mod, errs

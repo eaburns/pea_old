@@ -1,6 +1,7 @@
 package sem
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -358,7 +359,7 @@ func TestInstCall(t *testing.T) {
 			if len(errs) > 0 {
 				t.Fatalf("failed to check source: %v", errs)
 			}
-			val := findTestVal(mod)
+			val := findTestVal(mod, "test")
 			if val == nil {
 				t.Fatal("val test not found")
 			}
@@ -377,9 +378,288 @@ func TestInstCall(t *testing.T) {
 	}
 }
 
-func findTestVal(mod *Mod) *Val {
+func TestSubStmts(t *testing.T) {
+	tests := []struct {
+		name string
+		// We basically just test that none of the panics fire.
+		src     string
+		imports [][2]string
+		trace   bool
+	}{
+		{
+			name: "int",
+			src: `
+				func (T Int Eq) [foo: t T ^Bool |
+					^t = 12
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "float",
+			src: `
+				func (T Float Eq) [foo: t T ^Bool |
+					^t = 12.0
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4.1]
+			`,
+		},
+		{
+			name: "string",
+			src: `
+				func (T String Eq) [foo: t T ^Bool |
+					^t = "world"
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: "hello"]
+				meth String [= _ String & ^Bool]
+			`,
+		},
+		{
+			name: "val ident",
+			src: `
+				val x := [5]
+				func (T Int Eq) [foo: t T ^Bool |
+					^t = x
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "fun parm ident",
+			src: `
+				func (T Int Eq) [foo: t T bar: x Int ^Bool |
+					^t = x
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4 bar: 5]
+			`,
+		},
+		{
+			name: "local ident",
+			src: `
+				func (T Int Eq) [foo: t T ^Bool |
+					x := 5.
+					^t = x
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "field ident",
+			src: `
+				meth Test (T Int Eq) [foo: t T ^Bool |
+					^t = x
+				]
+				type Test {x: Int}
+				type T Eq {[= T& ^Bool]}
+				val _ := [
+					t Test := {x: 5}.
+					t foo: 4
+				]
+			`,
+		},
+		{
+			name: "block",
+			src: `
+				func (T Int Eq) [foo: t T ^Bool |
+					^[ :x Int |
+						y := x.
+						t = y
+					] value: 4
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "constructor",
+			src: `
+				func (T Int Eq) [foo: t T ^Bool |
+					x Test := {x: 5}.
+					^t = x x
+				]
+				type T Eq {[= T& ^Bool]}
+				type Test {x: Int}
+				meth Test [x ^Int | ^x]
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "call",
+			src: `
+				func (T Int Eq) [foo: t T ^Bool |
+					x := 5.
+					^t = (x + 6, - 7, neg).
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "ref convert",
+			src: `
+				func (T Int Eq) [foo: t T ^Bool |
+					tt T& := t.
+					^tt = 5
+				]
+				type T Eq {[= T& ^Bool]}
+				val _ := [foo: 4]
+			`,
+		},
+		{
+			name: "virt convert",
+			src: `
+				func (T T Eq) [foo: t T ^T Eq | ^t]
+				type T Eq {[= T& ^Bool]}
+				val _ Int Eq := [foo: 4]
+			`,
+		},
+		{
+			name: "instantiating adds a new instance",
+			src: `
+				func T [foo: t T^ T | ^baz: t]
+				func T [bar: t T ^T | ^t]
+				func T [baz: t T ^T | ^bar: t]
+				val _ Int := [foo: 4]
+			`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := ast.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse source: %s", err)
+			}
+			cfg := Config{
+				Importer: testImporter(test.imports),
+				Trace:    test.trace,
+			}
+			func() {
+				defer func() {
+					if p := recover(); p != nil {
+						t.Errorf("panicked: %v", p)
+					}
+				}()
+				if _, errs := Check(p.Mod(), cfg); len(errs) > 0 {
+					t.Fatalf("failed to check source: %v", errs)
+				}
+			}()
+		})
+	}
+}
+
+// Tests that instantiating a function body is able to add a function instance,
+// which will then also be correctly instantiated.
+func TestRecursiveFunBodyInstantiation(t *testing.T) {
+	const src = `
+		// Instantiating [foo: Int ^Int] will create a new instance of
+		// [baz: Int ^Int], which will create an instance of [bar: Int ^Int].
+		// All three of these should be instantiated.
+		func T [foo: t T^ T | ^baz: t]
+		func T [bar: t T ^T | ^t]
+		func T [baz: t T ^T | ^bar: t]
+		val _ Int := [foo: 4]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{Trace: true})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+
+	for _, sel := range [...]string{"foo:", "bar:", "baz:"} {
+		f := findTestFun(mod, sel)
+		if f == nil {
+			t.Errorf("no function %s", sel)
+			continue
+		}
+		var fInt *Fun
+		for _, f := range f.Insts {
+			if f.TArgs[0].Name == "Int" {
+				fInt = f
+				break
+			}
+		}
+		if fInt == nil {
+			t.Errorf("no function [%s Int ^Int]", sel)
+			continue
+		}
+		if len(fInt.Stmts) == 0 {
+			t.Errorf("[%s Int ^Int]'s body is not instantiated", sel)
+		}
+	}
+}
+
+// It is possible that the methods of a type differ between files in the same module.
+// This can happen due to different Import statements.
+// This tests that instances of the same parameterized function
+// differ between calls in different files where the type parameters
+// have different methods.
+func TestDifferentInstsFromDifferentFiles(t *testing.T) {
+	const file0 = `
+		type Fooer {[foo]}
+		func (T Fooer) [doFoo: f T | f foo]
+	`
+	const file1 = `
+		Import "bar"
+		// doFoo should use Int #bar foo in its call to doFoo: 5.
+		val file1Val := [doFoo: 5]
+	`
+	const file2 = `
+		Import "baz"
+		// doFoo should use Int #baz foo in its call to doFoo: 5.
+		val file2Val := [doFoo: 5]
+	`
+	// The bar and baz modules have different Int [foo] methods.
+	imports := [][2]string{
+		{"bar", "Meth Int [foo]"},
+		{"baz", "Meth Int [foo]"},
+	}
+	p := ast.NewParser("#test")
+	for i, src := range [...]string{file0, file1, file2} {
+		path := fmt.Sprintf("file%d", i)
+		if err := p.Parse(path, strings.NewReader(src)); err != nil {
+			t.Fatalf("failed to parse source file%d: %s", i, err)
+		}
+	}
+	cfg := Config{Importer: testImporter(imports)}
+	mod, errs := Check(p.Mod(), cfg)
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+
+	file1DoFoo := findTestVal(mod, "file1Val").Init[0].(*Call).Msgs[0].Fun
+	file1Foo := file1DoFoo.Stmts[0].(*Call).Msgs[0].Fun
+	if file1Foo.Mod != "bar" {
+		t.Errorf("expected file1 to call Int #bar foo, got #%s", file1Foo.Mod)
+	}
+
+	file2DoFoo := findTestVal(mod, "file2Val").Init[0].(*Call).Msgs[0].Fun
+	file2Foo := file2DoFoo.Stmts[0].(*Call).Msgs[0].Fun
+	if file2Foo.Mod != "baz" {
+		t.Errorf("expected file2 to call Int #bar foo, got #%s", file2Foo.Mod)
+	}
+}
+
+func findTestFun(mod *Mod, sel string) *Fun {
 	for _, def := range mod.Defs {
-		if v, ok := def.(*Val); ok && v.Var.Name == "test" {
+		if f, ok := def.(*Fun); ok && f.Sig.Sel == sel {
+			return f
+		}
+	}
+	return nil
+}
+
+func findTestVal(mod *Mod, name string) *Val {
+	for _, def := range mod.Defs {
+		if v, ok := def.(*Val); ok && v.Var.Name == name {
 			return v
 		}
 	}

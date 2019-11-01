@@ -103,7 +103,7 @@ func TestCallRecvIsSet(t *testing.T) {
 			if len(errs) > 0 {
 				t.Fatalf("failed to check source: %v", errs)
 			}
-			val := findTestVal(mod)
+			val := findTestVal(mod, "test")
 			if val == nil {
 				t.Fatal("val test not found")
 			}

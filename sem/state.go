@@ -23,6 +23,21 @@ type state struct {
 	localUse map[*Var]bool
 	tvarUse  map[*TypeVar]bool
 
+	// Fun instances needing instFunStmts.
+	//
+	// Each file that calls a parameterized func or meth
+	// gets its own unique instantiation.
+	// This is because each file can have different methods
+	// for the same type due to different Import statements.
+	// To ensure that the instantatiation uses the correct methods,
+	// we make a different instance for each calling file.
+	//
+	// A future improvement would be to find constraint methods
+	// for all type arguments, and then dedup on the method sets.
+	// This would allow the possibility of sharing instances
+	// across multiple files if they all use the same methods.
+	funTodo []funFile
+
 	nextID int
 	indent string
 }
@@ -30,6 +45,11 @@ type state struct {
 type witness struct {
 	def Def
 	loc ast.Node
+}
+
+type funFile struct {
+	file *file
+	fun  *Fun
 }
 
 func newState(cfg Config, astMod *ast.Mod) *state {

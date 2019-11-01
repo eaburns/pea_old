@@ -236,3 +236,250 @@ func subDebugString(sub map[*TypeVar]TypeName) string {
 	sort.Slice(ss, func(i, j int) bool { return ss[i] < ss[j] })
 	return strings.Join(ss, ";")
 }
+
+func subStmts(x *scope, sub map[*TypeVar]TypeName, stmts0 []Stmt) []Stmt {
+	defer x.tr("subStmts()")()
+
+	stmts1 := make([]Stmt, len(stmts0))
+	for i, stmt := range stmts0 {
+		stmts1[i] = subStmt(x, sub, stmt)
+	}
+	return stmts1
+}
+
+func subStmt(x *scope, sub map[*TypeVar]TypeName, stmt0 Stmt) Stmt {
+	defer x.tr("subStmt()")()
+
+	switch stmt0 := stmt0.(type) {
+	case *Ret:
+		return subRet(x, sub, stmt0)
+	case *Assign:
+		return subAssign(x, sub, stmt0)
+	case Expr:
+		return subExpr(x, sub, stmt0)
+	default:
+		panic(fmt.Sprintf("impossible type: %T", stmt0))
+	}
+}
+
+func subRet(x *scope, sub map[*TypeVar]TypeName, ret0 *Ret) *Ret {
+	defer x.tr("subRet()")()
+
+	return &Ret{AST: ret0.AST, Val: subExpr(x, sub, ret0.Val)}
+}
+
+func subAssign(x *scope, sub map[*TypeVar]TypeName, assign0 *Assign) *Assign {
+	defer x.tr("subAssign(%s)", assign0.Var.Name)()
+
+	return &Assign{
+		AST:  assign0.AST,
+		Var:  lookUpVar(x, assign0.Var),
+		Expr: subExpr(x, sub, assign0.Expr),
+	}
+}
+
+func subExprs(x *scope, sub map[*TypeVar]TypeName, exprs0 []Expr) []Expr {
+	defer x.tr("subExprs()")()
+
+	exprs1 := make([]Expr, len(exprs0))
+	for i, expr0 := range exprs0 {
+		exprs1[i] = subExpr(x, sub, expr0)
+	}
+	return exprs1
+}
+
+func subExpr(x *scope, sub map[*TypeVar]TypeName, expr0 Expr) Expr {
+	defer x.tr("subExpr()")()
+
+	switch expr0 := expr0.(type) {
+	case nil:
+		return nil
+	case *Call:
+		return subCall(x, sub, expr0)
+	case *Ctor:
+		return subCtor(x, sub, expr0)
+	case *Block:
+		return subBlock(x, sub, expr0)
+	case *Ident:
+		return subIdent(x, sub, expr0)
+	case *Int:
+		defer x.tr("subInt()")()
+		return expr0
+	case *Float:
+		defer x.tr("subFloat()")()
+		return expr0
+	case *String:
+		defer x.tr("subString()")()
+		return expr0
+	case *Convert:
+		return subConvert(x, sub, expr0)
+	default:
+		panic(fmt.Sprintf("impossible type: %T", expr0))
+	}
+}
+
+func subConvert(x *scope, sub map[*TypeVar]TypeName, cvt0 *Convert) *Convert {
+	defer x.tr("subConvert()")()
+
+	cvt1 := &Convert{
+		Expr: subExpr(x, sub, cvt0.Expr),
+		Ref:  cvt0.Ref,
+		typ:  subType(x, map[*Type]*Type{}, sub, cvt0.typ),
+	}
+	if len(cvt0.Virts) > 0 {
+		if len(cvt1.typ.Virts) == 0 {
+			panic("impossible")
+		}
+		virts, errs := findVirts(x, cvt1.ast(), cvt1.Expr.Type(), cvt1.typ.Virts)
+		if len(errs) > 0 {
+			panic(fmt.Sprintf("impossible: %v", errs))
+		}
+		cvt1.Virts = virts
+	}
+	return cvt1
+}
+
+func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) *Call {
+	defer x.tr("subCall()")()
+
+	call1 := &Call{
+		AST:  call0.AST,
+		Recv: subExpr(x, sub, call0.Recv),
+		typ:  subType(x, map[*Type]*Type{}, sub, call0.typ),
+	}
+	var recv *Type
+	if call1.Recv != nil {
+		recv = call1.Recv.Type()
+		if !isRef(x, recv) {
+			// The receiver is always converted to a ref by the check pass.
+			panic("impossible")
+		}
+		recv = recv.Args[0].Type
+	}
+	call1.Msgs = subMsgs(x, sub, call1.typ, recv, call0.Msgs)
+	return call1
+}
+
+func subMsgs(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msgs0 []Msg) []Msg {
+	defer x.tr("subMsgs(ret1=%s, recv1=%s)", ret1, recv1)()
+
+	msgs1 := make([]Msg, len(msgs0))
+	for i := range msgs0 {
+		var ret *Type
+		if i == len(msgs0)-1 {
+			ret = ret1
+		}
+		msgs1[i] = subMsg(x, sub, ret, recv1, &msgs0[i])
+	}
+	return msgs1
+}
+
+func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg) Msg {
+	defer x.tr("subMsg(ret1=%s, recv1=%s, %s)", ret1, recv1, msg0.Sel)()
+
+	msg1 := Msg{
+		AST:  msg0.AST,
+		Mod:  msg0.Mod,
+		Sel:  msg0.Sel,
+		Args: subExprs(x, sub, msg0.Args),
+	}
+	if errs := findMsgFun(x, ret1, recv1, &msg1); len(errs) > 0 {
+		panic(fmt.Sprintf("impossible: %v", errs))
+	}
+	return msg1
+}
+
+func subCtor(x *scope, sub map[*TypeVar]TypeName, ctor0 *Ctor) *Ctor {
+	defer x.tr("subCtor()")()
+
+	return &Ctor{
+		AST:  ctor0.AST,
+		Args: subExprs(x, sub, ctor0.Args),
+		Case: ctor0.Case,
+		typ:  subType(x, map[*Type]*Type{}, sub, ctor0.typ),
+	}
+}
+
+func subBlock(x *scope, sub map[*TypeVar]TypeName, block0 *Block) *Block {
+	defer x.tr("subBlock()")()
+
+	seen := map[*Type]*Type{}
+	block1 := &Block{
+		AST:    block0.AST,
+		Parms:  make([]Var, len(block0.Parms)),
+		Locals: make([]*Var, len(block0.Parms)),
+		typ:    subType(x, seen, sub, block0.typ),
+	}
+	x = x.new()
+	x.block = block1
+
+	for i := range block0.Parms {
+		parm0 := &block0.Parms[i]
+		parm1 := &block1.Parms[i]
+		parm1.AST = parm0.AST
+		parm1.Name = parm0.Name
+		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
+		parm1.typ = subType(x, seen, sub, parm0.typ)
+		parm1.BlkParm = block1
+		parm1.Index = i
+		x = x.new()
+		x.variable = parm1
+	}
+	for i, local0 := range block0.Locals {
+		local1 := new(Var)
+		block1.Locals[i] = local1
+		local1.AST = local0.AST
+		local1.Name = local0.Name
+		local1.TypeName = subTypeName(x, seen, sub, local0.TypeName)
+		local1.typ = subType(x, seen, sub, local0.typ)
+		local1.Local = &block1.Locals
+		local1.Index = i
+		x = x.new()
+		x.variable = local1
+	}
+
+	block1.Stmts = subStmts(x, sub, block0.Stmts)
+
+	return block1
+}
+
+func subIdent(x *scope, sub map[*TypeVar]TypeName, ident0 *Ident) *Ident {
+	defer x.tr("subIdent(%s)", ident0.Text)()
+
+	return &Ident{
+		AST:  ident0.AST,
+		Text: ident0.Text,
+		Var:  lookUpVar(x, ident0.Var),
+	}
+}
+
+func lookUpVar(x *scope, var0 *Var) *Var {
+	defer x.tr("lookUpVar(%s)", var0.Name)()
+
+	var1, err := x.findIdent(var0.AST, var0.Name)
+	if err != nil {
+		panic("impossible: " + err.Error())
+	}
+	switch var1, ok := var1.(*Var); {
+	case !ok:
+		panic("impossible")
+	case var1 == nil:
+		panic("impossible")
+	case var1.typ == nil:
+		panic("impossible")
+	case (var1.Val == nil) != (var0.Val == nil):
+		panic("impossible")
+	case (var1.FunParm == nil) != (var0.FunParm == nil):
+		panic("impossible")
+	case (var1.BlkParm == nil) != (var0.BlkParm == nil):
+		panic("impossible")
+	case (var1.Local == nil) != (var0.Local == nil):
+		panic("impossible")
+	case (var1.Field == nil) != (var0.Field == nil):
+		panic("impossible")
+	case var1.Index != var0.Index:
+		panic("impossible")
+	default:
+		return var1
+	}
+}

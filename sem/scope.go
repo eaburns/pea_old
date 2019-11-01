@@ -26,6 +26,9 @@ type file struct {
 	ast     *ast.File
 	imports []imp
 	x       *scope
+
+	// Fun instances due to calls from in this file.
+	funInsts []*Fun
 }
 
 type imp struct {
@@ -71,6 +74,17 @@ func (x *scope) use(def Def, loc ast.Node) {
 		}
 	}
 	x.initDeps[def] = append(uses, witness{x.def, loc})
+}
+
+func (x *scope) curFile() *file {
+	switch {
+	case x == nil:
+		return nil
+	case x.file != nil:
+		return x.file
+	default:
+		return x.up.curFile()
+	}
 }
 
 func (x *scope) function() *Fun {
