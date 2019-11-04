@@ -1,4 +1,4 @@
-package syn
+package ast
 
 import (
 	"strconv"
@@ -18020,10 +18020,9 @@ func _CmntAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		return dp, de
 	}
 	pos, perr := start, -1
-	// "//" (!"\n" .)* {…}/"/*" (!"*/" .)* "*/" {…}
+	// "//" (!"\n" .)*/"/*" (!"*/" .)* "*/"
 	{
 		pos3 := pos
-		// action
 		// "//" (!"\n" .)*
 		// "//"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "//" {
@@ -18068,7 +18067,6 @@ func _CmntAccepts(parser *_Parser, start int) (deltaPos, deltaErr int) {
 		goto ok0
 	fail4:
 		pos = pos3
-		// action
 		// "/*" (!"*/" .)* "*/"
 		// "/*"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "/*" {
@@ -18137,10 +18135,9 @@ func _CmntFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		Pos:  int(start),
 	}
 	key := _key{start: start, rule: _Cmnt}
-	// "//" (!"\n" .)* {…}/"/*" (!"*/" .)* "*/" {…}
+	// "//" (!"\n" .)*/"/*" (!"*/" .)* "*/"
 	{
 		pos3 := pos
-		// action
 		// "//" (!"\n" .)*
 		// "//"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "//" {
@@ -18206,7 +18203,6 @@ func _CmntFail(parser *_Parser, start, errPos int) (int, *peg.Fail) {
 		goto ok0
 	fail4:
 		pos = pos3
-		// action
 		// "/*" (!"*/" .)* "*/"
 		// "/*"
 		if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "/*" {
@@ -18293,7 +18289,7 @@ fail:
 	return -1, failure
 }
 
-func _CmntAction(parser *_Parser, start int) (int, *struct{}) {
+func _CmntAction(parser *_Parser, start int) (int, *string) {
 	dp := parser.deltaPos[start][_Cmnt]
 	if dp < 0 {
 		return -1, nil
@@ -18301,114 +18297,128 @@ func _CmntAction(parser *_Parser, start int) (int, *struct{}) {
 	key := _key{start: start, rule: _Cmnt}
 	n := parser.act[key]
 	if n != nil {
-		n := n.(struct{})
+		n := n.(string)
 		return start + int(dp-1), &n
 	}
-	var node struct{}
+	var node string
 	pos := start
-	// "//" (!"\n" .)* {…}/"/*" (!"*/" .)* "*/" {…}
+	// "//" (!"\n" .)*/"/*" (!"*/" .)* "*/"
 	{
 		pos3 := pos
-		var node2 struct{}
-		// action
+		var node2 string
+		// "//" (!"\n" .)*
 		{
-			start5 := pos
-			// "//" (!"\n" .)*
+			var node5 string
 			// "//"
 			if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "//" {
 				goto fail4
 			}
+			node5 = parser.text[pos : pos+2]
 			pos += 2
+			node, node5 = node+node5, ""
 			// (!"\n" .)*
 			for {
-				pos8 := pos
+				pos7 := pos
+				var node8 string
 				// (!"\n" .)
 				// !"\n" .
-				// !"\n"
 				{
-					pos13 := pos
-					// "\n"
-					if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
-						goto ok12
+					var node10 string
+					// !"\n"
+					{
+						pos12 := pos
+						// "\n"
+						if len(parser.text[pos:]) < 1 || parser.text[pos:pos+1] != "\n" {
+							goto ok11
+						}
+						pos++
+						pos = pos12
+						goto fail9
+					ok11:
+						pos = pos12
+						node10 = ""
 					}
-					pos++
-					pos = pos13
-					goto fail10
-				ok12:
-					pos = pos13
+					node8, node10 = node8+node10, ""
+					// .
+					if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
+						goto fail9
+					} else {
+						node10 = parser.text[pos : pos+w]
+						pos += w
+					}
+					node8, node10 = node8+node10, ""
 				}
-				// .
-				if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
-					goto fail10
-				} else {
-					pos += w
-				}
+				node5 += node8
 				continue
-			fail10:
-				pos = pos8
+			fail9:
+				pos = pos7
 				break
 			}
-			node = func(
-				start, end int) struct{} {
-				return struct{}{}
-			}(
-				start5, pos)
+			node, node5 = node+node5, ""
 		}
 		goto ok0
 	fail4:
 		node = node2
 		pos = pos3
-		// action
+		// "/*" (!"*/" .)* "*/"
 		{
-			start17 := pos
-			// "/*" (!"*/" .)* "*/"
+			var node16 string
 			// "/*"
 			if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "/*" {
-				goto fail16
+				goto fail15
 			}
+			node16 = parser.text[pos : pos+2]
 			pos += 2
+			node, node16 = node+node16, ""
 			// (!"*/" .)*
 			for {
-				pos20 := pos
+				pos18 := pos
+				var node19 string
 				// (!"*/" .)
 				// !"*/" .
-				// !"*/"
 				{
-					pos25 := pos
-					// "*/"
-					if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "*/" {
-						goto ok24
+					var node21 string
+					// !"*/"
+					{
+						pos23 := pos
+						// "*/"
+						if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "*/" {
+							goto ok22
+						}
+						pos += 2
+						pos = pos23
+						goto fail20
+					ok22:
+						pos = pos23
+						node21 = ""
 					}
-					pos += 2
-					pos = pos25
-					goto fail22
-				ok24:
-					pos = pos25
+					node19, node21 = node19+node21, ""
+					// .
+					if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
+						goto fail20
+					} else {
+						node21 = parser.text[pos : pos+w]
+						pos += w
+					}
+					node19, node21 = node19+node21, ""
 				}
-				// .
-				if r, w := _next(parser, pos); w == 0 || r == '\uFFFD' {
-					goto fail22
-				} else {
-					pos += w
-				}
+				node16 += node19
 				continue
-			fail22:
-				pos = pos20
+			fail20:
+				pos = pos18
 				break
 			}
+			node, node16 = node+node16, ""
 			// "*/"
 			if len(parser.text[pos:]) < 2 || parser.text[pos:pos+2] != "*/" {
-				goto fail16
+				goto fail15
 			}
+			node16 = parser.text[pos : pos+2]
 			pos += 2
-			node = func(
-				start, end int) struct{} {
-				return struct{}{}
-			}(
-				start17, pos)
+			node, node16 = node+node16, ""
 		}
 		goto ok0
-	fail16:
+	fail15:
 		node = node2
 		pos = pos3
 		goto fail

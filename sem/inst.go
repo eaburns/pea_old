@@ -3,7 +3,7 @@ package sem
 import (
 	"fmt"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 func instDefTypes(x *scope, defs []Def) []checkError {
@@ -256,27 +256,27 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 }
 
 type argTypes interface {
-	ast() syn.Node
-	arg(*scope, int) (*Type, syn.Node, []checkError)
+	ast() ast.Node
+	arg(*scope, int) (*Type, ast.Node, []checkError)
 }
 
-func (m *Msg) arg(x *scope, i int) (*Type, syn.Node, []checkError) {
-	// The type assertion to *syn.Msg is OK,
-	// since Msg.AST is only not a *syn.Msg
+func (m *Msg) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
+	// The type assertion to *ast.Msg is OK,
+	// since Msg.AST is only not a *ast.Msg
 	// for a 0-ary function call, but this has args.
-	arg, errs := checkExpr(x, nil, m.AST.(*syn.Msg).Args[i])
+	arg, errs := checkExpr(x, nil, m.AST.(*ast.Msg).Args[i])
 	m.Args[i] = arg
 	return arg.Type(), arg.ast(), errs
 }
 
 type funSigArgTypes struct {
-	loc syn.Node
+	loc ast.Node
 	sig *FunSig
 }
 
-func (s funSigArgTypes) ast() syn.Node { return s.loc }
+func (s funSigArgTypes) ast() ast.Node { return s.loc }
 
-func (s funSigArgTypes) arg(x *scope, i int) (*Type, syn.Node, []checkError) {
+func (s funSigArgTypes) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
 	return s.sig.Parms[i].typ, s.sig.Parms[i].AST, nil
 }
 

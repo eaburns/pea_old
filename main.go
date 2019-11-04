@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/eaburns/pea/ast"
 	"github.com/eaburns/pea/sem"
-	"github.com/eaburns/pea/syn"
 	"github.com/eaburns/peggy/peg"
 	"github.com/eaburns/pretty"
 )
 
 var (
-	printSyn = flag.Bool("syn", false, "print the syntax tree to standard output")
+	printAST = flag.Bool("ast", false, "print the AST to standard output")
 	printSem = flag.Bool("sem", false, "print the semantic tree to standard output")
 	trace    = flag.Bool("trace", false, "enable tracing in the type checker")
 )
@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 
 	pretty.Indent = "    "
-	parser := syn.NewParser("#main")
+	parser := ast.NewParser("#main")
 	if len(flag.Args()) == 0 {
 		if err := parser.Parse("", os.Stdin); err != nil {
 			die(err)
@@ -35,7 +35,7 @@ func main() {
 	}
 
 	astMod := parser.Mod()
-	if *printSyn {
+	if *printAST {
 		pretty.Print(astMod)
 		fmt.Println("")
 	}

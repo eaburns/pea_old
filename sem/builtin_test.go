@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 func TestBuiltInMeths(t *testing.T) {
@@ -106,7 +106,7 @@ func TestBuiltInMeths(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -120,7 +120,7 @@ func TestBuiltInMeths(t *testing.T) {
 				if !ok {
 					continue
 				}
-				if _, ok := fun.AST.(*syn.Fun); ok {
+				if _, ok := fun.AST.(*ast.Fun); ok {
 					continue
 				}
 				got = append(got, fun.String())
@@ -154,7 +154,7 @@ func TestBuiltInMethSelfIsRef(t *testing.T) {
 		type Virt {[foo]}
 		type T Opt {some: T | none}
 	`
-	p := syn.NewParser("#test")
+	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}

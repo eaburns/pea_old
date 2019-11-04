@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 func TestString(t *testing.T) {
@@ -139,7 +139,7 @@ func TestString(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		p := syn.NewParser("#test")
+		p := ast.NewParser("#test")
 		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 			continue
@@ -202,7 +202,7 @@ func TestFullString(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		p := syn.NewParser("#test")
+		p := ast.NewParser("#test")
 		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 			continue

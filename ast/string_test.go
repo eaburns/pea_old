@@ -1,4 +1,4 @@
-package syn
+package ast
 
 import (
 	"strings"

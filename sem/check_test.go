@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 	"github.com/eaburns/pretty"
 )
 
@@ -95,7 +95,7 @@ func TestCallRecvIsSet(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -1869,7 +1869,7 @@ func TestAssignToNewVariable(t *testing.T) {
 		]
 		func [use: _ Int]
 	`
-	p := syn.NewParser("#test")
+	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -1901,7 +1901,7 @@ func TestAssignToExistingVariable(t *testing.T) {
 		]
 		func [use: _ Int]
 	`
-	p := syn.NewParser("#test")
+	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2923,7 +2923,7 @@ func TestIdentLookup(t *testing.T) {
 		func [unaryFun]
 		func [use: _ Int]
 	`
-	p := syn.NewParser("#test")
+	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3005,7 +3005,7 @@ func TestAssignToField(t *testing.T) {
 		]
 		type Point { x: Int y: Int }
 	`
-	p := syn.NewParser("#test")
+	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3129,7 +3129,7 @@ func TestBlockTypeInference(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -3465,7 +3465,7 @@ func TestTypeInstSub(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -3582,7 +3582,7 @@ func TestTypeInstMemo(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -3640,7 +3640,7 @@ func (test errorTest) run(t *testing.T) {
 	if strings.HasPrefix(test.name, "SKIP:") {
 		t.Skip()
 	}
-	p := syn.NewParser("#test")
+	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3671,7 +3671,7 @@ func (imports testImporter) Import(cfg Config, path string) ([]Def, error) {
 			continue
 		}
 		src := imports[i][1]
-		p := syn.NewParser(path)
+		p := ast.NewParser(path)
 		if err := p.Parse(path, strings.NewReader(src)); err != nil {
 			return nil, fmt.Errorf("failed to parse import: %s", err)
 		}

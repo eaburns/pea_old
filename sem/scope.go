@@ -3,7 +3,7 @@ package sem
 import (
 	"strings"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 type scope struct {
@@ -23,13 +23,13 @@ type scope struct {
 }
 
 type file struct {
-	ast     *syn.File
+	ast     *ast.File
 	imports []imp
 	x       *scope
 }
 
 type imp struct {
-	ast  syn.Node
+	ast  ast.Node
 	used bool
 	all  bool
 	path string
@@ -49,7 +49,7 @@ func (x *scope) new() *scope {
 	return &scope{state: x.state, up: x}
 }
 
-func use(x *scope, def Def, loc syn.Node) {
+func use(x *scope, def Def, loc ast.Node) {
 	if _, ok := x.defFiles[def]; !ok {
 		return
 	}
@@ -59,7 +59,7 @@ func use(x *scope, def Def, loc syn.Node) {
 	x.use(def, loc)
 }
 
-func (x *scope) use(def Def, loc syn.Node) {
+func (x *scope) use(def Def, loc ast.Node) {
 	if x.def == nil {
 		x.up.use(def, loc)
 		return
@@ -98,7 +98,7 @@ func (x *scope) locals() *[]*Var {
 	}
 }
 
-func findImport(x *scope, mod *syn.ModTag) (*imp, *checkError) {
+func findImport(x *scope, mod *ast.ModTag) (*imp, *checkError) {
 	imp := x.findImport(strings.TrimPrefix(mod.Text, "#"))
 	if imp == nil {
 		return nil, x.err(mod, "module %s not found", mod.Text)
@@ -122,7 +122,7 @@ func (x *scope) findImport(name string) *imp {
 	return x.up.findImport(name)
 }
 
-func findType(x *scope, loc syn.Node, mod *syn.ModTag, arity int, name string) (typ *Type, err *checkError) {
+func findType(x *scope, loc ast.Node, mod *ast.ModTag, arity int, name string) (typ *Type, err *checkError) {
 	if mod != nil {
 		imp, err := findImport(x, mod)
 		if err != nil {
@@ -149,7 +149,7 @@ func findType(x *scope, loc syn.Node, mod *syn.ModTag, arity int, name string) (
 	return nil, x.err(loc, "type (%d)%s not found", arity, name)
 }
 
-func (x *scope) findType(loc syn.Node, arity int, name string) (*Type, *checkError) {
+func (x *scope) findType(loc ast.Node, arity int, name string) (*Type, *checkError) {
 	switch {
 	case x == nil:
 		return nil, nil
@@ -176,7 +176,7 @@ func (x *scope) findType(loc syn.Node, arity int, name string) (*Type, *checkErr
 	return x.up.findType(loc, arity, name)
 }
 
-func (f *file) findType(loc syn.Node, arity int, name string) (*Type, *checkError) {
+func (f *file) findType(loc ast.Node, arity int, name string) (*Type, *checkError) {
 	var ts []*Type
 	var imps []*imp
 	for i := range f.imports {
@@ -222,7 +222,7 @@ func findTypeInDefs(arity int, name string, defs []Def) *Type {
 
 // findIdent returns a *Var or *Fun.
 // In the *Fun case, the identifier is a unary function in the current module.
-func findIdent(x *scope, loc syn.Node, mod *syn.ModTag, name string) (id interface{}, err *checkError) {
+func findIdent(x *scope, loc ast.Node, mod *ast.ModTag, name string) (id interface{}, err *checkError) {
 	defer func() {
 		switch id := id.(type) {
 		case *Var:
@@ -255,7 +255,7 @@ func findIdent(x *scope, loc syn.Node, mod *syn.ModTag, name string) (id interfa
 
 // findIdent returns a *Var or *Fun.
 // In the *Fun case, the identifier is a unary function in the current module.
-func (x *scope) findIdent(loc syn.Node, name string) (interface{}, *checkError) {
+func (x *scope) findIdent(loc ast.Node, name string) (interface{}, *checkError) {
 	switch {
 	case x == nil:
 		return nil, nil
@@ -286,7 +286,7 @@ func (x *scope) findIdent(loc syn.Node, name string) (interface{}, *checkError) 
 	return x.up.findIdent(loc, name)
 }
 
-func (f *file) findIdent(loc syn.Node, name string) (interface{}, *checkError) {
+func (f *file) findIdent(loc ast.Node, name string) (interface{}, *checkError) {
 	var ids []interface{}
 	var imps []*imp
 	for i := range f.imports {
@@ -344,7 +344,7 @@ func findIdentInDefs(name string, defs []Def) interface{} {
 	return nil
 }
 
-func findFun(x *scope, loc syn.Node, recv *Type, mod *syn.ModTag, sel string) (fun *Fun, err *checkError) {
+func findFun(x *scope, loc ast.Node, recv *Type, mod *ast.ModTag, sel string) (fun *Fun, err *checkError) {
 	defer func() {
 		if fun != nil {
 			use(x, fun, loc)
@@ -375,7 +375,7 @@ func findFun(x *scope, loc syn.Node, recv *Type, mod *syn.ModTag, sel string) (f
 	return nil, x.err(loc, "method %s %s%s not found", recv, modName, sel)
 }
 
-func (x *scope) findFun(loc syn.Node, recv *Type, sel string) (*Fun, *checkError) {
+func (x *scope) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError) {
 	switch {
 	case x == nil:
 		return nil, nil
@@ -399,7 +399,7 @@ func (x *scope) findFun(loc syn.Node, recv *Type, sel string) (*Fun, *checkError
 	return x.up.findFun(loc, recv, sel)
 }
 
-func (f *file) findFun(loc syn.Node, recv *Type, sel string) (*Fun, *checkError) {
+func (f *file) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError) {
 	var funs []*Fun
 	var imps []*imp
 	for i := range f.imports {

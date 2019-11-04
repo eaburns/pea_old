@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 type state struct {
-	astMod     *syn.Mod
+	astMod     *ast.Mod
 	cfg        Config
 	files      []*file
 	defFiles   map[Def]*file
@@ -29,10 +29,10 @@ type state struct {
 
 type witness struct {
 	def Def
-	loc syn.Node
+	loc ast.Node
 }
 
-func newState(cfg Config, astMod *syn.Mod) *state {
+func newState(cfg Config, astMod *ast.Mod) *state {
 	return &state{
 		astMod:   astMod,
 		cfg:      cfg,
@@ -46,7 +46,7 @@ func newState(cfg Config, astMod *syn.Mod) *state {
 	}
 }
 
-func newDefaultState(cfg Config, astMod *syn.Mod) *state {
+func newDefaultState(cfg Config, astMod *ast.Mod) *state {
 	x := newState(cfg, astMod)
 	setConfigDefaults(x)
 	return x
@@ -74,9 +74,9 @@ func (x *state) newID() string {
 	return fmt.Sprintf("$%d", x.nextID-1)
 }
 
-func (x *state) loc(n interface{}) syn.Loc {
+func (x *state) loc(n interface{}) ast.Loc {
 	switch n := n.(type) {
-	case syn.Node:
+	case ast.Node:
 		return x.astMod.Loc(n)
 	case Node:
 		return x.astMod.Loc(n.ast())

@@ -1,5 +1,5 @@
 {
-package syn
+package ast
 
 import (
 	"strconv"

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 // MaxValueParms the maximum number of value: parameters
@@ -103,7 +103,7 @@ var univ = `
 `
 
 func newUniv(x *state) []Def {
-	p := syn.NewParser("")
+	p := ast.NewParser("")
 	tmp, err := template.New("").Parse(univ)
 	if err != nil {
 		panic("failed to parse template: " + err.Error())

@@ -3,7 +3,7 @@ package sem
 import (
 	"fmt"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 func gatherDefs(x *scope, defs []Def) (errs []checkError) {
@@ -37,7 +37,7 @@ func gatherDef(x *scope, def Def) (errs []checkError) {
 	// We also look at type parameter constraints, which are types,
 	// and must also be acyclic.
 	if typ, ok := def.(*Type); ok {
-		if astType, ok := typ.AST.(*syn.Type); ok && astType.Alias != nil {
+		if astType, ok := typ.AST.(*ast.Type); ok && astType.Alias != nil {
 			if err := aliasCycle(x, typ); err != nil {
 				typ.Alias.Type = nil
 				return append(errs, *err)
@@ -95,13 +95,13 @@ func gatherVal(x *scope, def *Val) (errs []checkError) {
 func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	defer x.tr("gatherFun(%s)", def.name())(&errs)
 
-	x, def.Recv, errs = gatherRecv(x, def.AST.(*syn.Fun).Recv)
+	x, def.Recv, errs = gatherRecv(x, def.AST.(*ast.Fun).Recv)
 
 	var es []checkError
-	x, def.TParms, es = gatherTypeParms(x, def.AST.(*syn.Fun).TParms)
+	x, def.TParms, es = gatherTypeParms(x, def.AST.(*ast.Fun).TParms)
 	errs = append(errs, es...)
 
-	sig, es := gatherFunSig(x, &def.AST.(*syn.Fun).Sig)
+	sig, es := gatherFunSig(x, &def.AST.(*ast.Fun).Sig)
 	errs = append(errs, es...)
 	def.Sig = *sig
 
@@ -142,7 +142,7 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 	return errs
 }
 
-func gatherRecv(x *scope, astRecv *syn.Recv) (_ *scope, _ *Recv, errs []checkError) {
+func gatherRecv(x *scope, astRecv *ast.Recv) (_ *scope, _ *Recv, errs []checkError) {
 	if astRecv == nil {
 		return x, nil, nil
 	}
@@ -173,7 +173,7 @@ func gatherRecv(x *scope, astRecv *syn.Recv) (_ *scope, _ *Recv, errs []checkErr
 	return x, recv, errs
 }
 
-func gatherTypeParms(x *scope, astVars []syn.Var) (_ *scope, _ []TypeVar, errs []checkError) {
+func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs []checkError) {
 	if astVars == nil {
 		return x, nil, nil
 	}
@@ -208,7 +208,7 @@ func gatherTypeParms(x *scope, astVars []syn.Var) (_ *scope, _ []TypeVar, errs [
 	return x, vars, errs
 }
 
-func gatherFunSigs(x *scope, astSigs []syn.FunSig) (_ []FunSig, errs []checkError) {
+func gatherFunSigs(x *scope, astSigs []ast.FunSig) (_ []FunSig, errs []checkError) {
 	var sigs []FunSig
 	for i := range astSigs {
 		sig, es := gatherFunSig(x, &astSigs[i])
@@ -218,7 +218,7 @@ func gatherFunSigs(x *scope, astSigs []syn.FunSig) (_ []FunSig, errs []checkErro
 	return sigs, errs
 }
 
-func gatherFunSig(x *scope, astSig *syn.FunSig) (_ *FunSig, errs []checkError) {
+func gatherFunSig(x *scope, astSig *ast.FunSig) (_ *FunSig, errs []checkError) {
 	defer x.tr("gatherFunSig(%s)", astSig)(&errs)
 
 	sig := &FunSig{
@@ -238,7 +238,7 @@ func gatherFunSig(x *scope, astSig *syn.FunSig) (_ *FunSig, errs []checkError) {
 func gatherType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("gatherType(%p %s)", def, def.AST)(&errs)
 
-	astType := def.AST.(*syn.Type)
+	astType := def.AST.(*ast.Type)
 
 	var es []checkError
 	x, def.Parms, es = gatherTypeParms(x, astType.Sig.Parms)
@@ -281,7 +281,7 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	return errs
 }
 
-func gatherVars(x *scope, astVars []syn.Var) (_ []Var, errs []checkError) {
+func gatherVars(x *scope, astVars []ast.Var) (_ []Var, errs []checkError) {
 	defer x.tr("gatherVars(…)")(&errs)
 	var vars []Var
 	for i := range astVars {
@@ -296,7 +296,7 @@ func gatherVars(x *scope, astVars []syn.Var) (_ []Var, errs []checkError) {
 	return vars, errs
 }
 
-func gatherTypeNames(x *scope, astNames []syn.TypeName) ([]TypeName, []checkError) {
+func gatherTypeNames(x *scope, astNames []ast.TypeName) ([]TypeName, []checkError) {
 	var errs []checkError
 	var names []TypeName
 	for i := range astNames {
@@ -307,7 +307,7 @@ func gatherTypeNames(x *scope, astNames []syn.TypeName) ([]TypeName, []checkErro
 	return names, errs
 }
 
-func gatherTypeName(x *scope, astName *syn.TypeName) (_ *TypeName, errs []checkError) {
+func gatherTypeName(x *scope, astName *ast.TypeName) (_ *TypeName, errs []checkError) {
 	if astName == nil {
 		return nil, nil
 	}

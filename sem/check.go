@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 // Config are configuration parameters for the type checker.
@@ -22,7 +22,7 @@ type Config struct {
 }
 
 // Check type-checks an AST and returns the type-checked tree or errors.
-func Check(astMod *syn.Mod, cfg Config) (*Mod, []error) {
+func Check(astMod *ast.Mod, cfg Config) (*Mod, []error) {
 	x := newUnivScope(newDefaultState(cfg, astMod))
 	mod, errs := check(x, astMod)
 	if len(errs) > 0 {
@@ -31,7 +31,7 @@ func Check(astMod *syn.Mod, cfg Config) (*Mod, []error) {
 	return mod, nil
 }
 
-func check(x *scope, astMod *syn.Mod) (_ *Mod, errs []checkError) {
+func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	defer x.tr("check(%s)", astMod.Name)(&errs)
 
 	isUniv := x.univ == nil
@@ -112,7 +112,7 @@ func check(x *scope, astMod *syn.Mod) (_ *Mod, errs []checkError) {
 	return mod, errs
 }
 
-func makeDefs(x *scope, files []syn.File) ([]Def, []checkError) {
+func makeDefs(x *scope, files []ast.File) ([]Def, []checkError) {
 	var defs []Def
 	var errs []checkError
 	for i := range files {
@@ -130,9 +130,9 @@ func makeDefs(x *scope, files []syn.File) ([]Def, []checkError) {
 	return defs, errs
 }
 
-func makeDef(astDef syn.Def) Def {
+func makeDef(astDef ast.Def) Def {
 	switch astDef := astDef.(type) {
-	case *syn.Val:
+	case *ast.Val:
 		val := &Val{
 			AST:  astDef,
 			Priv: astDef.Priv(),
@@ -143,7 +143,7 @@ func makeDef(astDef syn.Def) Def {
 		}
 		val.Var.Val = val
 		return val
-	case *syn.Fun:
+	case *ast.Fun:
 		fun := &Fun{
 			AST:  astDef,
 			Priv: astDef.Priv(),
@@ -154,7 +154,7 @@ func makeDef(astDef syn.Def) Def {
 		}
 		fun.Def = fun
 		return fun
-	case *syn.Type:
+	case *ast.Type:
 		typ := &Type{
 			AST:   astDef,
 			Priv:  astDef.Priv(),
@@ -221,7 +221,7 @@ func checkDups(x *scope, defs []Def) (errs []checkError) {
 			}
 		case *Fun:
 			// Defer checking duplicate methods until receiver types are resolved.
-			if astFun, ok := def.AST.(*syn.Fun); ok && astFun.Recv != nil {
+			if astFun, ok := def.AST.(*ast.Fun); ok && astFun.Recv != nil {
 				continue
 			}
 			id = def.Sig.Sel
@@ -434,9 +434,9 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	}
 
 	var es []checkError
-	def.Stmts, es = checkStmts(x, nil, def.AST.(*syn.Fun).Stmts)
+	def.Stmts, es = checkStmts(x, nil, def.AST.(*ast.Fun).Stmts)
 	errs = append(errs, es...)
-	if stmts := def.AST.(*syn.Fun).Stmts; len(stmts) == 0 && stmts != nil {
+	if stmts := def.AST.(*ast.Fun).Stmts; len(stmts) == 0 && stmts != nil {
 		def.Stmts = []Stmt{}
 	}
 
@@ -571,22 +571,22 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 	return errs
 }
 
-func checkStmts(x *scope, want *Type, astStmts []syn.Stmt) (_ []Stmt, errs []checkError) {
+func checkStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []checkError) {
 	defer x.tr("gatherStmts(want=%s)", want)(&errs)
 	var stmts []Stmt
 	for i, astStmt := range astStmts {
 		switch astStmt := astStmt.(type) {
-		case *syn.Ret:
+		case *ast.Ret:
 			ret, es := checkRet(x, astStmt)
 			errs = append(errs, es...)
 			stmts = append(stmts, ret)
-		case *syn.Assign:
+		case *ast.Assign:
 			var ss []Stmt
 			var es []checkError
 			x, ss, es = checkAssign(x, astStmt)
 			errs = append(errs, es...)
 			stmts = append(stmts, ss...)
-		case syn.Expr:
+		case ast.Expr:
 			var expr Expr
 			var es []checkError
 			if i == len(astStmts)-1 {
@@ -609,7 +609,7 @@ func checkStmts(x *scope, want *Type, astStmts []syn.Stmt) (_ []Stmt, errs []che
 	return stmts, errs
 }
 
-func checkRet(x *scope, astRet *syn.Ret) (_ *Ret, errs []checkError) {
+func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
 	defer x.tr("checkRet(…)")(&errs)
 
 	var want *Type
@@ -623,7 +623,7 @@ func checkRet(x *scope, astRet *syn.Ret) (_ *Ret, errs []checkError) {
 	return &Ret{AST: astRet, Val: expr}, append(errs, es...)
 }
 
-func checkAssign(x *scope, astAss *syn.Assign) (_ *scope, _ []Stmt, errs []checkError) {
+func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {
 	defer x.tr("checkAssign(…)")(&errs)
 
 	x, vars, newLocal, errs := checkAssignVars(x, astAss)
@@ -640,7 +640,7 @@ func checkAssign(x *scope, astAss *syn.Assign) (_ *scope, _ []Stmt, errs []check
 	}
 
 	var stmts []Stmt
-	astCall, ok := astAss.Expr.(*syn.Call)
+	astCall, ok := astAss.Expr.(*ast.Call)
 	if !ok || len(astCall.Msgs) != len(vars) {
 		got := 1
 		if ok {
@@ -699,7 +699,7 @@ func checkAssign(x *scope, astAss *syn.Assign) (_ *scope, _ []Stmt, errs []check
 	return x, stmts, errs
 }
 
-func checkAssignVars(x *scope, astAss *syn.Assign) (*scope, []*Var, []bool, []checkError) {
+func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []checkError) {
 	var errs []checkError
 	vars := make([]*Var, len(astAss.Vars))
 	newLocal := make([]bool, len(astAss.Vars))
@@ -783,7 +783,7 @@ func checkAssignVars(x *scope, astAss *syn.Assign) (*scope, []*Var, []bool, []ch
 	return x, vars, newLocal, errs
 }
 
-func checkExprs(x *scope, astExprs []syn.Expr) ([]Expr, []checkError) {
+func checkExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
 	var errs []checkError
 	exprs := make([]Expr, len(astExprs))
 	for i, expr := range astExprs {
@@ -794,7 +794,7 @@ func checkExprs(x *scope, astExprs []syn.Expr) ([]Expr, []checkError) {
 	return exprs, errs
 }
 
-func checkExpr(x *scope, infer *Type, astExpr syn.Expr) (expr Expr, errs []checkError) {
+func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []checkError) {
 	defer x.tr("checkExpr(infer=%s)", infer)(&errs)
 
 	if expr, errs = _checkExpr(x, infer, astExpr); len(errs) > 0 {
@@ -855,7 +855,7 @@ func refBaseType(x *scope, typ *Type) (int, *Type) {
 	return i, typ
 }
 
-func findVirts(x *scope, loc syn.Node, recv *Type, virts []FunSig) (funs []*Fun, errs []checkError) {
+func findVirts(x *scope, loc ast.Node, recv *Type, virts []FunSig) (funs []*Fun, errs []checkError) {
 	defer x.tr("findVirts(%s %v)", recv, virts)(&errs)
 
 	funs = make([]*Fun, len(virts))
@@ -915,30 +915,30 @@ func funSigEq(a, b *FunSig) bool {
 	return a.Ret == nil || a.Ret.Type == b.Ret.Type
 }
 
-func _checkExpr(x *scope, infer *Type, astExpr syn.Expr) (Expr, []checkError) {
+func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	switch astExpr := astExpr.(type) {
-	case *syn.Call:
+	case *ast.Call:
 		return checkCall(x, infer, astExpr)
-	case *syn.Ctor:
+	case *ast.Ctor:
 		return checkCtor(x, infer, astExpr)
-	case *syn.Block:
+	case *ast.Block:
 		return checkBlock(x, infer, astExpr)
-	case *syn.Ident:
+	case *ast.Ident:
 		return checkIdent(x, infer, astExpr)
-	case *syn.Int:
+	case *ast.Int:
 		return checkInt(x, infer, astExpr, astExpr.Text)
-	case *syn.Float:
+	case *ast.Float:
 		return checkFloat(x, infer, astExpr, astExpr.Text)
-	case *syn.Rune:
+	case *ast.Rune:
 		return checkRune(x, astExpr)
-	case *syn.String:
+	case *ast.String:
 		return checkString(x, astExpr)
 	default:
 		panic(fmt.Sprintf("impossible type: %T", astExpr))
 	}
 }
 
-func checkCall(x *scope, infer *Type, astCall *syn.Call) (_ *Call, errs []checkError) {
+func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkError) {
 	defer x.tr("checkCall(infer=%s)", infer)(&errs)
 
 	call := &Call{
@@ -1007,7 +1007,7 @@ func checkCall(x *scope, infer *Type, astCall *syn.Call) (_ *Call, errs []checkE
 	return call, errs
 }
 
-func checkMsg(x *scope, infer, recv *Type, astMsg *syn.Msg) (_ Msg, errs []checkError) {
+func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
 	defer x.tr("checkMsg(infer=%s, %s, %s)", infer, recv, astMsg.Sel)(&errs)
 
 	msg := Msg{
@@ -1044,12 +1044,12 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *syn.Msg) (_ Msg, errs []check
 func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
 
-	var mod *syn.ModTag
+	var mod *ast.ModTag
 	if msg.Mod != "" {
 		switch astMsg := msg.AST.(type) {
-		case *syn.Msg:
+		case *ast.Msg:
 			mod = astMsg.Mod
-		case *syn.Ident:
+		case *ast.Ident:
 			mod = astMsg.Mod
 		default:
 			panic(fmt.Sprintf("impossible type: %T", msg.AST))
@@ -1059,7 +1059,7 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 	return errs
 }
 
-func findFunInst(x *scope, loc syn.Node, infer, recv *Type, mod *syn.ModTag, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
+func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
 	x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
 
 	if recv != nil && recv.Var != nil {
@@ -1094,7 +1094,7 @@ func findFunInst(x *scope, loc syn.Node, infer, recv *Type, mod *syn.ModTag, sel
 	return fun, nil
 }
 
-func findIfaceMeth(x *scope, loc syn.Node, sel string, ifaces []TypeName) (*Type, *Fun, *checkError) {
+func findIfaceMeth(x *scope, loc ast.Node, sel string, ifaces []TypeName) (*Type, *Fun, *checkError) {
 	for _, iface := range ifaces {
 		if iface.Type == nil || !hasVirt(iface.Type, sel) {
 			continue
@@ -1118,7 +1118,7 @@ func hasVirt(typ *Type, sel string) bool {
 	return false
 }
 
-func checkCtor(x *scope, infer *Type, astCtor *syn.Ctor) (_ *Ctor, errs []checkError) {
+func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
 	defer x.tr("checkCtor(infer=%s)", infer)(&errs)
 
 	ctor := &Ctor{AST: astCtor, typ: infer}
@@ -1191,14 +1191,14 @@ func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	return append(errs, es...)
 }
 
-func disectOrCtorArg(ctor *syn.Ctor) (string, syn.Expr, bool) {
+func disectOrCtorArg(ctor *ast.Ctor) (string, ast.Expr, bool) {
 	if len(ctor.Args) != 1 {
 		return "", nil, false
 	}
-	if id, ok := ctor.Args[0].(*syn.Ident); ok {
+	if id, ok := ctor.Args[0].(*ast.Ident); ok {
 		return id.Text, nil, true
 	}
-	call, ok := ctor.Args[0].(*syn.Call)
+	call, ok := ctor.Args[0].(*ast.Call)
 	if !ok || len(call.Msgs) != 1 || call.Msgs[0].Mod != nil || len(call.Msgs[0].Args) != 1 {
 		return "", nil, false
 	}
@@ -1220,13 +1220,13 @@ func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
 	if len(ctor.AST.Args) == 0 {
 		return errs
 	}
-	call, ok := ctor.AST.Args[0].(*syn.Call)
+	call, ok := ctor.AST.Args[0].(*ast.Call)
 	if !ok || len(ctor.AST.Args) > 1 || call.Recv != nil || len(call.Msgs) != 1 {
 		err := x.err(ctor, "malformed %s constructor", ctor.typ)
 		return append(errs, *err)
 	}
 
-	astArgs := make([]syn.Expr, len(ctor.typ.Fields))
+	astArgs := make([]ast.Expr, len(ctor.typ.Fields))
 	fieldNames := strings.Split(call.Msgs[0].Sel, ":")
 	for i, astArg := range call.Msgs[0].Args {
 		fieldName := fieldNames[i]
@@ -1269,7 +1269,7 @@ func findField(typ *Type, name string) int {
 	return -1
 }
 
-func checkBlock(x *scope, infer *Type, astBlock *syn.Block) (_ *Block, errs []checkError) {
+func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []checkError) {
 	defer x.tr("checkBlock(infer=%s)", infer)(&errs)
 
 	var resInfer *Type
@@ -1373,7 +1373,7 @@ func checkBlock(x *scope, infer *Type, astBlock *syn.Block) (_ *Block, errs []ch
 	return blk, errs
 }
 
-func checkIdent(x *scope, infer *Type, astIdent *syn.Ident) (_ Expr, errs []checkError) {
+func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []checkError) {
 	defer x.tr("checkIdent(infer=%s, %s)", infer, astIdent.Text)(&errs)
 
 	ident := &Ident{AST: astIdent, Text: astIdent.Text}
@@ -1417,7 +1417,7 @@ func checkIdent(x *scope, infer *Type, astIdent *syn.Ident) (_ Expr, errs []chec
 	}
 }
 
-func checkInt(x *scope, infer *Type, AST syn.Expr, text string) (_ Expr, errs []checkError) {
+func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
 	defer x.tr("checkInt(infer=%s, %s)", infer, text)(&errs)
 
 	if isFloat(x, infer) {
@@ -1479,7 +1479,7 @@ func disectIntType(x *scope, typ *Type) (bool, int) {
 	}
 }
 
-func checkFloat(x *scope, infer *Type, AST syn.Expr, text string) (_ Expr, errs []checkError) {
+func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
 	defer x.tr("checkFloat(infer=%s, %s)", infer, text)(&errs)
 
 	var f big.Float
@@ -1535,7 +1535,7 @@ func isFloat(x *scope, typ *Type) bool {
 	}
 }
 
-func checkRune(x *scope, astRune *syn.Rune) (*Int, []checkError) {
+func checkRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {
 	defer x.tr("checkRune(%s)", astRune.Text)()
 	return &Int{
 		AST: astRune,
@@ -1544,7 +1544,7 @@ func checkRune(x *scope, astRune *syn.Rune) (*Int, []checkError) {
 	}, nil
 }
 
-func checkString(x *scope, astString *syn.String) (*String, []checkError) {
+func checkString(x *scope, astString *ast.String) (*String, []checkError) {
 	defer x.tr("checkString(%s)", astString.Text)()
 	return &String{
 		AST:  astString,
@@ -1553,7 +1553,7 @@ func checkString(x *scope, astString *syn.String) (*String, []checkError) {
 	}, nil
 }
 
-func modString(m *syn.ModTag) string {
+func modString(m *ast.ModTag) string {
 	if m == nil {
 		return ""
 	}

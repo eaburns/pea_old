@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eaburns/pea/syn"
+	"github.com/eaburns/pea/ast"
 )
 
 func TestInstType(t *testing.T) {
@@ -127,7 +127,7 @@ func TestInstType(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -346,7 +346,7 @@ func TestInstCall(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p := syn.NewParser("#test")
+			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
