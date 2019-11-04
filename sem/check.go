@@ -975,15 +975,19 @@ func checkCall(x *scope, infer *Type, astCall *syn.Call) (_ *Call, errs []checkE
 				r.Ref--
 				recvType = recvType.Args[0].Type
 			}
+			r.typ = recvType
 			recv = r
 		case !isRef(x, recvType):
-			recv = &Convert{Expr: recv, Ref: 1}
+			r := &Convert{Expr: recv, Ref: 1}
 			recvType = builtInType(x, "&", *makeTypeName(recvType))
+			r.typ = recvType
+			recv = r
 		}
 		if !isRef(x, recvType) || isRef(x, recvType.Args[0].Type) {
 			panic("impossible")
 		}
 		recvType = recvType.Args[0].Type
+		call.Recv = recv
 	}
 	for i := range astCall.Msgs {
 		var es []checkError
@@ -1388,6 +1392,7 @@ func checkIdent(x *scope, infer *Type, astIdent *syn.Ident) (_ Expr, errs []chec
 		case vr.Local != nil:
 			x.localUse[vr] = true
 		}
+		return ident, errs
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
 		msg := Msg{
@@ -1410,7 +1415,6 @@ func checkIdent(x *scope, infer *Type, astIdent *syn.Ident) (_ Expr, errs []chec
 	default:
 		panic(fmt.Sprintf("impossible type: %T", vr))
 	}
-	return ident, errs
 }
 
 func checkInt(x *scope, infer *Type, AST syn.Expr, text string) (_ Expr, errs []checkError) {

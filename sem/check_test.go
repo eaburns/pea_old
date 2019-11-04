@@ -48,6 +48,85 @@ func TestBugRegressions(t *testing.T) {
 	}
 }
 
+// This tests that Call.Recv is set to the receiver,
+// and that if it is a conversion it's type is set.
+// This is to catch a regression from a previous bug fix.
+func TestCallRecvIsSet(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		// want is the Recv.Type().String() of the first call
+		// in the body of the val named test
+		want  string
+		trace bool
+	}{
+		{
+			name: "no ref conversion",
+			src: `
+				val test := [
+					x Int& := 5.
+					x foo.
+				]
+				meth Int [foo]
+			`,
+			want: "Int&",
+		},
+		{
+			name: "add ref conversion",
+			src: `
+				val test := [
+					5 foo.
+				]
+				meth Int [foo]
+			`,
+			want: "Int&",
+		},
+		{
+			name: "remove ref conversion",
+			src: `
+				val test := [
+					x Int& & & & := 5.
+					x foo.
+				]
+				meth Int [foo]
+			`,
+			want: "Int&",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := syn.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse source: %s", err)
+			}
+			mod, errs := Check(p.Mod(), Config{Trace: test.trace})
+			if len(errs) > 0 {
+				t.Fatalf("failed to check source: %v", errs)
+			}
+			val := findTestVal(mod)
+			if val == nil {
+				t.Fatal("val test not found")
+			}
+			var call *Call
+			for _, stmt := range val.Init {
+				var ok bool
+				if call, ok = stmt.(*Call); ok {
+					break
+				}
+			}
+			if call == nil {
+				t.Fatal("no call")
+			}
+			if call.Recv == nil {
+				t.Fatal("nil recv")
+			}
+			if got := call.Recv.Type().String(); got != test.want {
+				t.Errorf("got %s, want %s", got, test.want)
+			}
+		})
+	}
+}
+
 func TestImportError(t *testing.T) {
 	tests := []errorTest{
 		{
