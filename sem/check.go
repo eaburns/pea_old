@@ -119,6 +119,8 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	// All methods must exist, or we would have errored above.
 	instFunBodies(x.state)
 
+	rmLiftedFunInsts(mod.Defs)
+
 	errs = append(errs, checkUnusedImports(x)...)
 
 	return mod, errs
@@ -411,21 +413,13 @@ func checkVal(x *scope, def *Val) (errs []checkError) {
 
 func checkFun(x *scope, def *Fun) (errs []checkError) {
 	defer x.tr("checkFun(%s)", def.name())(&errs)
-	if def.Recv != nil {
-		for i := range def.Recv.Parms {
-			parm := &def.Recv.Parms[i]
-			for j := range parm.Ifaces {
-				iface := &parm.Ifaces[j]
-				errs = append(errs, checkTypeName(x, iface)...)
-			}
-			x = x.new()
-			x.typeVar = parm.Type
-		}
-		if isRef(x, def.Recv.Type) {
-			err := x.err(def.Recv, "invalid receiver type: cannot add a method to &")
-			errs = append(errs, *err)
-		}
+
+	if (def.Recv == nil || len(def.Recv.Parms) == 0) && len(def.TParms) == 0 {
+		def.Insts = []*Fun{def}
 	}
+
+	x, errs = checkRecv(x, def.Recv)
+
 	for i := range def.TParms {
 		parm := &def.TParms[i]
 		for j := range parm.Ifaces {
@@ -462,6 +456,29 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 	return errs
 }
 
+func checkRecv(x *scope, recv *Recv) (_ *scope, errs []checkError) {
+	if recv == nil {
+		return x, nil
+	}
+
+	defer x.tr("checkRecv(%s)", recv.Type)(&errs)
+
+	for i := range recv.Parms {
+		parm := &recv.Parms[i]
+		for j := range parm.Ifaces {
+			iface := &parm.Ifaces[j]
+			errs = append(errs, checkTypeName(x, iface)...)
+		}
+		x = x.new()
+		x.typeVar = parm.Type
+	}
+	if isRef(x, recv.Type) {
+		err := x.err(recv, "invalid receiver type: cannot add a method to &")
+		errs = append(errs, *err)
+	}
+	return x, errs
+}
+
 func isRet(s Stmt) bool {
 	_, ok := s.(*Ret)
 	return ok
@@ -470,12 +487,17 @@ func isRet(s Stmt) bool {
 func checkType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("checkType(%s)", def)(&errs)
 
+	if len(def.Parms) == 0 {
+		def.Insts = []*Type{def}
+	}
+
 	for i := range def.Parms {
 		for j := range def.Parms[i].Ifaces {
 			iface := &def.Parms[i].Ifaces[j]
 			errs = append(errs, checkTypeName(x, iface)...)
 		}
 	}
+
 	var es []checkError
 	switch {
 	case def.Alias != nil:

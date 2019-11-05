@@ -569,7 +569,7 @@ func TestRecursiveFunBodyInstantiation(t *testing.T) {
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
-	mod, errs := Check(p.Mod(), Config{Trace: true})
+	mod, errs := Check(p.Mod(), Config{})
 	if len(errs) > 0 {
 		t.Fatalf("failed to check source: %v", errs)
 	}
@@ -645,6 +645,87 @@ func TestDifferentInstsFromDifferentFiles(t *testing.T) {
 	file2Foo := file2DoFoo.Stmts[0].(*Call).Msgs[0].Fun
 	if file2Foo.Mod != "baz" {
 		t.Errorf("expected file2 to call Int #bar foo, got #%s", file2Foo.Mod)
+	}
+}
+
+// Tests that Fun.Insts contains only grounded function instances.
+func TestFunInsts_Grounded(t *testing.T) {
+	const src = `
+		func T [foo: t T^ T | ^t]
+
+		// [foo: U] should not be in Fun.Insts.
+		func U [bar: u U | foo: u]
+
+		// [foo: Int] should be in Fun.Insts.
+		val _ Int := [foo: 5]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+	foo := findTestFun(mod, "foo:")
+	if foo == nil {
+		t.Fatal("foo: not found")
+	}
+	if len(foo.Insts) != 1 {
+		t.Fatalf("foo: len(Insts)=%d, want 1", len(foo.Insts))
+	}
+	if got := foo.Insts[0].TArgs[0].Name; got != "Int" {
+		t.Errorf("foo: Insts[0] arg is %s, want Int", got)
+	}
+}
+
+// Tests that Fun.Insts for a non-parameterized function contains the function def.
+func TestFunInsts_NonParamFunInstsContainsDef(t *testing.T) {
+	const src = `
+		func [foo: i Int ^Int | ^i]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+	foo := findTestFun(mod, "foo:")
+	if foo == nil {
+		t.Fatal("foo: not found")
+	}
+	if len(foo.Insts) != 1 {
+		t.Fatalf("foo: len(Insts)=%d, want 1", len(foo.Insts))
+	}
+	if foo.Insts[0] != foo {
+		t.Errorf("foo: Insts[0] is not the definition")
+	}
+}
+
+// Tests that Type.Insts for a non-parameterized function contains the type def.
+func TestTypeInsts_NonParamTypeInstsContainsDef(t *testing.T) {
+	const src = `
+		type Foo {x: Int}
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+	foo := findTestType(mod, "Foo")
+	if foo == nil {
+		t.Fatal("Foo not found")
+	}
+	if len(foo.Insts) != 1 {
+		t.Fatalf("Foo len(Insts)=%d, want 1", len(foo.Insts))
+	}
+	if foo.Insts[0] != foo {
+		t.Errorf("Foo Insts[0] is not the definition")
 	}
 }
 

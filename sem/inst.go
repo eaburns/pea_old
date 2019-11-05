@@ -464,6 +464,22 @@ func instFunBodies(x *state) {
 	}
 }
 
+func rmLiftedFunInsts(defs []Def) {
+	for _, def := range defs {
+		fun, ok := def.(*Fun)
+		if !ok {
+			continue
+		}
+		var insts []*Fun
+		for _, inst := range fun.Insts {
+			if isGroundFun(inst) {
+				insts = append(insts, inst)
+			}
+		}
+		fun.Insts = insts
+	}
+}
+
 func instFunBody(x *scope, fun *Fun) {
 	defer x.tr("instFunStmts(%s)", fun)()
 
