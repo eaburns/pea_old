@@ -593,7 +593,7 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 			if iface.Type == nil {
 				continue
 			}
-			_, es := findVirts(x, arg.AST, arg.Type, iface.Type.Virts)
+			_, es := findVirts(x, arg.AST, arg.Type, iface.Type.Virts, true)
 			if len(es) == 0 {
 				continue
 			}
@@ -831,53 +831,69 @@ func checkExprs(x *scope, astExprs []ast.Expr) ([]Expr, []checkError) {
 func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []checkError) {
 	defer x.tr("checkExpr(infer=%s)", infer)(&errs)
 
-	if expr, errs = _checkExpr(x, infer, astExpr); len(errs) > 0 {
+	expr, errs = _checkExpr(x, infer, astExpr)
+	if len(errs) > 0 {
 		return expr, errs
 	}
-	if expr.Type() == nil {
-		return expr, errs
-	}
-	if infer == nil {
-		return expr, errs
-	}
-	x.log("have %s (%p)", expr.Type(), expr.Type())
-	x.log("want %s (%p)", infer, infer)
-
-	gotI, got := refBaseType(x, expr.Type())
-	wantI, want := refBaseType(x, infer)
-	x.log("have base %s (%p)", got, got)
-	x.log("want base %s (%p)", want, want)
-	if got == want && gotI != wantI {
-		return &Convert{Expr: expr, Ref: wantI - gotI, typ: want}, errs
-	}
-
-	if got != want && len(want.Virts) > 0 {
-		funs, es := findVirts(x, astExpr, got, want.Virts)
-		if len(es) == 0 {
-			return &Convert{Expr: expr, Virts: funs, typ: want}, errs
-		}
-		err := x.err(astExpr, "type %s does not implement %s", got, want)
-		err.cause = es
-		errs = append(errs, *err)
-	}
-
-	if got != want {
-		err := x.err(expr, "type mismatch: have %s, want %s", expr.Type(), infer)
-		if got.Var != nil && want.Var != nil && got.Name == want.Name {
-			if got.AST != nil {
-				note(err, "have type %s defined at %s", got, x.loc(got))
-			} else {
-				note(err, "have type %s is from a built-in definiton", got)
-			}
-			if want.AST != nil {
-				note(err, "want type %s defined at %s", want, x.loc(want))
-			} else {
-				note(err, "want type %s is from a built-in definiton", want)
-			}
-		}
+	expr, err := convertExpr(x, infer, expr)
+	if err != nil {
 		errs = append(errs, *err)
 	}
 	return expr, errs
+}
+
+func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
+	defer x.tr("convertExpr(want=%s, have=%s", want, expr.Type())(&err)
+
+	if expr.Type() == nil {
+		return expr, nil
+	}
+	if want == nil {
+		return expr, nil
+	}
+
+	have := expr.Type()
+	x.log("have %s (%p)", have, have)
+	x.log("want %s (%p)", want, want)
+	if have == want {
+		return expr, nil
+	}
+
+	haveI, haveBase := refBaseType(x, expr.Type())
+	wantI, wantBase := refBaseType(x, want)
+	x.log("have base %s (%p)", haveBase, haveBase)
+	x.log("want base %s (%p)", wantBase, wantBase)
+	if haveBase == wantBase {
+		return &Convert{Expr: expr, Ref: wantI - haveI, typ: want}, nil
+	}
+
+	if len(want.Virts) > 0 {
+		funs, es := findVirts(x, expr.ast(), haveBase, wantBase.Virts, false)
+		if len(es) > 0 {
+			err = x.err(expr.ast(), "type %s does not implement %s", have, want)
+			err.cause = es
+			return expr, err
+		}
+		if haveI != 0 {
+			expr = &Convert{Expr: expr, Ref: -haveI, typ: haveBase}
+		}
+		return &Convert{Expr: expr, Virts: funs, typ: want}, nil
+	}
+
+	err = x.err(expr, "type mismatch: have %s, want %s", expr.Type(), want)
+	if have.Var != nil && want.Var != nil && have.Name == want.Name {
+		if have.AST != nil {
+			note(err, "have type %s defined at %s", have, x.loc(have))
+		} else {
+			note(err, "have type %s is from a built-in definiton", have)
+		}
+		if want.AST != nil {
+			note(err, "want type %s defined at %s", want, x.loc(want))
+		} else {
+			note(err, "want type %s is from a built-in definiton", want)
+		}
+	}
+	return expr, err
 }
 
 func refBaseType(x *scope, typ *Type) (int, *Type) {
@@ -889,50 +905,63 @@ func refBaseType(x *scope, typ *Type) (int, *Type) {
 	return i, typ
 }
 
-func findVirts(x *scope, loc ast.Node, recv *Type, virts []FunSig) (funs []*Fun, errs []checkError) {
-	defer x.tr("findVirts(%s %v)", recv, virts)(&errs)
+func findVirts(x *scope, loc ast.Node, recv *Type, virts []FunSig, allowConvert bool) (funs []*Fun, errs []checkError) {
+	defer x.tr("findVirts(%s, allowConvert=%v)", recv, allowConvert)(&errs)
 
 	funs = make([]*Fun, len(virts))
-	for i, want := range virts {
-		var ret *Type
-		if want.Ret != nil {
-			ret = want.Ret.Type
-		}
-		argTypes := funSigArgTypes{loc: loc, sig: &want}
-		fun, es := findFunInst(x, loc, ret, recv, nil, want.Sel, argTypes)
+	for i := range virts {
+		fun, es := findVirt(x, loc, recv, &virts[i], allowConvert)
 		if len(es) > 0 {
 			errs = append(errs, es...)
-			continue
-		}
-
-		// Make a copy and remove the self parameter.
-		funSig := fun.Sig
-		funSig.Parms = funSig.Parms[1:]
-
-		if funSigEq(&funSig, &want) {
+		} else {
 			funs[i] = fun
-			continue
 		}
-		// Clear the parameter names for printing the error note.
-		for i := range funSig.Parms {
-			funSig.Parms[i].Name = ""
-		}
-		var gotWhere string
-		if fun.AST != nil {
-			gotWhere = fmt.Sprintf(" from %s", x.loc(fun.AST))
-		}
-		var wantWhere string
-		if want.AST != nil {
-			wantWhere = fmt.Sprintf(" from %s", x.loc(want.AST))
-		}
-		err := x.err(loc, "wrong type for method %s", want.Sel)
-		err.notes = []string{
-			fmt.Sprintf("have %s%s", funSig, gotWhere),
-			fmt.Sprintf("want %s%s", want, wantWhere),
-		}
-		errs = append(errs, *err)
 	}
 	return funs, errs
+}
+
+func findVirt(x *scope, loc ast.Node, recv *Type, want *FunSig, allowConvert bool) (fun *Fun, errs []checkError) {
+	defer x.tr("findVirt(%s, %s, allowConvert=%v)", recv, want.Sel, allowConvert)(&errs)
+
+	var ret *Type
+	if want.Ret != nil {
+		ret = want.Ret.Type
+	}
+	argTypes := funSigArgTypes{loc: loc, sig: want}
+	fun, errs = findFunInst(x, loc, ret, recv, nil, want.Sel, argTypes)
+	if len(errs) > 0 {
+		return nil, errs
+	}
+
+	// Make a copy and remove the self parameter.
+	funSig := fun.Sig
+	funSig.Parms = funSig.Parms[1:]
+
+	switch {
+	case !allowConvert && funSigEq(&funSig, want):
+		fallthrough
+	case allowConvert && funSigConvert(x, &funSig, want):
+		return fun, nil
+	}
+
+	// Clear the parameter names for printing the error note.
+	for i := range funSig.Parms {
+		funSig.Parms[i].Name = ""
+	}
+	var gotWhere string
+	if fun.AST != nil {
+		gotWhere = fmt.Sprintf(" from %s", x.loc(fun.AST))
+	}
+	var wantWhere string
+	if want.AST != nil {
+		wantWhere = fmt.Sprintf(" from %s", x.loc(want.AST))
+	}
+	err := x.err(loc, "wrong type for method %s", want.Sel)
+	err.notes = []string{
+		fmt.Sprintf("have %s%s", funSig, gotWhere),
+		fmt.Sprintf("want %s%s", want, wantWhere),
+	}
+	return nil, append(errs, *err)
 }
 
 func funSigEq(a, b *FunSig) bool {
@@ -940,13 +969,30 @@ func funSigEq(a, b *FunSig) bool {
 		return false
 	}
 	for i := range a.Parms {
-		aParm := &a.Parms[i]
-		bParm := &b.Parms[i]
-		if aParm.typ != bParm.typ {
+		if a.Parms[i].typ != b.Parms[i].typ {
 			return false
 		}
 	}
 	return a.Ret == nil || a.Ret.Type == b.Ret.Type
+}
+
+func funSigConvert(x *scope, a, b *FunSig) bool {
+	if a.Sel != b.Sel || len(a.Parms) != len(b.Parms) || (a.Ret == nil) != (b.Ret == nil) {
+		return false
+	}
+	for i := range a.Parms {
+		_, aTyp := refBaseType(x, a.Parms[i].typ)
+		_, bTyp := refBaseType(x, b.Parms[i].typ)
+		if aTyp != bTyp {
+			return false
+		}
+	}
+	if a.Ret == nil {
+		return true
+	}
+	_, aRet := refBaseType(x, a.Ret.Type)
+	_, bRet := refBaseType(x, b.Ret.Type)
+	return aRet == bRet
 }
 
 func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {

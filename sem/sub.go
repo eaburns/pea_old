@@ -289,63 +289,53 @@ func subExprs(x *scope, sub map[*TypeVar]TypeName, exprs0 []Expr) []Expr {
 }
 
 func subExpr(x *scope, sub map[*TypeVar]TypeName, expr0 Expr) Expr {
-	defer x.tr("subExpr()")()
+	defer x.tr("subExpr(%T)", expr0)()
 
+	var expr1 Expr
 	switch expr0 := expr0.(type) {
 	case nil:
 		return nil
 	case *Call:
-		return subCall(x, sub, expr0)
+		expr1 = subCall(x, sub, expr0)
 	case *Ctor:
-		return subCtor(x, sub, expr0)
+		expr1 = subCtor(x, sub, expr0)
 	case *Block:
-		return subBlock(x, sub, expr0)
+		expr1 = subBlock(x, sub, expr0)
 	case *Ident:
-		return subIdent(x, sub, expr0)
+		expr1 = subIdent(x, sub, expr0)
 	case *Int:
 		defer x.tr("subInt()")()
-		return expr0
+		expr1 = expr0
 	case *Float:
 		defer x.tr("subFloat()")()
-		return expr0
+		expr1 = expr0
 	case *String:
 		defer x.tr("subString()")()
-		return expr0
+		expr1 = expr0
 	case *Convert:
-		return subConvert(x, sub, expr0)
+		defer x.tr("subConvert()")()
+		// Drop the Convert node. We may re-add it below from scratch.
+		// We do it this way, because subbed exprs can differ in &s.
+		// We need to recompute the &s from scratch.
+		expr1 = subExpr(x, sub, expr0.Expr)
 	default:
 		panic(fmt.Sprintf("impossible type: %T", expr0))
 	}
+
+	wantType := subType(x, map[*Type]*Type{}, sub, expr0.Type())
+	expr1, err := convertExpr(x, wantType, expr1)
+	if err != nil {
+		panic("impossible: " + err.Error())
+	}
+	return expr1
 }
 
-func subConvert(x *scope, sub map[*TypeVar]TypeName, cvt0 *Convert) *Convert {
-	defer x.tr("subConvert()")()
-
-	cvt1 := &Convert{
-		Expr: subExpr(x, sub, cvt0.Expr),
-		Ref:  cvt0.Ref,
-		typ:  subType(x, map[*Type]*Type{}, sub, cvt0.typ),
-	}
-	if len(cvt0.Virts) > 0 {
-		if len(cvt1.typ.Virts) == 0 {
-			panic("impossible")
-		}
-		virts, errs := findVirts(x, cvt1.ast(), cvt1.Expr.Type(), cvt1.typ.Virts)
-		if len(errs) > 0 {
-			panic(fmt.Sprintf("impossible: %v", errs))
-		}
-		cvt1.Virts = virts
-	}
-	return cvt1
-}
-
-func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) *Call {
+func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 	defer x.tr("subCall()")()
 
 	call1 := &Call{
 		AST:  call0.AST,
 		Recv: subExpr(x, sub, call0.Recv),
-		typ:  subType(x, map[*Type]*Type{}, sub, call0.typ),
 	}
 	var recv *Type
 	if call1.Recv != nil {
@@ -357,6 +347,13 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) *Call {
 		recv = recv.Args[0].Type
 	}
 	call1.Msgs = subMsgs(x, sub, call1.typ, recv, call0.Msgs)
+
+	lastMsg := &call1.Msgs[len(call1.Msgs)-1]
+	if lastMsg.Fun.Sig.Ret == nil {
+		call1.typ = builtInType(x, "Nil")
+	} else {
+		call1.typ = lastMsg.Fun.Sig.Ret.Type
+	}
 	return call1
 }
 
@@ -385,6 +382,32 @@ func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg) M
 	}
 	if errs := findMsgFun(x, ret1, recv1, &msg1); len(errs) > 0 {
 		panic(fmt.Sprintf("impossible: %v", errs))
+	}
+
+	// The found Fun may differ from the subbed Fun in the &s of its args.
+	// We re-convert the arguments here so that they match:
+	parms := msg1.Fun.Sig.Parms
+	if msg1.Fun.Recv != nil {
+		parms = parms[1:] // strip self
+	}
+	for i, arg := range msg1.Args {
+		wantType := parms[i].typ
+		if arg.Type() == wantType {
+			continue
+		}
+		// Strip any existing converts; we'll add our own if needed.
+		for {
+			if cvt, ok := arg.(*Convert); ok {
+				arg = cvt.Expr
+			} else {
+				break
+			}
+		}
+		arg, err := convertExpr(x, wantType, arg)
+		if err != nil {
+			panic("impossible: " + err.Error())
+		}
+		msg1.Args[i] = arg
 	}
 	return msg1
 }

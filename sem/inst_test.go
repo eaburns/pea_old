@@ -679,6 +679,69 @@ func TestFunInsts_Grounded(t *testing.T) {
 	}
 }
 
+// Tests that we properly insert conversions params and returns
+// of grounded constraint functions.
+func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {
+	const src = `
+		type Foo {
+			[foo: Int bar: Int& ^Int]
+		}
+		func (T Foo) [baz: t T ^Int |
+			// When T is instantiated with Int,
+			// We need to to convert he foo: arg to a ref.
+			// We need to convert the bar: arg to a value.
+			// We need to convert the return to a value.
+			^t foo: 5 bar: 6
+		]
+		meth Int [foo: _ Int& bar: _ Int ^Int&]
+		val _ := [baz: 5]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+	baz := findTestFun(mod, "baz:")
+
+	var bazInt *Fun
+	for _, inst := range baz.Insts {
+		if inst.TArgs[0].Name == "Int" {
+			bazInt = inst
+			break
+		}
+	}
+	if bazInt == nil {
+		t.Fatal("[baz: Int] not found")
+	}
+
+	ret, ok := bazInt.Stmts[0].(*Ret).Val.(*Convert)
+	if !ok {
+		t.Fatalf("boo:bar: ret is a %T, want *Convert", bazInt.Stmts[0].(*Ret).Val)
+	} else if ret.Ref != -1 {
+		t.Errorf("foo:bar: ret Ref=%d, want -1", ret.Ref)
+	} else if ret.typ.String() != "Int" {
+		t.Errorf("foo:bar: ret typ=%s, want Int", ret.typ.String())
+	}
+	msg := ret.Expr.(*Call).Msgs[0]
+	if fooArg, ok := msg.Args[0].(*Convert); !ok {
+		t.Errorf("foo: arg is a %T, want *Convert", msg.Args[0])
+	} else if fooArg.Ref != 1 {
+		t.Errorf("foo: arg Ref=%d, want 1", fooArg.Ref)
+	} else if fooArg.typ.String() != "Int&" {
+		t.Errorf("foo: arg typ=%s, want Int&", fooArg.typ.String())
+	}
+	// The convert node in the source should be removed,
+	// so that the argument is just the Int value itself.
+	if barArg, ok := msg.Args[1].(*Int); !ok {
+		t.Errorf("bar: arg is a %T, want *Int", msg.Args[1])
+	} else if barArg.typ.String() != "Int" {
+		t.Errorf("bar: arg typ=%s, want Int", barArg.typ.String())
+	}
+}
+
 // Tests that Fun.Insts for a non-parameterized function contains the function def.
 func TestFunInsts_NonParamFunInstsContainsDef(t *testing.T) {
 	const src = `

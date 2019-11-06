@@ -1823,6 +1823,112 @@ func TestAssignConvert(t *testing.T) {
 	}
 }
 
+func TestImplementVirt(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "simple",
+			src: `
+				type Fooer {[foo]}
+				meth Int [foo]
+				val _ Fooer := [5]
+			`,
+			err: "",
+		},
+		{
+			name: "parm meth",
+			src: `
+				type Fooer {[foo: Int]}
+				meth Int T [foo: _ T]
+				val _ Fooer := [5]
+			`,
+			err: "",
+		},
+		{
+			name: "no ref conversion on args",
+			src: `
+				type T Eq {[=== T ^Bool]}
+				meth Int [=== _ Int ^Bool]
+				type Vec {}
+				meth Vec [=== _ Vec& ^Bool]
+				val x Int Eq := [5]
+				val y Vec Eq := [v Vec := {}. v]
+			`,
+			err: "Vec does not implement Vec Eq",
+		},
+		{
+			name: "no ref conversion on return",
+			src: `
+				type IntAter {[at: Int ^Int]}
+				// This does not implement because Int Array at:
+				// returns a reference, but IntAter expects a non-reference.
+				val _ IntAter := [x Int Array := {}. x]
+			`,
+			err: "Int Array does not implement IntAter",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
+func TestImplementConstraint(t *testing.T) {
+	tests := []errorTest{
+		{
+			name: "simple",
+			src: `
+				type Fooer {[foo]}
+				type (_ Fooer) Test {}
+				meth Int [foo]
+				type IntTest := Int Test.
+			`,
+			err: "",
+		},
+		{
+			name: "parm meth",
+			src: `
+				type Fooer {[foo: Int]}
+				type (_ Fooer) Test {}
+				meth Int T [foo: _ T]
+				type IntTest := Int Test.
+			`,
+			err: "",
+		},
+		{
+			// This differs from the behavior of virtuals.
+			// Virtual conversion disallows reference conversion of args,
+			// but constraint implementation does allow it.
+			name: "yes ref conversion on args",
+			src: `
+				type T Eq {[=== T ^Bool]}
+				type (T T Eq) Test {}
+
+				meth Int [=== _ Int ^Bool]
+				type IntTest := Int Test.
+
+				type Vec {}
+				meth Vec [=== _ Vec& ^Bool]
+				type VecTest := Vec Test.
+			`,
+			err: "",
+		},
+		{
+			// This differs from the behavior of virtuals.
+			// Virtual conversion disallows reference conversion of the return,
+			// but constraint implementation does allow it.
+			name: "yes ref conversion on return",
+			src: `
+				type IntAter {[at: Int ^Int]}
+				type (_ IntAter) Test {}
+				type IntArrayTest := Int Array Test.
+			`,
+			err: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestMethError(t *testing.T) {
 	tests := []errorTest{
 		{
