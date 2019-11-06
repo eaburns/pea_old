@@ -1754,9 +1754,11 @@ func TestAssignConvert(t *testing.T) {
 			name: "interface conversion",
 			src: `
 				val _ := [
-					x Int := 5.
-					_ Int Eq := x.
+					x Vec := {}.
+					_ Vec Eq := x.
 				]
+				type Vec {}
+				meth Vec [= _ Vec& ^Bool]
 				type T Eq { [= T& ^Bool] }
 			`,
 			err: "",
@@ -1765,54 +1767,64 @@ func TestAssignConvert(t *testing.T) {
 			name: "interface arg type mismatch",
 			src: `
 				val _ := [
-					x Int := 5.
+					x Vec := {}.
 					_ Float Eq := x.
 				]
+				type Vec {}
+				meth Vec [= _ Vec& ^Bool]
 				type T Eq { [= T& ^Bool] }
 			`,
-			err: "Int does not implement Float Eq",
+			err: "Vec does not implement Float Eq",
 		},
 		{
 			name: "interface return type mismatch",
 			src: `
 				val _ := [
-					x Int := 5.
+					x Vec := {}.
 					_ Eq := x.
 				]
+				type Vec {}
+				meth Vec [= _ Vec& ^Bool]
 				type Eq { [= T& ^Int] }
 			`,
-			err: "Int does not implement Eq",
+			err: "Vec does not implement Eq",
 		},
 		{
 			name: "interface got a return want none",
 			src: `
 				val _ := [
-					x Int := 5.
+					x Vec := {}.
 					_ Eq := x.
 				]
+				type Vec {}
+				meth Vec [= _ Vec& ^Bool]
 				type Eq { [= T&] }
 			`,
-			err: "Int does not implement Eq",
+			err: "Vec does not implement Eq",
 		},
 		{
 			name: "interface want return got none",
 			src: `
 				val _ := [
-					x Int := 5.
+					x Vec := {}.
 					_ Eq := x.
 				]
-				meth Int [ === _ T&]
+				type Vec {}
+				meth Vec [= _ Vec&]
 				type Eq { [=== T& ^Bool] }
 			`,
-			err: "Int does not implement Eq",
+			err: "Vec does not implement Eq",
 		},
 		{
 			name: "deref then interface conversions",
 			src: `
 				val _ := [
-					x Int & & := 5.
-					_ Int Eq := x.
+					v Vec := {}.
+					x Vec & & := v.
+					_ Vec Eq := x.
 				]
+				type Vec {}
+				meth Vec [= _ Vec& ^Bool]
 				type T Eq { [= T& ^Bool] }
 			`,
 			err: "",

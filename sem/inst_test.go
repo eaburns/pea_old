@@ -241,7 +241,7 @@ func TestInstCall(t *testing.T) {
 			src: `
 				val test := [ 1 + 2 ]
 			`,
-			want: "Int [+ _ Int& ^Int]",
+			want: "Int [+ _ Int ^Int]",
 		},
 		{
 			name: "ground receiver subs return",
@@ -515,7 +515,7 @@ func TestSubStmts(t *testing.T) {
 			name: "virt convert",
 			src: `
 				func (T T Eq) [foo: t T ^T Eq | ^t]
-				type T Eq {[= T& ^Bool]}
+				type T Eq {[= T ^Bool]}
 				val _ Int Eq := [foo: 4]
 			`,
 		},
