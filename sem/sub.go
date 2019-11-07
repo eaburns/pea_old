@@ -63,9 +63,11 @@ func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ 
 	typ.Parms = subTypeParms(x, seen, sub, typ.Parms)
 	switch {
 	case typ.Var != nil:
-		subTypeVar(x, seen, sub, typ)
+		// TypeVars cannot be parameterized, so are never subbed.
+		panic("impossible")
 	case typ.Alias != nil:
-		typ.Alias = subTypeName(x, seen, sub, typ.Alias)
+		// We always instantiate the alias target instead.
+		panic("impossible")
 	case typ.Fields != nil:
 		subFields(x, seen, sub, typ)
 	case typ.Cases != nil:
@@ -73,25 +75,6 @@ func subTypeBody(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ 
 	case typ.Virts != nil:
 		subVirts(x, seen, sub, typ)
 	}
-}
-
-func subTypeVar(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Type) {
-	defer x.tr("subTypeVar(%s)", subDebugString(sub))()
-
-	var0 := typ.Var
-	var1 := *var0
-	var1.Ifaces = make([]TypeName, len(var0.Ifaces))
-	for i := range var0.Ifaces {
-		var1.Ifaces[i] = *subTypeName(x, seen, sub, &var0.Ifaces[i])
-	}
-	var1.Type = &Type{
-		AST:  var1.AST,
-		Name: var1.Name,
-		Var:  &var1,
-	}
-	var1.Type.Def = var1.Type
-	seen[var0.Type] = var1.Type
-	typ.Var = &var1
 }
 
 func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, parms0 []TypeVar) []TypeVar {
