@@ -49,7 +49,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	// These have just enough information to lookup by name.
 	// This also happens to pull in file-level imports,
 	// since we need to hook up defs to their defining file anyway.
-	mod.Defs, errs = makeDefs(x, astMod.Files)
+	mod.Defs, errs = makeDefs(x, astMod.Files, isUniv)
 	if isUniv {
 		// In this case, we are checking the univ mod.
 		// We've only now just gathered the defs, so set them in the state.
@@ -126,7 +126,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	return mod, errs
 }
 
-func makeDefs(x *scope, files []ast.File) ([]Def, []checkError) {
+func makeDefs(x *scope, files []ast.File, isUniv bool) ([]Def, []checkError) {
 	var defs []Def
 	var errs []checkError
 	for i := range files {
@@ -136,7 +136,7 @@ func makeDefs(x *scope, files []ast.File) ([]Def, []checkError) {
 		file.x.file = file
 		errs = append(errs, imports(x, file)...)
 		for _, astDef := range file.ast.Defs {
-			def := makeDef(astDef)
+			def := makeDef(astDef, isUniv)
 			defs = append(defs, def)
 			x.defFiles[def] = file
 		}
@@ -144,7 +144,7 @@ func makeDefs(x *scope, files []ast.File) ([]Def, []checkError) {
 	return defs, errs
 }
 
-func makeDef(astDef ast.Def) Def {
+func makeDef(astDef ast.Def, isUniv bool) Def {
 	switch astDef := astDef.(type) {
 	case *ast.Val:
 		val := &Val{
@@ -167,6 +167,12 @@ func makeDef(astDef ast.Def) Def {
 			},
 		}
 		fun.Def = fun
+		if isUniv {
+			fun.BuiltIn = builtInMethTag[fun.Sig.Sel]
+			if fun.BuiltIn == 0 {
+				panic("impossible: " + fun.Sig.Sel)
+			}
+		}
 		return fun
 	case *ast.Type:
 		typ := &Type{
@@ -176,6 +182,12 @@ func makeDef(astDef ast.Def) Def {
 			Name:  astDef.Sig.Name,
 		}
 		typ.Def = typ
+		if isUniv && astDef.Alias == nil {
+			typ.BuiltIn = builtInTypeTag[typ.Name]
+			if typ.BuiltIn == 0 {
+				panic("impossible: " + typ.Name)
+			}
+		}
 		return typ
 	default:
 		panic(fmt.Sprintf("impossible type %T", astDef))
@@ -472,7 +484,7 @@ func checkRecv(x *scope, recv *Recv) (_ *scope, errs []checkError) {
 		x = x.new()
 		x.typeVar = parm.Type
 	}
-	if isRef(x, recv.Type) {
+	if isRef(recv.Type) {
 		err := x.err(recv, "invalid receiver type: cannot add a method to &")
 		errs = append(errs, *err)
 	}
@@ -898,7 +910,7 @@ func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 
 func refBaseType(x *scope, typ *Type) (int, *Type) {
 	var i int
-	for isRef(x, typ) {
+	for isRef(typ) {
 		i++
 		typ = typ.Args[0].Type
 	}
@@ -1049,21 +1061,21 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 				errs = append(errs, es...)
 			}
 			return call, errs
-		case isRef(x, recvType) && isRef(x, recvType.Args[0].Type):
+		case isRef(recvType) && isRef(recvType.Args[0].Type):
 			r := &Convert{Expr: recv, Ref: -1}
-			for isRef(x, recvType.Args[0].Type) {
+			for isRef(recvType.Args[0].Type) {
 				r.Ref--
 				recvType = recvType.Args[0].Type
 			}
 			r.typ = recvType
 			recv = r
-		case !isRef(x, recvType):
+		case !isRef(recvType):
 			r := &Convert{Expr: recv, Ref: 1}
 			recvType = builtInType(x, "&", *makeTypeName(recvType))
 			r.typ = recvType
 			recv = r
 		}
-		if !isRef(x, recvType) || isRef(x, recvType.Args[0].Type) {
+		if !isRef(recvType) || isRef(recvType.Args[0].Type) {
 			panic("impossible")
 		}
 		recvType = recvType.Args[0].Type
@@ -1209,17 +1221,17 @@ func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkE
 	case ctor.typ.Alias != nil:
 		// This should have already been resolved by gatherTypeName.
 		errs = append(errs, *x.err(astCtor, "impossible alias")) //panic("impossible alias")
-	case ctor.typ.Priv && x.defFiles[ctor.typ.Def] == nil && !isBuiltIn(x, ctor.typ):
+	case ctor.typ.Priv && x.defFiles[ctor.typ.Def] == nil && !isBuiltInType(ctor.typ):
 		err := x.err(ctor, "cannot construct unexported type %s", ctor.typ)
 		errs = append(errs, *err)
-	case isAry(x, ctor.typ):
+	case isAry(ctor.typ):
 		errs = append(errs, checkAryCtor(x, ctor)...)
 	case ctor.typ.Cases != nil:
 		errs = append(errs, checkOrCtor(x, ctor)...)
 	case ctor.typ.Virts != nil:
 		err := x.err(astCtor, "cannot construct virtual type %s", ctor.typ)
 		errs = append(errs, *err)
-	case isBuiltIn(x, ctor.typ) && !isNil(x, ctor.typ):
+	case isBuiltInType(ctor.typ) && !isNil(ctor.typ):
 		err := x.err(astCtor, "cannot construct built-in type %s", ctor.typ)
 		errs = append(errs, *err)
 	default:
@@ -1354,7 +1366,7 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 
 	var resInfer *Type
 	parmInfer := make([]*Type, len(astBlock.Parms))
-	if isFun(x, infer) {
+	if isFun(infer) {
 		x.log("is a fun")
 		resInfer = infer.Args[len(infer.Args)-1].Type
 		n := len(infer.Args)
@@ -1500,7 +1512,7 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
 	defer x.tr("checkInt(infer=%s, %s)", infer, text)(&errs)
 
-	if isFloat(x, infer) {
+	if isAnyFloat(infer) {
 		return checkFloat(x, infer, AST, text)
 	}
 	var i big.Int
@@ -1509,7 +1521,7 @@ func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []
 		panic("malformed int")
 	}
 	typ := builtInType(x, "Int")
-	if isInt(x, infer) {
+	if isAnyInt(infer) {
 		typ = infer
 	}
 	if err := checkIntBounds(x, AST, typ, &i); err != nil {
@@ -1519,7 +1531,7 @@ func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []
 }
 
 func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
-	signed, bits := disectIntType(x, t)
+	signed, bits := disectIntType(x.cfg, t)
 	x.log("signed=%v, bits=%v", signed, bits)
 	if !signed && i.Cmp(&big.Int{}) < 0 {
 		return x.err(n, "type %s cannot represent %s: negative unsigned", t, i)
@@ -1532,33 +1544,6 @@ func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
 	return nil
 }
 
-func disectIntType(x *scope, typ *Type) (bool, int) {
-	switch typ {
-	case builtInType(x, "Int"):
-		return true, x.cfg.IntSize
-	case builtInType(x, "Int8"):
-		return true, 7
-	case builtInType(x, "Int16"):
-		return true, 15
-	case builtInType(x, "Int32"):
-		return true, 31
-	case builtInType(x, "Int64"):
-		return true, 63
-	case builtInType(x, "UInt"):
-		return false, x.cfg.IntSize
-	case builtInType(x, "UInt8"):
-		return false, 8
-	case builtInType(x, "UInt16"):
-		return false, 16
-	case builtInType(x, "UInt32"):
-		return false, 32
-	case builtInType(x, "UInt64"):
-		return false, 64
-	default:
-		panic(fmt.Sprintf("impossible int type: %T", typ))
-	}
-}
-
 func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
 	defer x.tr("checkFloat(infer=%s, %s)", infer, text)(&errs)
 
@@ -1566,7 +1551,7 @@ func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs 
 	if _, _, err := f.Parse(text, 10); err != nil {
 		panic("malformed float")
 	}
-	if isInt(x, infer) {
+	if isAnyInt(infer) {
 		var i big.Int
 		if _, acc := f.Int(&i); acc != big.Exact {
 			err := x.err(AST, "type %s cannot represent %s: truncation", infer.name(), text)
@@ -1576,43 +1561,10 @@ func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs 
 		return expr, append(errs, es...)
 	}
 	typ := builtInType(x, "Float")
-	if isFloat(x, infer) {
+	if isAnyFloat(infer) {
 		typ = infer
 	}
 	return &Float{AST: AST, Val: &f, typ: typ}, errs
-}
-
-func isInt(x *scope, typ *Type) bool {
-	switch {
-	case typ == nil:
-		return false
-	default:
-		return false
-	case typ == builtInType(x, "Int") ||
-		typ == builtInType(x, "Int8") ||
-		typ == builtInType(x, "Int16") ||
-		typ == builtInType(x, "Int32") ||
-		typ == builtInType(x, "Int64") ||
-		typ == builtInType(x, "UInt") ||
-		typ == builtInType(x, "UInt8") ||
-		typ == builtInType(x, "UInt16") ||
-		typ == builtInType(x, "UInt32") ||
-		typ == builtInType(x, "UInt64"):
-		return true
-	}
-}
-
-func isFloat(x *scope, typ *Type) bool {
-	switch {
-	case typ == nil:
-		return false
-	default:
-		return false
-	case typ == builtInType(x, "Float") ||
-		typ == builtInType(x, "Float32") ||
-		typ == builtInType(x, "Float64"):
-		return true
-	}
 }
 
 func checkRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {

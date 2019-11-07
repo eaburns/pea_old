@@ -85,13 +85,19 @@ type Fun struct {
 	TParms []TypeVar
 	TArgs  []TypeName
 	Sig    FunSig
-	// Stmts are the body of the function or method.
-	// If Stmts==nil, this is a declaration only;
-	// for a function or method definition with no body
-	// Stmts will be non-nil with length 0.
-	Stmts []Stmt
 
+	// Stmts and BuiltIn are mutually exclusive.
+	// They cannot both be non-zero at the tsame time.
+	// If Stmts==nil and BuiltIn==0,
+	// then this is a declaration.
+	// Note that this differs from the case where
+	// Stmts!=nil, len(Stmts)==0, and BuiltIn==0,
+	// which represents a definition with no statements.
+
+	Stmts  []Stmt
 	Locals []*Var
+
+	BuiltIn BuiltInMeth
 }
 
 func (n *Fun) ast() ast.Node { return n.AST }
@@ -192,6 +198,9 @@ type Type struct {
 
 	// Virts is non-nil for a Virtual type.
 	Virts []FunSig
+
+	// BuiltIn is non-zero for a built-in type.
+	BuiltIn BuiltInType
 }
 
 func (n *Type) ast() ast.Node { return n.AST }

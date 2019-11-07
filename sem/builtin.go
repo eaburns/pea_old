@@ -7,6 +7,131 @@ import (
 	"unicode/utf8"
 )
 
+// BuiltInType tags a built-in type.
+type BuiltInType int
+
+// The following are the built-in types.
+const (
+	RefType BuiltInType = iota + 1
+	NilType
+	BoolType
+	StringType
+	ArrayType
+	FunType
+	IntType
+	Int8Type
+	Int16Type
+	Int32Type
+	Int64Type
+	UIntType
+	UInt8Type
+	UInt16Type
+	UInt32Type
+	UInt64Type
+	FloatType
+	Float32Type
+	Float64Type
+)
+
+var builtInTypeTag = map[string]BuiltInType{
+	"&":       RefType,
+	"Nil":     NilType,
+	"Bool":    BoolType,
+	"String":  StringType,
+	"Array":   ArrayType,
+	"Fun":     FunType,
+	"Int":     IntType,
+	"Int8":    Int8Type,
+	"Int16":   Int16Type,
+	"Int32":   Int32Type,
+	"Int64":   Int64Type,
+	"UInt":    UIntType,
+	"UInt8":   UInt8Type,
+	"UInt16":  UInt16Type,
+	"UInt32":  UInt32Type,
+	"UInt64":  UInt64Type,
+	"Float":   FloatType,
+	"Float32": Float32Type,
+	"Float64": Float64Type,
+}
+
+// BuiltInMeth tags a built-in method.
+type BuiltInMeth int
+
+// The following are the built-in methods.
+const (
+	CaseMeth BuiltInMeth = iota + 1
+	VirtMeth
+	ArraySizeMeth
+	ArrayLoadMeth
+	ArrayStoreMeth
+	ArraySliceMeth
+	FunValueMeth
+	BitwiseAndMeth
+	BitwiseOrMeth
+	BitwiseNotMeth
+	RightShiftMeth
+	LeftShiftMeth
+	NegMeth
+	PlusMeth
+	MinusMeth
+	TimesMeth
+	DivideMeth
+	ModMeth
+	EqMeth
+	NeqMeth
+	LessMeth
+	LessEqMeth
+	GreaterMeth
+	GreaterEqMeth
+	NumConvertMeth
+)
+
+var builtInMethTag = map[string]BuiltInMeth{
+	"size":                     ArraySizeMeth,
+	"byteSize":                 ArraySizeMeth,
+	"at:":                      ArrayLoadMeth,
+	"atByte:":                  ArrayLoadMeth,
+	"at:put:":                  ArrayStoreMeth,
+	"from:to:":                 ArraySliceMeth,
+	"fromByte:toByte:":         ArraySliceMeth,
+	"value":                    FunValueMeth,
+	"value:":                   FunValueMeth,
+	"value:value:":             FunValueMeth,
+	"value:value:value:":       FunValueMeth,
+	"value:value:value:value:": FunValueMeth,
+	"&":                        BitwiseAndMeth,
+	"|":                        BitwiseOrMeth,
+	"not":                      BitwiseNotMeth,
+	">>":                       RightShiftMeth,
+	"<<":                       LeftShiftMeth,
+	"neg":                      NegMeth,
+	"+":                        PlusMeth,
+	"-":                        MinusMeth,
+	"*":                        TimesMeth,
+	"/":                        DivideMeth,
+	"%":                        ModMeth,
+	"=":                        EqMeth,
+	"!=":                       NeqMeth,
+	"<":                        LessMeth,
+	"<=":                       LessEqMeth,
+	">":                        GreaterMeth,
+	">=":                       GreaterEqMeth,
+	"asInt":                    NumConvertMeth,
+	"asInt8":                   NumConvertMeth,
+	"asInt16":                  NumConvertMeth,
+	"asInt32":                  NumConvertMeth,
+	"asInt64":                  NumConvertMeth,
+	"asUInt":                   NumConvertMeth,
+	"asUInt8":                  NumConvertMeth,
+	"asUInt16":                 NumConvertMeth,
+	"asUInt32":                 NumConvertMeth,
+	"asUInt64":                 NumConvertMeth,
+	"asFloat":                  NumConvertMeth,
+	"asFloat32":                NumConvertMeth,
+	"asFloat64":                NumConvertMeth,
+}
+
 func builtInMeths(x *scope, defs []Def) []Def {
 	var out []Def
 	for _, def := range defs {
@@ -74,6 +199,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			Parms: parms,
 			Ret:   &retName,
 		},
+		BuiltIn: CaseMeth,
 	}
 	fun.Def = fun
 	return fun
@@ -116,7 +242,8 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 			Name:  typ.Name,
 			Type:  typ,
 		},
-		Sig: sig,
+		Sig:     sig,
+		BuiltIn: VirtMeth,
 	}
 	fun.Def = fun
 	return fun
@@ -162,22 +289,57 @@ func builtInType(x *scope, name string, args ...TypeName) *Type {
 	return typ
 }
 
-func isNil(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Name == "Nil"
+func isNil(typ *Type) bool {
+	return typ != nil && typ.BuiltIn == NilType
 }
 
-func isAry(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Name == "Array"
+func isAry(typ *Type) bool {
+	return typ != nil && typ.BuiltIn == ArrayType
 }
 
-func isRef(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Name == "&"
+func isRef(typ *Type) bool {
+	return typ != nil && typ.BuiltIn == RefType
 }
 
-func isFun(x *scope, typ *Type) bool {
-	return isBuiltIn(x, typ) && typ.Name == "Fun"
+func isFun(typ *Type) bool {
+	return typ != nil && typ.BuiltIn == FunType
 }
 
-func isBuiltIn(x *scope, typ *Type) bool {
-	return typ != nil && typ.Mod == "" && x.defFiles[typ.Def] == nil
+func isAnyInt(typ *Type) bool {
+	return typ != nil && typ.BuiltIn >= IntType && typ.BuiltIn <= UInt64Type
+}
+
+func disectIntType(cfg Config, typ *Type) (bool, int) {
+	switch typ.BuiltIn {
+	case IntType:
+		return true, cfg.IntSize
+	case Int8Type:
+		return true, 7
+	case Int16Type:
+		return true, 15
+	case Int32Type:
+		return true, 31
+	case Int64Type:
+		return true, 63
+	case UIntType:
+		return false, cfg.IntSize
+	case UInt8Type:
+		return false, 8
+	case UInt16Type:
+		return false, 16
+	case UInt32Type:
+		return false, 32
+	case UInt64Type:
+		return false, 64
+	default:
+		panic(fmt.Sprintf("impossible int type: %T", typ))
+	}
+}
+
+func isAnyFloat(typ *Type) bool {
+	return typ != nil && typ.BuiltIn >= FloatType && typ.BuiltIn <= Float64Type
+}
+
+func isBuiltInType(typ *Type) bool {
+	return typ != nil && (typ.BuiltIn != 0 || typ.Alias != nil && typ.Alias.Type != nil && typ.Alias.Type.BuiltIn != 0)
 }

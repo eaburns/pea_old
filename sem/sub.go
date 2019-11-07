@@ -196,6 +196,7 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 			Sel: fun.Sig.Sel,
 			Ret: subTypeName(x, seen, sub, fun.Sig.Ret),
 		},
+		BuiltIn: fun.BuiltIn,
 	}
 
 	inst.Sig.Parms = make([]Var, len(fun.Sig.Parms))
@@ -340,7 +341,7 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 	var recv *Type
 	if call1.Recv != nil {
 		recv = call1.Recv.Type()
-		if !isRef(x, recv) {
+		if !isRef(recv) {
 			// The receiver is always converted to a ref by the check pass.
 			panic("impossible")
 		}
