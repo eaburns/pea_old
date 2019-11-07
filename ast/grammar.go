@@ -8590,7 +8590,7 @@ func _ReturnAction(parser *_Parser, start int) (int, *Stmt) {
 				}
 				label1 = func(
 					start, end int, e Expr) *Ret {
-					return &Ret{start: loc1(parser, start), Val: e}
+					return &Ret{start: loc1(parser, start), Expr: e}
 				}(
 					start3, pos, label0)
 			}

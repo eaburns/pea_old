@@ -339,7 +339,7 @@ Stmt <-
 	e:Expr { return Stmt(e) }
 
 Return <- _ r:(
-	"^" e:Expr { return &Ret{start: loc1(parser, start), Val: e} }
+	"^" e:Expr { return &Ret{start: loc1(parser, start), Expr: e} }
 ) {
 	return Stmt(r)
 }

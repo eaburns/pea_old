@@ -249,7 +249,7 @@ func subStmt(x *scope, sub map[*TypeVar]TypeName, stmt0 Stmt) Stmt {
 func subRet(x *scope, sub map[*TypeVar]TypeName, ret0 *Ret) *Ret {
 	defer x.tr("subRet()")()
 
-	return &Ret{AST: ret0.AST, Val: subExpr(x, sub, ret0.Val)}
+	return &Ret{AST: ret0.AST, Expr: subExpr(x, sub, ret0.Expr)}
 }
 
 func subAssign(x *scope, sub map[*TypeVar]TypeName, assign0 *Assign) *Assign {

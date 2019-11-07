@@ -717,9 +717,9 @@ func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {
 		t.Fatal("[baz: Int] not found")
 	}
 
-	ret, ok := bazInt.Stmts[0].(*Ret).Val.(*Convert)
+	ret, ok := bazInt.Stmts[0].(*Ret).Expr.(*Convert)
 	if !ok {
-		t.Fatalf("boo:bar: ret is a %T, want *Convert", bazInt.Stmts[0].(*Ret).Val)
+		t.Fatalf("boo:bar: ret is a %T, want *Convert", bazInt.Stmts[0].(*Ret).Expr)
 	} else if ret.Ref != -1 {
 		t.Errorf("foo:bar: ret Ref=%d, want -1", ret.Ref)
 	} else if ret.typ.String() != "Int" {

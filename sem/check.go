@@ -665,8 +665,8 @@ func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
 	} else if fun.Sig.Ret != nil {
 		want = fun.Sig.Ret.Type
 	}
-	expr, es := checkExpr(x, want, astRet.Val)
-	return &Ret{AST: astRet, Val: expr}, append(errs, es...)
+	expr, es := checkExpr(x, want, astRet.Expr)
+	return &Ret{AST: astRet, Expr: expr}, append(errs, es...)
 }
 
 func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []checkError) {

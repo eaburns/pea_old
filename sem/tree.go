@@ -302,8 +302,8 @@ type Stmt interface {
 
 // A Ret is a return statement.
 type Ret struct {
-	AST *ast.Ret
-	Val Expr
+	AST  *ast.Ret
+	Expr Expr
 }
 
 func (n *Ret) ast() ast.Node { return n.AST }

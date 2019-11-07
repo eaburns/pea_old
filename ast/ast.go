@@ -163,11 +163,11 @@ type Stmt interface {
 // A Ret is a return statement.
 type Ret struct {
 	start int
-	Val   Expr
+	Expr  Expr
 }
 
 func (n *Ret) loc() (int, int) {
-	_, end := n.Val.loc()
+	_, end := n.Expr.loc()
 	return n.start, end
 }
 
