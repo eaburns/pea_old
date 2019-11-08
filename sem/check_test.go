@@ -3053,48 +3053,52 @@ func TestIdentLookup(t *testing.T) {
 
 	// Statement 2 is a local variable from Statement 1.
 	localVar := stmts[1].(*Assign).Var
-	if stmts[2].(*Ident).Var != localVar {
-		t.Errorf("localVar (%p) != %p", stmts[2].(*Ident).Var, localVar)
+	ident2 := stmts[2].(*Convert).Expr.(*Ident)
+	if ident2.Var != localVar {
+		t.Errorf("localVar (%p) != %p", ident2.Var, localVar)
 	}
-	if stmts[2].(*Ident).Var.Index != 1 {
-		t.Errorf("localVar.Index (%d) != 1", stmts[2].(*Ident).Var.Index)
+	if ident2.Var.Index != 1 {
+		t.Errorf("localVar.Index (%d) != 1", ident2.Var.Index)
 	}
 
 	// Statement 3 is a parameter access.
 	fun := mod.Defs[0].(*Fun)
 	// parms are: 0=self, 1=ignore0, 2=parmVar
 	parmVar := &fun.Sig.Parms[2]
-	if stmts[3].(*Ident).Var != parmVar {
-		t.Errorf("parmVar (%p) != %p", stmts[3].(*Ident).Var, parmVar)
+	ident3 := stmts[3].(*Convert).Expr.(*Ident)
+	if ident3.Var != parmVar {
+		t.Errorf("parmVar (%p) != %p", ident3.Var, parmVar)
 	}
-	if stmts[3].(*Ident).Var.FunParm != fun {
-		t.Errorf("fun (%p) != %p", stmts[3].(*Ident).Var.FunParm, fun)
+	if ident3.Var.FunParm != fun {
+		t.Errorf("fun (%p) != %p", ident3.Var.FunParm, fun)
 	}
-	if stmts[3].(*Ident).Var.Index != 2 {
-		t.Errorf("parmVar .Index(%d) != 2", stmts[3].(*Ident).Var.Index)
+	if ident3.Var.Index != 2 {
+		t.Errorf("parmVar .Index(%d) != 2", ident3.Var.Index)
 	}
 
 	// Statement 4 is a module-level value access.
 	val := mod.Defs[1].(*Val)
 	modVar := &val.Var
-	if stmts[4].(*Ident).Var != modVar {
-		t.Errorf("modVar (%p) != %p", stmts[4].(*Ident).Var, modVar)
+	ident4 := stmts[4].(*Convert).Expr.(*Ident)
+	if ident4.Var != modVar {
+		t.Errorf("modVar (%p) != %p", ident4.Var, modVar)
 	}
-	if stmts[4].(*Ident).Var.Val != val {
-		t.Errorf("val (%p) != %p", stmts[4].(*Ident).Var.Val, val)
+	if ident4.Var.Val != val {
+		t.Errorf("val (%p) != %p", ident4.Var.Val, val)
 	}
 
 	// Statement 5 is a struct field access.
 	typ := mod.Defs[2].(*Type)
 	fieldVar := &typ.Fields[1]
-	if stmts[5].(*Ident).Var != fieldVar {
-		t.Errorf("fieldVar (%p) != %p", stmts[5].(*Ident).Var, fieldVar)
+	ident5 := stmts[5].(*Convert).Expr.(*Ident)
+	if ident5.Var != fieldVar {
+		t.Errorf("fieldVar (%p) != %p", ident5.Var, fieldVar)
 	}
-	if stmts[5].(*Ident).Var.Field != typ {
-		t.Errorf("type (%p) != %p", stmts[5].(*Ident).Var.Field, typ)
+	if ident5.Var.Field != typ {
+		t.Errorf("type (%p) != %p", ident5.Var.Field, typ)
 	}
-	if stmts[5].(*Ident).Var.Index != 1 {
-		t.Errorf("field (%d) != 1", stmts[5].(*Ident).Var.Index)
+	if ident5.Var.Index != 1 {
+		t.Errorf("field (%d) != 1", ident5.Var.Index)
 	}
 
 	// Statement 6 is a uary function call.
@@ -3104,14 +3108,15 @@ func TestIdentLookup(t *testing.T) {
 	// Statement 7 is an access to self.
 	fun = mod.Defs[0].(*Fun)
 	parmVar = &fun.Sig.Parms[0]
-	if stmts[7].(*Ident).Var != parmVar {
-		t.Errorf("parmVar (%p) != %p", stmts[7].(*Ident).Var, parmVar)
+	ident7 := stmts[7].(*Convert).Expr.(*Ident)
+	if ident7.Var != parmVar {
+		t.Errorf("parmVar (%p) != %p", ident7.Var, parmVar)
 	}
-	if stmts[7].(*Ident).Var.FunParm != fun {
-		t.Errorf("fun (%p) != %p", stmts[7].(*Ident).Var.FunParm, fun)
+	if ident7.Var.FunParm != fun {
+		t.Errorf("fun (%p) != %p", ident7.Var.FunParm, fun)
 	}
-	if stmts[7].(*Ident).Var.Index != 0 {
-		t.Errorf("parmVar .Index(%d) != 0", stmts[7].(*Ident).Var.Index)
+	if ident7.Var.Index != 0 {
+		t.Errorf("parmVar .Index(%d) != 0", ident7.Var.Index)
 	}
 }
 

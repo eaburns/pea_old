@@ -453,10 +453,12 @@ func subBlock(x *scope, sub map[*TypeVar]TypeName, block0 *Block) *Block {
 func subIdent(x *scope, sub map[*TypeVar]TypeName, ident0 *Ident) *Ident {
 	defer x.tr("subIdent(%s)", ident0.Text)()
 
+	v := lookUpVar(x, ident0.Var)
 	return &Ident{
 		AST:  ident0.AST,
 		Text: ident0.Text,
-		Var:  lookUpVar(x, ident0.Var),
+		Var:  v,
+		typ:  builtInType(x, "&", *makeTypeName(v.typ)),
 	}
 }
 

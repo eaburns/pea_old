@@ -415,16 +415,11 @@ type Ident struct {
 	AST  *ast.Ident
 	Text string
 	Var  *Var
+	typ  *Type
 }
 
 func (n *Ident) ast() ast.Node { return n.AST }
-
-func (n *Ident) Type() *Type {
-	if n.Var == nil {
-		return nil
-	}
-	return n.Var.typ
-}
+func (n *Ident) Type() *Type   { return n.typ }
 
 // An Int is an integer literal.
 type Int struct {

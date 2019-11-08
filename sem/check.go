@@ -733,8 +733,12 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 		msg, es := checkMsg(x, infer, recvType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 		call := &Call{
-			AST:  astCall,
-			Recv: &Ident{Text: tmp.Name, Var: tmp},
+			AST: astCall,
+			Recv: &Ident{
+				Text: tmp.Name,
+				Var:  tmp,
+				typ:  builtInType(x, "&", *makeTypeName(recvType)),
+			},
 			Msgs: []Msg{msg},
 		}
 		if newLocal[i] && vars[i].TypeName == nil {
@@ -855,7 +859,7 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 }
 
 func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
-	defer x.tr("convertExpr(want=%s, have=%s", want, expr.Type())(&err)
+	defer x.tr("convertExpr(want=%s, have=%s)", want, expr.Type())(&err)
 
 	if expr.Type() == nil {
 		return expr, nil
@@ -870,7 +874,11 @@ func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 	if have == want {
 		return expr, nil
 	}
-
+	if cvt, ok := expr.(*Convert); ok && cvt.Ref != 0 {
+		// We will recompute any reference conversions here,
+		// so strip any incoming ones.
+		expr = cvt.Expr
+	}
 	haveI, haveBase := refBaseType(x, expr.Type())
 	wantI, wantBase := refBaseType(x, want)
 	x.log("have base %s (%p)", haveBase, haveBase)
@@ -892,7 +900,7 @@ func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 		return &Convert{Expr: expr, Virts: funs, typ: want}, nil
 	}
 
-	err = x.err(expr, "type mismatch: have %s, want %s", expr.Type(), want)
+	err = x.err(expr, "type mismatch: have %s, want %s", have, want)
 	if have.Var != nil && want.Var != nil && have.Name == want.Name {
 		if have.AST != nil {
 			note(err, "have type %s defined at %s", have, x.loc(have))
@@ -1039,12 +1047,10 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 	}
 
 	var recv Expr
-	var recvType *Type
+	var recvBaseType *Type
 	if astCall.Recv != nil {
-		recv, errs = checkExpr(x, nil, astCall.Recv)
-		recvType = recv.Type()
-		switch {
-		case recvType == nil:
+		switch recv, errs = checkExpr(x, nil, astCall.Recv); {
+		case recv.Type() == nil:
 			x.log("call receiver check error")
 			// There was a receiver, but we don't know it's type.
 			// That error was reported elsewhere, but we can't continue here.
@@ -1061,29 +1067,22 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 				errs = append(errs, es...)
 			}
 			return call, errs
-		case isRef(recvType) && isRef(recvType.Args[0].Type):
-			r := &Convert{Expr: recv, Ref: -1}
-			for isRef(recvType.Args[0].Type) {
-				r.Ref--
-				recvType = recvType.Args[0].Type
+		case isRef(recv.Type()) && isRef(recv.Type().Args[0].Type):
+			for isRef(recv.Type().Args[0].Type) {
+				recv = deref(recv)
 			}
-			r.typ = recvType
-			recv = r
-		case !isRef(recvType):
-			r := &Convert{Expr: recv, Ref: 1}
-			recvType = builtInType(x, "&", *makeTypeName(recvType))
-			r.typ = recvType
-			recv = r
+		case !isRef(recv.Type()):
+			recv = ref(x, recv)
 		}
-		if !isRef(recvType) || isRef(recvType.Args[0].Type) {
+		if !isRef(recv.Type()) || isRef(recv.Type().Args[0].Type) {
 			panic("impossible")
 		}
-		recvType = recvType.Args[0].Type
+		recvBaseType = recv.Type().Args[0].Type
 		call.Recv = recv
 	}
 	for i := range astCall.Msgs {
 		var es []checkError
-		call.Msgs[i], es = checkMsg(x, infer, recvType, &astCall.Msgs[i])
+		call.Msgs[i], es = checkMsg(x, infer, recvBaseType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 	}
 
@@ -1097,6 +1096,37 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 	}
 	call.typ = lastMsg.Fun.Sig.Ret.Type
 	return call, errs
+}
+
+func ref(x *scope, expr Expr) Expr {
+	var typ *Type
+	if t := expr.Type(); t != nil {
+		typ = builtInType(x, "&", *makeTypeName(t))
+	}
+	switch cvt, ok := expr.(*Convert); {
+	case !ok || cvt.Ref == 0:
+		return &Convert{Expr: expr, Ref: 1, typ: typ}
+	case cvt.Ref == -1:
+		return cvt.Expr
+	default:
+		cvt.Ref++
+		cvt.typ = typ
+		return cvt
+	}
+}
+
+func deref(expr Expr) Expr {
+	typ := expr.Type().Args[0].Type
+	switch cvt, ok := expr.(*Convert); {
+	case !ok || cvt.Ref == 0:
+		return &Convert{Expr: expr, Ref: -1, typ: typ}
+	case cvt.Ref == 1:
+		return cvt.Expr
+	default:
+		cvt.Ref--
+		cvt.typ = typ
+		return cvt
+	}
 }
 
 func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
@@ -1484,7 +1514,12 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		case vr.Local != nil:
 			x.localUse[vr] = true
 		}
-		return ident, errs
+		if vr.typ == nil {
+			return ident, errs
+		}
+		// Idents are references to their underlying value.
+		ident.typ = builtInType(x, "&", *makeTypeName(vr.typ))
+		return &Convert{Expr: ident, Ref: -1, typ: vr.typ}, errs
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
 		msg := Msg{
