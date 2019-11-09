@@ -6,15 +6,15 @@ import (
 	"os"
 
 	"github.com/eaburns/pea/ast"
-	"github.com/eaburns/pea/sem"
+	"github.com/eaburns/pea/types"
 	"github.com/eaburns/peggy/peg"
 	"github.com/eaburns/pretty"
 )
 
 var (
-	printAST = flag.Bool("ast", false, "print the AST to standard output")
-	printSem = flag.Bool("sem", false, "print the semantic tree to standard output")
-	trace    = flag.Bool("trace", false, "enable tracing in the type checker")
+	printAST   = flag.Bool("ast", false, "print the AST to standard output")
+	printTypes = flag.Bool("types", false, "print the semantic tree to standard output")
+	trace      = flag.Bool("trace", false, "enable tracing in the type checker")
 )
 
 func main() {
@@ -40,16 +40,16 @@ func main() {
 		fmt.Println("")
 	}
 
-	typeMod, errs := sem.Check(astMod, sem.Config{Trace: *trace})
+	typesMod, errs := types.Check(astMod, types.Config{Trace: *trace})
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
 		}
 		os.Exit(1)
 	}
-	if *printSem {
+	if *printTypes {
 		// Clear out some noisy fields before printing.
-		trimmedTypeMod := *typeMod
+		trimmedTypeMod := *typesMod
 		trimmedTypeMod.AST = nil
 		pretty.Print(trimmedTypeMod)
 		fmt.Println("")

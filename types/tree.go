@@ -1,6 +1,6 @@
-// Package sem contains a semantic checker and
-// a type-checked, linked representation of the source.
-package sem
+// Package types does type checking and semantic analysis, and
+// builds a type-checked, linked representation of the source.
+package types
 
 import (
 	"fmt"

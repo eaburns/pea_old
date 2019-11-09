@@ -1,4 +1,4 @@
-package sem
+package types
 
 import (
 	"errors"

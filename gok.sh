@@ -32,11 +32,11 @@ misspell . > $o 2>&1 || fail
 echo gocyclo
 gocyclo -over 15 .\
 	| grep -v "grammar.go:" \
-	| grep -v "17 sem TestIdentLookup sem/check_test.go" \
-	| grep -v "19 sem buildRecvString sem/string.go" \
-	| grep -v "19 sem buildTypeString sem/string.go" \
-	| grep -v "16 sem findMsgFun sem/check.go"\
-	| grep -v '16 sem [(][*]scope[)].findIdent sem/scope.go' \
+	| grep -v "17 types TestIdentLookup types/check_test.go" \
+	| grep -v "19 types buildRecvString types/string.go" \
+	| grep -v "19 types buildTypeString types/string.go" \
+	| grep -v "16 types findMsgFun types/check.go"\
+	| grep -v '16 types [(][*]scope[)].findIdent types/scope.go' \
 	> $o 2>&1
 e=$(mktemp tmp.XXXXXXXXXX)
 touch $e
