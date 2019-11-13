@@ -1224,58 +1224,66 @@ func hasVirt(typ *Type, sel string) bool {
 	return false
 }
 
-func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ *Ctor, errs []checkError) {
+func checkCtor(x *scope, infer *Type, astCtor *ast.Ctor) (_ Expr, errs []checkError) {
 	defer x.tr("checkCtor(infer=%s)", infer)(&errs)
 
-	ctor := &Ctor{AST: astCtor, typ: infer}
+	typ := infer
+	ctor := &Ctor{AST: astCtor}
 	switch {
-	case ctor.typ == nil:
-		err := x.err(ctor, "cannot infer constructor type")
-		errs = append(errs, *err)
-	case ctor.typ.Alias != nil:
-		// This should have already been resolved by gatherTypeName.
-		errs = append(errs, *x.err(astCtor, "impossible alias")) //panic("impossible alias")
-	case ctor.typ.Priv && x.defFiles[ctor.typ.Def] == nil && !isBuiltInType(ctor.typ):
-		err := x.err(ctor, "cannot construct unexported type %s", ctor.typ)
-		errs = append(errs, *err)
-	case isAry(ctor.typ):
-		errs = append(errs, checkAryCtor(x, ctor)...)
-	case ctor.typ.Cases != nil:
-		errs = append(errs, checkOrCtor(x, ctor)...)
-	case ctor.typ.Virts != nil:
-		err := x.err(astCtor, "cannot construct virtual type %s", ctor.typ)
-		errs = append(errs, *err)
-	case isBuiltInType(ctor.typ) && !isNil(ctor.typ):
-		err := x.err(astCtor, "cannot construct built-in type %s", ctor.typ)
-		errs = append(errs, *err)
+	case typ == nil:
+		errs = append(errs, *x.err(ctor, "cannot infer constructor type"))
+	case typ.Alias != nil:
+		panic("impossible alias")
+	case typ.Priv && x.defFiles[typ.Def] == nil && !isBuiltInType(typ):
+		errs = append(errs, *x.err(ctor, "cannot construct unexported type %s", typ))
+	case isAry(typ):
+		errs = append(errs, checkAryCtor(x, typ, ctor)...)
+	case isRef(typ):
+		nRef, baseType := refBaseType(x, typ)
+		expr, es := checkCtor(x, baseType, astCtor)
+		errs = append(errs, es...)
+		// Start from 1, becasue checkCtor is already 1 reference.
+		for i := 1; i < nRef; i++ {
+			expr = ref(x, expr)
+		}
+		return expr, errs
+	case typ.Cases != nil:
+		errs = append(errs, checkOrCtor(x, typ, ctor)...)
+	case typ.Virts != nil:
+		errs = append(errs, *x.err(astCtor, "cannot construct virtual type %s", typ))
+	case isBuiltInType(typ) && !isNil(typ):
+		errs = append(errs, *x.err(astCtor, "cannot construct built-in type %s", typ))
 	default:
-		errs = append(errs, checkAndCtor(x, ctor)...)
+		errs = append(errs, checkAndCtor(x, typ, ctor)...)
+	}
+	if typ != nil {
+		ctor.typ = builtInType(x, "&", *makeTypeName(typ))
 	}
 	return ctor, errs
 }
 
-func checkAryCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkAryCtor(%s)", ctor.typ)(&errs)
-	want := ctor.typ.Args[0].Type
+func checkAryCtor(x *scope, aryType *Type, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkAryCtor(%s)", aryType)(&errs)
+	elmType := aryType.Args[0].Type
 	ctor.Args = make([]Expr, len(ctor.AST.Args))
 	for i, expr := range ctor.AST.Args {
 		var es []checkError
-		ctor.Args[i], es = checkExpr(x, want, expr)
+		ctor.Args[i], es = checkExpr(x, elmType, expr)
 		errs = append(errs, es...)
 	}
 	return errs
 }
 
-func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkOrCtor(%s)", ctor.typ)(&errs)
+func checkOrCtor(x *scope, orType *Type, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkOrCtor(%s)", orType)(&errs)
 
 	sel, arg, ok := disectOrCtorArg(ctor.AST)
 	if !ok {
-		err := x.err(ctor, "malformed %s constructor", ctor.typ)
+		err := x.err(ctor, "malformed %s constructor", orType)
 		return append(errs, *err)
 	}
 
-	ctor.Case = findCase(ctor.typ, sel)
+	ctor.Case = findCase(orType, sel)
 	if ctor.Case == nil {
 		err := x.err(ctor, "case %s not found", sel)
 		errs = append(errs, *err)
@@ -1283,7 +1291,7 @@ func checkOrCtor(x *scope, ctor *Ctor) (errs []checkError) {
 		ctor.Args, es = checkExprs(x, ctor.AST.Args)
 		return append(errs, es...)
 	}
-	c := &ctor.typ.Cases[*ctor.Case]
+	c := &orType.Cases[*ctor.Case]
 
 	if c.TypeName == nil {
 		if arg != nil {
@@ -1320,23 +1328,23 @@ func findCase(typ *Type, name string) *int {
 	return nil
 }
 
-func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
-	defer x.tr("checkAndCtor(%s)", ctor.typ)(&errs)
+func checkAndCtor(x *scope, andType *Type, ctor *Ctor) (errs []checkError) {
+	defer x.tr("checkAndCtor(%s)", andType)(&errs)
 
 	if len(ctor.AST.Args) == 0 {
 		return errs
 	}
 	call, ok := ctor.AST.Args[0].(*ast.Call)
 	if !ok || len(ctor.AST.Args) > 1 || call.Recv != nil || len(call.Msgs) != 1 {
-		err := x.err(ctor, "malformed %s constructor", ctor.typ)
+		err := x.err(ctor, "malformed %s constructor", andType)
 		return append(errs, *err)
 	}
 
-	astArgs := make([]ast.Expr, len(ctor.typ.Fields))
+	astArgs := make([]ast.Expr, len(andType.Fields))
 	fieldNames := strings.Split(call.Msgs[0].Sel, ":")
 	for i, astArg := range call.Msgs[0].Args {
 		fieldName := fieldNames[i]
-		field := findField(ctor.typ, fieldName)
+		field := findField(andType, fieldName)
 		if field < 0 {
 			err := x.err(astArg, "unknown field: %s", fieldName)
 			errs = append(errs, *err)
@@ -1351,9 +1359,9 @@ func checkAndCtor(x *scope, ctor *Ctor) (errs []checkError) {
 		astArgs[field] = astArg
 	}
 
-	ctor.Args = make([]Expr, len(ctor.typ.Fields))
-	for i := range ctor.typ.Fields {
-		field := &ctor.typ.Fields[i]
+	ctor.Args = make([]Expr, len(andType.Fields))
+	for i := range andType.Fields {
+		field := &andType.Fields[i]
 		if astArgs[i] == nil {
 			err := x.err(ctor, "missing field: %s", field.Name)
 			errs = append(errs, *err)

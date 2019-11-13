@@ -2141,6 +2141,111 @@ func TestDerefConvert(t *testing.T) {
 	}
 }
 
+// Test that constructor types are refs and
+// is converted when assigning to a value.
+func TestCtorDeref(t *testing.T) {
+	const src = `
+		val x := [
+			a Point := {x: 5 y: 6}.
+			use: a.
+		]
+		type Point {x: Float y: Float}
+		func T [use: _ T]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	assign := mod.Defs[0].(*Val).Init[0].(*Assign)
+	deref, ok := assign.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected Convert, got %T", assign.Expr)
+	}
+	if deref.Ref != -1 {
+		t.Fatalf("expected deref.Ref=-1, got %d", deref.Ref)
+	}
+	if _, ok := deref.Expr.(*Ctor); !ok {
+		t.Fatalf("expected Ctor, got %T", deref.Expr)
+	}
+}
+
+// Tests that a constructor is a ref and
+// not not converted when assigning to a ref.
+func TestCtorRef(t *testing.T) {
+	const src = `
+		val x := [
+			a Point & := {x: 5 y: 6}.
+			use: a.
+		]
+		type Point {x: Float y: Float}
+		func T [use: _ T]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	assign := mod.Defs[0].(*Val).Init[0].(*Assign)
+	if _, ok := assign.Expr.(*Ctor); !ok {
+		t.Fatalf("expected Ctor, got %T", assign.Expr)
+	}
+}
+
+// Like TestCtorRef, but adds multiple references.
+func TestCtorRefN(t *testing.T) {
+	const src = `
+		val x := [
+			a Point & & & & := {x: 5 y: 6}.
+			use: a.
+		]
+		type Point {x: Float y: Float}
+		func T [use: _ T]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	assign := mod.Defs[0].(*Val).Init[0].(*Assign)
+	ref0, ok := assign.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref0 as a Convert, got %T", assign.Expr)
+	}
+	if ref0.Ref != 1 {
+		t.Fatalf("expected ref0.Ref=1, got %d", ref0.Ref)
+	}
+	ref1, ok := ref0.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref1 as a Convert, got %T", ref0.Expr)
+	}
+	if ref1.Ref != 1 {
+		t.Fatalf("expected ref1.Ref=1, got %d", ref1.Ref)
+	}
+	ref2, ok := ref1.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref2 as a Convert, got %T", ref1.Expr)
+	}
+	if ref2.Ref != 1 {
+		t.Fatalf("expected ref2.Ref=1, got %d", ref2.Ref)
+	}
+	if _, ok := ref2.Expr.(*Ctor); !ok {
+		t.Fatalf("expected Ctor, got %T", ref2.Expr)
+	}
+}
+
 func TestCall(t *testing.T) {
 	tests := []errorTest{
 		{
