@@ -2043,6 +2043,104 @@ func TestAssignToExistingVariable(t *testing.T) {
 	}
 }
 
+func TestRefConvert(t *testing.T) {
+	const src = `
+		val x := [
+			a Int & & & := 5.
+			use: a.
+		]
+		func T [use: _ T]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	assign := mod.Defs[0].(*Val).Init[0].(*Assign)
+	ref0, ok := assign.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref0 as a Convert, got %T", assign.Expr)
+	}
+	if ref0.Ref != 1 {
+		t.Fatalf("expected ref0.Ref=1, got %d", ref0.Ref)
+	}
+	ref1, ok := ref0.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref1 as a Convert, got %T", ref0.Expr)
+	}
+	if ref1.Ref != 1 {
+		t.Fatalf("expected ref1.Ref=1, got %d", ref1.Ref)
+	}
+	ref2, ok := ref1.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref2 as a Convert, got %T", ref1.Expr)
+	}
+	if ref2.Ref != 1 {
+		t.Fatalf("expected ref2.Ref=1, got %d", ref2.Ref)
+	}
+	if _, ok := ref2.Expr.(*Int); !ok {
+		t.Fatalf("expected Int, got %T", ref2.Expr)
+	}
+}
+
+func TestDerefConvert(t *testing.T) {
+	const src = `
+		val x := [
+			a Int := intRef.
+			use: a.
+		]
+		val intRef Int & & & := [5]
+		func T [use: _ T]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	assign := mod.Defs[0].(*Val).Init[0].(*Assign)
+	ref0, ok := assign.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref0 as a Convert, got %T", assign.Expr)
+	}
+	if ref0.Ref != -1 {
+		t.Fatalf("expected ref0.Ref=-1, got %d", ref0.Ref)
+	}
+	ref1, ok := ref0.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref1 as a Convert, got %T", ref0.Expr)
+	}
+	if ref1.Ref != -1 {
+		t.Fatalf("expected ref1.Ref=-1, got %d", ref1.Ref)
+	}
+	ref2, ok := ref1.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref2 as a Convert, got %T", ref1.Expr)
+	}
+	if ref2.Ref != -1 {
+		t.Fatalf("expected ref2.Ref=-1, got %d", ref2.Ref)
+	}
+
+	// ref3 is because all Idents are preceeded by a convert.
+	ref3, ok := ref2.Expr.(*Convert)
+	if !ok {
+		t.Fatalf("expected ref3 as a Convert, got %T", ref2.Expr)
+	}
+	if ref3.Ref != -1 {
+		t.Fatalf("expected ref3.Ref=-1, got %d", ref3.Ref)
+	}
+	if _, ok := ref3.Expr.(*Ident); !ok {
+		t.Fatalf("expected Ident, got %T", ref3.Expr)
+	}
+}
+
 func TestCall(t *testing.T) {
 	tests := []errorTest{
 		{

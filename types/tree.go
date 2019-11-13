@@ -331,9 +331,8 @@ type Convert struct {
 
 	// One of the following is non-zero:
 
-	// Ref is non-0 for a reference conversion.
-	// A negative value is the number of references to remove,
-	// and a positive value is the number of references to add.
+	// Ref is either -1 to remove a reference or 1 to add one.
+	// 0 means this is a virtual conversion.
 	Ref int
 
 	// Virts is non-nil for a virtual conversion;

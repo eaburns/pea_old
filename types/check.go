@@ -861,19 +861,13 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 	defer x.tr("convertExpr(want=%s, have=%s)", want, expr.Type())(&err)
 
-	if expr.Type() == nil {
-		return expr, nil
-	}
-	if want == nil {
+	if expr.Type() == nil || want == nil {
 		return expr, nil
 	}
 
 	have := expr.Type()
 	x.log("have %s (%p)", have, have)
 	x.log("want %s (%p)", want, want)
-	if have == want {
-		return expr, nil
-	}
 	if cvt, ok := expr.(*Convert); ok && cvt.Ref != 0 {
 		// We will recompute any reference conversions here,
 		// so strip any incoming ones.
@@ -884,7 +878,15 @@ func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 	x.log("have base %s (%p)", haveBase, haveBase)
 	x.log("want base %s (%p)", wantBase, wantBase)
 	if haveBase == wantBase {
-		return &Convert{Expr: expr, Ref: wantI - haveI, typ: want}, nil
+		for haveI > wantI {
+			expr = deref(expr)
+			haveI--
+		}
+		for haveI < wantI {
+			expr = ref(x, expr)
+			haveI++
+		}
+		return expr, nil
 	}
 
 	if len(want.Virts) > 0 {
@@ -895,7 +897,7 @@ func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 			return expr, err
 		}
 		if haveI != 0 {
-			expr = &Convert{Expr: expr, Ref: -haveI, typ: haveBase}
+			expr = deref(expr)
 		}
 		return &Convert{Expr: expr, Virts: funs, typ: want}, nil
 	}
@@ -923,6 +925,19 @@ func refBaseType(x *scope, typ *Type) (int, *Type) {
 		typ = typ.Args[0].Type
 	}
 	return i, typ
+}
+
+func ref(x *scope, expr Expr) Expr {
+	var typ *Type
+	if t := expr.Type(); t != nil {
+		typ = builtInType(x, "&", *makeTypeName(t))
+	}
+	return &Convert{Expr: expr, Ref: 1, typ: typ}
+}
+
+func deref(expr Expr) Expr {
+	typ := expr.Type().Args[0].Type
+	return &Convert{Expr: expr, Ref: -1, typ: typ}
 }
 
 func findVirts(x *scope, loc ast.Node, recv *Type, virts []FunSig, allowConvert bool) (funs []*Fun, errs []checkError) {
@@ -1096,37 +1111,6 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 	}
 	call.typ = lastMsg.Fun.Sig.Ret.Type
 	return call, errs
-}
-
-func ref(x *scope, expr Expr) Expr {
-	var typ *Type
-	if t := expr.Type(); t != nil {
-		typ = builtInType(x, "&", *makeTypeName(t))
-	}
-	switch cvt, ok := expr.(*Convert); {
-	case !ok || cvt.Ref == 0:
-		return &Convert{Expr: expr, Ref: 1, typ: typ}
-	case cvt.Ref == -1:
-		return cvt.Expr
-	default:
-		cvt.Ref++
-		cvt.typ = typ
-		return cvt
-	}
-}
-
-func deref(expr Expr) Expr {
-	typ := expr.Type().Args[0].Type
-	switch cvt, ok := expr.(*Convert); {
-	case !ok || cvt.Ref == 0:
-		return &Convert{Expr: expr, Ref: -1, typ: typ}
-	case cvt.Ref == 1:
-		return cvt.Expr
-	default:
-		cvt.Ref--
-		cvt.typ = typ
-		return cvt
-	}
 }
 
 func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []checkError) {
@@ -1519,7 +1503,7 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		}
 		// Idents are references to their underlying value.
 		ident.typ = builtInType(x, "&", *makeTypeName(vr.typ))
-		return &Convert{Expr: ident, Ref: -1, typ: vr.typ}, errs
+		return deref(ident), errs
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
 		msg := Msg{
