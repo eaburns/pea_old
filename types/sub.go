@@ -91,9 +91,10 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, par
 			parm1.Ifaces[i] = *subTypeName(x, seen, sub, &parm0.Ifaces[i])
 		}
 		parm1.Type = &Type{
-			AST:  parm1.AST,
-			Name: parm1.Name,
-			Var:  parm1,
+			AST:    parm1.AST,
+			Name:   parm1.Name,
+			Var:    parm1,
+			refDef: refTypeDef(x),
 		}
 		seen[parm0.Type] = parm1.Type
 	}
@@ -191,14 +192,15 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 
 	inst.Locals = make([]*Var, len(fun.Locals))
 	for i, loc0 := range fun.Locals {
+		typ := subType(x, seen, sub, loc0.Type())
 		inst.Locals[i] = &Var{
 			AST:      loc0.AST,
 			Name:     loc0.Name,
 			TypeName: subTypeName(x, seen, sub, loc0.TypeName),
 			Local:    &inst.Locals,
 			Index:    i,
-			typ:      subType(x, seen, sub, loc0.typ),
 		}
+		inst.Locals[i].typ = typ
 	}
 
 	// Note that we don't substitute the statements here.
@@ -375,7 +377,7 @@ func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg) M
 		parms = parms[1:] // strip self
 	}
 	for i, arg := range msg1.Args {
-		wantType := parms[i].typ
+		wantType := parms[i].Type()
 		if arg.Type() == wantType {
 			continue
 		}
@@ -426,7 +428,7 @@ func subBlock(x *scope, sub map[*TypeVar]TypeName, block0 *Block) *Block {
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
 		parm1.TypeName = subTypeName(x, seen, sub, parm0.TypeName)
-		parm1.typ = subType(x, seen, sub, parm0.typ)
+		parm1.typ = subType(x, seen, sub, parm0.Type())
 		parm1.BlkParm = block1
 		parm1.Index = i
 		x = x.new()
@@ -438,7 +440,7 @@ func subBlock(x *scope, sub map[*TypeVar]TypeName, block0 *Block) *Block {
 		local1.AST = local0.AST
 		local1.Name = local0.Name
 		local1.TypeName = subTypeName(x, seen, sub, local0.TypeName)
-		local1.typ = subType(x, seen, sub, local0.typ)
+		local1.typ = subType(x, seen, sub, local0.Type())
 		local1.Local = &block1.Locals
 		local1.Index = i
 		x = x.new()
@@ -458,7 +460,7 @@ func subIdent(x *scope, sub map[*TypeVar]TypeName, ident0 *Ident) *Ident {
 		AST:  ident0.AST,
 		Text: ident0.Text,
 		Var:  v,
-		typ:  builtInType(x, "&", *makeTypeName(v.typ)),
+		typ:  v.Type().Ref(),
 	}
 }
 
@@ -474,7 +476,7 @@ func lookUpVar(x *scope, var0 *Var) *Var {
 		panic("impossible")
 	case var1 == nil:
 		panic("impossible")
-	case var1.typ == nil:
+	case var1.Type() == nil:
 		panic("impossible")
 	case (var1.Val == nil) != (var0.Val == nil):
 		panic("impossible")

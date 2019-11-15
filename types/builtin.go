@@ -151,8 +151,9 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 	tmp := x.newID()
 	tparms := []TypeVar{{Name: tmp}}
 	retType := &Type{
-		Name: tmp,
-		Var:  &tparms[0],
+		Name:   tmp,
+		Var:    &tparms[0],
+		refDef: refTypeDef(x),
 	}
 	retType.Def = retType
 	tparms[0].Type = retType
@@ -160,11 +161,12 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 
 	var sel strings.Builder
 	selfType := builtInType(x, "&", *makeTypeName(typ))
-	parms := []Var{{
+	self := Var{
 		Name:     "self",
 		TypeName: makeTypeName(selfType),
 		typ:      selfType,
-	}}
+	}
+	parms := []Var{self}
 	for _, c := range typ.Cases {
 		sel.WriteString("if")
 		sel.WriteString(upperCase(c.Name))
@@ -176,11 +178,12 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			ref := builtInType(x, "&", *c.TypeName)
 			parmType = builtInType(x, "Fun", *makeTypeName(ref), retName)
 		}
-		parms = append(parms, Var{
+		parm := Var{
 			Name:     "_",
 			TypeName: makeTypeName(parmType),
 			typ:      parmType,
-		})
+		}
+		parms = append(parms, parm)
 	}
 	fun := &Fun{
 		AST:  typ.AST,

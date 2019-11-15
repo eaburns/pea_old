@@ -181,13 +181,13 @@ func TestBuiltInMethSelfIsRef(t *testing.T) {
 	if ifSomeIfNone == nil {
 		t.Fatal("ifSome:ifNone: not found")
 	}
-	if ifSomeIfNone.Sig.Parms[0].typ.Name != "&" {
+	if ifSomeIfNone.Sig.Parms[0].Type().Name != "&" {
 		t.Errorf("ifSome:ifNone: non-reference self")
 	}
 	if foo == nil {
 		t.Fatal("foo not found")
 	}
-	if foo.Sig.Parms[0].typ.Name != "&" {
+	if foo.Sig.Parms[0].Type().Name != "&" {
 		t.Error("foo non-reference self")
 	}
 }

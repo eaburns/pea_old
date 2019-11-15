@@ -183,9 +183,10 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 	for i := range astVars {
 		astVar := &astVars[i]
 		typ := &Type{
-			AST:  astVar,
-			Name: astVar.Name,
-			Var:  &vars[i],
+			AST:    astVar,
+			Name:   astVar.Name,
+			Var:    &vars[i],
+			refDef: refTypeDef(x),
 		}
 		typ.Def = typ
 		vars[i] = TypeVar{
@@ -239,6 +240,8 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 	defer x.tr("gatherType(%p %s)", def, def.AST)(&errs)
 
 	astType := def.AST.(*ast.Type)
+
+	def.refDef = refTypeDef(x)
 
 	var es []checkError
 	x, def.Parms, es = gatherTypeParms(x, astType.Sig.Parms)

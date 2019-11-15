@@ -2005,8 +2005,8 @@ func TestAssignToNewVariable(t *testing.T) {
 	if assign0.Var != l {
 		t.Errorf("assign0.Van (%p) != val.Locals[0] (%p)", assign0.Var, l)
 	}
-	if l.typ == nil || l.typ.Name != "Int" || l.typ.Mod != "" {
-		t.Errorf("got %v, expected Int", l.typ)
+	if typ := l.Type(); typ == nil || typ.Name != "Int" || typ.Mod != "" {
+		t.Errorf("got %v, expected Int", typ)
 	}
 }
 
@@ -4010,4 +4010,56 @@ func (imports testImporter) Import(cfg Config, path string) ([]Def, error) {
 		return mod.Defs, nil
 	}
 	return nil, errors.New("not found")
+}
+
+// Test the Type.Ref() method.
+func TestTypeRef(t *testing.T) {
+	const src = `
+		type (X, Y) Pair {x: X y: Y}
+		val stringFloatPair (String, Float) Pair := [{x: "hello" y: 3.14}]
+
+		val i Int := [5]
+		val iRef Int& := [6]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	sf := findTestVal(mod, "stringFloatPair").Var.Type()
+	sfRef := sf.Ref()
+	want := "(String, Float) Pair&"
+	if got := sfRef.String(); got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+
+	// Test that multiple calls get the same object back.
+	sfRef2 := sf.Ref()
+	if sfRef != sfRef2 {
+		t.Errorf("sfRef2 != sfRef")
+	}
+
+	sfRefRef := sfRef.Ref()
+	want = "(String, Float) Pair& &"
+	if got := sfRefRef.String(); got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+
+	sfRefRefRef := sfRefRef.Ref()
+	want = "(String, Float) Pair& & &"
+	if got := sfRefRefRef.String(); got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+
+	// A Int& should already be instantiated by Check.
+	// Check that we get the same type when calling Int.Ref().
+	i := findTestVal(mod, "i").Var.Type()
+	iRef := findTestVal(mod, "iRef").Var.Type()
+	if i.Ref() != iRef {
+		t.Errorf("i.Ref() != iRef")
+	}
 }

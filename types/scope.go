@@ -136,6 +136,15 @@ func (x *scope) findImport(name string) *imp {
 	return x.up.findImport(name)
 }
 
+func refTypeDef(x *scope) *Type {
+	for {
+		if x.univ != nil {
+			return findTypeInDefs(1, "&", x.univ)
+		}
+		x = x.up
+	}
+}
+
 func findType(x *scope, loc ast.Node, mod *ast.ModTag, arity int, name string) (typ *Type, err *checkError) {
 	if mod != nil {
 		imp, err := findImport(x, mod)

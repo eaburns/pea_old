@@ -117,7 +117,7 @@ func instVarTypes(x *scope, vars []Var) (errs []checkError) {
 		}
 		errs = append(errs, instTypeName(x, v.TypeName)...)
 		v.typ = v.TypeName.Type
-		x.log("var %s type %s", v.Name, v.typ)
+		x.log("var %s type %s", v.Name, v.Type())
 	}
 	return errs
 }
@@ -283,7 +283,7 @@ type funSigArgTypes struct {
 func (s funSigArgTypes) ast() ast.Node { return s.loc }
 
 func (s funSigArgTypes) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
-	return s.sig.Parms[i].typ, s.sig.Parms[i].AST, nil
+	return s.sig.Parms[i].Type(), s.sig.Parms[i].AST, nil
 }
 
 // instFun returns the *Fun instance; on error the *Fun is nil.

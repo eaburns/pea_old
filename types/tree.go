@@ -201,6 +201,12 @@ type Type struct {
 
 	// BuiltIn is non-zero for a built-in type.
 	BuiltIn BuiltInType
+
+	// refDef is the definition of the built-in & type.
+	// It is used to implement the Ref() method,
+	// since Ref() may create a new *Type,
+	// and we need to make sure it's properly memoized.
+	refDef *Type
 }
 
 func (n *Type) ast() ast.Node { return n.AST }
@@ -220,6 +226,26 @@ func (n *Type) name() string {
 	default:
 		return fmt.Sprintf("%s (%d)%s", n.Mod, n.Arity, n.Name)
 	}
+}
+
+// Ref returns the reference type for this type.
+func (n *Type) Ref() *Type {
+	for _, ref := range n.refDef.Insts {
+		if ref.Args[0].Type == n {
+			return ref
+		}
+	}
+	ref := *n.refDef
+	ref.Args = []TypeName{*makeTypeName(n)}
+	ref.Insts = nil
+	ref.Parms = []TypeVar{ref.Parms[0]}
+	ref.Parms[0].Type = &Type{
+		Name:   ref.Parms[0].Name,
+		Var:    &ref.Parms[0],
+		refDef: n.refDef,
+	}
+	n.refDef.Insts = append(n.refDef.Insts, &ref)
+	return &ref
 }
 
 // A TypeName is the name of a concrete type.

@@ -409,9 +409,9 @@ func checkVal(x *scope, def *Val) (errs []checkError) {
 	x.val = def
 
 	var es []checkError
-	def.Init, es = checkStmts(x, def.Var.typ, def.AST.Init)
+	def.Init, es = checkStmts(x, def.Var.Type(), def.AST.Init)
 
-	if def.Var.typ == nil {
+	if def.Var.Type() == nil {
 		def.Var.typ = builtInType(x, "Nil")
 		if len(def.Init) > 0 {
 			if expr, ok := def.Init[len(def.Init)-1].(Expr); ok {
@@ -677,7 +677,7 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 	if len(vars) == 1 {
 		var es []checkError
 		assign := &Assign{AST: astAss, Var: vars[0]}
-		assign.Expr, es = checkExpr(x, vars[0].typ, astAss.Expr)
+		assign.Expr, es = checkExpr(x, vars[0].Type(), astAss.Expr)
 		if newLocal[0] && vars[0].TypeName == nil {
 			vars[0].typ = assign.Expr.Type()
 		}
@@ -717,9 +717,9 @@ func checkAssign(x *scope, astAss *ast.Assign) (_ *scope, _ []Stmt, errs []check
 	loc := x.locals()
 	tmp := &Var{
 		Name:  x.newID(),
-		typ:   recvType,
 		Local: loc,
 		Index: len(*loc),
+		typ:   recvType,
 	}
 	*loc = append(*loc, tmp)
 	x = x.new()
@@ -786,9 +786,9 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 				AST:      astVar,
 				Name:     astVar.Name,
 				TypeName: typName,
-				typ:      typ,
 				Local:    loc,
 				Index:    len(*loc),
+				typ:      typ,
 			}
 			*loc = append(*loc, vr)
 			x = x.new()
@@ -1004,7 +1004,7 @@ func funSigEq(a, b *FunSig) bool {
 		return false
 	}
 	for i := range a.Parms {
-		if a.Parms[i].typ != b.Parms[i].typ {
+		if a.Parms[i].Type() != b.Parms[i].Type() {
 			return false
 		}
 	}
@@ -1016,8 +1016,8 @@ func funSigConvert(x *scope, a, b *FunSig) bool {
 		return false
 	}
 	for i := range a.Parms {
-		_, aTyp := refBaseType(x, a.Parms[i].typ)
-		_, bTyp := refBaseType(x, b.Parms[i].typ)
+		_, aTyp := refBaseType(x, a.Parms[i].Type())
+		_, bTyp := refBaseType(x, b.Parms[i].Type())
 		if aTyp != bTyp {
 			return false
 		}
@@ -1140,7 +1140,7 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 			continue
 		}
 		var es []checkError
-		typ := parms[i].typ
+		typ := parms[i].Type()
 		msg.Args[i], es = checkExpr(x, typ, astArg)
 		errs = append(errs, es...)
 	}
@@ -1300,7 +1300,7 @@ func checkOrCtor(x *scope, orType *Type, ctor *Ctor) (errs []checkError) {
 		return errs
 	}
 
-	expr, es := checkExpr(x, c.typ, arg)
+	expr, es := checkExpr(x, c.Type(), arg)
 	ctor.Args = []Expr{expr}
 	return append(errs, es...)
 }
@@ -1368,7 +1368,7 @@ func checkAndCtor(x *scope, andType *Type, ctor *Ctor) (errs []checkError) {
 			continue
 		}
 		var es []checkError
-		ctor.Args[i], es = checkExpr(x, field.typ, astArgs[i])
+		ctor.Args[i], es = checkExpr(x, field.Type(), astArgs[i])
 		errs = append(errs, es...)
 	}
 	return errs
@@ -1451,19 +1451,20 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	typeArgs := make([]TypeName, len(blk.Parms)+1)
 	for i := range blk.Parms {
 		parm := &blk.Parms[i]
-		if parm.typ == nil {
+		if parm.Type() == nil {
 			return blk, errs
 		}
 		if parm.TypeName != nil {
 			typeArgs[i] = *parm.TypeName
 			continue
 		}
+		parmTyp := parm.Type()
 		typeArgs[i] = TypeName{
 			AST:  &astBlock.Parms[i],
-			Mod:  parm.typ.Mod,
-			Name: parm.typ.Name,
-			Args: parm.typ.Args,
-			Type: parm.typ,
+			Mod:  parmTyp.Mod,
+			Name: parmTyp.Name,
+			Args: parmTyp.Args,
+			Type: parmTyp,
 		}
 	}
 
@@ -1506,11 +1507,11 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		case vr.Local != nil:
 			x.localUse[vr] = true
 		}
-		if vr.typ == nil {
+		if vr.Type() == nil {
 			return ident, errs
 		}
 		// Idents are references to their underlying value.
-		ident.typ = builtInType(x, "&", *makeTypeName(vr.typ))
+		ident.typ = vr.Type().Ref()
 		return deref(ident), errs
 	case *Fun:
 		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
