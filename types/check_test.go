@@ -2200,6 +2200,30 @@ func TestCtorRef(t *testing.T) {
 	}
 }
 
+// Test that we collapse chains of refs and derefs.
+func TestCollapseDerefRefChain(t *testing.T) {
+	const src = `
+		val x := [y at: 0]
+		val y Int Array := [{5}]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	// The receiver is a variable with a deref sitting on it.
+	// we should not add a new ref on top of that;
+	// just remove the deref.
+	call := mod.Defs[0].(*Val).Init[0].(*Call)
+	if _, ok := call.Recv.(*Convert); ok {
+		t.Fatalf("expected no Convert")
+	}
+}
+
 // Like TestCtorRef, but adds multiple references.
 func TestCtorRefN(t *testing.T) {
 	const src = `

@@ -928,6 +928,9 @@ func refBaseType(x *scope, typ *Type) (int, *Type) {
 }
 
 func ref(x *scope, expr Expr) Expr {
+	if cvt, ok := expr.(*Convert); ok && cvt.Ref == -1 {
+		return cvt.Expr
+	}
 	var typ *Type
 	if t := expr.Type(); t != nil {
 		typ = builtInType(x, "&", *makeTypeName(t))
@@ -936,6 +939,9 @@ func ref(x *scope, expr Expr) Expr {
 }
 
 func deref(expr Expr) Expr {
+	if cvt, ok := expr.(*Convert); ok && cvt.Ref == 1 {
+		return cvt.Expr
+	}
 	typ := expr.Type().Args[0].Type
 	return &Convert{Expr: expr, Ref: -1, typ: typ}
 }
