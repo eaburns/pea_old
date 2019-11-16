@@ -80,6 +80,7 @@ func instRecvTypes(x *scope, recv *Recv) (errs []checkError) {
 	}
 	var es []checkError
 	recv.Type, es = instType(x, recv.Type, args)
+	x.log("recv.Type=%s", recv.Type)
 	errs = append(errs, es...)
 	x.log("instantiated recv type %s", recv.Type)
 
@@ -99,7 +100,7 @@ func instTypeParamTypes(x *scope, parms []TypeVar) (errs []checkError) {
 }
 
 func instFunSigTypes(x *scope, sig *FunSig) (errs []checkError) {
-	defer x.tr("instFunSigTypes(%s)", sig)(&errs)
+	defer x.tr("instFunSigTypes(%s)", sig.Sel)(&errs)
 	errs = append(errs, instVarTypes(x, sig.Parms)...)
 	if sig.Ret != nil {
 		errs = append(errs, instTypeName(x, sig.Ret)...)
@@ -254,6 +255,7 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 
 	inst := subFun(x, make(map[*Type]*Type), sub, fun)
 	inst.Def = fun.Def
+	inst.Recv.Type = recv
 	inst.Recv.Args = recv.Args
 	file.funInsts = append(file.funInsts, inst)
 	fun.Def.Insts = append(fun.Def.Insts, inst)

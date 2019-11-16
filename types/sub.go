@@ -157,12 +157,10 @@ func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *R
 		return nil
 	}
 	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.name())()
-	if recv0.Type != nil {
-		x.log("recv type: %s", recv0.Type.fullString())
-	}
 
 	recv1 := *recv0
 	recv1.Parms = subTypeParms(x, seen, sub, recv0.Parms)
+	recv1.Args = subTypeNames(x, seen, sub, recv0.Args)
 	recv1.Type = subType(x, seen, sub, recv0.Type)
 	return &recv1
 }
