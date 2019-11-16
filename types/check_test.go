@@ -954,6 +954,63 @@ func TestInsertNilReturn(t *testing.T) {
 	}
 }
 
+func TestInsertNilBlockResult(t *testing.T) {
+	const src = `
+		val foo Nil Fun := [ [] ]
+		val bar Nil Fun := [ [_ := 5] ]
+		val baz Nil Fun := [ [{}] ]
+		val qux Int Fun := [ [5] ]
+		func [ret ^Int | [^3]. ^3]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	foo := findTestVal(mod, "foo")
+	fooBlk := foo.Init[0].(*Block)
+	fooRes := fooBlk.Stmts[len(fooBlk.Stmts)-1].(Expr)
+	if fooRes.Type().BuiltIn != NilType {
+		t.Errorf("expected foo Nil result, got %s", fooRes.Type())
+	}
+
+	bar := findTestVal(mod, "bar")
+	barBlk := bar.Init[0].(*Block)
+	barRes := barBlk.Stmts[len(barBlk.Stmts)-1].(Expr)
+	if barRes.Type().BuiltIn != NilType {
+		t.Errorf("expected bar Nil result, got %s", barRes.Type())
+	}
+
+	baz := findTestVal(mod, "baz")
+	bazBlk := baz.Init[0].(*Block)
+	// Baz already ended with a {}. We should not insert another one.
+	if n := len(bazBlk.Stmts); n != 1 {
+		t.Errorf("expected baz 1 statement, got %d", n)
+	}
+	bazRes := bazBlk.Stmts[len(bazBlk.Stmts)-1].(Expr)
+	if bazRes.Type().BuiltIn != NilType {
+		t.Errorf("expected baz Nil result, got %s", bazRes.Type())
+	}
+
+	qux := findTestVal(mod, "qux")
+	quxBlk := qux.Init[0].(*Block)
+	quxRes := quxBlk.Stmts[len(quxBlk.Stmts)-1].(Expr)
+	if quxRes.Type().BuiltIn != IntType {
+		t.Errorf("expected qux Int result, got %s", quxRes.Type())
+	}
+
+	ret := findTestFun(mod, "ret")
+	retBlk := ret.Stmts[0].(*Block)
+	_, ok := retBlk.Stmts[len(retBlk.Stmts)-1].(*Ret)
+	if !ok {
+		t.Errorf("ret: inserted {} after the return statement")
+	}
+}
+
 func TestMethDef(t *testing.T) {
 	tests := []errorTest{
 		{

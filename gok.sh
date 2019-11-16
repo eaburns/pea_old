@@ -37,6 +37,7 @@ gocyclo -over 15 .\
 	| grep -v "19 types buildTypeString types/string.go" \
 	| grep -v "16 types findMsgFun types/check.go"\
 	| grep -v "16 types convertExpr types/check.go"\
+	| grep -v "17 types checkBlock types/check.go"\
 	| grep -v '16 types [(][*]scope[)].findIdent types/scope.go' \
 	> $o 2>&1
 e=$(mktemp tmp.XXXXXXXXXX)

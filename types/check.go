@@ -1417,7 +1417,6 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	var resInfer *Type
 	parmInfer := make([]*Type, len(astBlock.Parms))
 	if isFun(infer) {
-		x.log("is a fun")
 		resInfer = infer.Args[len(infer.Args)-1].Type
 		n := len(infer.Args)
 		if n > len(astBlock.Parms) {
@@ -1426,8 +1425,6 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 		for i := 0; i < n; i++ {
 			parmInfer[i] = infer.Args[i].Type
 		}
-	} else {
-		x.log("is not a fun")
 	}
 
 	blk := &Block{
@@ -1497,13 +1494,22 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 
 	resType := builtInType(x, "Nil")
-	if n := len(blk.Stmts); n > 0 {
-		if expr, ok := blk.Stmts[n-1].(Expr); ok {
-			resType = expr.Type()
+	if n := len(blk.Stmts); n > 0 && isExpr(blk.Stmts[n-1]) {
+		expr, _ := blk.Stmts[n-1].(Expr)
+		resType = expr.Type()
+		if resType == nil {
+			return blk, errs
 		}
-	}
-	if resType == nil {
-		return blk, errs
+	} else if n == 0 || !isRet(blk.Stmts[n-1]) {
+		// Add a Nil constructor expression, {}, at the end.
+		nilTyp := builtInType(x, "Nil")
+		blk.Stmts = append(blk.Stmts, &Convert{
+			Expr: &Ctor{
+				typ: builtInType(x, "&", *makeTypeName(nilTyp)),
+			},
+			Ref: -1,
+			typ: nilTyp,
+		})
 	}
 	typeArgs[len(typeArgs)-1] = TypeName{
 		AST:  astBlock,
@@ -1514,6 +1520,11 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 	blk.typ = builtInType(x, "Fun", typeArgs...)
 	return blk, errs
+}
+
+func isExpr(stmt Stmt) bool {
+	_, ok := stmt.(Expr)
+	return ok
 }
 
 func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []checkError) {
