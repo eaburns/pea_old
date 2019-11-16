@@ -458,14 +458,33 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 		def.Stmts = []Stmt{}
 	}
 
-	if def.Sig.Ret != nil {
-		errs = append(errs, checkTypeName(x, def.Sig.Ret)...)
-		if def.Stmts != nil && (len(def.Stmts) == 0 || !isRet(def.Stmts[len(def.Stmts)-1])) {
-			err := x.err(def, "missing return at the end of %s", def.name())
-			errs = append(errs, *err)
-		}
+	return append(errs, checkFunRet(x, def)...)
+}
+
+func checkFunRet(x *scope, fun *Fun) []checkError {
+	if fun.Sig.Ret == nil {
+		addNilRet(x, fun)
+		return nil
+	}
+	errs := checkTypeName(x, fun.Sig.Ret)
+	fun.Sig.typ = fun.Sig.Ret.Type
+	if fun.Stmts == nil {
+		return errs
+	}
+	if n := len(fun.Stmts); n == 0 || !isRet(fun.Stmts[n-1]) {
+		err := x.err(fun, "missing return at the end of %s", fun.name())
+		errs = append(errs, *err)
 	}
 	return errs
+}
+
+func addNilRet(x *scope, fun *Fun) {
+	fun.Sig.typ = builtInType(x, "Nil")
+	if fun.Stmts == nil {
+		return
+	}
+	nilRef := builtInType(x, "&", *makeTypeName(builtInType(x, "Nil")))
+	fun.Stmts = append(fun.Stmts, &Ret{Expr: deref(&Ctor{typ: nilRef})})
 }
 
 func checkRecv(x *scope, recv *Recv) (_ *scope, errs []checkError) {
@@ -1111,11 +1130,7 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 	if lastMsg.Fun == nil {
 		return call, errs
 	}
-	if lastMsg.Fun.Sig.Ret == nil {
-		call.typ = builtInType(x, "Nil")
-		return call, errs
-	}
-	call.typ = lastMsg.Fun.Sig.Ret.Type
+	call.typ = lastMsg.Type()
 	return call, errs
 }
 
@@ -1150,6 +1165,13 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 		msg.Args[i], es = checkExpr(x, typ, astArg)
 		errs = append(errs, es...)
 	}
+
+	if msg.Fun.Sig.Ret != nil {
+		msg.typ = msg.Fun.Sig.Ret.Type
+	} else {
+		msg.typ = builtInType(x, "Nil")
+	}
+
 	return msg, errs
 }
 

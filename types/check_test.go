@@ -833,11 +833,32 @@ func TestFuncDef(t *testing.T) {
 			err: "missing return at the end of foo",
 		},
 		{
-			name: "missing return: no statemets",
+			name: "missing return: no statements",
 			src: `
 				func [foo ^Int |]
 			`,
 			err: "missing return at the end of foo",
+		},
+		{
+			name: "no missing return error for declaration",
+			src: `
+				func [foo ^Int]
+			`,
+			err: "",
+		},
+		{
+			name: "no missing return error for nil return",
+			src: `
+				func [foo | ]
+			`,
+			err: "",
+		},
+		{
+			name: "bad return type",
+			src: `
+				func [foo ^Int | ^"hello"]
+			`,
+			err: "have String, want Int",
 		},
 		{
 			name: "no missing return for decl",
@@ -887,6 +908,49 @@ func TestFuncDef(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
+	}
+}
+
+func TestInsertNilReturn(t *testing.T) {
+	const src = `
+		func [foo | 5 + 6]
+		func [bar | ]
+		func [decl]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+	foo := findTestFun(mod, "foo")
+	fooRet := foo.Stmts[len(foo.Stmts)-1].(*Ret)
+	if fooRet.Expr.Type().BuiltIn != NilType {
+		t.Errorf("expected foo Nil return, got %s", fooRet.Expr.Type())
+	}
+	if foo.Sig.Type().BuiltIn != NilType {
+		t.Errorf("expected foo Nil Ret.Type, got %s", foo.Sig.Type())
+	}
+
+	bar := findTestFun(mod, "bar")
+	barRet := bar.Stmts[len(bar.Stmts)-1].(*Ret)
+	if barRet.Expr.Type().BuiltIn != NilType {
+		t.Errorf("expected bar Nil return, got %s", barRet.Expr.Type())
+	}
+	if bar.Sig.Type().BuiltIn != NilType {
+		t.Errorf("expected bar Nil Ret.Type, got %s", bar.Sig.Type())
+	}
+
+	// A declaration should still have Stmts=nil,
+	// but Sig.Ret.Type() should be the Nil type.
+	decl := findTestFun(mod, "decl")
+	if decl.Stmts != nil {
+		t.Errorf("expected decl.Stmts==nil, got len=%d", len(decl.Stmts))
+	}
+	if decl.Sig.Type().BuiltIn != NilType {
+		t.Errorf("expected decl Nil Ret.Type, got %s", bar.Sig.Type())
 	}
 }
 

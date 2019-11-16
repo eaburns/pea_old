@@ -94,6 +94,11 @@ type Fun struct {
 	// Stmts!=nil, len(Stmts)==0, and BuiltIn==0,
 	// which represents a definition with no statements.
 
+	// Stmts, if non-nil, will always end with a *Ret.
+	// If the return type of the Fun is specified,
+	// it is an error for the last statement to not be an explicit return.
+	// If the return type of the Fun was not specified,
+	// a return of the Nil literal, {}, is added.
 	Stmts  []Stmt
 	Locals []*Var
 
@@ -158,10 +163,17 @@ type FunSig struct {
 	AST   *ast.FunSig
 	Sel   string
 	Parms []Var // types cannot be nil
-	Ret   *TypeName
+	// Ret is the explicitly specified return type or nil.
+	Ret *TypeName
+	typ *Type
 }
 
 func (n *FunSig) ast() ast.Node { return n.AST }
+
+// Type returns the return type.
+// If the return type was not explicitly specified;
+// the return type is the Nil type.
+func (n *FunSig) Type() *Type { return n.typ }
 
 // A Type defines a type.
 type Type struct {
@@ -387,7 +399,11 @@ type Call struct {
 }
 
 func (n *Call) ast() ast.Node { return n.AST }
-func (n *Call) Type() *Type   { return n.typ }
+
+// Type returns the return type of the last message in the Call.
+// If the last message in the call has no return,
+// then Type() is the Nil type.
+func (n *Call) Type() *Type { return n.typ }
 
 // A Msg is a message, sent to a value.
 type Msg struct {
@@ -398,9 +414,14 @@ type Msg struct {
 	Args []Expr
 
 	Fun *Fun
+	typ *Type
 }
 
 func (n Msg) ast() ast.Node { return n.AST }
+
+// Type returns the return type of the message.
+// If the function has no return, then Type() is the Nil type.
+func (n *Msg) Type() *Type { return n.typ }
 
 func (n Msg) name() string {
 	if n.Mod == "" {
