@@ -288,6 +288,7 @@ func (n *TypeName) name() string {
 type Var struct {
 	AST  *ast.Var
 	Name string
+
 	// TypeName is non-nil if explicit.
 	TypeName *TypeName
 
@@ -297,6 +298,7 @@ type Var struct {
 	BlkParm *Block  // a block parm; Index is the Parms index.
 	Local   *[]*Var // a local variable; Index is the index.
 	Field   *Type   // an And-type field; Index is the Fields index.
+	Case    *Type   // an Or-type case; Index is the Case index.
 	// Index is used as described above.
 	Index int
 
@@ -439,8 +441,16 @@ func (n *Block) Type() *Type   { return n.typ }
 type Ident struct {
 	AST  *ast.Ident
 	Text string
-	Var  *Var
-	typ  *Type
+	// The Var is the variable referenced by this identifier.
+	// The Var will have one of the following fields non-nil:
+	// 	Val if this is a module-level variable.
+	// 	FunParm if this is a function or method parameter.
+	// 	BlkParm if this is a block parameter.
+	// 	Local if this is a local variable.
+	// 	Field if this is a method receiver field.
+	// The Case field will never be non-nil.
+	Var *Var
+	typ *Type
 }
 
 func (n *Ident) ast() ast.Node { return n.AST }

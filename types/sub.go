@@ -119,6 +119,7 @@ func subCases(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 	typ.Cases = make([]Var, len(cases0))
 	for i := range cases0 {
 		typ.Cases[i] = subVar(x, seen, sub, &cases0[i])
+		typ.Cases[i].Case = typ
 		typ.Cases[i].Index = i
 	}
 }

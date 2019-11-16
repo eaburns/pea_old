@@ -268,6 +268,10 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 		}
 	case astType.Cases != nil:
 		def.Cases, es = gatherVars(x, astType.Cases)
+		for i := range def.Cases {
+			def.Cases[i].Case = def
+			def.Cases[i].Index = i
+		}
 		errs = append(errs, es...)
 	case astType.Virts != nil:
 		def.Virts, es = gatherFunSigs(x, astType.Virts)
