@@ -33,20 +33,11 @@ var univ = `
 	meth T Array [ at: _ Int put: _ T]
 	meth T Array [ from: _ Int to: _ Int ^T Array]
 
-	type _ Fun {}
-	meth T Fun [ value ^T]
-
-	type (_, _) Fun {}
-	meth (T, U) Fun [ value: _ T ^U]
-
-	type (_, _, _) Fun {}
-	meth (T, U, V) Fun [ value: _ T value: _ U ^V]
-
-	type (_, _, _, _) Fun {}
-	meth (T, U, V, W) Fun [ value: _ T value: _ U  value: _ V ^W]
-
-	type (_, _, _, _, _) Fun {}
-	meth (T, U, V, W, X) Fun [ value: _ T value: _ U  value: _ V value: _ W ^ X]
+	type T Fun {[value ^T]}
+	type (T, U) Fun {[value: T ^U]}
+	type (T, U, V) Fun {[value: T value: U ^V]}
+	type (T, U, V, W) Fun {[value: T value: U  value: V ^W]}
+	type (T, U, V, W, X) Fun {[value: T value: U  value: V value: W ^ X]}
 
 	type Byte := UInt8.
 	type Word := UInt.

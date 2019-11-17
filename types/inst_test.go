@@ -120,7 +120,7 @@ func TestInstType(t *testing.T) {
 				type T Test := (T, String) Fun.
 				func [foo ^Int Test]
 			`,
-			want: "type (Int, String) Fun {}",
+			want: "type (Int, String) Fun { [value: Int ^String] }",
 		},
 	}
 	for _, test := range tests {
