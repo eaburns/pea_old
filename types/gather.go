@@ -273,6 +273,16 @@ func gatherType(x *scope, def *Type) (errs []checkError) {
 			def.Cases[i].Index = i
 		}
 		errs = append(errs, es...)
+		switch n := len(def.Cases); {
+		case n < 256:
+			def.tagType = builtInType(x, "UInt8")
+		case n < 65536:
+			def.tagType = builtInType(x, "UInt16")
+		case n < 4294967296:
+			def.tagType = builtInType(x, "UInt32")
+		default:
+			errs = append(errs, *x.err(def, "too many cases"))
+		}
 	case astType.Virts != nil:
 		def.Virts, es = gatherFunSigs(x, astType.Virts)
 		errs = append(errs, es...)

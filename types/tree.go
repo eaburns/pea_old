@@ -219,6 +219,10 @@ type Type struct {
 	// since Ref() may create a new *Type,
 	// and we need to make sure it's properly memoized.
 	refDef *Type
+
+	// tagType is the type of the or-type tag if this is an or-type,
+	// otherwise it is nil.
+	tagType *Type
 }
 
 func (n *Type) ast() ast.Node { return n.AST }
@@ -259,6 +263,10 @@ func (n *Type) Ref() *Type {
 	n.refDef.Insts = append(n.refDef.Insts, &ref)
 	return &ref
 }
+
+// Tag returns an integer type big enough to hold the tag of an or-type
+// or nil if this type is not an or-type.
+func (n *Type) Tag() *Type { return n.tagType }
 
 // A TypeName is the name of a concrete type.
 type TypeName struct {

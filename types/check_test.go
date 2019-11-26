@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1310,6 +1311,44 @@ func TestOrTypeDef(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, test.run)
 	}
+}
+
+func TestOrTagType(t *testing.T) {
+	var src = `
+		type or2 { one | two }
+		type and1 { x: Int }
+	` + bigOr(257)
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+
+	or2 := findTestType(mod, "or2")
+	if or2.Tag() == nil || or2.Tag().BuiltIn != UInt8Type {
+		t.Errorf("expected UInt8Type, got %s", or2.Tag())
+	}
+	or257 := findTestType(mod, "or257")
+	if or257.Tag() == nil || or257.Tag().BuiltIn != UInt16Type {
+		t.Errorf("expected UInt16Type, got %s", or257.Tag())
+	}
+	and1 := findTestType(mod, "and1")
+	if and1.Tag() != nil {
+		t.Errorf("expected nil, got %s", and1.Tag())
+	}
+}
+
+func bigOr(n int) string {
+	var s strings.Builder
+	for i := 0; i < n; i++ {
+		s.WriteString(" | ")
+		s.WriteString("case")
+		s.WriteString(strconv.Itoa(i))
+	}
+	return fmt.Sprintf("type or%d { %s }", n, &s)
 }
 
 func TestVirtTypeDef(t *testing.T) {
