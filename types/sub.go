@@ -448,6 +448,8 @@ func subBlock(x *scope, sub map[*TypeVar]TypeName, block0 *Block) *Block {
 
 	block1.Stmts = subStmts(x, sub, block0.Stmts)
 
+	block1.BlockType = makeBlockType(x, block1)
+
 	return block1
 }
 

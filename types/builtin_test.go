@@ -191,3 +191,32 @@ func TestBuiltInMethSelfIsRef(t *testing.T) {
 		t.Error("foo non-reference self")
 	}
 }
+
+func TestBlockType(t *testing.T) {
+	src := `
+		val test (Int, Int) Fun := [
+			x := 5.
+			y := 6.
+			z := 7.
+			[ :a Int |
+				x := x + y.
+				z := z + a.
+				x + y + z
+			]
+		]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+	blk := findTestVal(mod, "test").Init[3].(*Block)
+	got := blk.BlockType.fullString()
+	const want = "type $Block0 { x: Int& y: Int& z: Int& }"
+	if got != want {
+		t.Errorf("got block type %s, want %s", got, want)
+	}
+}

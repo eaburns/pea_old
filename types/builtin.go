@@ -31,6 +31,8 @@ const (
 	FloatType
 	Float32Type
 	Float64Type
+	// A BlockType is the type of a block literal.
+	BlockType
 )
 
 var builtInTypeTag = map[string]BuiltInType{
@@ -270,6 +272,37 @@ func makeTypeName(typ *Type) *TypeName {
 		Args: args,
 		Type: typ,
 	}
+}
+
+func makeBlockType(x *scope, blk *Block) *Type {
+	name := fmt.Sprintf("$Block%d", x.nextBlockType)
+	x.nextBlockType++
+	typ := &Type{
+		AST:     blk.AST,
+		Priv:    true,
+		Name:    name,
+		BuiltIn: BlockType,
+	}
+	typ.Def = typ
+	typ.Fields = make([]Var, len(blk.Captures))
+	for i, cap := range blk.Captures {
+		typ.Fields[i] = Var{
+			AST:      cap.AST,
+			Name:     cap.Name,
+			TypeName: cap.TypeName,
+			Field:    typ,
+			Index:    i,
+			typ:      cap.typ.Ref(),
+		}
+		if typ.Fields[i].TypeName == nil {
+			// Fields always need a type name.
+			// Some captures may have one from the source,
+			// if so we want that one, because it will have AST info.
+			// Otherwise, we construct a new one here.
+			typ.Fields[i].TypeName = makeTypeName(cap.typ.Ref())
+		}
+	}
+	return typ
 }
 
 func builtInType(x *scope, name string, args ...TypeName) *Type {

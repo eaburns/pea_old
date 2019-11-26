@@ -177,7 +177,7 @@ func (n *FunSig) Type() *Type { return n.typ }
 
 // A Type defines a type.
 type Type struct {
-	AST ast.Node // *ast.Type or *ast.Var
+	AST ast.Node // *ast.Type, *ast.Var, or *ast.Block
 	// Def is the original definition.
 	// If the type is not an instance, Def points to itself.
 	// If the type is an instance, Def points to the non-instantiated *Type.
@@ -464,7 +464,13 @@ type Block struct {
 	// used within the block.
 	Captures []*Var
 	Locals   []*Var
-	typ      *Type
+
+	// BlockType is a unique, underlying type for a block literal.
+	// It is an and-type with a field for each of Captures.
+	// This differs from Type() which returns the Fun type of the block.
+	BlockType *Type
+
+	typ *Type
 }
 
 func (n *Block) ast() ast.Node { return n.AST }

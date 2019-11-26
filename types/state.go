@@ -38,8 +38,9 @@ type state struct {
 	// across multiple files if they all use the same methods.
 	funTodo []funFile
 
-	nextID int
-	indent string
+	nextID        int
+	nextBlockType int
+	indent        string
 }
 
 type witness struct {
