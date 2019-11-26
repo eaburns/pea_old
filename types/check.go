@@ -819,6 +819,7 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 				x.use(found.Val, astAss)
 			}
 			if !found.isSelf() {
+				markCapture(x, found)
 				if astVar.Type != nil {
 					err := x.err(astVar, "%s redefined", astVar.Name)
 					note(err, "previous definition at %s", x.loc(found))
@@ -1549,6 +1550,7 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		if vr.Type() == nil {
 			return ident, errs
 		}
+		markCapture(x, vr)
 		// Idents are references to their underlying value.
 		ident.typ = vr.Type().Ref()
 		return deref(ident), errs

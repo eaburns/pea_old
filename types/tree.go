@@ -459,8 +459,12 @@ type Block struct {
 	Parms []Var // if type is nil, it must be inferred
 	Stmts []Stmt
 
-	Locals []*Var
-	typ    *Type
+	// Captures are local variables or parameters
+	// defined outside of the scope of the block,
+	// used within the block.
+	Captures []*Var
+	Locals   []*Var
+	typ      *Type
 }
 
 func (n *Block) ast() ast.Node { return n.AST }

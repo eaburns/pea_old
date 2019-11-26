@@ -3,7 +3,9 @@ package types
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -3554,7 +3556,7 @@ func TestAssignToField(t *testing.T) {
 	}
 }
 
-func TestBlockLiteralError(t *testing.T) {
+func TestBlockLiteral(t *testing.T) {
 	tests := []errorTest{
 		{
 			name: "no infer type",
@@ -3592,6 +3594,67 @@ func TestBlockLiteralError(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, test.run)
 	}
+}
+
+func TestBlockCapture(t *testing.T) {
+	var src = `
+		val notCapVal := [2]
+		meth test [foo: capParm Int ^(Int, Nil) Fun Fun |
+			capLocal := 2.
+			// The outer block captures capParm, capLocal and self.
+			^[
+				// The middle block captures capParm, capLocal, and self
+				[:capBlockParm Int |
+					// The inner-most block captures
+					// capParm, capLocal, and capBlockParm.
+					[
+						capParm := capLocal.
+						capLocal := notCapVal.
+						notCapVal := capBlockParm
+					].
+					capBlockParm := capField.
+				]
+			]
+		]
+		type test { capField: Int }
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+	foo := findTestFun(mod, "foo:")
+	ret := foo.Stmts[1].(*Ret)
+
+	block0 := ret.Expr.(*Block)
+	want := []string{"capLocal", "capParm", "self"}
+	if got := sortedCaptureNames(block0); !reflect.DeepEqual(got, want) {
+		t.Errorf("block0 captures %v, wanted %v", got, want)
+	}
+
+	block1 := block0.Stmts[0].(*Block)
+	want = []string{"capLocal", "capParm", "self"}
+	if got := sortedCaptureNames(block1); !reflect.DeepEqual(got, want) {
+		t.Errorf("block1 captures %v, wanted %v", got, want)
+	}
+
+	block2 := block1.Stmts[0].(*Block)
+	want = []string{"capBlockParm", "capLocal", "capParm"}
+	if got := sortedCaptureNames(block2); !reflect.DeepEqual(got, want) {
+		t.Errorf("block2 captures %v, wanted %v", got, want)
+	}
+}
+
+func sortedCaptureNames(block *Block) []string {
+	var names []string
+	for _, c := range block.Captures {
+		names = append(names, c.Name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func TestBlockTypeInference(t *testing.T) {
