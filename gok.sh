@@ -54,6 +54,7 @@ golint ./... \
 	| grep -v "grammar.go:" \
 	| egrep -v "ast.go:.*(Priv) should have comment" \
 	| egrep -v "tree.go:.*(AST|ID|Mod|PrettyPrint|Priv|Type) should have comment" \
+	| egrep -v "basic.go:.*(Out|Type|Uses) should have comment" \
 	> $o 2>&1
 # Silly: diff the grepped golint output with empty.
 # If it's non-empty, error, otherwise succeed.

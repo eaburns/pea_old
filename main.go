@@ -6,14 +6,16 @@ import (
 	"os"
 
 	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/basic"
 	"github.com/eaburns/pea/types"
 	"github.com/eaburns/peggy/peg"
 	"github.com/eaburns/pretty"
 )
 
 var (
-	printAST   = flag.Bool("ast", false, "print the AST to standard output")
-	printTypes = flag.Bool("types", false, "print the semantic tree to standard output")
+	printAST   = flag.Bool("ast", false, "print the AST")
+	printTypes = flag.Bool("types", false, "print the semantic tree")
+	printBasic = flag.Bool("basic", false, "print the basic representation")
 	trace      = flag.Bool("trace", false, "enable tracing in the type checker")
 )
 
@@ -53,6 +55,11 @@ func main() {
 		trimmedTypeMod.AST = nil
 		pretty.Print(trimmedTypeMod)
 		fmt.Println("")
+	}
+
+	basicMod := basic.Build(typesMod)
+	if *printBasic {
+		fmt.Println(basicMod.String())
 	}
 }
 
