@@ -439,6 +439,17 @@ func (n Msg) name() string {
 }
 
 // A Ctor type constructor literal.
+// Ctor literals construct Arrays types, And types, and Or types.
+//
+// For Array types, Args correspond to the successive
+// array elements starting from element 0.
+//
+// For And types, the Args correspond to the Fields,
+// with Args[i] corresponding to Fields[i].
+//
+// For Or types, the case constructed is given by Cases[*Ctor.Case].
+// If the case has a type, len(Args)==1 and the value is Args[0].
+// If the case has no type, len(Args)==0.
 type Ctor struct {
 	AST  *ast.Ctor
 	Args []Expr
