@@ -123,6 +123,8 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 
 	errs = append(errs, checkUnusedImports(x)...)
 
+	mod.IntType = builtInType(x, "Int")
+
 	return mod, errs
 }
 

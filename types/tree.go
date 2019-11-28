@@ -15,6 +15,9 @@ type Mod struct {
 	AST  *ast.Mod
 	Name string
 	Defs []Def
+
+	// IntType is a pointer to the Int type.
+	IntType *Type
 }
 
 // A Node is a node of the AST with location information.
