@@ -1553,7 +1553,7 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		if vr.Type() == nil {
 			return ident, errs
 		}
-		markCapture(x, vr)
+		ident.Capture = markCapture(x, vr)
 		// Idents are references to their underlying value.
 		ident.typ = vr.Type().Ref()
 		return deref(ident), errs

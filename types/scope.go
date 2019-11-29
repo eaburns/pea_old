@@ -483,18 +483,18 @@ func findFunInDefs(recv *Type, sel string, defs []Def) *Fun {
 	return nil
 }
 
-func markCapture(x *scope, vr *Var) {
+func markCapture(x *scope, vr *Var) (captured bool) {
 	if vr.Val != nil || vr.Case != nil {
 		// We don't need to capture module-level variables.
 		// We should never be called with vr.Case != nil;
 		// it is not an identifier.
-		return
+		return false
 	}
 	if vr.Field != nil {
 		// If a field is used, we capture the 'self' parameter.
 		f := x.function()
 		if len(f.Sig.Parms) == 0 || !f.Sig.Parms[0].isSelf() {
-			return
+			return false
 		}
 		vr = &f.Sig.Parms[0]
 	}
@@ -505,11 +505,13 @@ func markCapture(x *scope, vr *Var) {
 		}
 		if vr.BlkParm == x.block || vr.Local == &x.block.Locals {
 			// We found the definiting block.
-			return
+			return captured
 		}
 		addCapture(x.block, vr)
+		captured = true
 		x = x.up
 	}
+	return captured
 }
 
 func addCapture(b *Block, vr *Var) {

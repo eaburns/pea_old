@@ -457,12 +457,12 @@ func subIdent(x *scope, sub map[*TypeVar]TypeName, ident0 *Ident) *Ident {
 	defer x.tr("subIdent(%s)", ident0.Text)()
 
 	v := lookUpVar(x, ident0.Var)
-	markCapture(x, v)
 	return &Ident{
-		AST:  ident0.AST,
-		Text: ident0.Text,
-		Var:  v,
-		typ:  v.Type().Ref(),
+		AST:     ident0.AST,
+		Text:    ident0.Text,
+		Var:     v,
+		Capture: markCapture(x, v),
+		typ:     v.Type().Ref(),
 	}
 }
 

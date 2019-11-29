@@ -494,6 +494,7 @@ func (n *Block) Type() *Type   { return n.typ }
 type Ident struct {
 	AST  *ast.Ident
 	Text string
+
 	// The Var is the variable referenced by this identifier.
 	// The Var will have one of the following fields non-nil:
 	// 	Val if this is a module-level variable.
@@ -503,6 +504,11 @@ type Ident struct {
 	// 	Field if this is a method receiver field.
 	// The Case field will never be non-nil.
 	Var *Var
+
+	// Capture indicates that this identifier
+	// is a capture of variable of a block literal.
+	Capture bool
+
 	typ *Type
 }
 
