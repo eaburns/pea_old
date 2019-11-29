@@ -284,6 +284,7 @@ func makeBlockType(x *scope, blk *Block) *Type {
 		BuiltIn: BlockType,
 	}
 	typ.Def = typ
+	typ.Insts = []*Type{typ}
 	typ.Fields = make([]Var, len(blk.Captures))
 	for i, cap := range blk.Captures {
 		typ.Fields[i] = Var{
@@ -302,6 +303,7 @@ func makeBlockType(x *scope, blk *Block) *Type {
 			typ.Fields[i].TypeName = makeTypeName(cap.typ.Ref())
 		}
 	}
+	typ.refDef = builtInType(x, "&", *makeTypeName(typ))
 	return typ
 }
 
