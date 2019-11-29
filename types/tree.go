@@ -474,8 +474,8 @@ type Block struct {
 	Stmts []Stmt
 
 	// Captures are local variables or parameters
-	// defined outside of the scope of the block,
-	// used within the block.
+	// defined outside the block, used by the block.
+	// For fields, the self parameter is captured.
 	Captures []*Var
 	Locals   []*Var
 
