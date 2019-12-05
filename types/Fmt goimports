@@ -490,6 +490,16 @@ func markCapture(x *scope, vr *Var) (captured bool) {
 		// it is not an identifier.
 		return false
 	}
+	/*
+		if vr.Field != nil {
+			// If a field is used, we capture the 'self' parameter.
+			f := x.function()
+			if len(f.Sig.Parms) == 0 || !f.Sig.Parms[0].isSelf() {
+				return false
+			}
+			vr = &f.Sig.Parms[0]
+		}
+	*/
 	for x != nil {
 		if x.block == nil {
 			x = x.up

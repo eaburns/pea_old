@@ -3630,13 +3630,13 @@ func TestBlockCapture(t *testing.T) {
 	ret := foo.Stmts[1].(*Ret)
 
 	block0 := ret.Expr.(*Block)
-	want := []string{"capLocal", "capParm", "self"}
+	want := []string{"capField", "capLocal", "capParm"}
 	if got := sortedCaptureNames(block0); !reflect.DeepEqual(got, want) {
 		t.Errorf("block0 captures %v, wanted %v", got, want)
 	}
 
 	block1 := block0.Stmts[0].(*Block)
-	want = []string{"capLocal", "capParm", "self"}
+	want = []string{"capField", "capLocal", "capParm"}
 	if got := sortedCaptureNames(block1); !reflect.DeepEqual(got, want) {
 		t.Errorf("block1 captures %v, wanted %v", got, want)
 	}
