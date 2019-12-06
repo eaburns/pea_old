@@ -1129,9 +1129,10 @@ func TestBuild(t *testing.T) {
 						string($0, string1)
 						string($1, string1)
 						call function2($0, $1, $2)
-						$3 := arg(0)
-						$4 := load($3)
-						copy($4, $2, Bool)
+						$3 := load($2)
+						$4 := arg(0)
+						$5 := load($4)
+						store($5, $3)
 						return
 			`,
 		},
@@ -1646,9 +1647,174 @@ func TestBuild(t *testing.T) {
 						far return
 			`,
 		},
+		{
+			name: "bool is an enum",
+			src: `
+				func [foo ^Bool | ^{true}]
+			`,
+			fun: "",
+			want: `
+				function0
+					parms:
+						0 Bool&
+					0:
+						$0 := alloc(Bool)
+						jmp 1
+					1:
+						$1 := 1
+						store($0, $1)
+						$2 := load($0)
+						$3 := arg(0)
+						$4 := load($3)
+						store($4, $2)
+						return
+			`,
+		},
+		{
+			name: "enum type",
+			src: `
+				func [foo ^Num | ^{four}]
+				type Num {zero|one|two|three|four|five|six}
+			`,
+			fun: "",
+			want: `
+				function0
+					parms:
+						0 Num&
+					0:
+						$0 := alloc(Num)
+						jmp 1
+					1:
+						$1 := 4
+						store($0, $1)
+						$2 := load($0)
+						$3 := arg(0)
+						$4 := load($3)
+						store($4, $2)
+						return
+			`,
+		},
+		{
+			name: "bool switch",
+			src: `
+				func [foo | b Bool := {false}. b ifTrue: [] ifFalse: []]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						$0 := alloc(Bool)
+						$1 := alloc(Bool)
+						$4 := alloc($Block0)
+						$5 := alloc(Nil Fun)
+						$6 := alloc($Block1)
+						$7 := alloc(Nil Fun)
+						jmp 1
+					1:
+						$2 := 0
+						store($1, $2)
+						$3 := load($1)
+						store($0, $3)
+						and($4, {})
+						virt($5, $4, {block1})
+						and($6, {})
+						virt($7, $6, {block2})
+						$8 := load($0)
+						switch $8 [true 2] [false 3]
+					2:
+						virt call $5.0($5)
+						jmp 4
+					3:
+						virt call $7.0($7)
+						jmp 4
+					4:
+						return
+			`,
+		},
+		{
+			name: "enum switch",
+			src: `
+				func [foo | n Num := {zero}. n ifZero: [] ifOne: []]
+				type Num {zero|one}
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						$0 := alloc(Num)
+						$1 := alloc(Num)
+						$4 := alloc($Block0)
+						$5 := alloc(Nil Fun)
+						$6 := alloc($Block1)
+						$7 := alloc(Nil Fun)
+						jmp 1
+					1:
+						$2 := 0
+						store($1, $2)
+						$3 := load($1)
+						store($0, $3)
+						and($4, {})
+						virt($5, $4, {block1})
+						and($6, {})
+						virt($7, $6, {block2})
+						$8 := load($0)
+						switch $8 [zero 2] [one 3]
+					2:
+						virt call $5.0($5)
+						jmp 4
+					3:
+						virt call $7.0($7)
+						jmp 4
+					4:
+						return
+			`,
+		},
+		{
+			name: "bool returning op",
+			src: `
+				func [foo | 1 < 2 ifTrue: [] ifFalse: []]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						$1 := alloc(Int)
+						$5 := alloc(Bool)
+						$6 := alloc($Block0)
+						$7 := alloc(Nil Fun)
+						$8 := alloc($Block1)
+						$9 := alloc(Nil Fun)
+						jmp 1
+					1:
+						$0 := 1
+						store($1, $0)
+						$2 := load($1)
+						$3 := 2
+						$4 := $2 < $3
+						store($5, $4)
+						and($6, {})
+						virt($7, $6, {block1})
+						and($8, {})
+						virt($9, $8, {block2})
+						$10 := load($5)
+						switch $10 [true 2] [false 3]
+					2:
+						virt call $7.0($7)
+						jmp 4
+					3:
+						virt call $9.0($9)
+						jmp 4
+					4:
+						return
+			`,
+		},
 	}
 	for _, test := range tests {
 		test := test
+		fmt.Println(test.name)
 		t.Run(test.name, func(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()

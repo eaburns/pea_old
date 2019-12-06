@@ -420,7 +420,12 @@ func buildCaseMeth(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 		ret = addAlloc(f, b, msg.Type())
 	}
 
-	tag := addOp(f, b, orType.Tag().Ref(), UnionTagOp, recv)
+	var tag Val
+	if enumType(orType) {
+		tag = addLoad(f, b, recv)
+	} else {
+		tag = addOp(f, b, orType.Tag(), UnionTagOp, recv)
+	}
 	var cases []*BBlk
 	for i, arg := range args {
 		bb := newBBlk(f)
@@ -493,14 +498,32 @@ func buildArrayCtor(f *Fun, b *BBlk, ctor *types.Ctor) (Val, *BBlk) {
 
 func buildOrCtor(f *Fun, b *BBlk, ctor *types.Ctor) (Val, *BBlk) {
 	var val Val
-	switch {
+	switch orType := ctor.Type().Args[0].Type; {
 	case len(ctor.Args) > 1:
 		panic("impossible")
+	case enumType(orType):
+		var val *big.Int
+		switch {
+		// Bool is currently defined as {true|false},
+		// but it would be very confusing if true=0 and false=1,
+		// so special case these and swap them: true=1 and false=0.
+		case orType.BuiltIn == types.BoolType && *ctor.Case == 0:
+			val = big.NewInt(1)
+		case orType.BuiltIn == types.BoolType && *ctor.Case == 1:
+			val = big.NewInt(0)
+		default:
+			val = big.NewInt(int64(*ctor.Case))
+		}
+		// Constructors must result in reference types.
+		// The optimization pass should eliminate redundante allocs.
+		a := addAlloc(f, b, orType)
+		i := addIntLit(f, b, orType, val)
+		addStore(b, a, i)
+		return a, b
 	default:
 		val, b = buildExpr(f, b, ctor.Args[0])
 		fallthrough
 	case len(ctor.Args) == 0:
-		orType := ctor.Type().Args[0].Type
 		a := addAlloc(f, b, orType)
 		mk := addMakeOr(b, a, *ctor.Case, val)
 		mk.Ctor = ctor
@@ -960,6 +983,11 @@ func addSwitch(b *BBlk, val Val, dsts []*BBlk, typ *types.Type) *Switch {
 	panicIf(len(typ.Cases) != len(dsts),
 		"switch case count mismatch: got %d, want %d",
 		len(dsts), len(typ.Cases))
+	panicIf(val.Type().BuiltIn != types.UInt8Type &&
+		val.Type().BuiltIn != types.UInt16Type &&
+		!enumType(val.Type()),
+		"switch value type mismatch: got %s, want UInt8, UInt16, or an enum or-type",
+		val.Type())
 	s := &Switch{Val: val, Dsts: dsts, OrType: typ}
 	addStmt(b, s)
 	return s

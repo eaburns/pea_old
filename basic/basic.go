@@ -538,12 +538,13 @@ func EmptyType(typ *types.Type) bool {
 // SimpleType returns whether a type is "simple",
 // indicating that it can be held as a Val (register).
 func SimpleType(typ *types.Type) bool {
-	/* pointerType(typ) || enumType(typ) || */
-	return typ.BuiltIn != 0 &&
-		typ.BuiltIn != types.BoolType &&
-		typ.BuiltIn != types.StringType &&
-		typ.BuiltIn != types.ArrayType &&
-		typ.BuiltIn != types.FunType
+	/* pointerType(typ) */
+	return enumType(typ) ||
+		typ.BuiltIn != 0 &&
+			typ.BuiltIn != types.BoolType &&
+			typ.BuiltIn != types.StringType &&
+			typ.BuiltIn != types.ArrayType &&
+			typ.BuiltIn != types.FunType
 }
 
 func pointerType(typ *types.Type) bool {
