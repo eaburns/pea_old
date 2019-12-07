@@ -76,6 +76,10 @@ func (n *BBlk) buildString(s *strings.Builder, comments bool) *strings.Builder {
 		case ok && i > 0:
 			s.WriteRune('\n')
 		}
+		if bug := t.bugs(); bug != "" {
+			s.WriteString("\n\t\t// BUG: ")
+			s.WriteString(bug)
+		}
 		s.WriteString("\n\t\t")
 		start := s.Len()
 		if v, ok := t.(Val); ok {

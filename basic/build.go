@@ -345,12 +345,9 @@ func buildOp(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 	// Add a load of the receiver as the 0th arg.
 	args = append(args, addLoad(f, b, recv))
 
-	for i, arg := range msg.Args {
+	for _, arg := range msg.Args {
 		var val Val
 		val, b = buildExpr(f, b, arg)
-		panicIf(val == nil || EmptyType(val.Type()), "op arg %d is an empty type", i)
-		panicIf(!SimpleType(val.Type()), "op arg %d is a composite type", i)
-		panicIf(val.Type().BuiltIn == types.RefType, "op arg %d is a reference type", i)
 		args = append(args, val)
 	}
 
@@ -361,7 +358,6 @@ func buildOp(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 }
 
 func buildArrayLoad(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
-	panicIf(len(msg.Args) != 1, "array load got %d args, wanted 1", len(msg.Args))
 	i, b := buildExpr(f, b, msg.Args[0])
 	elm := addIndex(f, b, recv, i)
 	elm.Msg = msg
@@ -369,7 +365,6 @@ func buildArrayLoad(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 }
 
 func buildArrayStore(f *Fun, b *BBlk, recv Val, msg *types.Msg) *BBlk {
-	panicIf(len(msg.Args) != 2, "array store got %d args, wanted 2", len(msg.Args))
 	i, b := buildExpr(f, b, msg.Args[0])
 	val, b := buildExpr(f, b, msg.Args[1])
 	elm := addIndex(f, b, recv, i)
@@ -383,7 +378,6 @@ func buildArrayStore(f *Fun, b *BBlk, recv Val, msg *types.Msg) *BBlk {
 }
 
 func buildArraySlice(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
-	panicIf(len(msg.Args) != 2, "array slice got %d args, wanted 2", len(msg.Args))
 	start, b := buildExpr(f, b, msg.Args[0])
 	end, b := buildExpr(f, b, msg.Args[1])
 	dst := addAlloc(f, b, recv.Type().Args[0].Type)
@@ -393,25 +387,14 @@ func buildArraySlice(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 }
 
 func buildCaseMeth(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
-	panicIf(recv.Type().BuiltIn != types.RefType,
-		"case method on non-reference receiver type %T", recv.Type())
-	orType := recv.Type().Args[0].Type
-	panicIf(len(orType.Cases) == 0,
-		"case method on non-or-type-reference type %T", recv.Type())
-	panicIf(len(orType.Cases) != len(msg.Args),
-		"case method argument count mismatch: got %d, want %d",
-		len(msg.Args), len(orType.Cases))
+	if !isRefType(recv) || len(refElemType(recv).Cases) == 0 {
+		panic(fmt.Sprintf("case method on non-or-type-reference type %T", recv.Type()))
+	}
 
 	var args []Val
-	for i, msgArg := range msg.Args {
+	for _, msgArg := range msg.Args {
 		var arg Val
 		arg, b = buildExpr(f, b, msgArg)
-		panicIf(arg.Type().BuiltIn != types.RefType,
-			"case method argument %d is non-reference type %s",
-			i, arg.Type())
-		panicIf(arg.Type().Args[0].Type.BuiltIn != types.FunType,
-			"case method argument %d is non-Fun-reference type %s",
-			i, arg.Type().Args[0].Type)
 		args = append(args, arg)
 	}
 
@@ -421,6 +404,7 @@ func buildCaseMeth(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 	}
 
 	var tag Val
+	orType := recv.Type().Args[0].Type
 	if enumType(orType) {
 		tag = addLoad(f, b, recv)
 	} else {
@@ -622,7 +606,7 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 
 	fun := buildBlockFun(f.Mod, f.Fun, block)
 	virt := addAlloc(f, b, block.Type())
-	addStmt(b, newMakeVirt(virt, blk, []*Fun{fun}))
+	addStmt(b, &MakeVirt{Dst: virt, Obj: blk, Virts: []*Fun{fun}})
 	return virt
 }
 
@@ -642,13 +626,9 @@ func buildCapture(f *Fun, b *BBlk, vr *types.Var) Val {
 	if EmptyType(vr.Type()) {
 		return nil
 	}
-
-	i := findCapture(f, vr)
-	panicIf(i < 0, "block %s has no capture %s", f.Block.BlockType, vr.Name)
-
 	selfParm := addArg(f, b, findSelf(f))
 	self := addLoad(f, b, selfParm)
-	capPtr := addField(f, b, self, i)
+	capPtr := addField(f, b, self, findCapture(f, vr))
 	return addLoad(f, b, capPtr)
 }
 
@@ -721,157 +701,46 @@ func addComment(b *BBlk, f string, vs ...interface{}) {
 	addStmt(b, &Comment{Text: fmt.Sprintf(f, vs...)})
 }
 
-// TODO: change the newXyz/panicIf convention to addXyz/Xyz.check().
-// Instead of having addXyz, which calls newXyz, which may panic,
-// give each Xyz a check() method of some kind.
-// One option would be to have it behave like comment(),
-// changing the output string, which will cause diffs in tests.
-
 func addStore(b *BBlk, dst, val Val) *Store {
-	s := newStore(dst, val)
+	s := &Store{Dst: dst, Val: val}
 	addStmt(b, s)
 	return s
 }
 
-func newStore(dst, val Val) *Store {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"store to non-reference type %s", dst.Type())
-	panicIf(dst.Type().Args[0].Type != val.Type(),
-		"store type mismatch: %s != %s",
-		dst.Type().Args[0].Type, val.Type())
-	return &Store{Dst: dst, Val: val}
-}
-
 func addCopy(b *BBlk, dst, src Val) *Copy {
-	c := newCopy(dst, src)
+	c := &Copy{Dst: dst, Src: src}
 	addStmt(b, c)
 	return c
 }
 
-func newCopy(dst, src Val) *Copy {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"copy to non-reference type %s", dst.Type())
-	panicIf(src.Type().BuiltIn != types.RefType,
-		"copy from non-reference type %s", src.Type())
-	panicIf(dst.Type() != src.Type(),
-		"copy type mismatch: %s != %s", dst.Type(), src.Type())
-	return &Copy{Dst: dst, Src: src}
+func addMakeArray(b *BBlk, dst Val, args []Val) *MakeArray {
+	s := &MakeArray{Dst: dst, Args: args}
+	addStmt(b, s)
+	return s
 }
 
 func addMakeSlice(b *BBlk, dst, ary, from, to Val) *MakeSlice {
-	s := newMakeSlice(dst, ary, from, to)
+	s := &MakeSlice{Dst: dst, Ary: ary, From: from, To: to}
 	addStmt(b, s)
 	return s
-}
-
-func newMakeSlice(dst, ary, from, to Val) *MakeSlice {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"make slice to non-reference type %s", dst.Type())
-	panicIf(dst.Type().Args[0].Type.BuiltIn != types.ArrayType,
-		"make slice to non-array-reference type %s",
-		dst.Type().Args[0].Type)
-	panicIf(ary.Type().BuiltIn != types.RefType,
-		"make slice from non-reference type %s", ary.Type())
-	panicIf(ary.Type().Args[0].Type.BuiltIn != types.ArrayType,
-		"make slice from non-array-reference type %s",
-		ary.Type().Args[0].Type)
-	panicIf(from.Type().BuiltIn != types.IntType,
-		"make slice non-Int start type %s", from.Type())
-	panicIf(to.Type().BuiltIn != types.IntType,
-		"make slice non-Int end type %s", to.Type())
-	return &MakeSlice{Dst: dst, Ary: ary, From: from, To: to}
-}
-
-func addMakeArray(b *BBlk, dst Val, args []Val) *MakeArray {
-	s := newMakeArray(dst, args)
-	addStmt(b, s)
-	return s
-}
-
-func newMakeArray(dst Val, args []Val) *MakeArray {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"make array of non-reference type %s", dst.Type())
-	panicIf(dst.Type().Args[0].Type.BuiltIn != types.ArrayType,
-		"make string of non-array-reference type %s",
-		dst.Type().Args[0].Type)
-	return &MakeArray{Dst: dst, Args: args}
 }
 
 func addMakeString(b *BBlk, dst Val, str *String) *MakeString {
-	s := newMakeString(dst, str)
+	s := &MakeString{Dst: dst, Data: str}
 	addStmt(b, s)
 	return s
-}
-
-func newMakeString(dst Val, str *String) *MakeString {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"make string of non-reference type %s", dst.Type())
-	panicIf(dst.Type().Args[0].Type.BuiltIn != types.StringType,
-		"make string of non-string-reference type %s",
-		dst.Type().Args[0].Type)
-	return &MakeString{Dst: dst, Data: str}
 }
 
 func addMakeAnd(b *BBlk, dst Val, args []Val) *MakeAnd {
-	s := newMakeAnd(dst, args)
+	s := &MakeAnd{Dst: dst, Fields: args}
 	addStmt(b, s)
 	return s
-}
-
-func newMakeAnd(dst Val, args []Val) *MakeAnd {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"make and of non-reference type %s", dst.Type())
-	andType := dst.Type().Args[0].Type
-
-	for i := range andType.Fields {
-		panicIf(i >= len(args), "make and too few args")
-		arg := args[i]
-		field := &andType.Fields[i]
-		if arg == nil {
-			panicIf(!EmptyType(field.Type()) &&
-				// For block literals, we elide empty-type captures.
-				// But captures always have one extra level of &,
-				// so we have to account for that in this check.
-				(andType.BuiltIn != types.BlockType ||
-					field.Type().BuiltIn != types.RefType ||
-					!EmptyType(field.Type().Args[0].Type)),
-				"make and field %d type mismatch: got nil, want %s",
-				i, field.Type())
-		} else {
-			panicIf(EmptyType(field.Type()) && arg != nil,
-				"make and field %d type mismatch: got %s, want nil",
-				i, arg.Type())
-			panicIf(field.Type() != arg.Type(),
-				"make and field %d type mismatch: got %s, want %s",
-				i, arg.Type(), field.Type())
-		}
-	}
-	return &MakeAnd{Dst: dst, Fields: args}
 }
 
 func addMakeOr(b *BBlk, dst Val, tag int, val Val) *MakeOr {
-	s := newMakeOr(dst, tag, val)
+	s := &MakeOr{Dst: dst, Case: tag, Val: val}
 	addStmt(b, s)
 	return s
-}
-
-func newMakeOr(dst Val, tag int, val Val) *MakeOr {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"make or of non-reference type %s", dst.Type())
-	orType := dst.Type().Args[0].Type
-	panicIf(len(orType.Cases) <= tag,
-		"make or bad tag: %d, but only %d cases", tag, len(orType.Cases))
-	c := &orType.Cases[tag]
-	panicIf(c.TypeName != nil && !EmptyType(c.Type()) && val == nil,
-		"make or type mismatch: got nil, want %s", c.Type())
-	if val != nil {
-		panicIf(c.TypeName == nil,
-			"make or type mismatch: got %s, want nil", val.Type())
-		panicIf(c.TypeName != nil && c.Type() != val.Type(),
-			"make or type mismatch: got %s, want %s",
-			val.Type(), c.Type())
-	}
-	return &MakeOr{Dst: dst, Case: tag, Val: val}
 }
 
 func addMakeVirt(f *Fun, b *BBlk, dst, obj Val, typesVirts []*types.Fun) *MakeVirt {
@@ -879,98 +748,33 @@ func addMakeVirt(f *Fun, b *BBlk, dst, obj Val, typesVirts []*types.Fun) *MakeVi
 	for _, fun := range typesVirts {
 		virts = append(virts, findFun(f.Mod, fun))
 	}
-	v := newMakeVirt(dst, obj, virts)
+	v := &MakeVirt{Dst: dst, Obj: obj, Virts: virts}
 	addStmt(b, v)
 	return v
 }
 
-func newMakeVirt(dst, obj Val, virts []*Fun) *MakeVirt {
-	panicIf(dst.Type().BuiltIn != types.RefType,
-		"make virt with non-reference dest %s", dst.Type())
-	virtType := dst.Type().Args[0].Type
-	panicIf(len(virts) != len(virtType.Virts),
-		"make virt count mismatch: got %d, want %d",
-		len(virts), len(virtType.Virts))
-	panicIf(obj.Type().BuiltIn != types.RefType,
-		"make virt with non-reference obj %s", obj.Type())
-	return &MakeVirt{Dst: dst, Obj: obj, Virts: virts}
-}
-
 func addCall(b *BBlk, fun *Fun, args []Val) *Call {
-	c := newCall(fun, args)
+	c := &Call{Fun: fun, Args: args}
 	addStmt(b, c)
 	return c
-}
-
-func newCall(fun *Fun, args []Val) *Call {
-	parms := fun.Parms
-	if fun.Ret != nil {
-		parms = append(parms, fun.Ret)
-	}
-	panicIf(len(args) != len(parms),
-		"call argument count mismatch: got %d, want %d",
-		len(args), len(parms))
-	for i, a := range args {
-		panicIf(a.Type() != parms[i].Type,
-			"argument %d type mismatch: got %s, want %s",
-			i, a.Type(), parms[i].Type)
-	}
-	return &Call{Fun: fun, Args: args}
 }
 
 func addVirtCallFun(b *BBlk, fun *types.Fun, args []Val) *VirtCall {
-	c := newVirtCallFun(fun, args)
-	addStmt(b, c)
-	return c
-}
-
-func newVirtCallFun(fun *types.Fun, args []Val) *VirtCall {
-	recv := args[0]
-	panicIf(recv.Type().BuiltIn != types.RefType,
-		"virtual call to non-reference type %s", recv.Type())
-	virtType := recv.Type().Args[0].Type
-	panicIf(len(virtType.Virts) == 0,
-		"virtual call to non-virt-reference type %s", virtType)
 	index := -1
+	virtType := args[0].Type().Args[0].Type
 	for i, v := range virtType.Virts {
 		if v.Sel == fun.Sig.Sel {
 			index = i
 			break
 		}
 	}
-	panicIf(index < 0, "virtual call to non-existent method %s of %s",
-		virtType, fun.Sig.Sel)
-	return newVirtCallIndex(index, args)
+	return addVirtCallIndex(b, index, args)
 }
 
 func addVirtCallIndex(b *BBlk, index int, args []Val) *VirtCall {
-	c := newVirtCallIndex(index, args)
+	c := &VirtCall{Self: args[0], Index: index, Args: args}
 	addStmt(b, c)
 	return c
-}
-
-func newVirtCallIndex(index int, args []Val) *VirtCall {
-	recv, checkArgs := args[0], args[1:]
-	panicIf(recv.Type().BuiltIn != types.RefType,
-		"virtual call to non-reference type %s", recv.Type())
-	virtType := recv.Type().Args[0].Type
-	panicIf(index >= len(virtType.Virts),
-		"virtual call to non-existent method index=%d of %s",
-		index, virtType)
-	virt := virtType.Virts[index]
-	if virt.Ret != nil && !EmptyType(virt.Ret.Type) {
-		// strip return value location
-		checkArgs = checkArgs[:len(checkArgs)-1]
-	}
-	panicIf(len(checkArgs) != len(virt.Parms),
-		"virtual call argument count mismatch: got %d, want %d",
-		len(checkArgs), len(virt.Parms))
-	for i, a := range checkArgs {
-		panicIf(a.Type() != virt.Parms[i].Type(),
-			"argument %d type mismatch: got %s, want %s",
-			i, a.Type(), virt.Parms[i].Type())
-	}
-	return &VirtCall{Self: recv, Index: index, Args: args}
 }
 
 func addRet(b *BBlk) *Ret {
@@ -979,21 +783,13 @@ func addRet(b *BBlk) *Ret {
 	return r
 }
 
+func addJmp(b, dst *BBlk) { addStmt(b, &Jmp{Dst: dst}) }
+
 func addSwitch(b *BBlk, val Val, dsts []*BBlk, typ *types.Type) *Switch {
-	panicIf(len(typ.Cases) != len(dsts),
-		"switch case count mismatch: got %d, want %d",
-		len(dsts), len(typ.Cases))
-	panicIf(val.Type().BuiltIn != types.UInt8Type &&
-		val.Type().BuiltIn != types.UInt16Type &&
-		!enumType(val.Type()),
-		"switch value type mismatch: got %s, want UInt8, UInt16, or an enum or-type",
-		val.Type())
 	s := &Switch{Val: val, Dsts: dsts, OrType: typ}
 	addStmt(b, s)
 	return s
 }
-
-func addJmp(b, dst *BBlk) { addStmt(b, &Jmp{Dst: dst}) }
 
 func addIntLit(f *Fun, b *BBlk, typ *types.Type, val *big.Int) *IntLit {
 	i := &IntLit{val: newVal(f, typ), Val: val}
@@ -1026,19 +822,10 @@ func addArg(f *Fun, b *BBlk, p *Parm) Val {
 }
 
 func addLoad(f *Fun, b *BBlk, src Val) *Load {
-	l := newLoad(src)
+	l := &Load{Src: src}
 	l.val = newVal(f, src.Type().Args[0].Type)
 	addStmt(b, l)
 	return l
-}
-
-func newLoad(src Val) *Load {
-	panicIf(src.Type().BuiltIn != types.RefType,
-		"load from non-reference type %s", src.Type())
-	panicIf(!SimpleType(src.Type().Args[0].Type),
-		"load a composite type %s",
-		src.Type().Args[0].Type)
-	return &Load{Src: src}
 }
 
 func addAlloc(f *Fun, b *BBlk, typ *types.Type) *Alloc {
@@ -1053,30 +840,16 @@ func addGlobal(f *Fun, b *BBlk, val *types.Val) *Global {
 	return g
 }
 
-func addIndex(f *Fun, b *BBlk, obj, i Val) *Index {
-	v := newIndex(obj, i)
-	aryType := obj.Type().Args[0].Type
+func addIndex(f *Fun, b *BBlk, ary, i Val) *Index {
+	v := &Index{Ary: ary, Index: i}
+	aryType := ary.Type().Args[0].Type
 	elmType := aryType.Args[0].Type
 	v.val = newVal(f, elmType.Ref())
 	addStmt(b, v)
 	return v
 }
 
-func newIndex(ary, i Val) *Index {
-	typ := ary.Type()
-	panicIf(typ.BuiltIn != types.RefType,
-		"index of non-reference type %s", typ)
-	aryType := typ.Args[0].Type
-	panicIf(aryType.BuiltIn != types.ArrayType,
-		"index of non-array reference type %s", typ)
-	panicIf(i.Type().BuiltIn != types.IntType,
-		"index with non-Int index type %s", i.Type())
-	return &Index{Ary: ary, Index: i}
-}
-
 func addField(f *Fun, b *BBlk, obj Val, i int) *Field {
-	panicIf(obj.Type().BuiltIn != types.RefType,
-		"field of non-reference type %s", obj.Type())
 	var typ *types.Type
 	field := &Field{Obj: obj, Index: i}
 	switch objType := obj.Type().Args[0].Type; {
@@ -1100,10 +873,4 @@ func addField(f *Fun, b *BBlk, obj Val, i int) *Field {
 	field.val = newVal(f, typ.Ref())
 	addStmt(b, field)
 	return field
-}
-
-func panicIf(c bool, f string, vs ...interface{}) {
-	if c {
-		panic(fmt.Sprintf(f, vs...))
-	}
 }

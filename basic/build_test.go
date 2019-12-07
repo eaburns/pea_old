@@ -1814,7 +1814,6 @@ func TestBuild(t *testing.T) {
 	}
 	for _, test := range tests {
 		test := test
-		fmt.Println(test.name)
 		t.Run(test.name, func(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()

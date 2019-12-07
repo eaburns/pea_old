@@ -153,6 +153,11 @@ func (b *BBlk) addIn(in *BBlk) {
 type Stmt interface {
 	Uses() []Val
 	buildString(*strings.Builder) *strings.Builder
+	// bugs returns a strings describing errors in the statement.
+	// An empty return indicates no errors.
+	// These are indicative of bugs like type mismatches
+	// or storing to a non-address, and so forth.
+	bugs() string
 }
 
 // A Comment is a no-op statement that adds a note to the output.
