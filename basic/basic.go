@@ -475,7 +475,7 @@ type Alloc struct {
 
 func (*Alloc) Uses() []Val { return nil }
 
-// Arg is the address of an argument to the current function.
+// Arg is an argument to the current function.
 type Arg struct {
 	val
 	Parm *Parm

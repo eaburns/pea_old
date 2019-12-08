@@ -72,8 +72,7 @@ func TestBuild(t *testing.T) {
 					1:
 						$0 := 123
 						$1 := arg(0)
-						$2 := load($1)
-						store($2, $0)
+						store($1, $0)
 						return
 			`,
 		},
@@ -92,8 +91,7 @@ func TestBuild(t *testing.T) {
 					1:
 						$0 := 3.14
 						$1 := arg(0)
-						$2 := load($1)
-						store($2, $0)
+						store($1, $0)
 						return
 			`,
 		},
@@ -130,8 +128,7 @@ func TestBuild(t *testing.T) {
 						$0 := global(i)
 						$1 := load($0)
 						$2 := arg(0)
-						$3 := load($2)
-						store($3, $1)
+						store($2, $1)
 						return
 			`,
 		},
@@ -151,8 +148,7 @@ func TestBuild(t *testing.T) {
 					1:
 						$0 := global(s)
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, String)
+						copy($1, $0, String)
 						return
 			`,
 		},
@@ -183,13 +179,14 @@ func TestBuild(t *testing.T) {
 						0 [i] Int
 						1 Int&
 					0:
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [i])
-						$1 := load($0)
-						$2 := arg(1)
-						$3 := load($2)
-						store($3, $1)
+						$2 := load($0)
+						$3 := arg(1)
+						store($3, $2)
 						return
 			`,
 		},
@@ -208,10 +205,8 @@ func TestBuild(t *testing.T) {
 						jmp 1
 					1:
 						$0 := arg(0 [s])
-						$1 := load($0)
-						$2 := arg(1)
-						$3 := load($2)
-						copy($3, $1, String)
+						$1 := arg(1)
+						copy($1, $0, String)
 						return
 			`,
 		},
@@ -251,8 +246,7 @@ func TestBuild(t *testing.T) {
 						store($0, $1)
 						$2 := load($0)
 						$3 := arg(0)
-						$4 := load($3)
-						store($4, $2)
+						store($3, $2)
 						return
 			`,
 		},
@@ -274,8 +268,7 @@ func TestBuild(t *testing.T) {
 						string($1, string1)
 						copy($0, $1, String)
 						$2 := arg(0)
-						$3 := load($2)
-						copy($3, $0, String)
+						copy($2, $0, String)
 						return
 			`,
 		},
@@ -292,15 +285,16 @@ func TestBuild(t *testing.T) {
 						0 [self] Foo&
 						1 Int&
 					0:
+						$0 := alloc(Foo&)
+						$1 := arg(0 [self])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [self])
-						$1 := load($0)
-						$2 := $1.0 [x]
-						$3 := load($2)
-						$4 := arg(1)
-						$5 := load($4)
-						store($5, $3)
+						$2 := load($0)
+						$3 := $2.0 [x]
+						$4 := load($3)
+						$5 := arg(1)
+						store($5, $4)
 						return
 			`,
 		},
@@ -317,14 +311,15 @@ func TestBuild(t *testing.T) {
 						0 [self] Foo&
 						1 String&
 					0:
+						$0 := alloc(Foo&)
+						$1 := arg(0 [self])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [self])
-						$1 := load($0)
-						$2 := $1.0 [x]
-						$3 := arg(1)
-						$4 := load($3)
-						copy($4, $2, String)
+						$2 := load($0)
+						$3 := $2.0 [x]
+						$4 := arg(1)
+						copy($4, $3, String)
 						return
 				`,
 		},
@@ -344,18 +339,16 @@ func TestBuild(t *testing.T) {
 					1:
 						$1 := 123
 						$2 := arg(0)
-						$3 := load($2)
-						store($3, $1)
+						store($2, $1)
 						return
 					// Basic block 2 has no incoming edges.
 					// It will be removed by the opt pass.
 					2:
-						$4 := 5
-						store($0, $4)
-						$5 := load($0)
-						$6 := arg(0)
-						$7 := load($6)
-						store($7, $5)
+						$3 := 5
+						store($0, $3)
+						$4 := load($0)
+						$5 := arg(0)
+						store($5, $4)
 						return
 
 			`,
@@ -492,13 +485,15 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 [s] String&
 					0:
-						$2 := alloc(String)
+						$0 := alloc(String&)
+						$1 := arg(0 [s])
+						store($0, $1)
+						$3 := alloc(String)
 						jmp 1
 					1:
-						$0 := arg(0 [s])
-						$1 := load($0)
-						copy($2, $1, String)
-						call function1($2)
+						$2 := load($0)
+						copy($3, $2, String)
+						call function1($3)
 						return
 			`,
 		},
@@ -514,11 +509,13 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 [s] String&
 					0:
+						$0 := alloc(String&)
+						$1 := arg(0 [s])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [s])
-						$1 := load($0)
-						call function1($1)
+						$2 := load($0)
+						call function1($2)
 						return
 			`,
 		},
@@ -537,11 +534,10 @@ func TestBuild(t *testing.T) {
 						jmp 1
 					1:
 						$0 := arg(0 [v])
-						$1 := load($0)
-						$2 := 1
-						$3 := 2
-						$4 := 3
-						virt call $1.0 [f:b:b:]($1, $2, $3, $4)
+						$1 := 1
+						$2 := 2
+						$3 := 3
+						virt call $0.0 [f:b:b:]($0, $1, $2, $3)
 						return
 			`,
 		},
@@ -580,8 +576,7 @@ func TestBuild(t *testing.T) {
 						call function1($0)
 						$1 := load($0)
 						$2 := arg(0)
-						$3 := load($2)
-						store($3, $1)
+						store($2, $1)
 						return
 			`,
 		},
@@ -602,8 +597,7 @@ func TestBuild(t *testing.T) {
 					1:
 						call function1($0)
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, String)
+						copy($1, $0, String)
 						return
 			`,
 		},
@@ -618,29 +612,29 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 Int Fun&
 					0:
-						$2 := alloc($Block0)
-						$3 := alloc(Int Fun)
+						$1 := alloc($Block0)
+						$2 := alloc(Int Fun)
 						jmp 1
 					1:
 						$0 := arg(0)
-						$1 := load($0)
-						and($2, {$1})
-						virt($3, $2, {block1})
-						$4 := arg(0)
-						$5 := load($4)
-						copy($5, $3, Int Fun)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := arg(0)
+						copy($3, $2, Int Fun)
 						return
 				block1
 					parms:
 						0 $Block0&
 						1 Int&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := 3
-						$1 := arg(1)
-						$2 := load($1)
-						store($2, $0)
+						$2 := 3
+						$3 := arg(1)
+						store($3, $2)
 						return
 			`,
 		},
@@ -656,15 +650,16 @@ func TestBuild(t *testing.T) {
 						0 [i] Int
 						1 Int&
 					0:
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [i])
-						$1 := load($0)
-						$2 := 123
-						$3 := $1 + $2
-						$4 := arg(1)
-						$5 := load($4)
-						store($5, $3)
+						$2 := load($0)
+						$3 := 123
+						$4 := $2 + $3
+						$5 := arg(1)
+						store($5, $4)
 						return
 			`,
 		},
@@ -680,14 +675,15 @@ func TestBuild(t *testing.T) {
 						0 [i] Int
 						1 Int&
 					0:
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [i])
-						$1 := load($0)
-						$2 := -$1
-						$3 := arg(1)
-						$4 := load($3)
-						store($4, $2)
+						$2 := load($0)
+						$3 := -$2
+						$4 := arg(1)
+						store($4, $3)
 						return
 			`,
 		},
@@ -703,14 +699,15 @@ func TestBuild(t *testing.T) {
 						0 [i] Int
 						1 Float&
 					0:
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0 [i])
-						$1 := load($0)
-						$2 := Float($1)
-						$3 := arg(1)
-						$4 := load($3)
-						store($4, $2)
+						$2 := load($0)
+						$3 := Float($2)
+						$4 := arg(1)
+						store($4, $3)
 						return
 			`,
 		},
@@ -729,13 +726,11 @@ func TestBuild(t *testing.T) {
 						jmp 1
 					1:
 						$0 := arg(0 [a])
-						$1 := load($0)
-						$2 := 123
-						$3 := $1[$2]
-						$4 := load($3)
-						$5 := arg(1)
-						$6 := load($5)
-						store($6, $4)
+						$1 := 123
+						$2 := $0[$1]
+						$3 := load($2)
+						$4 := arg(1)
+						store($4, $3)
 						return
 			`,
 		},
@@ -754,12 +749,10 @@ func TestBuild(t *testing.T) {
 						jmp 1
 					1:
 						$0 := arg(0 [a])
-						$1 := load($0)
-						$2 := 123
-						$3 := $1[$2]
-						$4 := arg(1)
-						$5 := load($4)
-						copy($5, $3, String)
+						$1 := 123
+						$2 := $0[$1]
+						$3 := arg(1)
+						copy($3, $2, String)
 						return
 			`,
 		},
@@ -777,11 +770,10 @@ func TestBuild(t *testing.T) {
 						jmp 1
 					1:
 						$0 := arg(0 [a])
-						$1 := load($0)
-						$2 := 123
-						$3 := 6
-						$4 := $1[$2]
-						store($4, $3)
+						$1 := 123
+						$2 := 6
+						$3 := $0[$1]
+						store($3, $2)
 						return
 			`,
 		},
@@ -796,15 +788,14 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 [a] String Array& (value)
 					0:
-						$3 := alloc(String)
+						$2 := alloc(String)
 						jmp 1
 					1:
 						$0 := arg(0 [a])
-						$1 := load($0)
-						$2 := 123
-						string($3, string1)
-						$4 := $1[$2]
-						copy($4, $3, String)
+						$1 := 123
+						string($2, string1)
+						$3 := $0[$1]
+						copy($3, $2, String)
 						return
 			`,
 		},
@@ -827,8 +818,7 @@ func TestBuild(t *testing.T) {
 						$2 := 7
 						array($3, {$0, $1, $2})
 						$4 := arg(0)
-						$5 := load($4)
-						copy($5, $3, Int Array)
+						copy($4, $3, Int Array)
 						return
 			`,
 		},
@@ -848,8 +838,7 @@ func TestBuild(t *testing.T) {
 					1:
 						array($0, {})
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, Int Array)
+						copy($1, $0, Int Array)
 						return
 			`,
 		},
@@ -869,8 +858,7 @@ func TestBuild(t *testing.T) {
 					1:
 						array($0, {})
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, Nil Array)
+						copy($1, $0, Nil Array)
 						return
 			`,
 		},
@@ -886,17 +874,15 @@ func TestBuild(t *testing.T) {
 						0 [a] Int Array& (value)
 						1 Int Array&
 					0:
-						$4 := alloc(Int Array)
+						$3 := alloc(Int Array)
 						jmp 1
 					1:
 						$0 := arg(0 [a])
-						$1 := load($0)
-						$2 := 5
-						$3 := 10
-						slice($4, $1[$2:$3])
-						$5 := arg(1)
-						$6 := load($5)
-						copy($6, $4, Int Array)
+						$1 := 5
+						$2 := 10
+						slice($3, $0[$1:$2])
+						$4 := arg(1)
+						copy($4, $3, Int Array)
 						return
 			`,
 		},
@@ -916,8 +902,7 @@ func TestBuild(t *testing.T) {
 					1:
 						string($0, string1)
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, String)
+						copy($1, $0, String)
 						return
 			`,
 		},
@@ -940,8 +925,7 @@ func TestBuild(t *testing.T) {
 						$1 := 6
 						and($2, {x: $0 y: $1})
 						$3 := arg(0)
-						$4 := load($3)
-						copy($4, $2, (Int, Int) Pair)
+						copy($3, $2, (Int, Int) Pair)
 						return
 			`,
 		},
@@ -963,8 +947,7 @@ func TestBuild(t *testing.T) {
 						$0 := 5
 						and($1, {x: $0 y: {}})
 						$2 := arg(0)
-						$3 := load($2)
-						copy($3, $1, (Int, Nil) Pair)
+						copy($2, $1, (Int, Nil) Pair)
 						return
 			`,
 		},
@@ -986,8 +969,7 @@ func TestBuild(t *testing.T) {
 						$0 := 5
 						and($1, {x: {} y: $0})
 						$2 := arg(0)
-						$3 := load($2)
-						copy($3, $1, (Nil, Int) Pair)
+						copy($2, $1, (Nil, Int) Pair)
 						return
 			`,
 		},
@@ -1010,8 +992,7 @@ func TestBuild(t *testing.T) {
 						$1 := 6
 						and($2, {x: $0 y: {} z: $1})
 						$3 := arg(0)
-						$4 := load($3)
-						copy($4, $2, (Int, Nil, Int) Triple)
+						copy($3, $2, (Int, Nil, Int) Triple)
 						return
 			`,
 		},
@@ -1033,8 +1014,7 @@ func TestBuild(t *testing.T) {
 						$0 := 5
 						or($1, {1=some: $0})
 						$2 := arg(0)
-						$3 := load($2)
-						copy($3, $1, Int?)
+						copy($2, $1, Int?)
 						return
 			`,
 		},
@@ -1055,8 +1035,7 @@ func TestBuild(t *testing.T) {
 					1:
 						or($0, {1=some:})
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, Nil?)
+						copy($1, $0, Nil?)
 						return
 			`,
 		},
@@ -1077,8 +1056,7 @@ func TestBuild(t *testing.T) {
 					1:
 						or($0, {0=none})
 						$1 := arg(0)
-						$2 := load($1)
-						copy($2, $0, Int?)
+						copy($1, $0, Int?)
 						return
 			`,
 		},
@@ -1103,8 +1081,7 @@ func TestBuild(t *testing.T) {
 						store($1, $0)
 						virt($2, $1, {function1})
 						$3 := arg(0)
-						$4 := load($3)
-						copy($4, $2, Fooer)
+						copy($3, $2, Fooer)
 						return
 			`,
 		},
@@ -1131,8 +1108,7 @@ func TestBuild(t *testing.T) {
 						call function2($0, $1, $2)
 						$3 := load($2)
 						$4 := arg(0)
-						$5 := load($4)
-						store($5, $3)
+						store($4, $3)
 						return
 			`,
 		},
@@ -1194,38 +1170,35 @@ func TestBuild(t *testing.T) {
 					0:
 						$0 := alloc(Int?)
 						$1 := alloc(Int?)
-						$4 := alloc($Block0)
-						$5 := alloc(Int Fun)
-						$8 := alloc($Block1)
-						$9 := alloc((Int&, Int) Fun)
-						$10 := alloc(Int)
+						$3 := alloc($Block0)
+						$4 := alloc(Int Fun)
+						$6 := alloc($Block1)
+						$7 := alloc((Int&, Int) Fun)
+						$8 := alloc(Int)
 						jmp 1
 					1:
 						or($1, {0=none})
 						copy($0, $1, Int?)
 						// TODO: blocks that do not far-return needn't capture the return location.
 						$2 := arg(0)
-						$3 := load($2)
-						and($4, {$3})
-						virt($5, $4, {block1})
-						$6 := arg(0)
-						$7 := load($6)
-						and($8, {$7})
-						virt($9, $8, {block2})
-						$11 := tag($0)
-						switch $11 [none 2] [some: 3]
+						and($3, {$2})
+						virt($4, $3, {block1})
+						$5 := arg(0)
+						and($6, {$5})
+						virt($7, $6, {block2})
+						$9 := tag($0)
+						switch $9 [none 2] [some: 3]
 					2:
-						virt call $5.0($5, $10)
+						virt call $4.0($4, $8)
 						jmp 4
 					3:
-						$12 := $0.1 [some:]
-						virt call $9.0($9, $12, $10)
+						$10 := $0.1 [some:]
+						virt call $7.0($7, $10, $8)
 						jmp 4
 					4:
-						$13 := load($10)
-						$14 := arg(0)
-						$15 := load($14)
-						store($15, $13)
+						$11 := load($8)
+						$12 := arg(0)
+						store($12, $11)
 						return
 			`,
 		},
@@ -1246,37 +1219,34 @@ func TestBuild(t *testing.T) {
 					0:
 						$0 := alloc(Int?)
 						$1 := alloc(Int?)
-						$4 := alloc($Block0)
-						$5 := alloc(String Fun)
-						$8 := alloc($Block1)
-						$9 := alloc((Int&, String) Fun)
-						$10 := alloc(String)
+						$3 := alloc($Block0)
+						$4 := alloc(String Fun)
+						$6 := alloc($Block1)
+						$7 := alloc((Int&, String) Fun)
+						$8 := alloc(String)
 						jmp 1
 					1:
 						or($1, {0=none})
 						copy($0, $1, Int?)
 						// TODO: blocks that do not far-return needn't capture the return location.
 						$2 := arg(0)
-						$3 := load($2)
-						and($4, {$3})
-						virt($5, $4, {block1})
-						$6 := arg(0)
-						$7 := load($6)
-						and($8, {$7})
-						virt($9, $8, {block3})
-						$11 := tag($0)
-						switch $11 [none 2] [some: 3]
+						and($3, {$2})
+						virt($4, $3, {block1})
+						$5 := arg(0)
+						and($6, {$5})
+						virt($7, $6, {block3})
+						$9 := tag($0)
+						switch $9 [none 2] [some: 3]
 					2:
-						virt call $5.0($5, $10)
+						virt call $4.0($4, $8)
 						jmp 4
 					3:
-						$12 := $0.1 [some:]
-						virt call $9.0($9, $12, $10)
+						$10 := $0.1 [some:]
+						virt call $7.0($7, $10, $8)
 						jmp 4
 					4:
-						$13 := arg(0)
-						$14 := load($13)
-						copy($14, $10, String)
+						$11 := arg(0)
+						copy($11, $8, String)
 						return
 			`,
 		},
@@ -1291,17 +1261,15 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 Int Fun&
 					0:
-						$2 := alloc($Block0)
-						$3 := alloc(Int Fun)
+						$1 := alloc($Block0)
+						$2 := alloc(Int Fun)
 						jmp 1
 					1:
 						$0 := arg(0)
-						$1 := load($0)
-						and($2, {$1})
-						virt($3, $2, {block1})
-						$4 := arg(0)
-						$5 := load($4)
-						copy($5, $3, Int Fun)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := arg(0)
+						copy($3, $2, Int Fun)
 						return
 			`,
 		},
@@ -1316,31 +1284,31 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 Int&
 					0:
-						$2 := alloc($Block0)
-						$3 := alloc(Nil Fun)
+						$1 := alloc($Block0)
+						$2 := alloc(Nil Fun)
 						jmp 1
 					1:
 						$0 := arg(0)
-						$1 := load($0)
-						and($2, {$1})
-						virt($3, $2, {block1})
-						$4 := 3
-						$5 := arg(0)
-						$6 := load($5)
-						store($6, $4)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := 3
+						$4 := arg(0)
+						store($4, $3)
 						return
 				block1
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := 5
-						$1 := arg(0)
-						$2 := load($1)
-						$3 := $2.0
-						$4 := load($3)
-						store($4, $0)
+						$2 := 5
+						$3 := load($0)
+						$4 := $3.0
+						$5 := load($4)
+						store($5, $2)
 						far return
 			`,
 		},
@@ -1355,22 +1323,23 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 Nil Fun&
 					0:
-						$2 := alloc($Block0)
-						$3 := alloc(Nil Fun)
+						$1 := alloc($Block0)
+						$2 := alloc(Nil Fun)
 						jmp 1
 					1:
 						$0 := arg(0)
-						$1 := load($0)
-						and($2, {n: {} $1})
-						virt($3, $2, {block1})
-						$4 := arg(0)
-						$5 := load($4)
-						copy($5, $3, Nil Fun)
+						and($1, {n: {} $0})
+						virt($2, $1, {block1})
+						$3 := arg(0)
+						copy($3, $2, Nil Fun)
 						return
 				block1
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
 						return
@@ -1388,36 +1357,37 @@ func TestBuild(t *testing.T) {
 						0 [i] Int
 						1 Int&
 					0:
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
+						store($0, $1)
 						$3 := alloc($Block0)
 						$4 := alloc(Nil Fun)
 						jmp 1
 					1:
-						$0 := arg(0 [i])
-						$1 := arg(1)
-						$2 := load($1)
+						$2 := arg(1)
 						and($3, {i: $0 $2})
 						virt($4, $3, {block1})
 						$5 := 3
 						$6 := arg(1)
-						$7 := load($6)
-						store($7, $5)
+						store($6, $5)
 						return
 				block1
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0)
-						$1 := load($0)
-						$2 := $1.0 [i]
-						$3 := load($2)
+						$2 := load($0)
+						$3 := $2.0 [i]
 						$4 := load($3)
-						$5 := arg(0)
-						$6 := load($5)
+						$5 := load($4)
+						$6 := load($0)
 						$7 := $6.1
 						$8 := load($7)
-						store($8, $4)
+						store($8, $5)
 						far return
 			`,
 		},
@@ -1433,37 +1403,36 @@ func TestBuild(t *testing.T) {
 						0 Int&
 					0:
 						$0 := alloc(Int)
-						$4 := alloc($Block0)
-						$5 := alloc(Nil Fun)
+						$3 := alloc($Block0)
+						$4 := alloc(Nil Fun)
 						jmp 1
 					1:
 						$1 := 5
 						store($0, $1)
 						$2 := arg(0)
-						$3 := load($2)
-						and($4, {i: $0 $3})
-						virt($5, $4, {block1})
-						$6 := 3
-						$7 := arg(0)
-						$8 := load($7)
-						store($8, $6)
+						and($3, {i: $0 $2})
+						virt($4, $3, {block1})
+						$5 := 3
+						$6 := arg(0)
+						store($6, $5)
 						return
 				block1
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0)
-						$1 := load($0)
-						$2 := $1.0 [i]
-						$3 := load($2)
+						$2 := load($0)
+						$3 := $2.0 [i]
 						$4 := load($3)
-						$5 := arg(0)
-						$6 := load($5)
+						$5 := load($4)
+						$6 := load($0)
 						$7 := $6.1
 						$8 := load($7)
-						store($8, $4)
+						store($8, $5)
 						far return
 			`,
 		},
@@ -1480,38 +1449,39 @@ func TestBuild(t *testing.T) {
 						0 [self] Point&
 						1 Int&
 					0:
+						$0 := alloc(Point&)
+						$1 := arg(0 [self])
+						store($0, $1)
 						$5 := alloc($Block0)
 						$6 := alloc(Nil Fun)
 						jmp 1
 					1:
-						$0 := arg(0 [self])
-						$1 := load($0)
-						$2 := $1.0 [x]
-						$3 := arg(1)
-						$4 := load($3)
-						and($5, {x: $2 $4})
+						$2 := load($0)
+						$3 := $2.0 [x]
+						$4 := arg(1)
+						and($5, {x: $3 $4})
 						virt($6, $5, {block1})
 						$7 := 3
 						$8 := arg(1)
-						$9 := load($8)
-						store($9, $7)
+						store($8, $7)
 						return
 				block1
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0)
-						$1 := load($0)
-						$2 := $1.0 [x]
-						$3 := load($2)
+						$2 := load($0)
+						$3 := $2.0 [x]
 						$4 := load($3)
-						$5 := arg(0)
-						$6 := load($5)
+						$5 := load($4)
+						$6 := load($0)
 						$7 := $6.1
 						$8 := load($7)
-						store($8, $4)
+						store($8, $5)
 						far return
 			`,
 		},
@@ -1526,18 +1496,16 @@ func TestBuild(t *testing.T) {
 					parms:
 						0 Int&
 					0:
-						$2 := alloc($Block1)
-						$3 := alloc((Int, Nil Fun) Fun)
+						$1 := alloc($Block1)
+						$2 := alloc((Int, Nil Fun) Fun)
 						jmp 1
 					1:
 						$0 := arg(0)
-						$1 := load($0)
-						and($2, {$1})
-						virt($3, $2, {block1})
-						$4 := 3
-						$5 := arg(0)
-						$6 := load($5)
-						store($6, $4)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := 3
+						$4 := arg(0)
+						store($4, $3)
 						return
 				block1
 					parms:
@@ -1545,37 +1513,41 @@ func TestBuild(t *testing.T) {
 						1 [i] Int
 						2 Nil Fun&
 					0:
-						$5 := alloc($Block0)
-						$6 := alloc(Nil Fun)
+						$0 := alloc($Block1&)
+						$1 := alloc(Int)
+						$2 := arg(0)
+						store($0, $2)
+						$3 := arg(1 [i])
+						store($1, $3)
+						$7 := alloc($Block0)
+						$8 := alloc(Nil Fun)
 						jmp 1
 					1:
-						$0 := arg(1 [i])
-						$1 := arg(0)
-						$2 := load($1)
-						$3 := $2.0
-						$4 := load($3)
-						and($5, {i: $0 $4})
-						virt($6, $5, {block2})
-						$7 := arg(2)
-						$8 := load($7)
-						copy($8, $6, Nil Fun)
+						$4 := load($0)
+						$5 := $4.0
+						$6 := load($5)
+						and($7, {i: $1 $6})
+						virt($8, $7, {block2})
+						$9 := arg(2)
+						copy($9, $8, Nil Fun)
 						return
 				block2
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0)
-						$1 := load($0)
-						$2 := $1.0 [i]
-						$3 := load($2)
+						$2 := load($0)
+						$3 := $2.0 [i]
 						$4 := load($3)
-						$5 := arg(0)
-						$6 := load($5)
+						$5 := load($4)
+						$6 := load($0)
 						$7 := $6.1
 						$8 := load($7)
-						store($8, $4)
+						store($8, $5)
 						far return
 			`,
 		},
@@ -1591,59 +1563,60 @@ func TestBuild(t *testing.T) {
 						0 [i] Int
 						1 Int&
 					0:
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
+						store($0, $1)
 						$3 := alloc($Block1)
 						$4 := alloc(Nil Fun Fun)
 						jmp 1
 					1:
-						$0 := arg(0 [i])
-						$1 := arg(1)
-						$2 := load($1)
+						$2 := arg(1)
 						and($3, {i: $0 $2})
 						virt($4, $3, {block1})
 						$5 := 3
 						$6 := arg(1)
-						$7 := load($6)
-						store($7, $5)
+						store($6, $5)
 						return
 				block1
 					parms:
 						0 $Block1&
 						1 Nil Fun&
 					0:
+						$0 := alloc($Block1&)
+						$1 := arg(0)
+						store($0, $1)
 						$8 := alloc($Block0)
 						$9 := alloc(Nil Fun)
 						jmp 1
 					1:
-						$0 := arg(0)
-						$1 := load($0)
-						$2 := $1.0 [i]
-						$3 := load($2)
-						$4 := arg(0)
-						$5 := load($4)
+						$2 := load($0)
+						$3 := $2.0 [i]
+						$4 := load($3)
+						$5 := load($0)
 						$6 := $5.1
 						$7 := load($6)
-						and($8, {i: $3 $7})
+						and($8, {i: $4 $7})
 						virt($9, $8, {block2})
 						$10 := arg(1)
-						$11 := load($10)
-						copy($11, $9, Nil Fun)
+						copy($10, $9, Nil Fun)
 						return
 				block2
 					parms:
 						0 $Block0&
 					0:
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
 						jmp 1
 					1:
-						$0 := arg(0)
-						$1 := load($0)
-						$2 := $1.0 [i]
-						$3 := load($2)
+						$2 := load($0)
+						$3 := $2.0 [i]
 						$4 := load($3)
-						$5 := arg(0)
-						$6 := load($5)
+						$5 := load($4)
+						$6 := load($0)
 						$7 := $6.1
 						$8 := load($7)
-						store($8, $4)
+						store($8, $5)
 						far return
 			`,
 		},
@@ -1665,8 +1638,7 @@ func TestBuild(t *testing.T) {
 						store($0, $1)
 						$2 := load($0)
 						$3 := arg(0)
-						$4 := load($3)
-						store($4, $2)
+						store($3, $2)
 						return
 			`,
 		},
@@ -1689,8 +1661,7 @@ func TestBuild(t *testing.T) {
 						store($0, $1)
 						$2 := load($0)
 						$3 := arg(0)
-						$4 := load($3)
-						store($4, $2)
+						store($3, $2)
 						return
 			`,
 		},

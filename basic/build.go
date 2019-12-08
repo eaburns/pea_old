@@ -35,8 +35,8 @@ func addString(mod *Mod, str string) *String {
 }
 
 func buildFun(mod *Mod, typesFun *types.Fun) {
-	fun := findFun(mod, typesFun)
-	buildFunBody(fun, typesFun.Locals, typesFun.Stmts)
+	f := findFun(mod, typesFun)
+	buildFunBody(f, f.Parms, typesFun.Locals, typesFun.Stmts)
 }
 
 func findFun(mod *Mod, fun *types.Fun) *Fun {
@@ -65,7 +65,7 @@ func buildBlockFun(mod *Mod, fun *types.Fun, block *types.Block) *Fun {
 		f.Ret.N = len(f.Parms)
 	}
 
-	buildFunBody(f, block.Locals, block.Stmts)
+	buildFunBody(f, f.Parms, block.Locals, block.Stmts)
 	return f
 }
 
@@ -96,11 +96,28 @@ func newFun(mod *Mod, parms []types.Var, ret *types.TypeName) *Fun {
 	return fun
 }
 
-func buildFunBody(f *Fun, locals []*types.Var, stmts []types.Stmt) {
+func buildFunBody(f *Fun, parms []*Parm, locals []*types.Var, stmts []types.Stmt) {
 	b0 := newBBlk(f)
+	parmAllocs := make([]*Alloc, 0, len(parms))
+	for _, parm := range parms {
+		if parm.Value {
+			continue
+		}
+		// For non-by-value parameters, the function may take its address.
+		// We need to make sure there is a memory location for that address.
+		a := addAlloc(f, b0, parm.Type)
+		a.Var = parm.Var
+		parmAllocs = append(parmAllocs, a)
+	}
 	for _, local := range locals {
 		a := addAlloc(f, b0, local.Type())
 		a.Var = local
+	}
+	for i, parm := range parms {
+		if parm.Value {
+			continue
+		}
+		addStore(b0, parmAllocs[i], addArg(f, b0, parm))
 	}
 	b1 := newBBlk(f)
 	buildStmts(f, b1, stmts)
@@ -159,13 +176,11 @@ func buildRet(f *Fun, b *BBlk, typesRet *types.Ret) *BBlk {
 	if f.Block != nil {
 		// This is a block literal far-return.
 		// The return location is in a capture field.
-		selfParm := addArg(f, b, findSelf(f))
-		self := addLoad(f, b, selfParm)
+		self := addLoad(f, b, selfParm(f, b))
 		dstPtr := addField(f, b, self, len(f.Block.Captures))
 		dst = addLoad(f, b, dstPtr)
 	} else {
-		arg := addArg(f, b, f.Ret)
-		dst = addLoad(f, b, arg)
+		dst = addArg(f, b, f.Ret)
 	}
 
 	if SimpleType(f.Fun.Sig.Ret.Type) {
@@ -183,8 +198,7 @@ func buildBlockFunRet(f *Fun, b *BBlk, v Val) {
 	if f.Ret == nil {
 		return
 	}
-	arg := addArg(f, b, f.Ret)
-	dst := addLoad(f, b, arg)
+	dst := addArg(f, b, f.Ret)
 	if SimpleType(f.Ret.Type.Args[0].Type) {
 		addStore(b, dst, v)
 	} else {
@@ -573,13 +587,12 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 		case cap.Local != nil:
 			args = append(args, findLocal(f, cap))
 		case cap.Field != nil:
-			selfParm := addArg(f, b, findSelf(f))
-			self := addLoad(f, b, selfParm)
+			self := addLoad(f, b, selfParm(f, b))
 			args = append(args, addField(f, b, self, cap.Index))
 		case cap.FunParm != nil:
 			fallthrough
 		case cap.BlkParm != nil:
-			args = append(args, addArg(f, b, findParm(f, cap)))
+			args = append(args, findParm(f, b, cap))
 		default:
 			panic("impossible")
 		}
@@ -588,14 +601,12 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 	// Store the far-return location as the last field of the block literal.
 	switch {
 	case f.Ret != nil && f.Block == nil:
-		v := addArg(f, b, f.Ret)
-		args = append(args, addLoad(f, b, v))
+		args = append(args, addArg(f, b, f.Ret))
 	case f.Ret != nil && f.Block != nil:
 		// We are in a nested block.
 		// The far return location  is a capture
 		// of the containing block.
-		selfParm := addArg(f, b, findSelf(f))
-		self := addLoad(f, b, selfParm)
+		self := addLoad(f, b, selfParm(f, b))
 		retPtr := addField(f, b, self, len(f.Block.Captures))
 		ret := addLoad(f, b, retPtr)
 		args = append(args, ret)
@@ -626,8 +637,7 @@ func buildCapture(f *Fun, b *BBlk, vr *types.Var) Val {
 	if EmptyType(vr.Type()) {
 		return nil
 	}
-	selfParm := addArg(f, b, findSelf(f))
-	self := addLoad(f, b, selfParm)
+	self := addLoad(f, b, selfParm(f, b))
 	capPtr := addField(f, b, self, findCapture(f, vr))
 	return addLoad(f, b, capPtr)
 }
@@ -640,14 +650,13 @@ func buildVar(f *Fun, b *BBlk, vr *types.Var) Val {
 	case vr.Val != nil:
 		return addGlobal(f, b, vr.Val)
 	case vr.FunParm != nil:
-		return addArg(f, b, findParm(f, vr))
+		return findParm(f, b, vr)
 	case vr.BlkParm != nil:
-		return addArg(f, b, findParm(f, vr))
+		return findParm(f, b, vr)
 	case vr.Local != nil:
 		return findLocal(f, vr)
 	case vr.Field != nil:
-		selfParm := addArg(f, b, findSelf(f))
-		self := addLoad(f, b, selfParm)
+		self := addLoad(f, b, selfParm(f, b))
 		return addField(f, b, self, vr.Index)
 	case vr.Case != nil:
 		panic("impossible")
@@ -656,19 +665,24 @@ func buildVar(f *Fun, b *BBlk, vr *types.Var) Val {
 	}
 }
 
-func findSelf(fun *Fun) *Parm {
-	return fun.Parms[0]
-}
-
-func findParm(fun *Fun, vr *types.Var) *Parm {
-	for _, p := range fun.Parms {
+func findParm(f *Fun, b *BBlk, vr *types.Var) Val {
+	for _, stmt := range f.BBlks[0].Stmts {
+		if a, ok := stmt.(*Alloc); ok && a.Var == vr {
+			return a
+		}
+	}
+	for _, p := range f.Parms {
 		if p.Var == vr {
-			return p
+			return addArg(f, b, p)
 		}
 	}
 	// Note that vr cannot match the fun.Ret parm,
 	// since that does not correspond to a types.Var.
 	panic("imposible")
+}
+
+func selfParm(f *Fun, b *BBlk) Val {
+	return findParm(f, b, f.Parms[0].Var)
 }
 
 func findLocal(fun *Fun, vr *types.Var) *Alloc {
@@ -761,6 +775,9 @@ func addCall(b *BBlk, fun *Fun, args []Val) *Call {
 
 func addVirtCallFun(b *BBlk, fun *types.Fun, args []Val) *VirtCall {
 	index := -1
+	if args[0].Type().BuiltIn != types.RefType {
+		return addVirtCallIndex(b, -1, args)
+	}
 	virtType := args[0].Type().Args[0].Type
 	for i, v := range virtType.Virts {
 		if v.Sel == fun.Sig.Sel {
@@ -810,20 +827,16 @@ func addOp(f *Fun, b *BBlk, typ *types.Type, code OpCode, args ...Val) *Op {
 }
 
 func addArg(f *Fun, b *BBlk, p *Parm) Val {
-	a := &Arg{val: newVal(f, p.Type.Ref()), Parm: p}
+	a := &Arg{val: newVal(f, p.Type), Parm: p}
 	addStmt(b, a)
-	if p.Value {
-		// By-value parameters have an extra level of reference
-		// that is not accounted for by the deref types.Converts.
-		// Strip it.
-		return addLoad(f, b, a)
-	}
 	return a
 }
 
 func addLoad(f *Fun, b *BBlk, src Val) *Load {
-	l := &Load{Src: src}
-	l.val = newVal(f, src.Type().Args[0].Type)
+	l := &Load{val: newVal(f, src.Type()), Src: src}
+	if src.Type().BuiltIn == types.RefType {
+		l.val.typ = src.Type().Args[0].Type
+	}
 	addStmt(b, l)
 	return l
 }
@@ -841,36 +854,40 @@ func addGlobal(f *Fun, b *BBlk, val *types.Val) *Global {
 }
 
 func addIndex(f *Fun, b *BBlk, ary, i Val) *Index {
-	v := &Index{Ary: ary, Index: i}
-	aryType := ary.Type().Args[0].Type
-	elmType := aryType.Args[0].Type
-	v.val = newVal(f, elmType.Ref())
+	v := &Index{val: newVal(f, ary.Type()), Ary: ary, Index: i}
+	if ary.Type().BuiltIn == types.RefType &&
+		ary.Type().Args[0].Type.BuiltIn == types.ArrayType {
+		// If ary is indeed an Array&, then this is the element type.
+		v.val.typ = ary.Type().Args[0].Type.Args[0].Type.Ref()
+	}
 	addStmt(b, v)
 	return v
 }
 
 func addField(f *Fun, b *BBlk, obj Val, i int) *Field {
 	var typ *types.Type
-	field := &Field{Obj: obj, Index: i}
-	switch objType := obj.Type().Args[0].Type; {
-	case objType.BuiltIn == types.BlockType:
-		if i >= len(objType.Fields) {
-			// Block return value capture.
-			typ = f.Fun.Sig.Ret.Type.Ref()
-		} else {
+	field := &Field{val: newVal(f, obj.Type()), Obj: obj, Index: i}
+	if obj.Type().BuiltIn == types.RefType {
+		switch objType := obj.Type().Args[0].Type; {
+		case objType.BuiltIn == types.BlockType:
+			if i >= len(objType.Fields) {
+				// Block return value capture.
+				typ = f.Fun.Sig.Ret.Type.Ref()
+			} else {
+				field.Field = &objType.Fields[i]
+				typ = field.Field.Type()
+			}
+		case len(objType.Fields) > 0:
 			field.Field = &objType.Fields[i]
 			typ = field.Field.Type()
+		case len(objType.Cases) > 0:
+			field.Case = &objType.Cases[i]
+			typ = field.Case.Type()
+		default:
+			typ = objType
 		}
-	case len(objType.Fields) > 0:
-		field.Field = &objType.Fields[i]
-		typ = field.Field.Type()
-	case len(objType.Cases) > 0:
-		field.Case = &objType.Cases[i]
-		typ = field.Case.Type()
-	default:
-		panic(fmt.Sprintf("type %s has no field or case %d", typ, i))
+		field.val.typ = typ.Ref()
 	}
-	field.val = newVal(f, typ.Ref())
 	addStmt(b, field)
 	return field
 }
