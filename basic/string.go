@@ -338,3 +338,11 @@ func (n *Field) buildString(s *strings.Builder) *strings.Builder {
 	}
 	return s
 }
+
+type stringBuilder interface {
+	buildString(*strings.Builder) *strings.Builder
+}
+
+func buildString(v stringBuilder) string {
+	return v.buildString(&strings.Builder{}).String()
+}

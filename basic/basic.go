@@ -153,6 +153,11 @@ func (b *BBlk) addIn(in *BBlk) {
 type Stmt interface {
 	Uses() []Val
 	buildString(*strings.Builder) *strings.Builder
+
+	// sub substitutes values of the statement
+	// that are keys of the map for their values.
+	sub(valMap)
+
 	// bugs returns a strings describing errors in the statement.
 	// An empty return indicates no errors.
 	// These are indicative of bugs like type mismatches
@@ -160,12 +165,33 @@ type Stmt interface {
 	bugs() string
 }
 
+type valMap []Val
+
+func makeValMap(n int) valMap {
+	return valMap(make([]Val, n))
+}
+
+func (s valMap) add(key, val Val) {
+	s[key.Num()] = val
+}
+
+func (s valMap) get(v Val) Val {
+	u := s[v.Num()]
+	if u == nil {
+		return v
+	}
+	u = s.get(u)
+	s[v.Num()] = u
+	return u
+}
+
 // A Comment is a no-op statement that adds a note to the output.
 type Comment struct {
 	Text string
 }
 
-func (n *Comment) Uses() []Val { return nil }
+func (n *Comment) Uses() []Val    { return nil }
+func (n *Comment) sub(sub valMap) {}
 
 // Store is a Stmt stores a value to a location specified by address.
 type Store struct {
@@ -177,6 +203,11 @@ type Store struct {
 }
 
 func (n *Store) Uses() []Val { return []Val{n.Dst, n.Val} }
+
+func (n *Store) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	n.Val = sub.get(n.Val)
+}
 
 // Copy is a Stmt that copies a composite value
 // to a location specified by address.
@@ -197,6 +228,11 @@ type Copy struct {
 
 func (n *Copy) Uses() []Val { return []Val{n.Dst, n.Src} }
 
+func (n *Copy) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	n.Src = sub.get(n.Src)
+}
+
 // MakeArray initializes an array.
 // It assumes that Dst holds the size and data address,
 // and that the data address is set by MakeArray
@@ -210,6 +246,13 @@ type MakeArray struct {
 
 func (n *MakeArray) Uses() []Val { return append(n.Args, n.Dst) }
 
+func (n *MakeArray) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	for i := range n.Args {
+		n.Args[i] = sub.get(n.Args[i])
+	}
+}
+
 // MakeSlice initializes an array by slicing another array.
 type MakeSlice struct {
 	Dst  Val
@@ -221,6 +264,13 @@ type MakeSlice struct {
 }
 
 func (n *MakeSlice) Uses() []Val { return []Val{n.Ary, n.From, n.To, n.Dst} }
+
+func (n *MakeSlice) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	n.Ary = sub.get(n.Ary)
+	n.From = sub.get(n.From)
+	n.To = sub.get(n.To)
+}
 
 // MakeString initializes a string literal.
 //
@@ -234,6 +284,10 @@ type MakeString struct {
 }
 
 func (n *MakeString) Uses() []Val { return []Val{n.Dst} }
+
+func (n *MakeString) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+}
 
 // MakeAnd initializes an and-type.
 type MakeAnd struct {
@@ -258,6 +312,13 @@ func (n *MakeAnd) Uses() []Val {
 	return uses
 }
 
+func (n *MakeAnd) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	for i := range n.Fields {
+		n.Fields[i] = sub.get(n.Fields[i])
+	}
+}
+
 // MakeOr initializes an or-type.
 type MakeOr struct {
 	Dst  Val
@@ -274,6 +335,13 @@ func (n *MakeOr) Uses() []Val {
 	return []Val{n.Dst, n.Val}
 }
 
+func (n *MakeOr) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	if n.Val != nil {
+		n.Val = sub.get(n.Val)
+	}
+}
+
 // MakeVirt initializes a virtual type.
 type MakeVirt struct {
 	Dst   Val
@@ -285,6 +353,11 @@ type MakeVirt struct {
 
 func (n *MakeVirt) Uses() []Val { return []Val{n.Dst, n.Obj} }
 
+func (n *MakeVirt) sub(sub valMap) {
+	n.Dst = sub.get(n.Dst)
+	n.Obj = sub.get(n.Obj)
+}
+
 // Call is a static function call.
 type Call struct {
 	Fun  *Fun
@@ -294,6 +367,12 @@ type Call struct {
 }
 
 func (n *Call) Uses() []Val { return n.Args }
+
+func (n *Call) sub(sub valMap) {
+	for i := range n.Args {
+		n.Args[i] = sub.get(n.Args[i])
+	}
+}
 
 // VirtCall is a virtual function call.
 type VirtCall struct {
@@ -308,6 +387,13 @@ type VirtCall struct {
 
 func (n *VirtCall) Uses() []Val { return n.Args }
 
+func (n *VirtCall) sub(sub valMap) {
+	n.Self = sub.get(n.Self)
+	for i := range n.Args {
+		n.Args[i] = sub.get(n.Args[i])
+	}
+}
+
 // A Term is a terminal statement.
 type Term interface {
 	Stmt
@@ -321,16 +407,18 @@ type Ret struct {
 	Far bool
 }
 
-func (*Ret) Uses() []Val  { return nil }
-func (*Ret) Out() []*BBlk { return nil }
+func (*Ret) Uses() []Val      { return nil }
+func (n *Ret) sub(sub valMap) {}
+func (*Ret) Out() []*BBlk     { return nil }
 
 // Jmp is a Term that changes control to another BBlk.
 type Jmp struct {
 	Dst *BBlk
 }
 
-func (*Jmp) Uses() []Val    { return nil }
-func (n *Jmp) Out() []*BBlk { return []*BBlk{n.Dst} }
+func (*Jmp) Uses() []Val      { return nil }
+func (n *Jmp) sub(sub valMap) {}
+func (n *Jmp) Out() []*BBlk   { return []*BBlk{n.Dst} }
 
 // Switch is a Term that transfers control to one of several BBlks.
 // The Val is either an address or an integer type.
@@ -346,7 +434,12 @@ type Switch struct {
 	Msg *types.Msg
 }
 
-func (n *Switch) Uses() []Val  { return []Val{n.Val} }
+func (n *Switch) Uses() []Val { return []Val{n.Val} }
+
+func (n *Switch) sub(sub valMap) {
+	n.Val = sub.get(n.Val)
+}
+
 func (n *Switch) Out() []*BBlk { return n.Dsts }
 
 // Val is a value
@@ -402,7 +495,8 @@ type IntLit struct {
 	Case *types.Var
 }
 
-func (n *IntLit) Uses() []Val { return nil }
+func (n *IntLit) Uses() []Val    { return nil }
+func (n *IntLit) sub(sub valMap) {}
 
 // FloatLit is an floating-point literal.
 type FloatLit struct {
@@ -412,7 +506,8 @@ type FloatLit struct {
 	Float *types.Float
 }
 
-func (FloatLit) Uses() []Val { return nil }
+func (FloatLit) Uses() []Val       { return nil }
+func (n *FloatLit) sub(sub valMap) {}
 
 // OpCode are the names of the built-in Ops.
 type OpCode int
@@ -453,6 +548,12 @@ type Op struct {
 
 func (n *Op) Uses() []Val { return n.Args }
 
+func (n *Op) sub(sub valMap) {
+	for i := range n.Args {
+		n.Args[i] = sub.get(n.Args[i])
+	}
+}
+
 // Load loads the value at an address.
 // The type of a load is always a simple type.
 type Load struct {
@@ -464,6 +565,10 @@ type Load struct {
 
 func (n *Load) Uses() []Val { return []Val{n.Src} }
 
+func (n *Load) sub(sub valMap) {
+	n.Src = sub.get(n.Src)
+}
+
 // Alloc is an address of a newly allocated location of a given type.
 type Alloc struct {
 	val
@@ -473,7 +578,8 @@ type Alloc struct {
 	Var *types.Var
 }
 
-func (*Alloc) Uses() []Val { return nil }
+func (*Alloc) Uses() []Val      { return nil }
+func (n *Alloc) sub(sub valMap) {}
 
 // Arg is an argument to the current function.
 type Arg struct {
@@ -483,7 +589,8 @@ type Arg struct {
 	Ident *types.Ident
 }
 
-func (*Arg) Uses() []Val { return nil }
+func (*Arg) Uses() []Val      { return nil }
+func (n *Arg) sub(sub valMap) {}
 
 // Global is the address of a module-level variable.
 type Global struct {
@@ -491,7 +598,8 @@ type Global struct {
 	Val *types.Val // non-nil
 }
 
-func (*Global) Uses() []Val { return nil }
+func (*Global) Uses() []Val      { return nil }
+func (n *Global) sub(sub valMap) {}
 
 // Index is the address of an element of an array.
 type Index struct {
@@ -504,6 +612,11 @@ type Index struct {
 }
 
 func (n *Index) Uses() []Val { return []Val{n.Ary, n.Index} }
+
+func (n *Index) sub(sub valMap) {
+	n.Ary = sub.get(n.Ary)
+	n.Index = sub.get(n.Index)
+}
 
 // Field is the address of an and-type field, an or-type case, or an or-type tag.
 type Field struct {
@@ -523,6 +636,10 @@ type Field struct {
 }
 
 func (n *Field) Uses() []Val { return []Val{n.Obj} }
+
+func (n *Field) sub(sub valMap) {
+	n.Obj = sub.get(n.Obj)
+}
 
 // EmptyType returns whether the type has zero-size.
 func EmptyType(typ *types.Type) bool {
