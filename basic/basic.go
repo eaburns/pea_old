@@ -140,6 +140,17 @@ type BBlk struct {
 	In    []*BBlk
 }
 
+func (b *BBlk) Out() []*BBlk {
+	if len(b.Stmts) == 0 {
+		return nil
+	}
+	term, ok := b.Stmts[len(b.Stmts)-1].(Term)
+	if !ok {
+		return nil
+	}
+	return term.Out()
+}
+
 func (b *BBlk) addIn(in *BBlk) {
 	for _, i := range b.In {
 		if i == in {

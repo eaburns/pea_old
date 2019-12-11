@@ -68,13 +68,23 @@ type commenter interface {
 }
 
 func (n *BBlk) buildString(s *strings.Builder, comments bool) *strings.Builder {
-	fmt.Fprintf(s, "\t%d:", n.N)
+	fmt.Fprintf(s, "\t%d:\n\t\t[in:", n.N)
+	for _, in := range n.In {
+		fmt.Fprintf(s, " %d", in.N)
+	}
+	s.WriteString("] [out:")
+	for _, out := range n.Out() {
+		fmt.Fprintf(s, " %d", out.N)
+	}
+	s.WriteRune(']')
 	for i, t := range n.Stmts {
-		switch _, ok := t.(*Comment); {
-		case ok && !comments:
-			continue
-		case ok && i > 0:
-			s.WriteRune('\n')
+		if _, ok := t.(*Comment); ok {
+			if !comments {
+				continue
+			}
+			if i > 0 {
+				s.WriteRune('\n')
+			}
 		}
 		if bug := t.bugs(); bug != "" {
 			s.WriteString("\n\t\t// BUG: ")
