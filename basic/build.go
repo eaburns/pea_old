@@ -649,6 +649,8 @@ func buildVar(f *Fun, b *BBlk, vr *types.Var) Val {
 	switch {
 	case vr.Val != nil:
 		return addGlobal(f, b, vr.Val)
+	case findCapture(f, vr) >= 0:
+		return buildCapture(f, b, vr)
 	case vr.FunParm != nil:
 		return findParm(f, b, vr)
 	case vr.BlkParm != nil:

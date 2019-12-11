@@ -1953,6 +1953,36 @@ func TestBuild(t *testing.T) {
 						return
 			`,
 		},
+		{
+			name: "assign to capture",
+			src: `
+				func [foo ^Int |
+					x := 1.
+					true ifTrue: [] ifFalse: [ x := 3 ].
+					^x
+				]
+			`,
+			fun: "block2",
+			want: `
+				block2
+					parms:
+						0 $Block1&
+					0:
+						[in:] [out: 1]
+						$0 := alloc($Block1&)
+						$1 := arg(0)
+						store($0, $1)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$2 := 3
+						$3 := load($0)
+						$4 := $3.0 [x]
+						$5 := load($4)
+						store($5, $2)
+						return
+			`,
+		},
 	}
 	for _, test := range tests {
 		test := test
