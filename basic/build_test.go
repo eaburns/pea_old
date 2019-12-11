@@ -875,6 +875,29 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "array size",
+			src: `
+				Func [size: a Int Array ^Int | ^a size]
+			`,
+			fun: "",
+			want: `
+				function0
+					parms:
+						0 [a] Int Array& (value)
+						1 Int&
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$0 := arg(0 [a])
+						$1 := size($0)
+						$2 := arg(1)
+						store($2, $1)
+						return
+			`,
+		},
+		{
 			name: "make array",
 			src: `
 				func [foo ^Int Array | ^{5; 6; 7}]

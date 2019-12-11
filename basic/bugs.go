@@ -23,8 +23,6 @@ import (
 	"github.com/eaburns/pea/types"
 )
 
-func (n *Comment) bugs() string { return "" }
-
 func (n *Store) bugs() (b string) {
 	defer recoverBug(&b)
 	bugIf(!isRefType(n.Dst),
@@ -192,10 +190,6 @@ func (n *VirtCall) bugs() (b string) {
 	return ""
 }
 
-func (n *Ret) bugs() (b string) { return "" }
-
-func (n *Jmp) bugs() (b string) { return "" }
-
 func (n *Switch) bugs() (b string) {
 	defer recoverBug(&b)
 	bugIf(len(n.OrType.Cases) != len(n.Dsts),
@@ -210,10 +204,6 @@ func (n *Switch) bugs() (b string) {
 	return ""
 }
 
-func (n *IntLit) bugs() (b string) { return "" }
-
-func (n *FloatLit) bugs() (b string) { return "" }
-
 func (n *Op) bugs() (b string) {
 	defer recoverBug(&b)
 	for i, arg := range n.Args {
@@ -221,7 +211,9 @@ func (n *Op) bugs() (b string) {
 			"op arg %d is an empty type", i)
 		bugIf(!SimpleType(arg.Type()),
 			"op arg %d is a composite type %s", i, arg.Type())
-		bugIf(n.Code != UnionTagOp && isRefType(arg),
+		bugIf(n.Code != ArraySizeOp &&
+			n.Code != UnionTagOp &&
+			isRefType(arg),
 			"op arg %d is a reference type %s", i, arg.Type())
 	}
 	return ""
@@ -235,12 +227,6 @@ func (n *Load) bugs() (b string) {
 		"load a composite type %s", refElemType(n.Src))
 	return ""
 }
-
-func (n *Alloc) bugs() (b string) { return "" }
-
-func (n *Arg) bugs() (b string) { return "" }
-
-func (n *Global) bugs() (b string) { return "" }
 
 func (n *Index) bugs() (b string) {
 	defer recoverBug(&b)

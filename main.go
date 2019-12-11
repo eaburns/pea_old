@@ -16,6 +16,7 @@ var (
 	printAST   = flag.Bool("ast", false, "print the AST")
 	printTypes = flag.Bool("types", false, "print the semantic tree")
 	printBasic = flag.Bool("basic", false, "print the basic representation")
+	opt        = flag.Bool("opt", false, "optimize the basic representation")
 	trace      = flag.Bool("trace", false, "enable tracing in the type checker")
 )
 
@@ -58,6 +59,9 @@ func main() {
 	}
 
 	basicMod := basic.Build(typesMod)
+	if *opt {
+		basic.Optimize(basicMod)
+	}
 	if *printBasic {
 		fmt.Println(basicMod.String())
 	}

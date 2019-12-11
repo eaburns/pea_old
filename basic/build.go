@@ -64,19 +64,15 @@ func addString(mod *Mod, str string) *String {
 	return s
 }
 
-func buildFun(mod *Mod, typesFun *types.Fun) {
-	f := findFun(mod, typesFun)
-	buildFunBody(f, f.Parms, typesFun.Locals, typesFun.Stmts)
-}
-
-func findFun(mod *Mod, fun *types.Fun) *Fun {
+func buildFun(mod *Mod, typesFun *types.Fun) *Fun {
 	for _, f := range mod.Funs {
-		if f.Fun == fun && f.Block == nil {
+		if f.Fun == typesFun && f.Block == nil {
 			return f
 		}
 	}
-	f := newFun(mod, fun.Sig.Parms, fun.Sig.Ret)
-	f.Fun = fun
+	f := newFun(mod, typesFun.Sig.Parms, typesFun.Sig.Ret)
+	f.Fun = typesFun
+	buildFunBody(f, f.Parms, typesFun.Locals, typesFun.Stmts)
 	return f
 }
 
@@ -148,6 +144,10 @@ func buildFunBody(f *Fun, parms []*Parm, locals []*types.Var, stmts []types.Stmt
 			continue
 		}
 		addStore(b0, parmAllocs[i], addArg(f, b0, parm))
+	}
+	if stmts == nil {
+		f.BBlks = nil
+		return
 	}
 	b1 := newBBlk(f)
 	buildStmts(f, b1, stmts)
@@ -372,7 +372,7 @@ func buildMsg(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 		c := addVirtCallFun(b, msg.Fun, args)
 		c.Msg = msg
 	default:
-		fun := findFun(f.Mod, msg.Fun)
+		fun := buildFun(f.Mod, msg.Fun)
 		c := addCall(b, fun, args)
 		c.Msg = msg
 	}
@@ -385,9 +385,15 @@ func buildMsg(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 func buildOp(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 	args := make([]Val, 0, len(msg.Args)+1)
 
-	// The incoming receiver is a &, but ops always take values.
-	// Add a load of the receiver as the 0th arg.
-	args = append(args, addLoad(f, b, recv))
+	code := builtInMethOp[msg.Fun.BuiltIn]
+
+	switch code {
+	case ArraySizeOp, UnionTagOp:
+		args = append(args, recv)
+	default:
+		// These opts always operate on the value type of the receiver.
+		args = append(args, addLoad(f, b, recv))
+	}
 
 	for _, arg := range msg.Args {
 		var val Val
@@ -395,7 +401,6 @@ func buildOp(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 		args = append(args, val)
 	}
 
-	code := builtInMethOp[msg.Fun.BuiltIn]
 	o := addOp(f, b, msg.Type(), code, args...)
 	o.Msg = msg
 	return o, b
@@ -728,7 +733,7 @@ func findLocal(fun *Fun, vr *types.Var) *Alloc {
 
 func addStmt(b *BBlk, s Stmt) {
 	if n := len(b.Stmts); n > 0 {
-		if _, ok := b.Stmts[n-1].(Term); ok {
+		if t, ok := b.Stmts[n-1].(Term); ok && !t.deleted() {
 			panic("impossible")
 		}
 	}
@@ -792,7 +797,7 @@ func addMakeOr(b *BBlk, dst Val, tag int, val Val) *MakeOr {
 func addMakeVirt(f *Fun, b *BBlk, dst, obj Val, typesVirts []*types.Fun) *MakeVirt {
 	var virts []*Fun
 	for _, fun := range typesVirts {
-		virts = append(virts, findFun(f.Mod, fun))
+		virts = append(virts, buildFun(f.Mod, fun))
 	}
 	v := &MakeVirt{Dst: dst, Obj: obj, Virts: virts}
 	addStmt(b, v)

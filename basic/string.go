@@ -30,10 +30,14 @@ func (n *String) buildString(s *strings.Builder) *strings.Builder {
 	return s
 }
 
+func (n *Fun) String() string {
+	return n.buildString(&strings.Builder{}, true).String()
+}
+
 func (n *Fun) buildString(s *strings.Builder, comments bool) *strings.Builder {
 	s.WriteString(n.name())
 	if comments {
-		fmt.Fprintf(s, " // %s", n.Fun)
+		fmt.Fprintf(s, " // %s\n\tcan inline: %v", n.Fun, n.CanInline)
 	}
 	s.WriteString("\n\tparms:")
 	for _, p := range append(n.Parms, n.Ret) {
@@ -86,11 +90,14 @@ func (n *BBlk) buildString(s *strings.Builder, comments bool) *strings.Builder {
 				s.WriteRune('\n')
 			}
 		}
-		if bug := t.bugs(); bug != "" {
+		if bug := t.bugs(); !t.deleted() && bug != "" {
 			s.WriteString("\n\t\t// BUG: ")
 			s.WriteString(bug)
 		}
 		s.WriteString("\n\t\t")
+		if t.deleted() {
+			s.WriteString("ⓧ ")
+		}
 		start := s.Len()
 		if v, ok := t.(Val); ok {
 			fmt.Fprintf(s, "$%d := ", v.Num())
@@ -315,7 +322,11 @@ func (n *Load) buildString(s *strings.Builder) *strings.Builder {
 }
 
 func (n *Alloc) buildString(s *strings.Builder) *strings.Builder {
-	fmt.Fprintf(s, "alloc(%s)", n.Type().Args[0].Type)
+	a := ""
+	if n.Stack {
+		a = "a"
+	}
+	fmt.Fprintf(s, "alloc%s(%s)", a, n.Type().Args[0].Type)
 	return s
 }
 

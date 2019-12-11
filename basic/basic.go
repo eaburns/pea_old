@@ -106,12 +106,13 @@ type String struct {
 // A Fun is a code block.
 type Fun struct {
 	// N is unique among Mod-level defs.
-	N     int
-	Mod   *Mod
-	NVals int
-	Parms []*Parm
-	Ret   *Parm // return parameter
-	BBlks []*BBlk
+	N         int
+	Mod       *Mod
+	NVals     int
+	Parms     []*Parm
+	Ret       *Parm // return parameter
+	BBlks     []*BBlk
+	CanInline bool
 
 	Fun   *types.Fun
 	Block *types.Block
@@ -140,24 +141,35 @@ type BBlk struct {
 	In    []*BBlk
 }
 
-func (b *BBlk) Out() []*BBlk {
-	if len(b.Stmts) == 0 {
+func (n *BBlk) Out() []*BBlk {
+	if len(n.Stmts) == 0 {
 		return nil
 	}
-	term, ok := b.Stmts[len(b.Stmts)-1].(Term)
+	term, ok := n.Stmts[len(n.Stmts)-1].(Term)
 	if !ok {
 		return nil
 	}
 	return term.Out()
 }
 
-func (b *BBlk) addIn(in *BBlk) {
-	for _, i := range b.In {
+func (n *BBlk) addIn(in *BBlk) {
+	for _, i := range n.In {
 		if i == in {
 			return
 		}
 	}
-	b.In = append(b.In, in)
+	n.In = append(n.In, in)
+}
+
+func (n *BBlk) rmIn(in *BBlk) {
+	var i int
+	for _, b := range n.In {
+		if b != in {
+			n.In[i] = b
+			i++
+		}
+	}
+	n.In = n.In[:i]
 }
 
 // A Stmt is an instruction that does not produce a value.
@@ -165,9 +177,33 @@ type Stmt interface {
 	Uses() []Val
 	buildString(*strings.Builder) *strings.Builder
 
-	// sub substitutes values of the statement
+	// delete marks the statement as deleted.
+	delete()
+
+	// deleted returns whether this statement is deleted.
+	deleted() bool
+
+	// storesTo returns whether this is an initialization
+	// of the variable addressed by the Val.
+	//
+	// This function only considers stores
+	// that can have no other side effect besides the storing.
+	// For example, Calls and VirtCalls can store to their arguments,
+	// but those are not considered stores in this sense.
+	storesTo(Val) bool
+
+	// subVals substitutes values of the statement
 	// that are keys of the map for their values.
-	sub(valMap)
+	// subVals properly maintains the users slices.
+	subVals(valMap)
+
+	// shallowCopy returns a shallow copy of the Stmt.
+	// The Stmt is copied along with any slices in it,
+	// but the Vals referenced by it still point to the original Vals.
+	// The val.users is not copied for Vals;
+	// the slice is shared with that of the receiver
+	// and should be reset by the caller.
+	shallowCopy() Stmt
 
 	// bugs returns a strings describing errors in the statement.
 	// An empty return indicates no errors.
@@ -176,15 +212,24 @@ type Stmt interface {
 	bugs() string
 }
 
+type stmt struct {
+	del bool
+}
+
+func (*stmt) Uses() []Val     { return nil }
+func (s *stmt) delete()       { s.del = true }
+func (s *stmt) deleted() bool { return s.del }
+func (*stmt) bugs() string    { return "" }
+
 // A Comment is a no-op statement that adds a note to the output.
 type Comment struct {
+	stmt
 	Text string
 }
 
-func (n *Comment) Uses() []Val { return nil }
-
 // Store is a Stmt stores a value to a location specified by address.
 type Store struct {
+	stmt
 	// Dst is the address to which the value is stored.
 	Dst Val
 	Val Val
@@ -204,6 +249,7 @@ func (n *Store) Uses() []Val { return []Val{n.Dst, n.Val} }
 // For Array and String types, Copy is a shallow copy that copies
 // the size and data address, but not the data itself.
 type Copy struct {
+	stmt
 	// Dst is the address to which the value is copied.
 	Dst Val
 	Src Val
@@ -218,6 +264,7 @@ func (n *Copy) Uses() []Val { return []Val{n.Dst, n.Src} }
 // and that the data address is set by MakeArray
 // to a newly allocated object of len(Args) elements.
 type MakeArray struct {
+	stmt
 	Dst  Val
 	Args []Val
 
@@ -228,6 +275,7 @@ func (n *MakeArray) Uses() []Val { return append(n.Args, n.Dst) }
 
 // MakeSlice initializes an array by slicing another array.
 type MakeSlice struct {
+	stmt
 	Dst  Val
 	Ary  Val
 	From Val
@@ -243,6 +291,7 @@ func (n *MakeSlice) Uses() []Val { return []Val{n.Ary, n.From, n.To, n.Dst} }
 // A String is a pair <size (int), address>,
 // where the address is the address of size bytes.
 type MakeString struct {
+	stmt
 	Dst  Val
 	Data *String
 
@@ -253,6 +302,7 @@ func (n *MakeString) Uses() []Val { return []Val{n.Dst} }
 
 // MakeAnd initializes an and-type.
 type MakeAnd struct {
+	stmt
 	Dst Val
 	// Fields are the values for each field.
 	// If field index i has an EmptyType, Fields[i]==nil.
@@ -277,6 +327,7 @@ func (n *MakeAnd) Uses() []Val {
 
 // MakeOr initializes an or-type.
 type MakeOr struct {
+	stmt
 	Dst  Val
 	Case int
 	Val  Val
@@ -293,6 +344,7 @@ func (n *MakeOr) Uses() []Val {
 
 // MakeVirt initializes a virtual type.
 type MakeVirt struct {
+	stmt
 	Dst   Val
 	Obj   Val
 	Virts []*Fun
@@ -304,6 +356,7 @@ func (n *MakeVirt) Uses() []Val { return []Val{n.Dst, n.Obj} }
 
 // Call is a static function call.
 type Call struct {
+	stmt
 	Fun  *Fun
 	Args []Val
 
@@ -312,8 +365,14 @@ type Call struct {
 
 func (n *Call) Uses() []Val { return n.Args }
 
+func (n Call) shallowCopy() Stmt {
+	n.Args = append([]Val{}, n.Args...)
+	return &n
+}
+
 // VirtCall is a virtual function call.
 type VirtCall struct {
+	stmt
 	// Self is the receiver of the call.
 	Self Val
 	// Index is the index of the virtual method, 0-indexed.
@@ -329,24 +388,29 @@ func (n *VirtCall) Uses() []Val { return n.Args }
 type Term interface {
 	Stmt
 	Out() []*BBlk
+
+	// subBBlk does not update the BBlk.In slice.
+	// Use the subBblks([]*BBlk, bblkMap) function
+	// to ensure that the BBlk.In slices are propertyl updated.
+	subBBlk(bblkMap)
 }
 
 // Ret is a Term statement that returns from the current Fun.
 type Ret struct {
+	stmt
 	Ret *types.Ret
 	// Far indicates whether this is a far return.
 	Far bool
 }
 
-func (*Ret) Uses() []Val  { return nil }
 func (*Ret) Out() []*BBlk { return nil }
 
 // Jmp is a Term that changes control to another BBlk.
 type Jmp struct {
+	stmt
 	Dst *BBlk
 }
 
-func (*Jmp) Uses() []Val    { return nil }
 func (n *Jmp) Out() []*BBlk { return []*BBlk{n.Dst} }
 
 // Switch is a Term that transfers control to one of several BBlks.
@@ -356,6 +420,7 @@ func (n *Jmp) Out() []*BBlk { return []*BBlk{n.Dst} }
 // If it is an integer type, there are N Dsts.
 // Dsts[i], 0 ≤ i < N corresponds to Val=i.
 type Switch struct {
+	stmt
 	Val    Val
 	Dsts   []*BBlk
 	OrType *types.Type
@@ -363,8 +428,7 @@ type Switch struct {
 	Msg *types.Msg
 }
 
-func (n *Switch) Uses() []Val { return []Val{n.Val} }
-
+func (n *Switch) Uses() []Val  { return []Val{n.Val} }
 func (n *Switch) Out() []*BBlk { return n.Dsts }
 
 // Val is a value
@@ -381,6 +445,7 @@ type Val interface {
 }
 
 type val struct {
+	stmt
 	n     int
 	typ   *types.Type
 	users []Stmt
@@ -431,8 +496,6 @@ type IntLit struct {
 	Case *types.Var
 }
 
-func (n *IntLit) Uses() []Val { return nil }
-
 // FloatLit is an floating-point literal.
 type FloatLit struct {
 	val
@@ -440,8 +503,6 @@ type FloatLit struct {
 
 	Float *types.Float
 }
-
-func (FloatLit) Uses() []Val { return nil }
 
 // OpCode are the names of the built-in Ops.
 type OpCode int
@@ -502,8 +563,6 @@ type Alloc struct {
 	Var *types.Var
 }
 
-func (*Alloc) Uses() []Val { return nil }
-
 // Arg is an argument to the current function.
 type Arg struct {
 	val
@@ -512,15 +571,11 @@ type Arg struct {
 	Ident *types.Ident
 }
 
-func (*Arg) Uses() []Val { return nil }
-
 // Global is the address of a module-level variable.
 type Global struct {
 	val
 	Val *types.Val // non-nil
 }
-
-func (*Global) Uses() []Val { return nil }
 
 // Index is the address of an element of an array.
 type Index struct {

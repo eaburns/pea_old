@@ -7,7 +7,7 @@ import (
 	"github.com/eaburns/pea/types"
 )
 
-func TestSub(t *testing.T) {
+func TestSubVals(t *testing.T) {
 	intType := &types.Type{Name: "Int", BuiltIn: types.IntType}
 	intRefType := makeTestRefType(intType)
 	intArrayRefType := makeTestRefType(makeTestArrayType(intType))
@@ -515,7 +515,7 @@ func TestSub(t *testing.T) {
 			for i, v := range test.sub {
 				valMap[i] = v
 			}
-			test.stmt.sub(valMap)
+			test.stmt.subVals(valMap)
 			got := buildString(test.stmt)
 			if got != test.want {
 				t.Errorf("got %s, want %s", got, test.want)
