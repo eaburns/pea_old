@@ -265,7 +265,8 @@ type MakeAnd struct {
 }
 
 func (n *MakeAnd) Uses() []Val {
-	uses := make([]Val, 0, len(n.Fields))
+	uses := make([]Val, 0, len(n.Fields)+1)
+	uses = append(uses, n.Dst)
 	for _, f := range n.Fields {
 		if f != nil {
 			uses = append(uses, f)
