@@ -62,7 +62,9 @@ type BuiltInMeth int
 
 // The following are the built-in methods.
 const (
-	CaseMeth BuiltInMeth = iota + 1
+	TrueFunc BuiltInMeth = iota + 1
+	FalseFunc
+	CaseMeth
 	VirtMeth
 	ArraySizeMeth
 	ArrayLoadMeth
@@ -89,7 +91,9 @@ const (
 	NumConvertMeth
 )
 
-var builtInMethTag = map[string]BuiltInMeth{
+var builtInFunTag = map[string]BuiltInMeth{
+	"true":                     TrueFunc,
+	"false":                    FalseFunc,
 	"size":                     ArraySizeMeth,
 	"byteSize":                 ArraySizeMeth,
 	"at:":                      ArrayLoadMeth,

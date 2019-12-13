@@ -170,7 +170,7 @@ func makeDef(astDef ast.Def, isUniv bool) Def {
 		}
 		fun.Def = fun
 		if isUniv {
-			fun.BuiltIn = builtInMethTag[fun.Sig.Sel]
+			fun.BuiltIn = builtInFunTag[fun.Sig.Sel]
 			if fun.BuiltIn == 0 {
 				panic("impossible: " + fun.Sig.Sel)
 			}
