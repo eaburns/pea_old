@@ -19,7 +19,37 @@ func Build(typesMod *types.Mod) *Mod {
 			buildFun(mod, inst)
 		}
 	}
+	topoSortFuns(mod)
 	return mod
+}
+
+func topoSortFuns(mod *Mod) {
+	done := make(map[*Fun]bool)
+	sorted := make([]*Fun, 0, len(mod.Funs))
+	for _, f := range mod.Funs {
+		sorted = appendSorted(f, done, sorted)
+	}
+	mod.Funs = sorted
+}
+
+func appendSorted(f *Fun, done map[*Fun]bool, sorted []*Fun) []*Fun {
+	if done[f] {
+		return sorted
+	}
+	done[f] = true
+	for _, b := range f.BBlks {
+		for _, s := range b.Stmts {
+			switch s := s.(type) {
+			case *Call:
+				sorted = appendSorted(s.Fun, done, sorted)
+			case *MakeVirt:
+				if len(s.Virts) == 1 && s.Virts[0].Block != nil {
+					sorted = appendSorted(s.Virts[0], done, sorted)
+				}
+			}
+		}
+	}
+	return append(sorted, f)
 }
 
 func addString(mod *Mod, str string) *String {
@@ -769,8 +799,8 @@ func addMakeVirt(f *Fun, b *BBlk, dst, obj Val, typesVirts []*types.Fun) *MakeVi
 	return v
 }
 
-func addCall(b *BBlk, fun *Fun, args []Val) *Call {
-	c := &Call{Fun: fun, Args: args}
+func addCall(b *BBlk, calledFun *Fun, args []Val) *Call {
+	c := &Call{Fun: calledFun, Args: args}
 	addStmt(b, c)
 	return c
 }

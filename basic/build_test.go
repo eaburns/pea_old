@@ -665,22 +665,6 @@ func TestBuild(t *testing.T) {
 			`,
 			fun: "",
 			want: `
-				function0
-					parms:
-						0 Int Fun&
-					0:
-						[in:] [out: 1]
-						$1 := alloc($Block0)
-						$2 := alloc(Int Fun)
-						jmp 1
-					1:
-						[in: 0] [out:]
-						$0 := arg(0)
-						and($1, {$0})
-						virt($2, $1, {block1})
-						$3 := arg(0)
-						copy($3, $2, Int Fun)
-						return
 				block1
 					parms:
 						0 $Block0&
@@ -696,6 +680,22 @@ func TestBuild(t *testing.T) {
 						$2 := 3
 						$3 := arg(1)
 						store($3, $2)
+						return
+				function0
+					parms:
+						0 Int Fun&
+					0:
+						[in:] [out: 1]
+						$1 := alloc($Block0)
+						$2 := alloc(Int Fun)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$0 := arg(0)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := arg(0)
+						copy($3, $2, Int Fun)
 						return
 			`,
 		},
@@ -1400,23 +1400,6 @@ func TestBuild(t *testing.T) {
 			`,
 			fun: "",
 			want: `
-				function0
-					parms:
-						0 Int&
-					0:
-						[in:] [out: 1]
-						$1 := alloc($Block0)
-						$2 := alloc(Nil Fun)
-						jmp 1
-					1:
-						[in: 0] [out:]
-						$0 := arg(0)
-						and($1, {$0})
-						virt($2, $1, {block1})
-						$3 := 3
-						$4 := arg(0)
-						store($4, $3)
-						return
 				block1
 					parms:
 						0 $Block0&
@@ -1434,6 +1417,23 @@ func TestBuild(t *testing.T) {
 						$5 := load($4)
 						store($5, $2)
 						far return
+				function0
+					parms:
+						0 Int&
+					0:
+						[in:] [out: 1]
+						$1 := alloc($Block0)
+						$2 := alloc(Nil Fun)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$0 := arg(0)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := 3
+						$4 := arg(0)
+						store($4, $3)
+						return
 			`,
 		},
 		{
@@ -1443,6 +1443,18 @@ func TestBuild(t *testing.T) {
 			`,
 			fun: "",
 			want: `
+				block1
+					parms:
+						0 $Block0&
+					0:
+						[in:] [out: 1]
+						$0 := alloc($Block0&)
+						$1 := arg(0)
+						store($0, $1)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						return
 				function0
 					parms:
 						0 Nil Fun&
@@ -1459,6 +1471,15 @@ func TestBuild(t *testing.T) {
 						$3 := arg(0)
 						copy($3, $2, Nil Fun)
 						return
+			`,
+		},
+		{
+			name: "block capture parm",
+			src: `
+				func [foo: i Int ^Int | [^i]. ^3]
+			`,
+			fun: "",
+			want: `
 				block1
 					parms:
 						0 $Block0&
@@ -1470,16 +1491,15 @@ func TestBuild(t *testing.T) {
 						jmp 1
 					1:
 						[in: 0] [out:]
-						return
-			`,
-		},
-		{
-			name: "block capture parm",
-			src: `
-				func [foo: i Int ^Int | [^i]. ^3]
-			`,
-			fun: "",
-			want: `
+						$2 := load($0)
+						$3 := $2.0 [i]
+						$4 := load($3)
+						$5 := load($4)
+						$6 := load($0)
+						$7 := $6.1
+						$8 := load($7)
+						store($8, $5)
+						far return
 				function0
 					parms:
 						0 [i] Int
@@ -1501,6 +1521,15 @@ func TestBuild(t *testing.T) {
 						$6 := arg(1)
 						store($6, $5)
 						return
+			`,
+		},
+		{
+			name: "block capture local",
+			src: `
+				func [foo ^Int | i := 5. [^i]. ^3]
+			`,
+			fun: "",
+			want: `
 				block1
 					parms:
 						0 $Block0&
@@ -1521,15 +1550,6 @@ func TestBuild(t *testing.T) {
 						$8 := load($7)
 						store($8, $5)
 						far return
-			`,
-		},
-		{
-			name: "block capture local",
-			src: `
-				func [foo ^Int | i := 5. [^i]. ^3]
-			`,
-			fun: "",
-			want: `
 				function0
 					parms:
 						0 Int&
@@ -1550,6 +1570,16 @@ func TestBuild(t *testing.T) {
 						$6 := arg(0)
 						store($6, $5)
 						return
+			`,
+		},
+		{
+			name: "block capture field",
+			src: `
+				meth Point [foo ^Int | [^x]. ^3]
+				type Point {x: Int y: Int}
+			`,
+			fun: "",
+			want: `
 				block1
 					parms:
 						0 $Block0&
@@ -1562,7 +1592,7 @@ func TestBuild(t *testing.T) {
 					1:
 						[in: 0] [out:]
 						$2 := load($0)
-						$3 := $2.0 [i]
+						$3 := $2.0 [x]
 						$4 := load($3)
 						$5 := load($4)
 						$6 := load($0)
@@ -1570,16 +1600,6 @@ func TestBuild(t *testing.T) {
 						$8 := load($7)
 						store($8, $5)
 						far return
-			`,
-		},
-		{
-			name: "block capture field",
-			src: `
-				meth Point [foo ^Int | [^x]. ^3]
-				type Point {x: Int y: Int}
-			`,
-			fun: "",
-			want: `
 				function0
 					parms:
 						0 [self] Point&
@@ -1603,7 +1623,16 @@ func TestBuild(t *testing.T) {
 						$8 := arg(1)
 						store($8, $7)
 						return
-				block1
+			`,
+		},
+		{
+			name: "block capture nested block parm",
+			src: `
+				func [foo ^Int | [:i Int | [^i]]. ^3]
+			`,
+			fun: "",
+			want: `
+				block2
 					parms:
 						0 $Block0&
 					0:
@@ -1615,7 +1644,7 @@ func TestBuild(t *testing.T) {
 					1:
 						[in: 0] [out:]
 						$2 := load($0)
-						$3 := $2.0 [x]
+						$3 := $2.0 [i]
 						$4 := load($3)
 						$5 := load($4)
 						$6 := load($0)
@@ -1623,32 +1652,6 @@ func TestBuild(t *testing.T) {
 						$8 := load($7)
 						store($8, $5)
 						far return
-			`,
-		},
-		{
-			name: "block capture nested block parm",
-			src: `
-				func [foo ^Int | [:i Int | [^i]]. ^3]
-			`,
-			fun: "",
-			want: `
-				function0
-					parms:
-						0 Int&
-					0:
-						[in:] [out: 1]
-						$1 := alloc($Block1)
-						$2 := alloc((Int, Nil Fun) Fun)
-						jmp 1
-					1:
-						[in: 0] [out:]
-						$0 := arg(0)
-						and($1, {$0})
-						virt($2, $1, {block1})
-						$3 := 3
-						$4 := arg(0)
-						store($4, $3)
-						return
 				block1
 					parms:
 						0 $Block1&
@@ -1675,6 +1678,32 @@ func TestBuild(t *testing.T) {
 						$9 := arg(2)
 						copy($9, $8, Nil Fun)
 						return
+				function0
+					parms:
+						0 Int&
+					0:
+						[in:] [out: 1]
+						$1 := alloc($Block1)
+						$2 := alloc((Int, Nil Fun) Fun)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$0 := arg(0)
+						and($1, {$0})
+						virt($2, $1, {block1})
+						$3 := 3
+						$4 := arg(0)
+						store($4, $3)
+						return
+			`,
+		},
+		{
+			name: "block capture capture",
+			src: `
+				func [foo: i Int ^Int | [[^i]]. ^3]
+			`,
+			fun: "",
+			want: `
 				block2
 					parms:
 						0 $Block0&
@@ -1695,36 +1724,6 @@ func TestBuild(t *testing.T) {
 						$8 := load($7)
 						store($8, $5)
 						far return
-			`,
-		},
-		{
-			name: "block capture capture",
-			src: `
-				func [foo: i Int ^Int | [[^i]]. ^3]
-			`,
-			fun: "",
-			want: `
-				function0
-					parms:
-						0 [i] Int
-						1 Int&
-					0:
-						[in:] [out: 1]
-						$0 := alloc(Int)
-						$1 := arg(0 [i])
-						store($0, $1)
-						$3 := alloc($Block1)
-						$4 := alloc(Nil Fun Fun)
-						jmp 1
-					1:
-						[in: 0] [out:]
-						$2 := arg(1)
-						and($3, {i: $0 $2})
-						virt($4, $3, {block1})
-						$5 := 3
-						$6 := arg(1)
-						store($6, $5)
-						return
 				block1
 					parms:
 						0 $Block1&
@@ -1750,26 +1749,27 @@ func TestBuild(t *testing.T) {
 						$10 := arg(1)
 						copy($10, $9, Nil Fun)
 						return
-				block2
+				function0
 					parms:
-						0 $Block0&
+						0 [i] Int
+						1 Int&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
-						$1 := arg(0)
+						$0 := alloc(Int)
+						$1 := arg(0 [i])
 						store($0, $1)
+						$3 := alloc($Block1)
+						$4 := alloc(Nil Fun Fun)
 						jmp 1
 					1:
 						[in: 0] [out:]
-						$2 := load($0)
-						$3 := $2.0 [i]
-						$4 := load($3)
-						$5 := load($4)
-						$6 := load($0)
-						$7 := $6.1
-						$8 := load($7)
-						store($8, $5)
-						far return
+						$2 := arg(1)
+						and($3, {i: $0 $2})
+						virt($4, $3, {block1})
+						$5 := 3
+						$6 := arg(1)
+						store($6, $5)
+						return
 			`,
 		},
 		{
@@ -1962,9 +1962,9 @@ func TestBuild(t *testing.T) {
 					^x
 				]
 			`,
-			fun: "block2",
+			fun: "block3",
 			want: `
-				block2
+				block3
 					parms:
 						0 $Block1&
 					0:
@@ -1980,6 +1980,54 @@ func TestBuild(t *testing.T) {
 						$4 := $3.0 [x]
 						$5 := load($4)
 						store($5, $2)
+						return
+			`,
+		},
+		{
+			name: "topo sort by calls",
+			src: `
+				func [foo | bar]
+				func [bar | baz]
+				func [baz | qux]
+				func [qux | baz]
+			`,
+			fun: "",
+			want: `
+				function3
+					parms:
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						call function2()
+						return
+				function2
+					parms:
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						call function3()
+						return
+				function1
+					parms:
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						call function2()
+						return
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						call function1()
 						return
 			`,
 		},
