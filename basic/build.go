@@ -126,8 +126,11 @@ func buildInit(mod *Mod) *Fun {
 	b1 := newBBlk(f)
 	addJmp(b0, b1)
 	for _, v := range mod.Vars {
-		g := addGlobal(f, b1, v.Val)
-		addCall(b1, v.Init, []Val{g})
+		var args []Val
+		if !EmptyType(v.Val.Var.Type()) {
+			args = []Val{addGlobal(f, b1, v.Val)}
+		}
+		addCall(b1, v.Init, args)
 	}
 	addRet(b1)
 	return f
@@ -174,6 +177,9 @@ func buildFunBody(f *Fun, parms []*Parm, locals []*types.Var, stmts []types.Stmt
 		parmAllocs = append(parmAllocs, a)
 	}
 	for _, local := range locals {
+		if local == nil {
+			panic("huh?")
+		}
 		a := addAlloc(f, b0, local.Type())
 		a.Var = local
 	}
@@ -628,7 +634,7 @@ func buildConvert(f *Fun, b *BBlk, convert *types.Convert) Val {
 		l.Convert = convert
 		return l
 	case len(convert.Virts) != 0:
-		if SimpleType(val.Type()) {
+		if SimpleType(convert.Expr.Type()) {
 			tmp := addAlloc(f, b, val.Type())
 			addStore(b, tmp, val)
 			val = tmp

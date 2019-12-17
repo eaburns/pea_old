@@ -136,6 +136,9 @@ func (n *Copy) comment() string {
 }
 
 func (n *val) comment() string {
+	if n.Type() == nil {
+		return "<nil type>"
+	}
 	return n.Type().String()
 }
 
