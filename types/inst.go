@@ -519,8 +519,8 @@ func instFunBody(x *scope, fun *Fun) {
 	}
 
 	sub := newSubMap(fun.Def.TParms, fun.TArgs)
-	if recv := fun.Recv; recv != nil {
-		addSubMap(recv.Type.Parms, recv.Type.Args, sub)
+	if fun.Def.Recv != nil {
+		addSubMap(fun.Def.Recv.Parms, fun.Recv.Args, sub)
 	}
 	fun.Stmts = subStmts(x, sub, fun.Def.Stmts)
 }

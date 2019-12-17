@@ -344,6 +344,38 @@ func TestInstCall(t *testing.T) {
 			`,
 			want: "Int8 Array [init: _ String fold: _ (Int8, String, String) Fun ^String]",
 		},
+		{
+			// This is reproducing a bug the receiver type was not correctly
+			// substituting inside the _body_ of an instantiated type.
+			name: "reduce method 2",
+			src: `
+				val test := [
+					a Int Array := {1; 2}.
+					a from: 0 fold: [:sum :i | i + sum]
+				]
+
+				Meth Bool [ifTrue: f Nil Fun | self ifTrue: f ifFalse: []]
+
+				Meth Int [to: e Int do: f (Int, Nil) Fun |
+					self <= e ifTrue: [
+						f value: self.
+						self + 1 to: e do: f
+					]
+				]
+
+				Meth T Array U [from: u U fold: f (U, T, U) Fun ^U |
+					0 to: self size -1 do: [:i |
+						u := f value: u value: (self at: i)
+					].
+					^u
+				]
+
+				Func [sum: a Int Array ^Int |
+					^a from: 0 fold: [:s :i | s + i]
+				]
+			`,
+			want: "Int Array [from: u Int fold: f (Int, Int, Int) Fun ^Int]",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
