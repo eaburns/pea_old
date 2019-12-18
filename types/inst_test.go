@@ -711,6 +711,31 @@ func TestFunInsts_Grounded(t *testing.T) {
 	}
 }
 
+func TestFunInst_DeclInstGetsNilStmts(t *testing.T) {
+	const src = `
+		Func T [use: _ T]
+		val _ := [x := 1. use: x]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check source: %v", errs)
+	}
+	use := findTestFun(mod, "use:")
+	if use == nil {
+		t.Fatal("use: not found")
+	}
+	if len(use.Insts) != 1 {
+		t.Fatalf("use: len(Insts)=%d, want 1", len(use.Insts))
+	}
+	if use.Insts[0].Stmts != nil {
+		t.Errorf("use.Insts[0].Stmts != nil")
+	}
+}
+
 // Tests that we properly insert conversions params and returns
 // of grounded constraint functions.
 func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {

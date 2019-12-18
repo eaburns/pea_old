@@ -493,6 +493,11 @@ func instFunBody(x *scope, fun *Fun) {
 		x.log("skipping lifted instance: %s", fun)
 		return
 	}
+	if fun.Def.Stmts == nil {
+		// This is as declaration; it's instance should be too.
+		fun.Stmts = nil
+		return
+	}
 
 	// Setup the scope, because subStmts will do scope lookups.
 	x = x.new()
