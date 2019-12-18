@@ -63,7 +63,9 @@ func (n *MakeString) subVals(sub valMap) {
 func (n *MakeAnd) subVals(sub valMap) {
 	sub1(sub, n, &n.Dst)
 	for i := range n.Fields {
-		sub1(sub, n, &n.Fields[i])
+		if n.Fields[i] != nil {
+			sub1(sub, n, &n.Fields[i])
+		}
 	}
 }
 

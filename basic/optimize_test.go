@@ -94,6 +94,15 @@ func TestInlineNestedBlocks(t *testing.T) {
 	}
 }
 
+// Tests that we don't crash optimizing an And Type with empty-type fields.
+func TestEmptyTypeAndField(t *testing.T) {
+	const src = `
+		Type AndType {x: Int y: Nil z: Nil}
+		Func [foo ^AndType | ^{x: 1 y: {} z: {}}]
+	`
+	compile(src)
+}
+
 func compile(src string) (*Mod, []error) {
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
