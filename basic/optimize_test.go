@@ -103,6 +103,118 @@ func TestEmptyTypeAndField(t *testing.T) {
 	compile(src)
 }
 
+// Tests that allocs passed to MakeArray for value-type elements do not escape.
+func TestMakeArrayValueElemNoEscape(t *testing.T) {
+	const src = `
+		Func [foo ^String Array | ^{"a"; "b"}]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "alloc(String)") {
+		t.Errorf("foo contains an alloc(String):\n%s\nexpected only alloca", s)
+	}
+}
+
+// Tests that allocs passed to MakeArray for reference-type elements do escape.
+func TestMakeArrayRefElemEscape(t *testing.T) {
+	const src = `
+		Func [foo ^String& Array | ^{"a"; "b"}]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "alloca(String)") {
+		t.Errorf("foo contains an alloca(String):\n%s\nexpected only alloc", s)
+	}
+}
+
+// Tests that allocs passed to MakeAnd for value-type fields do not escape.
+func TestMakeAndValueFieldNoEscape(t *testing.T) {
+	const src = `
+		Type (X, Y) Pair {x: X y: Y}
+		Func [foo ^(String, String) Pair | ^{x: "a" y: "b"}]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "alloc(String)") {
+		t.Errorf("foo contains an alloc(String):\n%s\nexpected only alloca", s)
+	}
+}
+
+// Tests that allocs passed to MakeAnd for reference-type fields do escape.
+func TestMakeAndRefFieldEscape(t *testing.T) {
+	const src = `
+		Type (X, Y) Pair {x: X y: Y}
+		Func [foo ^(String&, String&) Pair | ^{x: "a" y: "b"}]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "alloca(String)") {
+		t.Errorf("foo contains an alloca(String):\n%s\nexpected only alloc", s)
+	}
+}
+
+// Tests that allocs passed to MakeOr for value-type case do not escape.
+func TestMakeOrValueCaseNoEscape(t *testing.T) {
+	const src = `
+		Type T? {none | some: T}
+		Func [foo ^String? | ^{some: "a"}]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "alloc(String)") {
+		t.Errorf("foo contains an alloc(String):\n%s\nexpected only alloca", s)
+	}
+}
+
+// Tests that allocs passed to MakeOr for reference-type case do escape.
+func TestMakeOrRefCaseEscape(t *testing.T) {
+	const src = `
+		Type T? {none | some: T}
+		Func [foo ^String& ? | ^{some: "a"}]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "alloca(String)") {
+		t.Errorf("foo contains an alloca(String):\n%s\nexpected only alloc", s)
+	}
+}
+
 func compile(src string) (*Mod, []error) {
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {

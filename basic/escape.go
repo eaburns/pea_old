@@ -1,5 +1,7 @@
 package basic
 
+import "github.com/eaburns/pea/types"
+
 // moveAllocsToStack sets Stack=true for some Allocs
 // that can be statically proven not to escape their frame.
 func moveAllocsToStack(f *Fun) bool {
@@ -63,6 +65,29 @@ func escapes(alloc *Alloc) bool {
 			continue
 		case *Copy:
 			continue
+		case *MakeArray:
+			// This is an argument to MakeArray for a value-type array.
+			// The type is a reference, but MakeArray is required to copy it.
+			aryType := refElemType(u.Dst)
+			if aryType.BuiltIn == types.ArrayType &&
+				!SimpleType(aryType.Args[0].Type) {
+				continue
+			}
+		case *MakeAnd:
+			i := findField(u, alloc)
+			typ := refElemType(u.Dst)
+			if i < len(typ.Fields) && !SimpleType(typ.Fields[i].Type()) {
+				// This is the argument to a MakeAnd value-type field.
+				// The type is a reference, but MakeAnd must copy it.
+				continue
+			}
+		case *MakeOr:
+			cas := refElemType(u.Dst).Cases[u.Case]
+			if cas.Type() != nil && !SimpleType(cas.Type()) {
+				// This is the argument to a MakeOrvalue-type case.
+				// The type is a reference, but MakeOr must copy it.
+				continue
+			}
 		case *Store:
 			if alloc, ok := u.Dst.(*Alloc); ok && alloc.Stack {
 				continue
@@ -71,4 +96,14 @@ func escapes(alloc *Alloc) bool {
 		return true
 	}
 	return false
+}
+
+func findField(makeAnd *MakeAnd, v Val) int {
+	var i int
+	for i = range makeAnd.Fields {
+		if makeAnd.Fields[i] == v {
+			break
+		}
+	}
+	return i
 }
