@@ -265,7 +265,11 @@ func (n *Copy) Uses() []Val { return []Val{n.Dst, n.Src} }
 // to a newly allocated object of len(Args) elements.
 type MakeArray struct {
 	stmt
-	Dst  Val
+	Dst Val
+	// Args are the array elements.
+	// If the array element type is not a SimpleType,
+	// Args will be references to the values,
+	// which MakeArray must copy into the array.
 	Args []Val
 
 	Ctor *types.Ctor
@@ -306,6 +310,12 @@ type MakeAnd struct {
 	Dst Val
 	// Fields are the values for each field.
 	// If field index i has an EmptyType, Fields[i]==nil.
+	// If the field type is not a SimpleType,
+	// the value in Fields is a reference to the value
+	// which must be copied by MakeAnd.
+	//
+	// Any fields not present in the types.Type.Field slice
+	// are assumed to be references, and needn't be copied.
 	Fields []Val
 
 	// Ctor is non-nil if this originated from a constructor.
@@ -330,7 +340,11 @@ type MakeOr struct {
 	stmt
 	Dst  Val
 	Case int
-	Val  Val
+	// Val is the value or nil for a value-less case.
+	// If the case type is not a simple type,
+	// Val is a reference to the value,
+	// which must be copied by MakeOr.
+	Val Val
 
 	Ctor *types.Ctor
 }

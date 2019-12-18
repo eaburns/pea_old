@@ -3,6 +3,8 @@ package basic
 import (
 	"fmt"
 	"strings"
+
+	"github.com/eaburns/pea/types"
 )
 
 func (n *Mod) String() string {
@@ -144,11 +146,17 @@ func (n *Copy) buildString(s *strings.Builder) *strings.Builder {
 
 func (n *MakeArray) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "array($%d, {", n.Dst.Num())
+	var deref string
+	if n.Dst.Type().BuiltIn == types.RefType &&
+		n.Dst.Type().Args[0].Type.BuiltIn == types.ArrayType &&
+		!SimpleType(n.Dst.Type().Args[0].Type.Args[0].Type) {
+		deref = "*"
+	}
 	for i, arg := range n.Args {
 		if i > 0 {
 			s.WriteString(", ")
 		}
-		fmt.Fprintf(s, "$%d", arg.Num())
+		fmt.Fprintf(s, "%s$%d", deref, arg.Num())
 	}
 	s.WriteString("})")
 	return s
@@ -177,10 +185,22 @@ func (n *MakeAnd) buildString(s *strings.Builder) *strings.Builder {
 			num = fmt.Sprintf("$%d", arg.Num())
 		}
 		if i >= len(andType.Fields) {
+			// This must be the captured return value
+			// of a block closure And type.
+			// It must be a reference type, so no need to deref.
 			s.WriteString(num)
-		} else {
-			fmt.Fprintf(s, "%s: %s", andType.Fields[i].Name, num)
+			continue
 		}
+		field := andType.Fields[i]
+		var deref string
+		// field.Type() should never be nil,
+		// except in tests when we construct an And-type,
+		// we cannot set it's unexported .typ field.
+		// For now, we just ignore it to unblock the tests.
+		if field.Type() != nil && !SimpleType(field.Type()) {
+			deref = "*"
+		}
+		fmt.Fprintf(s, "%s: %s%s", field.Name, deref, num)
 	}
 	s.WriteString("})")
 	return s
@@ -188,10 +208,19 @@ func (n *MakeAnd) buildString(s *strings.Builder) *strings.Builder {
 
 func (n *MakeOr) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "or($%d, {%d=", n.Dst.Num(), n.Case)
-	orType := n.Dst.Type().Args[0].Type
-	s.WriteString(orType.Cases[n.Case].Name)
+	typ := n.Dst.Type().Args[0].Type
+	cas := typ.Cases[n.Case]
+	s.WriteString(cas.Name)
 	if n.Val != nil {
-		fmt.Fprintf(s, " $%d", n.Val.Num())
+		var deref string
+		// cas.Type() should never be nil,
+		// except in tests when we construct an Or-type,
+		// we cannot set it's unexported .typ field.
+		// For now, we just ignore it to unblock the tests.
+		if cas.Type() != nil && !SimpleType(cas.Type()) {
+			deref = "*"
+		}
+		fmt.Fprintf(s, " %s$%d", deref, n.Val.Num())
 	}
 	s.WriteString("})")
 	return s

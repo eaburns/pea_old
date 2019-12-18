@@ -923,6 +923,32 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "make array non-simple element type",
+			src: `
+				func [foo ^String Array | ^{"a"; "b"}]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 String Array&
+					0:
+						[in:] [out: 1]
+						$0 := alloc(String)
+						$1 := alloc(String)
+						$2 := alloc(String Array)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						string($0, string1)
+						string($1, string2)
+						array($2, {*$0, *$1})
+						$3 := arg(0)
+						copy($3, $2, String Array)
+						return
+			`,
+		},
+		{
 			name: "make empty array",
 			src: `
 				func [foo ^Int Array | ^{}]
@@ -1040,6 +1066,33 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "make and non-simple field type",
+			src: `
+				func [foo ^(String, String) Pair | ^{x: "a" y: "b"}]
+				type (X, Y) Pair {x: X y: Y}
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 (String, String) Pair&
+					0:
+						[in:] [out: 1]
+						$0 := alloc(String)
+						$1 := alloc(String)
+						$2 := alloc((String, String) Pair)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						string($0, string1)
+						string($1, string2)
+						and($2, {x: *$0 y: *$1})
+						$3 := arg(0)
+						copy($3, $2, (String, String) Pair)
+						return
+			`,
+		},
+		{
 			name: "make and with Nil last field",
 			src: `
 				func [foo ^(Int, Nil) Pair | ^{x: 5 y: {}}]
@@ -1133,6 +1186,31 @@ func TestBuild(t *testing.T) {
 						or($1, {1=some: $0})
 						$2 := arg(0)
 						copy($2, $1, Int?)
+						return
+			`,
+		},
+		{
+			name: "make or with non-simple value",
+			src: `
+				func [foo ^String? | ^{some: "a"}]
+				type T? {none | some: T}
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 String? &
+					0:
+						[in:] [out: 1]
+						$0 := alloc(String)
+						$1 := alloc(String?)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						string($0, string1)
+						or($1, {1=some: *$0})
+						$2 := arg(0)
+						copy($2, $1, String?)
 						return
 			`,
 		},

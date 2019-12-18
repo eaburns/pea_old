@@ -52,6 +52,16 @@ func (n *MakeArray) bugs() (b string) {
 	bugIf(refElemType(n.Dst).BuiltIn != types.ArrayType,
 		"make string of non-array-reference type %s",
 		refElemType(n.Dst))
+
+	elmType := refElemType(n.Dst).Args[0].Type
+	for i, arg := range n.Args {
+		bugIf(SimpleType(elmType) && arg.Type() != elmType,
+			"make and field %d type mismatch: got %s, want %s",
+			i, arg.Type(), elmType)
+		bugIf(!SimpleType(elmType) && arg.Type() != elmType.Ref(),
+			"make and field %d type mismatch: got %s, want %s",
+			i, arg.Type(), elmType.Ref())
+	}
 	return ""
 }
 
@@ -105,9 +115,12 @@ func (n *MakeAnd) bugs() (b string) {
 		bugIf(EmptyType(field.Type()) && arg != nil,
 			"make and field %d type mismatch: got %s, want nil",
 			i, arg.Type())
-		bugIf(field.Type() != arg.Type(),
+		bugIf(SimpleType(field.Type()) && field.Type() != arg.Type(),
 			"make and field %d type mismatch: got %s, want %s",
 			i, arg.Type(), field.Type())
+		bugIf(!SimpleType(field.Type()) && field.Type().Ref() != arg.Type(),
+			"make and field %d type mismatch: got %s, want %s",
+			i, arg.Type(), field.Type().Ref())
 	}
 	return ""
 }
@@ -127,8 +140,14 @@ func (n *MakeOr) bugs() (b string) {
 	}
 	bugIf(c.TypeName == nil,
 		"make or type mismatch: got %s, want nil", n.Val.Type())
-	bugIf(c.TypeName != nil && c.Type() != n.Val.Type(),
+	bugIf(c.TypeName != nil &&
+		SimpleType(c.Type()) &&
+		c.Type() != n.Val.Type(),
 		"make or type mismatch: got %s, want %s", n.Val.Type(), c.Type())
+	bugIf(c.TypeName != nil &&
+		!SimpleType(c.Type()) &&
+		c.Type().Ref() != n.Val.Type(),
+		"make or type mismatch: got %s, want %s", n.Val.Type().Ref(), c.Type())
 	return ""
 }
 
