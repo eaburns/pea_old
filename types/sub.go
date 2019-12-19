@@ -368,6 +368,11 @@ func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg) M
 	if errs := findMsgFun(x, ret1, recv1, &msg1); len(errs) > 0 {
 		panic(fmt.Sprintf("impossible: %v", errs))
 	}
+	if msg1.Fun.Sig.Ret != nil {
+		msg1.typ = msg1.Fun.Sig.Ret.Type
+	} else {
+		msg1.typ = builtInType(x, "Nil")
+	}
 
 	// The found Fun may differ from the subbed Fun in the &s of its args.
 	// We re-convert the arguments here so that they match:
