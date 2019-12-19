@@ -289,9 +289,9 @@ func makeBlockType(x *scope, blk *Block) *Type {
 	}
 	typ.Def = typ
 	typ.Insts = []*Type{typ}
-	typ.Fields = make([]Var, len(blk.Captures))
+	typ.Fields = make([]Var, 0, len(blk.Captures)+1)
 	for i, cap := range blk.Captures {
-		typ.Fields[i] = Var{
+		v := Var{
 			AST:      cap.AST,
 			Name:     cap.Name,
 			TypeName: cap.TypeName,
@@ -299,13 +299,26 @@ func makeBlockType(x *scope, blk *Block) *Type {
 			Index:    i,
 			typ:      cap.typ.Ref(),
 		}
-		if typ.Fields[i].TypeName == nil {
+		if v.TypeName == nil {
 			// Fields always need a type name.
 			// Some captures may have one from the source,
 			// if so we want that one, because it will have AST info.
 			// Otherwise, we construct a new one here.
-			typ.Fields[i].TypeName = makeTypeName(cap.typ.Ref())
+			v.TypeName = makeTypeName(cap.typ.Ref())
 		}
+		typ.Fields = append(typ.Fields, v)
+	}
+
+	// Add a field to capture the containing function's return slot.
+	if fun := x.function(); fun != nil && fun.Sig.Ret != nil {
+		retType := fun.Sig.Ret.Type
+		typ.Fields = append(typ.Fields, Var{
+			Name:     "",
+			TypeName: makeTypeName(retType.Ref()),
+			Field:    blk.Type(),
+			Index:    len(typ.Fields) - 1,
+			typ:      retType.Ref(),
+		})
 	}
 	typ.refDef = builtInType(x, "&", *makeTypeName(typ))
 	return typ

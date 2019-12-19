@@ -907,13 +907,8 @@ func addField(f *Fun, b *BBlk, obj Val, i int) *Field {
 	if obj.Type().BuiltIn == types.RefType {
 		switch objType := obj.Type().Args[0].Type; {
 		case objType.BuiltIn == types.BlockType:
-			if i >= len(objType.Fields) {
-				// Block return value capture.
-				typ = f.Fun.Sig.Ret.Type.Ref()
-			} else {
-				field.Field = &objType.Fields[i]
-				typ = field.Field.Type()
-			}
+			field.Field = &objType.Fields[i]
+			typ = field.Field.Type()
 		case len(objType.Fields) > 0:
 			field.Field = &objType.Fields[i]
 			typ = field.Field.Type()

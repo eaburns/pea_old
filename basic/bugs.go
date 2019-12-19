@@ -267,9 +267,7 @@ func (n *Field) bugs() (b string) {
 	switch {
 	case objType.BuiltIn == types.BlockType:
 		bugIf(n.Index < 0 ||
-			// +1 for the captured return value,
-			// which is not part of objType.Fields.
-			n.Index >= len(objType.Fields)+1,
+			n.Index >= len(objType.Fields),
 			"field %d does not exist on type %s", n.Index, objType)
 	case len(objType.Cases) > 0:
 		bugIf(n.Index < 0 ||

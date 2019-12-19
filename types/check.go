@@ -1521,8 +1521,8 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 		Args: resType.Args,
 		Type: resType,
 	}
-	blk.BlockType = makeBlockType(x, blk)
 	blk.typ = builtInType(x, "Fun", typeArgs...)
+	blk.BlockType = makeBlockType(x, blk)
 	return blk, errs
 }
 

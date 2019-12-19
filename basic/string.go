@@ -185,9 +185,6 @@ func (n *MakeAnd) buildString(s *strings.Builder) *strings.Builder {
 			num = fmt.Sprintf("$%d", arg.Num())
 		}
 		if i >= len(andType.Fields) {
-			// This must be the captured return value
-			// of a block closure And type.
-			// It must be a reference type, so no need to deref.
 			s.WriteString(num)
 			continue
 		}
@@ -200,7 +197,11 @@ func (n *MakeAnd) buildString(s *strings.Builder) *strings.Builder {
 		if field.Type() != nil && !SimpleType(field.Type()) {
 			deref = "*"
 		}
-		fmt.Fprintf(s, "%s: %s%s", field.Name, deref, num)
+		if field.Name == "" {
+			fmt.Fprintf(s, "%s%s", deref, num)
+		} else {
+			fmt.Fprintf(s, "%s: %s%s", field.Name, deref, num)
+		}
 	}
 	s.WriteString("})")
 	return s
@@ -381,7 +382,7 @@ func (n *Index) buildString(s *strings.Builder) *strings.Builder {
 func (n *Field) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "$%d.%d", n.Obj.Num(), n.Index)
 	switch {
-	case n.Field != nil:
+	case n.Field != nil && n.Field.Name != "":
 		fmt.Fprintf(s, " [%s]", n.Field.Name)
 	case n.Case != nil:
 		fmt.Fprintf(s, " [%s]", n.Case.Name)
