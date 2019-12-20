@@ -16,6 +16,11 @@ type Mod struct {
 	Name string
 	Defs []Def
 
+	// SortedVals contains all val defs, topologically sorted
+	// such that values depending on other values
+	// are later in the slice than their dependencies.
+	SortedVals []*Val
+
 	// IntType is a pointer to the Int type.
 	IntType *Type
 }

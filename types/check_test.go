@@ -778,6 +778,39 @@ func TestValDef(t *testing.T) {
 	}
 }
 
+func TestSortedVals(t *testing.T) {
+	const src = `
+		val z := [y]
+		val y := [x]
+		val x := [getW]
+		val w := [a]
+		val a := [1]
+		func [getW ^Int | ^w]
+	`
+	p := ast.NewParser("#test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+	want := []*Val{
+		findTestVal(mod, "a"),
+		findTestVal(mod, "w"),
+		findTestVal(mod, "x"),
+		findTestVal(mod, "y"),
+		findTestVal(mod, "z"),
+	}
+	if !reflect.DeepEqual(mod.SortedVals, want) {
+		var names []string
+		for _, v := range mod.SortedVals {
+			names = append(names, v.Var.Name)
+		}
+		t.Errorf("got %s, want [a, w, x, y, z]", names)
+	}
+}
+
 func TestFuncDef(t *testing.T) {
 	tests := []errorTest{
 		{

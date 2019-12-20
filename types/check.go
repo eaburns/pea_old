@@ -328,11 +328,19 @@ func checkInitCycles(x *scope, defs []Def) (errs []checkError) {
 			check(w.def)
 			path = path[:len(path)-1]
 		}
+		if isVal {
+			x.mod.SortedVals = append(x.mod.SortedVals, val)
+		}
 	}
 	for _, def := range defs {
 		if val, ok := def.(*Val); ok && !seen[def] {
 			check(val)
 		}
+	}
+	sorted := x.mod.SortedVals
+	n := len(sorted)
+	for i := 0; i < n/2; i++ {
+		sorted[i], sorted[n-i-1] = sorted[n-i-1], sorted[i]
 	}
 	return errs
 }
