@@ -11,7 +11,7 @@ func Optimize(m *Mod) {
 func rmDeletedFuns(m *Mod) {
 	var i int
 	for _, f := range m.Funs {
-		if f.Block != nil && f.BBlks == nil {
+		if (f.Block != nil || f.Val != nil) && f.BBlks == nil {
 			continue
 		}
 		m.Funs[i] = f

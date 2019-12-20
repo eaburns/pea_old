@@ -18,6 +18,12 @@ func (n *Mod) buildString(s *strings.Builder, comments bool) *strings.Builder {
 		}
 		str.buildString(s)
 	}
+	for _, v := range n.Vars {
+		if s.Len() > 0 {
+			s.WriteRune('\n')
+		}
+		v.buildString(s)
+	}
 	for _, fun := range n.Funs {
 		if s.Len() > 0 {
 			s.WriteRune('\n')
@@ -29,6 +35,11 @@ func (n *Mod) buildString(s *strings.Builder, comments bool) *strings.Builder {
 
 func (n *String) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "string%d\n\t%q", n.N, n.Data)
+	return s
+}
+
+func (n *Var) buildString(s *strings.Builder) *strings.Builder {
+	fmt.Fprintf(s, "%s %s", n.Val.Var.Name, n.Val.Var.Type())
 	return s
 }
 

@@ -24,6 +24,11 @@ func propagateDeletes(f *Fun) {
 			// It will now be unused.
 			d.Virts[0].BBlks = nil
 		}
+		if d, ok := d.(*Call); ok && d.Fun.Val != nil {
+			// We are deleting the call to a module-level variable init Fun.
+			// There is only ever one call such a Fun; remove the def.
+			d.Fun.BBlks = nil
+		}
 		for _, u := range d.Uses() {
 			u.value().rmUser(d)
 			if !u.deleted() && unused(u) {

@@ -697,6 +697,11 @@ func TestBuild(t *testing.T) {
 						$3 := arg(0)
 						copy($3, $2, Int Fun)
 						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
+						return
 			`,
 		},
 		{
@@ -879,7 +884,7 @@ func TestBuild(t *testing.T) {
 			src: `
 				Func [size: a Int Array ^Int | ^a size]
 			`,
-			fun: "",
+			fun: "function0",
 			want: `
 				function0
 					parms:
@@ -1535,6 +1540,11 @@ func TestBuild(t *testing.T) {
 						$4 := arg(0)
 						store($4, $3)
 						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
+						return
 			`,
 		},
 		{
@@ -1571,6 +1581,11 @@ func TestBuild(t *testing.T) {
 						virt($2, $1, {block1})
 						$3 := arg(0)
 						copy($3, $2, Nil Fun)
+						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
 						return
 			`,
 		},
@@ -1622,6 +1637,11 @@ func TestBuild(t *testing.T) {
 						$6 := arg(1)
 						store($6, $5)
 						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
+						return
 			`,
 		},
 		{
@@ -1670,6 +1690,11 @@ func TestBuild(t *testing.T) {
 						$5 := 3
 						$6 := arg(0)
 						store($6, $5)
+						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
 						return
 			`,
 		},
@@ -1723,6 +1748,11 @@ func TestBuild(t *testing.T) {
 						$7 := 3
 						$8 := arg(1)
 						store($8, $7)
+						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
 						return
 			`,
 		},
@@ -1795,6 +1825,11 @@ func TestBuild(t *testing.T) {
 						$3 := 3
 						$4 := arg(0)
 						store($4, $3)
+						return
+				function3
+					parms:
+					0:
+						[in:] [out:]
 						return
 			`,
 		},
@@ -1871,6 +1906,11 @@ func TestBuild(t *testing.T) {
 						$6 := arg(1)
 						store($6, $5)
 						return
+				function3
+					parms:
+					0:
+						[in:] [out:]
+						return
 			`,
 		},
 		{
@@ -1878,7 +1918,7 @@ func TestBuild(t *testing.T) {
 			src: `
 				func [foo ^Bool | ^{true}]
 			`,
-			fun: "",
+			fun: "function0",
 			want: `
 				function0
 					parms:
@@ -1903,7 +1943,7 @@ func TestBuild(t *testing.T) {
 				func [foo ^Num | ^{four}]
 				type Num {zero|one|two|three|four|five|six}
 			`,
-			fun: "",
+			fun: "function0",
 			want: `
 				function0
 					parms:
@@ -2129,6 +2169,11 @@ func TestBuild(t *testing.T) {
 					1:
 						[in: 0] [out:]
 						call function1()
+						return
+				function4
+					parms:
+					0:
+						[in:] [out:]
 						return
 			`,
 		},

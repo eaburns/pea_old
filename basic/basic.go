@@ -90,8 +90,13 @@ import (
 // A Mod is a module.
 type Mod struct {
 	Strings []*String
-	Funs    []*Fun
-	NDefs   int
+	// Vars are the module-level variables,
+	// in topological order, dependencies first..
+	Vars []*Var
+	// Init is the initialization function that initializes Vars.
+	Init  *Fun
+	Funs  []*Fun
+	NDefs int
 
 	Mod *types.Mod
 }
@@ -101,6 +106,14 @@ type String struct {
 	// N is unique among Mod-level defs.
 	N    int
 	Data string
+}
+
+// A Var is a module-level variable.
+type Var struct {
+	N    int
+	Init *Fun
+
+	Val *types.Val
 }
 
 // A Fun is a code block.
@@ -116,6 +129,7 @@ type Fun struct {
 
 	Fun   *types.Fun
 	Block *types.Block
+	Val   *types.Val
 }
 
 // A Parm is a function/block parameter.

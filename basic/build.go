@@ -19,6 +19,15 @@ func Build(typesMod *types.Mod) *Mod {
 			buildFun(mod, inst)
 		}
 	}
+	for _, v := range typesMod.SortedVals {
+		mod.Vars = append(mod.Vars, &Var{
+			N:    mod.NDefs,
+			Init: buildVal(mod, v),
+			Val:  v,
+		})
+		mod.NDefs++
+	}
+	mod.Init = buildInit(mod)
 	topoSortFuns(mod)
 	return mod
 }
@@ -64,20 +73,31 @@ func addString(mod *Mod, str string) *String {
 	return s
 }
 
+func buildVal(mod *Mod, typesVal *types.Val) *Fun {
+	f := newFun(mod, nil, typesVal.Var.Type())
+	f.Val = typesVal
+	buildFunBody(f, f.Parms, typesVal.Locals, typesVal.Init)
+	return f
+}
+
 func buildFun(mod *Mod, typesFun *types.Fun) *Fun {
 	for _, f := range mod.Funs {
 		if f.Fun == typesFun && f.Block == nil {
 			return f
 		}
 	}
-	f := newFun(mod, typesFun.Sig.Parms, typesFun.Sig.Ret)
+	var ret *types.Type
+	if typesFun.Sig.Ret != nil {
+		ret = typesFun.Sig.Ret.Type
+	}
+	f := newFun(mod, typesFun.Sig.Parms, ret)
 	f.Fun = typesFun
 	buildFunBody(f, f.Parms, typesFun.Locals, typesFun.Stmts)
 	return f
 }
 
 func buildBlockFun(mod *Mod, fun *types.Fun, block *types.Block) *Fun {
-	ret := &block.Type().Args[len(block.Type().Args)-1]
+	ret := block.Type().Args[len(block.Type().Args)-1].Type
 	f := newFun(mod, block.Parms, ret)
 	f.Fun = fun
 	f.Block = block
@@ -95,7 +115,25 @@ func buildBlockFun(mod *Mod, fun *types.Fun, block *types.Block) *Fun {
 	return f
 }
 
-func newFun(mod *Mod, parms []types.Var, ret *types.TypeName) *Fun {
+func buildInit(mod *Mod) *Fun {
+	f := newFun(mod, nil, nil)
+	b0 := newBBlk(f)
+	if len(mod.Vars) == 0 {
+		addRet(b0)
+		return f
+	}
+
+	b1 := newBBlk(f)
+	addJmp(b0, b1)
+	for _, v := range mod.Vars {
+		g := addGlobal(f, b1, v.Val)
+		addCall(b1, v.Init, []Val{g})
+	}
+	addRet(b1)
+	return f
+}
+
+func newFun(mod *Mod, parms []types.Var, ret *types.Type) *Fun {
 	fun := &Fun{N: mod.NDefs, Mod: mod}
 	mod.Funs = append(mod.Funs, fun)
 	mod.NDefs++
@@ -113,10 +151,10 @@ func newFun(mod *Mod, parms []types.Var, ret *types.TypeName) *Fun {
 		}
 		fun.Parms = append(fun.Parms, parm)
 	}
-	if ret != nil && !EmptyType(ret.Type) {
+	if ret != nil && !EmptyType(ret) {
 		fun.Ret = &Parm{
 			N:    len(fun.Parms),
-			Type: ret.Type.Ref(),
+			Type: ret.Ref(),
 		}
 	}
 	return fun
@@ -176,7 +214,7 @@ func buildStmts(f *Fun, b *BBlk, stmts []types.Stmt) *BBlk {
 		case types.Expr:
 			var v Val
 			v, b = buildExpr(f, b, stmt)
-			if i == len(stmts)-1 && f.Block != nil {
+			if i == len(stmts)-1 && (f.Block != nil || f.Val != nil) {
 				buildBlockFunRet(f, b, v)
 			}
 		default:
