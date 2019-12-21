@@ -94,8 +94,10 @@ type Fun struct {
 	TArgs  []TypeName
 	Sig    FunSig
 
+	Locals []*Var
+
 	// Stmts and BuiltIn are mutually exclusive.
-	// They cannot both be non-zero at the tsame time.
+	// They cannot both be non-zero at the same time.
 	// If Stmts==nil and BuiltIn==0,
 	// then this is a declaration.
 	// Note that this differs from the case where
@@ -107,8 +109,7 @@ type Fun struct {
 	// it is an error for the last statement to not be an explicit return.
 	// If the return type of the Fun was not specified,
 	// a return of the Nil literal, {}, is added.
-	Stmts  []Stmt
-	Locals []*Var
+	Stmts []Stmt
 
 	BuiltIn BuiltInMeth
 }

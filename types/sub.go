@@ -86,9 +86,11 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, par
 		parm1 := &parms1[i]
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
-		parm1.Ifaces = make([]TypeName, len(parm0.Ifaces))
-		for i := range parm0.Ifaces {
-			parm1.Ifaces[i] = *subTypeName(x, seen, sub, &parm0.Ifaces[i])
+		if len(parm0.Ifaces) > 0 {
+			parm1.Ifaces = make([]TypeName, len(parm0.Ifaces))
+			for i := range parm0.Ifaces {
+				parm1.Ifaces[i] = *subTypeName(x, seen, sub, &parm0.Ifaces[i])
+			}
 		}
 		parm1.Type = &Type{
 			AST:    parm1.AST,
@@ -96,6 +98,7 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, par
 			Var:    parm1,
 			refDef: refTypeDef(x),
 		}
+		parm1.Type.Def = parm1.Type
 		seen[parm0.Type] = parm1.Type
 	}
 	return parms1
@@ -133,9 +136,11 @@ func subVirts(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 		sig1 := &typ.Virts[i]
 		sig1.AST = sig0.AST
 		sig1.Sel = sig0.Sel
-		sig1.Parms = make([]Var, len(sig0.Parms))
-		for i := range sig0.Parms {
-			sig1.Parms[i] = subVar(x, seen, sub, &sig0.Parms[i])
+		if len(sig0.Parms) > 0 {
+			sig1.Parms = make([]Var, len(sig0.Parms))
+			for i := range sig0.Parms {
+				sig1.Parms[i] = subVar(x, seen, sub, &sig0.Parms[i])
+			}
 		}
 		sig1.Ret = subTypeName(x, seen, sub, sig0.Ret)
 	}

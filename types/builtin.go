@@ -154,6 +154,8 @@ func builtInMeths(x *scope, defs []Def) []Def {
 }
 
 func makeCaseMeth(x *scope, typ *Type) *Fun {
+	var fun Fun
+
 	tmp := x.newID()
 	tparms := []TypeVar{{Name: tmp}}
 	retType := &Type{
@@ -171,9 +173,11 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		Name:     "self",
 		TypeName: makeTypeName(selfType),
 		typ:      selfType,
+		FunParm:  &fun,
+		Index:    0,
 	}
 	parms := []Var{self}
-	for _, c := range typ.Cases {
+	for i, c := range typ.Cases {
 		sel.WriteString("if")
 		sel.WriteString(upperCase(c.Name))
 		var parmType *Type
@@ -188,15 +192,24 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			Name:     "_",
 			TypeName: makeTypeName(parmType),
 			typ:      parmType,
+			FunParm:  &fun,
+			Index:    i + 1,
 		}
 		parms = append(parms, parm)
 	}
-	fun := &Fun{
+	fun = Fun{
 		AST:  typ.AST,
+		Def:  &fun,
 		Priv: typ.Priv,
 		Mod:  typ.Mod,
 		Recv: &Recv{
-			Parms: typ.Parms,
+			// We clone the type parameters
+			// so they get their own distinct types.
+			// This probably doesn't matter,
+			// but when importing from the export format,
+			// they will get distinct types.
+			// This rids testing diffs.
+			Parms: cloneTypeParms(typ.Parms),
 			Mod:   typ.Mod,
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
@@ -210,8 +223,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		},
 		BuiltIn: CaseMeth,
 	}
-	fun.Def = fun
-	return fun
+	return &fun
 }
 
 func upperCase(s string) string {
@@ -228,24 +240,37 @@ func makeVirtMeths(x *scope, typ *Type) []Def {
 }
 
 func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
+	var fun Fun
+
 	parms := make([]Var, len(sig.Parms)+1)
 	selfType := builtInType(x, "&", *makeTypeName(typ))
 	parms[0] = Var{
 		Name:     "self",
 		TypeName: makeTypeName(selfType),
+		FunParm:  &fun,
+		Index:    0,
 		typ:      selfType,
 	}
 	for i, p := range sig.Parms {
 		p.Name = "_"
+		p.FunParm = &fun
+		p.Index = i + 1
 		parms[i+1] = p
 	}
 	sig.Parms = parms
-	fun := &Fun{
+	fun = Fun{
 		AST:  sig.AST,
+		Def:  &fun,
 		Priv: typ.Priv,
 		Mod:  typ.Mod,
 		Recv: &Recv{
-			Parms: typ.Parms,
+			// We clone the type parameters
+			// so they get their own distinct types.
+			// This probably doesn't matter,
+			// but when importing from the export format,
+			// they will get distinct types.
+			// This rids testing diffs.
+			Parms: cloneTypeParms(typ.Parms),
 			Mod:   typ.Mod,
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
@@ -254,8 +279,7 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 		Sig:     sig,
 		BuiltIn: VirtMeth,
 	}
-	fun.Def = fun
-	return fun
+	return &fun
 }
 
 func makeTypeName(typ *Type) *TypeName {
@@ -263,11 +287,7 @@ func makeTypeName(typ *Type) *TypeName {
 	if typ.Args == nil {
 		for i := range typ.Parms {
 			parm := &typ.Parms[i]
-			args = append(args, TypeName{
-				Mod:  "",
-				Name: parm.Name,
-				Type: parm.Type,
-			})
+			args = append(args, *makeTypeName(parm.Type))
 		}
 	}
 	return &TypeName{
@@ -322,6 +342,27 @@ func makeBlockType(x *scope, blk *Block) *Type {
 	}
 	typ.refDef = builtInType(x, "&", *makeTypeName(typ))
 	return typ
+}
+
+func cloneTypeParms(parms0 []TypeVar) []TypeVar {
+	if len(parms0) == 0 {
+		return nil
+	}
+	parms1 := make([]TypeVar, len(parms0))
+	for i := range parms0 {
+		parm0 := &parms0[i]
+		parm1 := &parms1[i]
+		parm1.Name = parm0.Name
+		parm1.Ifaces = parm0.Ifaces
+		parm1.Type = &Type{
+			AST:    parm0.Type.AST,
+			Name:   parm0.Type.Name,
+			refDef: parm0.Type.refDef,
+		}
+		parm1.Type.Var = parm1
+		parm1.Type.Def = parm1.Type
+	}
+	return parms1
 }
 
 func builtInType(x *scope, name string, args ...TypeName) *Type {

@@ -40,6 +40,7 @@ gocyclo -over 15 .\
 	| grep -v "17 types checkBlock types/check.go"\
 	| grep -v "16 types gatherType types/gather.go"\
 	| grep -v '16 types [(][*]scope[)].findIdent types/scope.go' \
+	| grep -v "16 types applyPatches types/export.go"\
 	| grep -v "17 basic escapes basic/escape.go"\
 	> $o 2>&1
 e=$(mktemp tmp.XXXXXXXXXX)
