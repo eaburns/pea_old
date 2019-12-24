@@ -183,10 +183,11 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 	for i := range astVars {
 		astVar := &astVars[i]
 		typ := &Type{
-			AST:    astVar,
-			Name:   astVar.Name,
-			Var:    &vars[i],
-			refDef: refTypeDef(x),
+			AST:     astVar,
+			ModPath: x.astMod.Path,
+			Name:    astVar.Name,
+			Var:     &vars[i],
+			refDef:  refTypeDef(x),
 		}
 		typ.Def = typ
 		typ.Insts = append(typ.Insts, typ)

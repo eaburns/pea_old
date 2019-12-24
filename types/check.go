@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 	"math/big"
-	"path"
 	"strings"
 
 	"github.com/eaburns/pea/ast"
@@ -138,7 +137,7 @@ func makeDefs(x *scope, files []ast.File, isUniv bool) ([]Def, []checkError) {
 		file.x.file = file
 		errs = append(errs, imports(x, file)...)
 		for _, astDef := range file.ast.Defs {
-			def := makeDef(astDef, isUniv)
+			def := makeDef(x, astDef, isUniv)
 			defs = append(defs, def)
 			x.defFiles[def] = file
 		}
@@ -146,12 +145,13 @@ func makeDefs(x *scope, files []ast.File, isUniv bool) ([]Def, []checkError) {
 	return defs, errs
 }
 
-func makeDef(astDef ast.Def, isUniv bool) Def {
+func makeDef(x *scope, astDef ast.Def, isUniv bool) Def {
 	switch astDef := astDef.(type) {
 	case *ast.Val:
 		val := &Val{
-			AST:  astDef,
-			Priv: astDef.Priv(),
+			AST:     astDef,
+			ModPath: x.astMod.Path,
+			Priv:    astDef.Priv(),
 			Var: Var{
 				AST:  &astDef.Var,
 				Name: astDef.Var.Name,
@@ -161,8 +161,9 @@ func makeDef(astDef ast.Def, isUniv bool) Def {
 		return val
 	case *ast.Fun:
 		fun := &Fun{
-			AST:  astDef,
-			Priv: astDef.Priv(),
+			AST:     astDef,
+			ModPath: x.astMod.Path,
+			Priv:    astDef.Priv(),
 			Sig: FunSig{
 				AST: &astDef.Sig,
 				Sel: astDef.Sig.Sel,
@@ -178,10 +179,11 @@ func makeDef(astDef ast.Def, isUniv bool) Def {
 		return fun
 	case *ast.Type:
 		typ := &Type{
-			AST:   astDef,
-			Priv:  astDef.Priv(),
-			Arity: len(astDef.Sig.Parms),
-			Name:  astDef.Sig.Name,
+			AST:     astDef,
+			ModPath: x.astMod.Path,
+			Priv:    astDef.Priv(),
+			Arity:   len(astDef.Sig.Parms),
+			Name:    astDef.Sig.Name,
 		}
 		typ.Def = typ
 		if isUniv && astDef.Alias == nil {
@@ -211,7 +213,7 @@ func imports(x *scope, file *file) []checkError {
 			ast:  astImp,
 			all:  astImp.All,
 			path: p,
-			name: path.Base(p),
+			name: modName(p),
 			defs: defs,
 		})
 	}
@@ -279,7 +281,7 @@ func checkDupMeths(x *scope, defs []Def) []checkError {
 		recv := fun.Recv.Type
 		key := recv.name() + " " + fun.Sig.Sel
 		if prev, ok := seen[key]; ok {
-			err := x.err(def, "method %s redefined", key)
+			err := x.err(def, "method %s %s redefined", recv, fun.Sig.Sel)
 			note(err, "previous definition is at %s", x.loc(prev))
 			errs = append(errs, *err)
 		} else {
@@ -482,7 +484,7 @@ func checkFunRet(x *scope, fun *Fun) []checkError {
 		return errs
 	}
 	if n := len(fun.Stmts); n == 0 || !isRet(fun.Stmts[n-1]) {
-		err := x.err(fun, "missing return at the end of %s", fun.name())
+		err := x.err(fun, "missing return at the end of %s", fun.Sig.Sel)
 		errs = append(errs, *err)
 	}
 	return errs
@@ -1497,7 +1499,7 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 		parmTyp := parm.Type()
 		typeArgs[i] = TypeName{
 			AST:  &astBlock.Parms[i],
-			Mod:  parmTyp.Mod,
+			Mod:  modName(parmTyp.ModPath),
 			Name: parmTyp.Name,
 			Args: parmTyp.Args,
 			Type: parmTyp,
@@ -1524,7 +1526,7 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 	typeArgs[len(typeArgs)-1] = TypeName{
 		AST:  astBlock,
-		Mod:  resType.Mod,
+		Mod:  modName(resType.ModPath),
 		Name: resType.Name,
 		Args: resType.Args,
 		Type: resType,

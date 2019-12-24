@@ -143,7 +143,7 @@ func TestString(t *testing.T) {
 		test := test
 		t.Run(test.want, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("#test")
+			p := ast.NewParser("")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 				return
@@ -210,7 +210,7 @@ func TestFullString(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.src, func(t *testing.T) {
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 				return

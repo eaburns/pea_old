@@ -107,6 +107,28 @@ func (x *state) loc(n interface{}) ast.Loc {
 }
 
 func (x *state) err(n interface{}, f string, vs ...interface{}) *checkError {
+	for i, v := range vs {
+		switch v := v.(type) {
+		case *Val:
+			if v.ModPath == x.astMod.Path {
+				copy := *v
+				copy.ModPath = ""
+				vs[i] = &copy
+			}
+		case *Fun:
+			if v.ModPath == x.astMod.Path {
+				copy := *v
+				copy.ModPath = ""
+				vs[i] = &copy
+			}
+		case *Type:
+			if v.ModPath == x.astMod.Path {
+				copy := *v
+				copy.ModPath = ""
+				vs[i] = &copy
+			}
+		}
+	}
 	return &checkError{loc: x.loc(n), msg: fmt.Sprintf(f, vs...)}
 }
 

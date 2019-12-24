@@ -131,7 +131,7 @@ func TestInstType(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -386,7 +386,7 @@ func TestInstCall(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -573,7 +573,7 @@ func TestSubStmts(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -608,7 +608,7 @@ func TestRecursiveFunBodyInstantiation(t *testing.T) {
 		func T [baz: t T ^T | ^bar: t]
 		val _ Int := [foo: 4]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -666,7 +666,7 @@ func TestDifferentInstsFromDifferentFiles(t *testing.T) {
 		{"bar", "Meth Int [foo]"},
 		{"baz", "Meth Int [foo]"},
 	}
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	for i, src := range [...]string{file0, file1, file2} {
 		path := fmt.Sprintf("file%d", i)
 		if err := p.Parse(path, strings.NewReader(src)); err != nil {
@@ -681,14 +681,14 @@ func TestDifferentInstsFromDifferentFiles(t *testing.T) {
 
 	file1DoFoo := findTestVal(mod, "file1Val").Init[0].(*Call).Msgs[0].Fun
 	file1Foo := file1DoFoo.Stmts[0].(*Call).Msgs[0].Fun
-	if file1Foo.Mod != "bar" {
-		t.Errorf("expected file1 to call Int #bar foo, got #%s", file1Foo.Mod)
+	if file1Foo.ModPath != "bar" {
+		t.Errorf("expected file1 to call Int #bar foo, got #%s", file1Foo.ModPath)
 	}
 
 	file2DoFoo := findTestVal(mod, "file2Val").Init[0].(*Call).Msgs[0].Fun
 	file2Foo := file2DoFoo.Stmts[0].(*Call).Msgs[0].Fun
-	if file2Foo.Mod != "baz" {
-		t.Errorf("expected file2 to call Int #bar foo, got #%s", file2Foo.Mod)
+	if file2Foo.ModPath != "baz" {
+		t.Errorf("expected file2 to call Int #bar foo, got #%s", file2Foo.ModPath)
 	}
 }
 
@@ -704,7 +704,7 @@ func TestFunInsts_Grounded(t *testing.T) {
 		// [foo: Int] should be in Fun.Insts.
 		val _ Int := [foo: 5]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -730,7 +730,7 @@ func TestFunInst_DeclInstGetsNilStmts(t *testing.T) {
 		Func T [use: _ T]
 		val _ := [x := 1. use: x]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -768,7 +768,7 @@ func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {
 		meth Int [foo: _ Int& bar: _ Int ^Int&]
 		val _ := [baz: 5]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -820,7 +820,7 @@ func TestFunInsts_NonParamFunInstsContainsDef(t *testing.T) {
 	const src = `
 		func [foo: i Int ^Int | ^i]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -846,7 +846,7 @@ func TestTypeInsts_NonParamTypeInstsContainsDef(t *testing.T) {
 	const src = `
 		type Foo {x: Int}
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}

@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"path"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -198,10 +199,10 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		parms = append(parms, parm)
 	}
 	fun = Fun{
-		AST:  typ.AST,
-		Def:  &fun,
-		Priv: typ.Priv,
-		Mod:  typ.Mod,
+		AST:     typ.AST,
+		Def:     &fun,
+		Priv:    typ.Priv,
+		ModPath: typ.ModPath,
 		Recv: &Recv{
 			// We clone the type parameters
 			// so they get their own distinct types.
@@ -210,7 +211,6 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			// they will get distinct types.
 			// This rids testing diffs.
 			Parms: cloneTypeParms(typ.Parms),
-			Mod:   typ.Mod,
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
 			Type:  typ,
@@ -259,10 +259,10 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 	}
 	sig.Parms = parms
 	fun = Fun{
-		AST:  sig.AST,
-		Def:  &fun,
-		Priv: typ.Priv,
-		Mod:  typ.Mod,
+		AST:     sig.AST,
+		Def:     &fun,
+		Priv:    typ.Priv,
+		ModPath: typ.ModPath,
 		Recv: &Recv{
 			// We clone the type parameters
 			// so they get their own distinct types.
@@ -271,7 +271,7 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 			// they will get distinct types.
 			// This rids testing diffs.
 			Parms: cloneTypeParms(typ.Parms),
-			Mod:   typ.Mod,
+			Mod:   modName(typ.ModPath),
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
 			Type:  typ,
@@ -291,7 +291,7 @@ func makeTypeName(typ *Type) *TypeName {
 		}
 	}
 	return &TypeName{
-		Mod:  typ.Mod,
+		Mod:  modName(typ.ModPath),
 		Name: typ.Name,
 		Args: args,
 		Type: typ,
@@ -438,4 +438,11 @@ func isAnyFloat(typ *Type) bool {
 
 func isBuiltInType(typ *Type) bool {
 	return typ != nil && (typ.BuiltIn != 0 || typ.Alias != nil && typ.Alias.Type != nil && typ.Alias.Type.BuiltIn != 0)
+}
+
+func modName(p string) string {
+	if p == "" {
+		return ""
+	}
+	return "#" + path.Base(p)
 }

@@ -1,8 +1,6 @@
 package types
 
 import (
-	"strings"
-
 	"github.com/eaburns/pea/ast"
 )
 
@@ -113,7 +111,7 @@ func (x *scope) locals() *[]*Var {
 }
 
 func findImport(x *scope, mod *ast.ModTag) (*imp, *checkError) {
-	imp := x.findImport(strings.TrimPrefix(mod.Text, "#"))
+	imp := x.findImport(mod.Text)
 	if imp == nil {
 		return nil, x.err(mod, "module %s not found", mod.Text)
 	}

@@ -54,11 +54,11 @@ type Def interface {
 
 // A Val is a module-level value definition.
 type Val struct {
-	AST  *ast.Val
-	Priv bool
-	Mod  string
-	Var  Var
-	Init []Stmt
+	AST     *ast.Val
+	Priv    bool
+	ModPath string
+	Var     Var
+	Init    []Stmt
 
 	Locals []*Var
 }
@@ -68,10 +68,10 @@ func (n *Val) priv() bool    { return n.Priv }
 func (n *Val) kind() string  { return "value" }
 
 func (n *Val) name() string {
-	if n.Mod == "" {
+	if n.ModPath == "" {
 		return n.Var.Name
 	}
-	return n.Mod + " " + n.Var.Name
+	return modName(n.ModPath) + " " + n.Var.Name
 }
 
 // A Fun is a function or method definition.
@@ -86,13 +86,13 @@ type Fun struct {
 	// If the fun is an instance, Def points to the non-instantiated *Fun.
 	Def *Fun
 	// Insts are all instances of this fun.
-	Insts  []*Fun
-	Priv   bool
-	Mod    string
-	Recv   *Recv
-	TParms []TypeVar
-	TArgs  []TypeName
-	Sig    FunSig
+	Insts   []*Fun
+	Priv    bool
+	ModPath string
+	Recv    *Recv
+	TParms  []TypeVar
+	TArgs   []TypeName
+	Sig     FunSig
 
 	Locals []*Var
 
@@ -127,14 +127,14 @@ func (n *Fun) kind() string {
 
 func (n *Fun) name() string {
 	switch {
-	case n.Mod == "" && n.Recv == nil:
+	case n.ModPath == "" && n.Recv == nil:
 		return n.Sig.Sel
-	case n.Mod == "" && n.Recv != nil:
+	case n.ModPath == "" && n.Recv != nil:
 		return fmt.Sprintf("(%d)%s %s", n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
-	case n.Mod != "" && n.Recv == nil:
-		return n.Mod + " " + n.Sig.Sel
+	case n.ModPath != "" && n.Recv == nil:
+		return modName(n.ModPath) + " " + n.Sig.Sel
 	default:
-		return fmt.Sprintf("%s (%d)%s %s", n.Mod, n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
+		return fmt.Sprintf("%s (%d)%s %s", modName(n.ModPath), n.Recv.Arity, n.Recv.Name, n.Sig.Sel)
 	}
 }
 
@@ -192,11 +192,11 @@ type Type struct {
 	// If the type is an instance, Def points to the non-instantiated *Type.
 	Def *Type
 	// Insts are all instances of this type.
-	Insts []*Type
-	Priv  bool
-	Mod   string
-	Arity int
-	Name  string
+	Insts   []*Type
+	Priv    bool
+	ModPath string
+	Arity   int
+	Name    string
 
 	Parms []TypeVar
 	Args  []TypeName // what is subbed for Parms
@@ -242,14 +242,14 @@ func (n *Type) kind() string { return "type" }
 
 func (n *Type) name() string {
 	switch {
-	case n.Mod == "" && n.Arity == 0:
+	case n.ModPath == "" && n.Arity == 0:
 		return n.Name
-	case n.Mod == "" && n.Arity > 0:
+	case n.ModPath == "" && n.Arity > 0:
 		return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
-	case n.Mod != "" && n.Arity == 0:
-		return n.Mod + " " + n.Name
+	case n.ModPath != "" && n.Arity == 0:
+		return modName(n.ModPath) + " " + n.Name
 	default:
-		return fmt.Sprintf("%s (%d)%s", n.Mod, n.Arity, n.Name)
+		return fmt.Sprintf("%s (%d)%s", modName(n.ModPath), n.Arity, n.Name)
 	}
 }
 
@@ -304,9 +304,9 @@ func (n *TypeName) name() string {
 	case n.Mod == "" && arity > 0:
 		return fmt.Sprintf("(%d)%s", arity, n.Name)
 	case n.Mod != "" && arity == 0:
-		return n.Mod + " " + n.Name
+		return modName(n.Mod) + " " + n.Name
 	default:
-		return fmt.Sprintf("%s (%d)%s", n.Mod, arity, n.Name)
+		return fmt.Sprintf("%s (%d)%s", modName(n.Mod), arity, n.Name)
 	}
 }
 

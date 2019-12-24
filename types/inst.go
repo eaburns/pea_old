@@ -421,7 +421,7 @@ func unify(x *scope, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*Type
 		return nil
 	}
 
-	if pat.Type.Mod != typ.Type.Mod ||
+	if pat.Type.ModPath != typ.Type.ModPath ||
 		pat.Type.Name != typ.Type.Name ||
 		pat.Type.Arity != typ.Type.Arity {
 		return x.err(typ, "type mismatch: have %s, want %s", typ.name(), pat.name())

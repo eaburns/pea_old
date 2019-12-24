@@ -102,7 +102,7 @@ func TestCallRecvIsSet(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -372,10 +372,10 @@ func TestRedefError(t *testing.T) {
 		{
 			name: "method redefinition with receiver type params",
 			src: `
-				meth T Array [foo: _ String bar: _ Int |]
-				meth U Array [foo: _ String bar: _ Int |]
+				meth _ Array [foo: _ String bar: _ Int |]
+				meth _ Array [foo: _ String bar: _ Int |]
 			`,
-			err: "method \\(1\\)Array foo:bar: redefined",
+			err: "method _ Array foo:bar: redefined",
 		},
 		{
 			name: "method not redefined when differing receiver",
@@ -407,7 +407,7 @@ func TestRedefError(t *testing.T) {
 				meth T? [ifNone: _ Int ifSome: _ String |]
 				type T? { none | some: T }
 			`,
-			err: "method \\(1\\)\\? ifNone:ifSome: redefined",
+			err: "method T\\? ifNone:ifSome: redefined",
 		},
 		{
 			name: "virtual method redefined",
@@ -796,7 +796,7 @@ func TestSortedVals(t *testing.T) {
 		val a := [1]
 		func [getW ^Int | ^w]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -964,7 +964,7 @@ func TestInsertNilReturn(t *testing.T) {
 		func [bar | ]
 		func [decl]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -1010,7 +1010,7 @@ func TestInsertNilBlockResult(t *testing.T) {
 		val qux Int Fun := [ [5] ]
 		func [ret ^Int | [^3]. ^3]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -1371,7 +1371,7 @@ func TestOrTagType(t *testing.T) {
 		type or2 { one | two }
 		type and1 { x: Int }
 	` + bigOr(257)
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2210,7 +2210,7 @@ func TestAssignToNewVariable(t *testing.T) {
 		]
 		func [use: _ Int]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2228,7 +2228,7 @@ func TestAssignToNewVariable(t *testing.T) {
 	if assign0.Var != l {
 		t.Errorf("assign0.Van (%p) != val.Locals[0] (%p)", assign0.Var, l)
 	}
-	if typ := l.Type(); typ == nil || typ.Name != "Int" || typ.Mod != "" {
+	if typ := l.Type(); typ == nil || typ.Name != "Int" || typ.ModPath != "" {
 		t.Errorf("got %v, expected Int", typ)
 	}
 }
@@ -2243,7 +2243,7 @@ func TestAssignToExistingVariable(t *testing.T) {
 		]
 		func [use: _ Int]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2276,7 +2276,7 @@ func TestRefConvert(t *testing.T) {
 		]
 		func T [use: _ T]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2322,7 +2322,7 @@ func TestDerefConvert(t *testing.T) {
 		val intRef Int & & & := [5]
 		func T [use: _ T]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2379,7 +2379,7 @@ func TestCtorDeref(t *testing.T) {
 		type Point {x: Float y: Float}
 		func T [use: _ T]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2413,7 +2413,7 @@ func TestCtorRef(t *testing.T) {
 		type Point {x: Float y: Float}
 		func T [use: _ T]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2435,7 +2435,7 @@ func TestCollapseDerefRefChain(t *testing.T) {
 		val x := [y at: 0]
 		val y Int Array := [{5}]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -2464,7 +2464,7 @@ func TestCtorRefN(t *testing.T) {
 		type Point {x: Float y: Float}
 		func T [use: _ T]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3503,7 +3503,7 @@ func TestIdentLookup(t *testing.T) {
 		func [unaryFun]
 		func [use: _ Int]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3591,7 +3591,7 @@ func TestAssignToField(t *testing.T) {
 		]
 		type Point { x: Int y: Int }
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3694,7 +3694,7 @@ func TestBlockCapture(t *testing.T) {
 		]
 		type test { capField: Int }
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -3779,7 +3779,7 @@ func TestBlockTypeInference(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -4118,7 +4118,7 @@ func TestTypeInstSub(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := ast.NewParser("#test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -4236,7 +4236,7 @@ func TestTypeInstMemo(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := ast.NewParser("#test")
+			p := ast.NewParser("")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -4295,15 +4295,16 @@ func (test errorTest) run(t *testing.T) {
 	if strings.HasPrefix(test.name, "SKIP:") {
 		t.Skip()
 	}
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
+	astMod := p.Mod()
 	cfg := Config{
 		Importer: testImporter(test.imports),
 		Trace:    test.trace,
 	}
-	switch _, errs := Check(p.Mod(), cfg); {
+	switch _, errs := Check(astMod, cfg); {
 	case test.err == "" && len(errs) == 0:
 		return
 	case test.err == "" && len(errs) > 0:
@@ -4351,7 +4352,7 @@ func TestTypeRef(t *testing.T) {
 		val i Int := [5]
 		val iRef Int& := [6]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}

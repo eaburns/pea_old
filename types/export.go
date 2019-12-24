@@ -146,7 +146,7 @@ func readObj(r io.Reader, objs *inObjs) interface{} {
 func writeVal(w io.Writer, objs *outObjs, v *Val) {
 	writeInt(w, getValNum(objs, v))
 	writeBool(w, v.Priv)
-	writeString(w, v.Mod)
+	writeString(w, v.ModPath)
 	writeVar(w, objs, &v.Var)
 	objs.written[v] = true
 }
@@ -154,8 +154,8 @@ func writeVal(w io.Writer, objs *outObjs, v *Val) {
 func readVal(r io.Reader, objs *inObjs) *Val {
 	n := readInt(r)
 	v := &Val{
-		Priv: readBool(r),
-		Mod:  readString(r),
+		Priv:    readBool(r),
+		ModPath: readString(r),
 	}
 	readVar(r, objs, &v.Var)
 	v.Var.Val = v
@@ -185,7 +185,7 @@ func writeFun(w io.Writer, objs *outObjs, f *Fun) {
 	writeInt(w, getFunNum(objs, f))
 	writeInt(w, getFunNum(objs, f.Def))
 	writeBool(w, f.Priv)
-	writeString(w, f.Mod)
+	writeString(w, f.ModPath)
 	writeBool(w, f.Recv != nil)
 	if f.Recv != nil {
 		writeRecv(w, objs, f.Recv)
@@ -220,7 +220,7 @@ func readFun(r io.Reader, objs *inObjs) *Fun {
 	n := readInt(r)
 	patchFun(objs, readInt(r), &f.Def)
 	f.Priv = readBool(r)
-	f.Mod = readString(r)
+	f.ModPath = readString(r)
 	if readBool(r) {
 		f.Recv = readRecv(r, objs)
 	}
@@ -409,7 +409,7 @@ func writeType(w io.Writer, objs *outObjs, t *Type) {
 	writeInt(w, getTypeNum(objs, t))
 	writeInt(w, getTypeNum(objs, t.Def))
 	writeBool(w, t.Priv)
-	writeString(w, t.Mod)
+	writeString(w, t.ModPath)
 	writeInt(w, t.Arity)
 	writeString(w, t.Name)
 	writeInt(w, len(t.Parms))
@@ -452,7 +452,7 @@ func readType(r io.Reader, objs *inObjs) *Type {
 	n := readInt(r)
 	patchType(objs, readInt(r), &t.Def)
 	t.Priv = readBool(r)
-	t.Mod = readString(r)
+	t.ModPath = readString(r)
 	t.Arity = readInt(r)
 	t.Name = readString(r)
 	if nparms := readInt(r); nparms > 0 {

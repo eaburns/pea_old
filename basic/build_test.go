@@ -2139,7 +2139,7 @@ func TestBuild(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
-			p := ast.NewParser("#test")
+			p := ast.NewParser("")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}

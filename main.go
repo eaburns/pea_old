@@ -24,7 +24,7 @@ func main() {
 	flag.Parse()
 
 	pretty.Indent = "    "
-	parser := ast.NewParser("#main")
+	parser := ast.NewParser("/test/main")
 	if len(flag.Args()) == 0 {
 		if err := parser.Parse("", os.Stdin); err != nil {
 			die(err)

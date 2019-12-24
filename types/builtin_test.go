@@ -108,7 +108,7 @@ func TestBuiltInMeths(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("#test")
+			p := ast.NewParser("")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -158,7 +158,7 @@ func TestBuiltInMethSelfIsRef(t *testing.T) {
 		type Virt {[foo]}
 		type T Opt {some: T | none}
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -210,7 +210,7 @@ func TestBlockType(t *testing.T) {
 			]
 		]
 	`
-	p := ast.NewParser("#test")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
