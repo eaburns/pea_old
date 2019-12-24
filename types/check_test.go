@@ -15,6 +15,7 @@ import (
 )
 
 func TestBugRegressions(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "1",
@@ -55,6 +56,7 @@ func TestBugRegressions(t *testing.T) {
 // and that if it is a conversion it's type is set.
 // This is to catch a regression from a previous bug fix.
 func TestCallRecvIsSet(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		src  string
@@ -97,7 +99,9 @@ func TestCallRecvIsSet(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
@@ -131,6 +135,7 @@ func TestCallRecvIsSet(t *testing.T) {
 }
 
 func TestImportError(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "no import",
@@ -166,6 +171,7 @@ func TestImportError(t *testing.T) {
 }
 
 func TestPrivate(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "private type",
@@ -187,6 +193,7 @@ func TestPrivate(t *testing.T) {
 }
 
 func TestRedefError(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "val and val",
@@ -648,6 +655,7 @@ func TestRedefError(t *testing.T) {
 }
 
 func TestValDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -779,6 +787,7 @@ func TestValDef(t *testing.T) {
 }
 
 func TestSortedVals(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val z := [y]
 		val y := [x]
@@ -812,6 +821,7 @@ func TestSortedVals(t *testing.T) {
 }
 
 func TestFuncDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -948,6 +958,7 @@ func TestFuncDef(t *testing.T) {
 }
 
 func TestInsertNilReturn(t *testing.T) {
+	t.Parallel()
 	const src = `
 		func [foo | 5 + 6]
 		func [bar | ]
@@ -991,6 +1002,7 @@ func TestInsertNilReturn(t *testing.T) {
 }
 
 func TestInsertNilBlockResult(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val foo Nil Fun := [ [] ]
 		val bar Nil Fun := [ [_ := 5] ]
@@ -1048,6 +1060,7 @@ func TestInsertNilBlockResult(t *testing.T) {
 }
 
 func TestMethDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -1123,6 +1136,7 @@ func TestMethDef(t *testing.T) {
 }
 
 func TestTypeDefParms(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "constraint ok",
@@ -1155,6 +1169,7 @@ func TestTypeDefParms(t *testing.T) {
 }
 
 func TestAliasTypeDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "target not found",
@@ -1242,6 +1257,7 @@ func TestAliasTypeDef(t *testing.T) {
 }
 
 func TestAndTypeDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "empty ok",
@@ -1292,6 +1308,7 @@ func TestAndTypeDef(t *testing.T) {
 }
 
 func TestOrTypeDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -1349,6 +1366,7 @@ func TestOrTypeDef(t *testing.T) {
 }
 
 func TestOrTagType(t *testing.T) {
+	t.Parallel()
 	var src = `
 		type or2 { one | two }
 		type and1 { x: Int }
@@ -1387,6 +1405,7 @@ func bigOr(n int) string {
 }
 
 func TestVirtTypeDef(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -1453,6 +1472,7 @@ func TestVirtTypeDef(t *testing.T) {
 }
 
 func TestTypeName(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "simple type",
@@ -1710,6 +1730,7 @@ func TestTypeName(t *testing.T) {
 }
 
 func TestRetError(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -1732,6 +1753,7 @@ func TestRetError(t *testing.T) {
 }
 
 func TestAssignError(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -1904,6 +1926,7 @@ func TestAssignError(t *testing.T) {
 }
 
 func TestAssignConvert(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "add a ref",
@@ -2031,6 +2054,7 @@ func TestAssignConvert(t *testing.T) {
 }
 
 func TestImplementVirt(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "simple",
@@ -2079,6 +2103,7 @@ func TestImplementVirt(t *testing.T) {
 }
 
 func TestImplementConstraint(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "simple",
@@ -2137,6 +2162,7 @@ func TestImplementConstraint(t *testing.T) {
 }
 
 func TestMethError(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "reference receiver",
@@ -2160,6 +2186,7 @@ func TestMethError(t *testing.T) {
 }
 
 func TestFuncHasNoSelf(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "no self",
@@ -2175,6 +2202,7 @@ func TestFuncHasNoSelf(t *testing.T) {
 }
 
 func TestAssignToNewVariable(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a := 5.
@@ -2206,6 +2234,7 @@ func TestAssignToNewVariable(t *testing.T) {
 }
 
 func TestAssignToExistingVariable(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a := 5.
@@ -2239,6 +2268,7 @@ func TestAssignToExistingVariable(t *testing.T) {
 }
 
 func TestRefConvert(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a Int & & & := 5.
@@ -2283,6 +2313,7 @@ func TestRefConvert(t *testing.T) {
 }
 
 func TestDerefConvert(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a Int := intRef.
@@ -2339,6 +2370,7 @@ func TestDerefConvert(t *testing.T) {
 // Test that constructor types are refs and
 // is converted when assigning to a value.
 func TestCtorDeref(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a Point := {x: 5 y: 6}.
@@ -2372,6 +2404,7 @@ func TestCtorDeref(t *testing.T) {
 // Tests that a constructor is a ref and
 // not not converted when assigning to a ref.
 func TestCtorRef(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a Point & := {x: 5 y: 6}.
@@ -2397,6 +2430,7 @@ func TestCtorRef(t *testing.T) {
 
 // Test that we collapse chains of refs and derefs.
 func TestCollapseDerefRefChain(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [y at: 0]
 		val y Int Array := [{5}]
@@ -2421,6 +2455,7 @@ func TestCollapseDerefRefChain(t *testing.T) {
 
 // Like TestCtorRef, but adds multiple references.
 func TestCtorRefN(t *testing.T) {
+	t.Parallel()
 	const src = `
 		val x := [
 			a Point & & & & := {x: 5 y: 6}.
@@ -2466,6 +2501,7 @@ func TestCtorRefN(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "function not found",
@@ -2963,6 +2999,7 @@ func TestCall(t *testing.T) {
 }
 
 func TestCallInstRecvType(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "inst receiver",
@@ -3029,6 +3066,7 @@ func TestCallInstRecvType(t *testing.T) {
 }
 
 func TestCtor(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "bad type",
@@ -3271,6 +3309,7 @@ func TestCtor(t *testing.T) {
 }
 
 func TestIdent(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "not found",
@@ -3446,6 +3485,7 @@ func TestIdent(t *testing.T) {
 }
 
 func TestIdentLookup(t *testing.T) {
+	t.Parallel()
 	const src = `
 		meth Test [ foo: ignore0 Int bar: parmVar Int |
 			ignore1 := 5. 	// 0
@@ -3543,6 +3583,7 @@ func TestIdentLookup(t *testing.T) {
 }
 
 func TestAssignToField(t *testing.T) {
+	t.Parallel()
 	const src = `
 		meth Point [ foo |
 			x := 5.
@@ -3590,6 +3631,7 @@ func TestAssignToField(t *testing.T) {
 }
 
 func TestBlockLiteral(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "no infer type",
@@ -3630,6 +3672,7 @@ func TestBlockLiteral(t *testing.T) {
 }
 
 func TestBlockCapture(t *testing.T) {
+	t.Parallel()
 	var src = `
 		val notCapVal := [2]
 		meth test [foo: capParm Int ^(Int, Nil) Fun Fun |
@@ -3691,6 +3734,7 @@ func sortedCaptureNames(block *Block) []string {
 }
 
 func TestBlockTypeInference(t *testing.T) {
+	t.Parallel()
 	// The first def must be a *Val.
 	// The first def's last statement must be a block literal.
 	tests := []struct {
@@ -3756,6 +3800,7 @@ func TestBlockTypeInference(t *testing.T) {
 }
 
 func TestIntLit(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "bad type",
@@ -3948,6 +3993,7 @@ func overflowTest(typ, val string) errorTest {
 }
 
 func TestFloatLit(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -3975,6 +4021,7 @@ func TestFloatLit(t *testing.T) {
 
 // TestTypeInstSub tests type instantiation substitution.
 func TestTypeInstSub(t *testing.T) {
+	t.Parallel()
 	// The test setup expects src to have an alias type named Test.
 	// The expectation is that Test.Alias.Type!=nil
 	// and Test.Alias.Type.String()==want.
@@ -4099,6 +4146,7 @@ func TestTypeInstSub(t *testing.T) {
 
 // TestTypeInstMemo tests that the same type instances point to the same objects.
 func TestTypeInstMemo(t *testing.T) {
+	t.Parallel()
 	// The test setup expects src to have two alias types, Test0 and Test1.
 	// The expectation is that Test0.Alias.Type==Test1.Alias.Type.
 	tests := []struct {
@@ -4243,6 +4291,7 @@ type errorTest struct {
 }
 
 func (test errorTest) run(t *testing.T) {
+	t.Parallel()
 	if strings.HasPrefix(test.name, "SKIP:") {
 		t.Skip()
 	}
@@ -4294,6 +4343,7 @@ func (imports testImporter) Import(cfg Config, path string) ([]Def, error) {
 
 // Test the Type.Ref() method.
 func TestTypeRef(t *testing.T) {
+	t.Parallel()
 	const src = `
 		type (X, Y) Pair {x: X y: Y}
 		val stringFloatPair (String, Float) Pair := [{x: "hello" y: 3.14}]

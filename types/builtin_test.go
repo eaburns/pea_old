@@ -9,6 +9,7 @@ import (
 )
 
 func TestBuiltInMeths(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		src   string
@@ -106,6 +107,7 @@ func TestBuiltInMeths(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
@@ -133,6 +135,7 @@ func TestBuiltInMeths(t *testing.T) {
 }
 
 func TestCaseMethod(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "correct param types",
@@ -150,6 +153,7 @@ func TestCaseMethod(t *testing.T) {
 }
 
 func TestBuiltInMethSelfIsRef(t *testing.T) {
+	t.Parallel()
 	src := `
 		type Virt {[foo]}
 		type T Opt {some: T | none}
@@ -193,6 +197,7 @@ func TestBuiltInMethSelfIsRef(t *testing.T) {
 }
 
 func TestBlockType(t *testing.T) {
+	t.Parallel()
 	src := `
 		val test (Int, Int) Fun := [
 			x := 5.

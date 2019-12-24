@@ -8,6 +8,7 @@ import (
 )
 
 func TestString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		src     string
 		want    string
@@ -139,27 +140,32 @@ func TestString(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		p := ast.NewParser("#test")
-		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
-			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
-			continue
-		}
-		mod, errs := Check(p.Mod(), Config{
-			Importer: testImporter(test.imports),
+		test := test
+		t.Run(test.want, func(t *testing.T) {
+			t.Parallel()
+			p := ast.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
+				return
+			}
+			mod, errs := Check(p.Mod(), Config{
+				Importer: testImporter(test.imports),
+			})
+			if len(errs) > 0 {
+				t.Errorf("failed to check [%s]: %v", test.src, errs)
+				return
+			}
+			got := mod.Defs[0].String()
+			if got != test.want {
+				t.Errorf("%s\ngot:\n	%s\nexpected:\n	%s", test.src, got, test.want)
+				return
+			}
 		})
-		if len(errs) > 0 {
-			t.Errorf("failed to check [%s]: %v", test.src, errs)
-			continue
-		}
-		got := mod.Defs[0].String()
-		if got != test.want {
-			t.Errorf("%s\ngot:\n	%s\nexpected:\n	%s", test.src, got, test.want)
-			continue
-		}
 	}
 }
 
 func TestFullString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		src  string
 		want string
@@ -202,20 +208,23 @@ func TestFullString(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		p := ast.NewParser("#test")
-		if err := p.Parse("", strings.NewReader(test.src)); err != nil {
-			t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
-			continue
-		}
-		mod, errs := Check(p.Mod(), Config{})
-		if len(errs) > 0 {
-			t.Errorf("failed to check [%s]: %v", test.src, errs)
-			continue
-		}
-		got := mod.Defs[0].(*Type).fullString()
-		if got != test.want {
-			t.Errorf("%s:\ngot:\n	%s\nexpected:\n	%s", test.src, got, test.want)
-			continue
-		}
+		test := test
+		t.Run(test.src, func(t *testing.T) {
+			p := ast.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
+				return
+			}
+			mod, errs := Check(p.Mod(), Config{})
+			if len(errs) > 0 {
+				t.Errorf("failed to check [%s]: %v", test.src, errs)
+				return
+			}
+			got := mod.Defs[0].(*Type).fullString()
+			if got != test.want {
+				t.Errorf("%s:\ngot:\n	%s\nexpected:\n	%s", test.src, got, test.want)
+				return
+			}
+		})
 	}
 }

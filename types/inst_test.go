@@ -9,6 +9,7 @@ import (
 )
 
 func TestInstType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		// The src must contain a type named Test.
@@ -124,7 +125,9 @@ func TestInstType(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
@@ -161,6 +164,7 @@ func TestInstType(t *testing.T) {
 }
 
 func TestInstCallError(t *testing.T) {
+	t.Parallel()
 	tests := []errorTest{
 		{
 			name: "ok",
@@ -225,6 +229,7 @@ func TestInstCallError(t *testing.T) {
 }
 
 func TestInstCall(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		// The src must contain a val named test with a call statement.
@@ -378,7 +383,9 @@ func TestInstCall(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
@@ -411,6 +418,7 @@ func TestInstCall(t *testing.T) {
 }
 
 func TestSubStmts(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		// We basically just test that none of the panics fire.
@@ -562,7 +570,9 @@ func TestSubStmts(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			p := ast.NewParser("#test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
@@ -588,6 +598,7 @@ func TestSubStmts(t *testing.T) {
 // Tests that instantiating a function body is able to add a function instance,
 // which will then also be correctly instantiated.
 func TestRecursiveFunBodyInstantiation(t *testing.T) {
+	t.Parallel()
 	const src = `
 		// Instantiating [foo: Int ^Int] will create a new instance of
 		// [baz: Int ^Int], which will create an instance of [bar: Int ^Int].
@@ -635,6 +646,7 @@ func TestRecursiveFunBodyInstantiation(t *testing.T) {
 // differ between calls in different files where the type parameters
 // have different methods.
 func TestDifferentInstsFromDifferentFiles(t *testing.T) {
+	t.Parallel()
 	const file0 = `
 		type Fooer {[foo]}
 		func (T Fooer) [doFoo: f T | f foo]
@@ -682,6 +694,7 @@ func TestDifferentInstsFromDifferentFiles(t *testing.T) {
 
 // Tests that Fun.Insts contains only grounded function instances.
 func TestFunInsts_Grounded(t *testing.T) {
+	t.Parallel()
 	const src = `
 		func T [foo: t T^ T | ^t]
 
@@ -712,6 +725,7 @@ func TestFunInsts_Grounded(t *testing.T) {
 }
 
 func TestFunInst_DeclInstGetsNilStmts(t *testing.T) {
+	t.Parallel()
 	const src = `
 		Func T [use: _ T]
 		val _ := [x := 1. use: x]
@@ -739,6 +753,7 @@ func TestFunInst_DeclInstGetsNilStmts(t *testing.T) {
 // Tests that we properly insert conversions params and returns
 // of grounded constraint functions.
 func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {
+	t.Parallel()
 	const src = `
 		type Foo {
 			[foo: Int bar: Int& ^Int]
@@ -801,6 +816,7 @@ func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {
 
 // Tests that Fun.Insts for a non-parameterized function contains the function def.
 func TestFunInsts_NonParamFunInstsContainsDef(t *testing.T) {
+	t.Parallel()
 	const src = `
 		func [foo: i Int ^Int | ^i]
 	`
@@ -826,6 +842,7 @@ func TestFunInsts_NonParamFunInstsContainsDef(t *testing.T) {
 
 // Tests that Type.Insts for a non-parameterized function contains the type def.
 func TestTypeInsts_NonParamTypeInstsContainsDef(t *testing.T) {
+	t.Parallel()
 	const src = `
 		type Foo {x: Int}
 	`
