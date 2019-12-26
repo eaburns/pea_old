@@ -152,21 +152,6 @@ type Recv struct {
 
 func (n *Recv) ast() ast.Node { return n.AST }
 
-// ID returns a user-readable type identifier that includes
-// the module if not the current module, name, and arity if non-zero.
-func (n *Recv) name() string {
-	switch {
-	case n.Mod == "" && n.Arity == 0:
-		return n.Name
-	case n.Mod == "" && n.Arity > 0:
-		return fmt.Sprintf("(%d)%s", n.Arity, n.Name)
-	case n.Mod != "" && n.Arity == 0:
-		return n.Mod + " " + n.Name
-	default:
-		return fmt.Sprintf("%s (%d)%s", n.Mod, n.Arity, n.Name)
-	}
-}
-
 // A FunSig is the signature of a function.
 type FunSig struct {
 	AST   *ast.FunSig
@@ -295,7 +280,7 @@ type TypeName struct {
 
 func (n TypeName) ast() ast.Node { return n.AST }
 
-// ID returns a user-readable type identifier that includes
+// name returns a user-readable type identifier that includes
 // the module if not the current module, name, and arity if non-zero.
 func (n *TypeName) name() string {
 	switch arity := len(n.Args); {
@@ -343,8 +328,12 @@ func (n *Var) isSelf() bool {
 
 // A TypeVar is a type variable.
 type TypeVar struct {
-	AST    *ast.Var
-	Name   string
+	AST  *ast.Var
+	Name string
+	// ID is a unique identifier for this type variable definition.
+	// Multiple type variables in a module may have the same name,
+	// but each will have unique ID value.
+	ID     int
 	Ifaces []TypeName
 
 	Type *Type

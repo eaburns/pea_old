@@ -194,6 +194,7 @@ func gatherTypeParms(x *scope, astVars []ast.Var) (_ *scope, _ []TypeVar, errs [
 		vars[i] = TypeVar{
 			AST:  astVar,
 			Name: astVar.Name,
+			ID:   x.nextTypeVar(),
 			Type: typ,
 		}
 

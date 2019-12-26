@@ -248,6 +248,133 @@ func TestExportImport(t *testing.T) {
 	}
 }
 
+func TestBuildTypeKey(t *testing.T) {
+	tests := []struct {
+		name string
+		// Looks for the 0th field of the type named Test
+		// and compares its key with want.
+		src     string
+		want    string
+		imports [][2]string
+		trace   bool
+	}{
+		{
+			name: "simple built-in type",
+			src:  "type Test {x: Int}",
+			want: "Int",
+		},
+		{
+			name: "parameterized built-in type",
+			src:  "type Test {x: Int Array}",
+			want: "(Int) Array",
+		},
+		{
+			name: "type-var argument to built-in type",
+			src:  "type T Test {x: T Array}",
+			want: "(/test/test 0) Array",
+		},
+		{
+			name: "n-ary built-in type",
+			src:  "type (T, U) Test {x: (U, T, Float, String) Fun}",
+			want: "(/test/test 1, /test/test 0, Float, String) Fun",
+		},
+		{
+			name: "nested n-ary built-in type",
+			src:  "type (T, U) Test {x: (U, (T, String) Fun) Fun}",
+			want: "(/test/test 1, (/test/test 0, String) Fun) Fun",
+		},
+		{
+			name: "built-in & type",
+			src:  "type Test {x: Int&}",
+			want: "(Int) &",
+		},
+		{
+			name: "type-var argumnet built-in & type",
+			src:  "type T Test {x: T&}",
+			want: "(/test/test 0) &",
+		},
+		{
+			name: "non-built-in type",
+			src: `
+				type Test {x: Foo}
+				type Foo {}
+			`,
+			want: "/test/test Foo",
+		},
+		{
+			name: "non-built-in parameterized type",
+			src: `
+				type Test {x: Int Foo}
+				type T Foo {y: T}
+			`,
+			want: "(Int) /test/test Foo",
+		},
+		{
+			name: "nested non-built-in parameterized type",
+			src: `
+				type Test {x: Int Foo Foo Foo}
+				type T Foo {y: T}
+			`,
+			want: "(((Int) /test/test Foo) /test/test Foo) /test/test Foo",
+		},
+		{
+			name: "imported type",
+			src: `
+				import "/foo/bar"
+				type Test {x: #bar Baz}
+			`,
+			imports: [][2]string{
+				{"/foo/bar", "Type Baz {}"},
+			},
+			want: "/foo/bar Baz",
+		},
+		{
+			name: "parameterized imported type",
+			src: `
+				import "/foo/bar"
+				type Test {x: Int #bar Baz}
+			`,
+			imports: [][2]string{
+				{"/foo/bar", "Type T Baz {x: T}"},
+			},
+			want: "(Int) /foo/bar Baz",
+		},
+		{
+			name: "nested parameterized imported type",
+			src: `
+				Import "/foo/bar"
+				type Test {x: Int Baz Baz Baz}
+			`,
+			imports: [][2]string{
+				{"/foo/bar", "Type T Baz {x: T}"},
+			},
+			want: "(((Int) /foo/bar Baz) /foo/bar Baz) /foo/bar Baz",
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			p := ast.NewParser("/test/test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse source: %s", err)
+			}
+			mod, errs := Check(p.Mod(), Config{
+				Importer: testImporter(test.imports),
+				Trace:    test.trace,
+			})
+			if len(errs) > 0 {
+				t.Fatalf("failed to check source: %v", errs)
+			}
+			typ := findTestType(mod, "Test").Fields[0].Type()
+			got := buildTypeKey(typ, new(strings.Builder)).String()
+			if got != test.want {
+				t.Errorf("got %s, wanted %s", got, test.want)
+			}
+		})
+	}
+}
+
 func TestWriteReadBool(t *testing.T) {
 	t.Parallel()
 	tests := []bool{true, false}

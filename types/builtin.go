@@ -158,7 +158,9 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 	var fun Fun
 
 	tmp := x.newID()
-	tparms := []TypeVar{{Name: tmp}}
+	tparms := []TypeVar{
+		{Name: tmp, ID: x.nextTypeVar()},
+	}
 	retType := &Type{
 		Name:   tmp,
 		Var:    &tparms[0],
@@ -210,7 +212,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			// but when importing from the export format,
 			// they will get distinct types.
 			// This rids testing diffs.
-			Parms: cloneTypeParms(typ.Parms),
+			Parms: cloneTypeParms(x, typ.Parms),
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
 			Type:  typ,
@@ -270,7 +272,7 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 			// but when importing from the export format,
 			// they will get distinct types.
 			// This rids testing diffs.
-			Parms: cloneTypeParms(typ.Parms),
+			Parms: cloneTypeParms(x, typ.Parms),
 			Mod:   modName(typ.ModPath),
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
@@ -344,7 +346,7 @@ func makeBlockType(x *scope, blk *Block) *Type {
 	return typ
 }
 
-func cloneTypeParms(parms0 []TypeVar) []TypeVar {
+func cloneTypeParms(x *scope, parms0 []TypeVar) []TypeVar {
 	if len(parms0) == 0 {
 		return nil
 	}
@@ -353,6 +355,7 @@ func cloneTypeParms(parms0 []TypeVar) []TypeVar {
 		parm0 := &parms0[i]
 		parm1 := &parms1[i]
 		parm1.Name = parm0.Name
+		parm1.ID = x.nextTypeVar()
 		parm1.Ifaces = parm0.Ifaces
 		parm1.Type = &Type{
 			AST:    parm0.Type.AST,

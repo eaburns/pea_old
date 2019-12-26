@@ -39,6 +39,7 @@ type state struct {
 	funTodo []funFile
 
 	nextID        int
+	nextVar       int
 	nextBlockType int
 	indent        string
 }
@@ -93,6 +94,12 @@ func setConfigDefaults(x *state) {
 func (x *state) newID() string {
 	x.nextID++
 	return fmt.Sprintf("$%d", x.nextID-1)
+}
+
+func (x *state) nextTypeVar() int {
+	n := x.nextVar
+	x.nextVar++
+	return n
 }
 
 func (x *state) loc(n interface{}) ast.Loc {

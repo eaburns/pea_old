@@ -86,6 +86,7 @@ func subTypeParms(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, par
 		parm1 := &parms1[i]
 		parm1.AST = parm0.AST
 		parm1.Name = parm0.Name
+		parm1.ID = parm0.ID
 		if len(parm0.Ifaces) > 0 {
 			parm1.Ifaces = make([]TypeName, len(parm0.Ifaces))
 			for i := range parm0.Ifaces {
@@ -161,7 +162,7 @@ func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *R
 	if recv0 == nil {
 		return nil
 	}
-	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.name())()
+	defer x.tr("subRecv(%s, %s)", subDebugString(sub), recv0.Name)()
 
 	recv1 := *recv0
 	recv1.Parms = subTypeParms(x, seen, sub, recv0.Parms)

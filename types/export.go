@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"sort"
+	"strings"
 )
 
 type tag int
@@ -305,11 +306,13 @@ func readRecv(r io.Reader, objs *inObjs) *Recv {
 
 // writeTypeVar writes the following fields ofTypeVar:
 // 	Name
+// 	ID
 // 	number of Ifaces
 // 	Ifaces type numbers
 // 	Type as the full type, not just its number
 func writeTypeVar(w io.Writer, objs *outObjs, v *TypeVar) {
 	writeString(w, v.Name)
+	writeInt(w, v.ID)
 	writeInt(w, len(v.Ifaces))
 	for i := range v.Ifaces {
 		writeInt(w, getTypeNum(objs, v.Ifaces[i].Type))
@@ -319,6 +322,7 @@ func writeTypeVar(w io.Writer, objs *outObjs, v *TypeVar) {
 
 func readTypeVar(r io.Reader, objs *inObjs, v *TypeVar) {
 	v.Name = readString(r)
+	v.ID = readInt(r)
 	if nifaces := readInt(r); nifaces > 0 {
 		v.Ifaces = make([]TypeName, nifaces)
 		for i := range v.Ifaces {
@@ -407,6 +411,7 @@ func readStmt(r io.Reader, objs *inObjs) Stmt {
 // 	Var, since this can be reconstructed when reading a TypeVar.
 func writeType(w io.Writer, objs *outObjs, t *Type) {
 	writeInt(w, getTypeNum(objs, t))
+	writeString(w, buildTypeKey(t, new(strings.Builder)).String())
 	writeInt(w, getTypeNum(objs, t.Def))
 	writeBool(w, t.Priv)
 	writeString(w, t.ModPath)
@@ -447,9 +452,39 @@ func writeType(w io.Writer, objs *outObjs, t *Type) {
 	objs.written[t] = true
 }
 
+// key returns a string that is unique to this type.
+// This method is intended to be used to deduplicate
+// multiple instances of a unique type on import.
+func buildTypeKey(n *Type, s *strings.Builder) *strings.Builder {
+	if len(n.Args) > 0 {
+		s.WriteRune('(')
+		for i := range n.Args {
+			if i > 0 {
+				s.WriteString(", ")
+			}
+			buildTypeKey(n.Args[i].Type, s)
+		}
+		s.WriteRune(')')
+		s.WriteRune(' ')
+	}
+	if n.ModPath != "" {
+		s.WriteString(n.ModPath)
+		s.WriteRune(' ')
+	}
+	if n.Var != nil {
+		fmt.Fprintf(s, "%d", n.Var.ID)
+	} else {
+		s.WriteString(n.Name)
+	}
+	return s
+}
+
 func readType(r io.Reader, objs *inObjs) *Type {
 	var t Type
 	n := readInt(r)
+	// key, eventually to be used to deduplicate types
+	// in the face of multiple imports.
+	readString(r)
 	patchType(objs, readInt(r), &t.Def)
 	t.Priv = readBool(r)
 	t.ModPath = readString(r)
