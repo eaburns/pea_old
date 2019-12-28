@@ -31,11 +31,14 @@ func Check(astMod *ast.Mod, cfg Config) (*Mod, []error) {
 }
 
 func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
-	defer x.tr("check(%s)", astMod.Name)(&errs)
+	defer x.tr("check(%s)", astMod.Path)(&errs)
 
 	isUniv := x.univ == nil
 
-	mod := &Mod{AST: astMod}
+	mod := &Mod{
+		AST:  astMod,
+		Path: astMod.Path,
+	}
 	x = x.new()
 	x.mod = mod
 

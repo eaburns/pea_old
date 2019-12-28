@@ -578,7 +578,7 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 [v] Fooer& (value)
+						0 [v] #test Fooer& (value)
 					0:
 						[in:] [out: 1]
 						jmp 1
@@ -1050,10 +1050,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 (Int, Int) Pair&
+						0 (Int, Int) #test Pair&
 					0:
 						[in:] [out: 1]
-						$2 := alloc((Int, Int) Pair)
+						$2 := alloc((Int, Int) #test Pair)
 						jmp 1
 					1:
 						[in: 0] [out:]
@@ -1061,7 +1061,7 @@ func TestBuild(t *testing.T) {
 						$1 := 6
 						and($2, {x: $0 y: $1})
 						$3 := arg(0)
-						copy($3, $2, (Int, Int) Pair)
+						copy($3, $2, (Int, Int) #test Pair)
 						return
 			`,
 		},
@@ -1075,12 +1075,12 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 (String, String) Pair&
+						0 (String, String) #test Pair&
 					0:
 						[in:] [out: 1]
 						$0 := alloc(String)
 						$1 := alloc(String)
-						$2 := alloc((String, String) Pair)
+						$2 := alloc((String, String) #test Pair)
 						jmp 1
 					1:
 						[in: 0] [out:]
@@ -1088,7 +1088,7 @@ func TestBuild(t *testing.T) {
 						string($1, string2)
 						and($2, {x: *$0 y: *$1})
 						$3 := arg(0)
-						copy($3, $2, (String, String) Pair)
+						copy($3, $2, (String, String) #test Pair)
 						return
 			`,
 		},
@@ -1102,17 +1102,17 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 (Int, Nil) Pair&
+						0 (Int, Nil) #test Pair&
 					0:
 						[in:] [out: 1]
-						$1 := alloc((Int, Nil) Pair)
+						$1 := alloc((Int, Nil) #test Pair)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						$0 := 5
 						and($1, {x: $0 y: {}})
 						$2 := arg(0)
-						copy($2, $1, (Int, Nil) Pair)
+						copy($2, $1, (Int, Nil) #test Pair)
 						return
 			`,
 		},
@@ -1126,17 +1126,17 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 (Nil, Int) Pair&
+						0 (Nil, Int) #test Pair&
 					0:
 						[in:] [out: 1]
-						$1 := alloc((Nil, Int) Pair)
+						$1 := alloc((Nil, Int) #test Pair)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						$0 := 5
 						and($1, {x: {} y: $0})
 						$2 := arg(0)
-						copy($2, $1, (Nil, Int) Pair)
+						copy($2, $1, (Nil, Int) #test Pair)
 						return
 			`,
 		},
@@ -1150,10 +1150,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 (Int, Nil, Int) Triple&
+						0 (Int, Nil, Int) #test Triple&
 					0:
 						[in:] [out: 1]
-						$2 := alloc((Int, Nil, Int) Triple)
+						$2 := alloc((Int, Nil, Int) #test Triple)
 						jmp 1
 					1:
 						[in: 0] [out:]
@@ -1161,7 +1161,7 @@ func TestBuild(t *testing.T) {
 						$1 := 6
 						and($2, {x: $0 y: {} z: $1})
 						$3 := arg(0)
-						copy($3, $2, (Int, Nil, Int) Triple)
+						copy($3, $2, (Int, Nil, Int) #test Triple)
 						return
 			`,
 		},
@@ -1175,17 +1175,17 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 Int? &
+						0 Int #test ? &
 					0:
 						[in:] [out: 1]
-						$1 := alloc(Int?)
+						$1 := alloc(Int #test ?)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						$0 := 5
 						or($1, {1=some: $0})
 						$2 := arg(0)
-						copy($2, $1, Int?)
+						copy($2, $1, Int #test ?)
 						return
 			`,
 		},
@@ -1199,18 +1199,18 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 String? &
+						0 String #test ? &
 					0:
 						[in:] [out: 1]
 						$0 := alloc(String)
-						$1 := alloc(String?)
+						$1 := alloc(String #test ?)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						string($0, string1)
 						or($1, {1=some: *$0})
 						$2 := arg(0)
-						copy($2, $1, String?)
+						copy($2, $1, String #test ?)
 						return
 			`,
 		},
@@ -1224,16 +1224,16 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 Nil? &
+						0 Nil #test ? &
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Nil?)
+						$0 := alloc(Nil #test ?)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						or($0, {1=some:})
 						$1 := arg(0)
-						copy($1, $0, Nil?)
+						copy($1, $0, Nil #test ?)
 						return
 			`,
 		},
@@ -1247,16 +1247,16 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 Int? &
+						0 Int #test ? &
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Int?)
+						$0 := alloc(Int #test ?)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						or($0, {0=none})
 						$1 := arg(0)
-						copy($1, $0, Int?)
+						copy($1, $0, Int #test ?)
 						return
 			`,
 		},
@@ -1271,11 +1271,11 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 Fooer&
+						0 #test Fooer&
 					0:
 						[in:] [out: 1]
 						$1 := alloc(Int)
-						$2 := alloc(Fooer)
+						$2 := alloc(#test Fooer)
 						jmp 1
 					1:
 						[in: 0] [out:]
@@ -1283,7 +1283,7 @@ func TestBuild(t *testing.T) {
 						store($1, $0)
 						virt($2, $1, {function1})
 						$3 := arg(0)
-						copy($3, $2, Fooer)
+						copy($3, $2, #test Fooer)
 						return
 			`,
 		},
@@ -1331,8 +1331,8 @@ func TestBuild(t *testing.T) {
 					parms:
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Int?)
-						$1 := alloc(Int?)
+						$0 := alloc(Int #test ?)
+						$1 := alloc(Int #test ?)
 						$2 := alloc($Block0)
 						$3 := alloc(Nil Fun)
 						$4 := alloc($Block1)
@@ -1341,7 +1341,7 @@ func TestBuild(t *testing.T) {
 					1:
 						[in: 0] [out: 2 3]
 						or($1, {0=none})
-						copy($0, $1, Int?)
+						copy($0, $1, Int #test ?)
 						and($2, {})
 						virt($3, $2, {block1})
 						and($4, {})
@@ -1378,8 +1378,8 @@ func TestBuild(t *testing.T) {
 						0 Int&
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Int?)
-						$1 := alloc(Int?)
+						$0 := alloc(Int #test ?)
+						$1 := alloc(Int #test ?)
 						$3 := alloc($Block0)
 						$4 := alloc(Int Fun)
 						$6 := alloc($Block1)
@@ -1389,7 +1389,7 @@ func TestBuild(t *testing.T) {
 					1:
 						[in: 0] [out: 2 3]
 						or($1, {0=none})
-						copy($0, $1, Int?)
+						copy($0, $1, Int #test ?)
 						// TODO: blocks that do not far-return needn't capture the return location.
 						$2 := arg(0)
 						and($3, {$2})
@@ -1432,8 +1432,8 @@ func TestBuild(t *testing.T) {
 						0 String&
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Int?)
-						$1 := alloc(Int?)
+						$0 := alloc(Int #test ?)
+						$1 := alloc(Int #test ?)
 						$3 := alloc($Block0)
 						$4 := alloc(String Fun)
 						$6 := alloc($Block1)
@@ -1443,7 +1443,7 @@ func TestBuild(t *testing.T) {
 					1:
 						[in: 0] [out: 2 3]
 						or($1, {0=none})
-						copy($0, $1, Int?)
+						copy($0, $1, Int #test ?)
 						// TODO: blocks that do not far-return needn't capture the return location.
 						$2 := arg(0)
 						and($3, {$2})
@@ -1907,10 +1907,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 Num&
+						0 #test Num&
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Num)
+						$0 := alloc(#test Num)
 						jmp 1
 					1:
 						[in: 0] [out:]
@@ -1977,8 +1977,8 @@ func TestBuild(t *testing.T) {
 					parms:
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Num)
-						$1 := alloc(Num)
+						$0 := alloc(#test Num)
+						$1 := alloc(#test Num)
 						$4 := alloc($Block0)
 						$5 := alloc(Nil Fun)
 						$6 := alloc($Block1)
@@ -2139,7 +2139,7 @@ func TestBuild(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
-			p := ast.NewParser("")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}

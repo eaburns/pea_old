@@ -4236,7 +4236,7 @@ func TestTypeInstMemo(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			p := ast.NewParser("")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -4352,7 +4352,7 @@ func TestTypeRef(t *testing.T) {
 		val i Int := [5]
 		val iRef Int& := [6]
 	`
-	p := ast.NewParser("")
+	p := ast.NewParser("/test/test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		t.Fatalf("failed to parse source: %s", err)
 	}
@@ -4363,7 +4363,7 @@ func TestTypeRef(t *testing.T) {
 
 	sf := findTestVal(mod, "stringFloatPair").Var.Type()
 	sfRef := sf.Ref()
-	want := "(String, Float) Pair&"
+	want := "(String, Float) #test Pair&"
 	if got := sfRef.String(); got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
@@ -4375,13 +4375,13 @@ func TestTypeRef(t *testing.T) {
 	}
 
 	sfRefRef := sfRef.Ref()
-	want = "(String, Float) Pair& &"
+	want = "(String, Float) #test Pair& &"
 	if got := sfRefRef.String(); got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
 
 	sfRefRefRef := sfRefRef.Ref()
-	want = "(String, Float) Pair& & &"
+	want = "(String, Float) #test Pair& & &"
 	if got := sfRefRefRef.String(); got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}

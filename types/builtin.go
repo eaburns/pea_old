@@ -284,22 +284,6 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 	return &fun
 }
 
-func makeTypeName(typ *Type) *TypeName {
-	args := typ.Args
-	if typ.Args == nil {
-		for i := range typ.Parms {
-			parm := &typ.Parms[i]
-			args = append(args, *makeTypeName(parm.Type))
-		}
-	}
-	return &TypeName{
-		Mod:  modName(typ.ModPath),
-		Name: typ.Name,
-		Args: args,
-		Type: typ,
-	}
-}
-
 func makeBlockType(x *scope, blk *Block) *Type {
 	name := fmt.Sprintf("$Block%d", x.nextBlockType)
 	x.nextBlockType++
@@ -366,6 +350,22 @@ func cloneTypeParms(x *scope, parms0 []TypeVar) []TypeVar {
 		parm1.Type.Def = parm1.Type
 	}
 	return parms1
+}
+
+func makeTypeName(typ *Type) *TypeName {
+	args := typ.Args
+	if typ.Args == nil {
+		for i := range typ.Parms {
+			parm := &typ.Parms[i]
+			args = append(args, *makeTypeName(parm.Type))
+		}
+	}
+	return &TypeName{
+		Mod:  modName(typ.ModPath),
+		Name: typ.Name,
+		Args: args,
+		Type: typ,
+	}
 }
 
 func builtInType(x *scope, name string, args ...TypeName) *Type {

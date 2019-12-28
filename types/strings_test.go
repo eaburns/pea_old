@@ -18,14 +18,17 @@ func TestString(t *testing.T) {
 		{src: "Val x := [5]", want: "x"},
 		{src: "val x Int32 := [5]", want: "x Int32"},
 		{src: "val x Int Array := [{5}]", want: "x Int Array"},
-		{src: "type Xyz {}", want: "Xyz"},
-		{src: "Type Xyz {}", want: "Xyz"},
-		{src: "type X Xyz {x: X}", want: "X Xyz"},
-		{src: "type (X, Y, Z) Xyz {x: X y: Y z: Z}", want: "(X, Y, Z) Xyz"},
-		{src: "type (X Foo) Xyz {x: X} type Foo{[foo]}", want: "(X Foo) Xyz"},
-		{src: "type (X Foo, Y, Z Foo) Xyz {x: X y: Y z: Z} type Foo{[foo]}", want: "(X Foo, Y, Z Foo) Xyz"},
-		{src: "type X& {x: X}", want: "X&"},
-		{src: "type (X, Y, Z)& {x: X y: Y z: Z}", want: "(X, Y, Z)&"},
+		{src: "type Xyz {}", want: "#test Xyz"},
+		{src: "Type Xyz {}", want: "#test Xyz"},
+		{src: "type X Xyz {x: X}", want: "X #test Xyz"},
+		{src: "type (X, Y, Z) Xyz {x: X y: Y z: Z}", want: "(X, Y, Z) #test Xyz"},
+		{src: "type (X Foo) Xyz {x: X} type Foo{[foo]}", want: "(X Foo) #test Xyz"},
+		{
+			src:  "type (X Foo, Y, Z Foo) Xyz {x: X y: Y z: Z} type Foo{[foo]}",
+			want: "(X Foo, Y, Z Foo) #test Xyz",
+		},
+		{src: "type X& {x: X}", want: "X #test &"},
+		{src: "type (X, Y, Z)& {x: X y: Y z: Z}", want: "(X, Y, Z) #test &"},
 		{src: "func [unary |]", want: "[unary]"},
 		{src: "func [unary]", want: "[unary]"},
 		{src: "func T [unary ^T]", want: "T [unary ^T]"},
@@ -143,7 +146,7 @@ func TestString(t *testing.T) {
 		test := test
 		t.Run(test.want, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Errorf("failed to parse [%s]: %s,", test.src, err.Error())
 				return

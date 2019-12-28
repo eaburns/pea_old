@@ -74,7 +74,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type Foo { [bar: Int baz: String ^Float] }
 			`,
 			want: []string{
-				"Foo [bar: _ Int baz: _ String ^Float]",
+				"#test Foo [bar: _ Int baz: _ String ^Float]",
 			},
 		},
 		{
@@ -87,9 +87,9 @@ func TestBuiltInMeths(t *testing.T) {
 				}
 			`,
 			want: []string{
-				"Foo [bar]",
-				"Foo [baz: _ Int]",
-				"Foo [* _ Foo ^Foo]",
+				"#test Foo [bar]",
+				"#test Foo [baz: _ Int]",
+				"#test Foo [* _ Foo ^Foo]",
 			},
 		},
 		{
@@ -100,7 +100,7 @@ func TestBuiltInMeths(t *testing.T) {
 				}
 			`,
 			want: []string{
-				"T Eq [= _ T& ^Bool]",
+				"T #test Eq [= _ T& ^Bool]",
 			},
 		},
 	}
@@ -108,7 +108,7 @@ func TestBuiltInMeths(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}

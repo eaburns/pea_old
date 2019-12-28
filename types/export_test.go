@@ -211,7 +211,7 @@ func TestExportImport(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			p := ast.NewParser("test")
+			p := ast.NewParser("/test/test")
 			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
 				t.Fatalf("failed to parse source: %s", err)
 			}
@@ -219,7 +219,6 @@ func TestExportImport(t *testing.T) {
 			if len(errs) > 0 {
 				t.Fatalf("failed to check source: %v", errs)
 			}
-			mod.Name = "test"
 			var buf bytes.Buffer
 			if err := Write(&buf, mod); err != nil {
 				t.Fatalf("failed to write the mod: %v", err)

@@ -5,7 +5,6 @@ package ast
 
 // A Mod is a module: the unit of compilation.
 type Mod struct {
-	Name  string
 	Path  string
 	Files []File
 }

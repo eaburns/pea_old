@@ -13,7 +13,7 @@ import (
 // A Mod is a module: the unit of compilation.
 type Mod struct {
 	AST  *ast.Mod
-	Name string
+	Path string
 	Defs []Def
 
 	// SortedVals contains all val defs, topologically sorted

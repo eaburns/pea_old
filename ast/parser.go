@@ -4,7 +4,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 
 	"github.com/eaburns/peggy/peg"
 )
@@ -24,7 +23,7 @@ func NewParser(modPath string) *Parser {
 
 // Mod returns the module built from the parsed files.
 func (p *Parser) Mod() *Mod {
-	return &Mod{Name: path.Base(p.mod), Path: p.mod, Files: p.files}
+	return &Mod{Path: p.mod, Files: p.files}
 }
 
 // Parse parses a *File from an io.Reader.

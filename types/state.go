@@ -87,7 +87,7 @@ func setConfigDefaults(x *state) {
 		x.cfg.Importer = &dirImporter{}
 	}
 	if _, ok := x.cfg.Importer.(*importer); !ok {
-		x.cfg.Importer = newImporter(x, x.astMod.Name, x.cfg.Importer)
+		x.cfg.Importer = newImporter(x, x.astMod.Path, x.cfg.Importer)
 	}
 }
 

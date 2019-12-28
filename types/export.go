@@ -30,7 +30,7 @@ func Write(w io.Writer, m *Mod) (err error) {
 			err = ioErr.err
 		}
 	}()
-	writeString(w, m.Name)
+	writeString(w, m.Path)
 	objs := &outObjs{
 		num:     make(map[interface{}]int),
 		written: make(map[interface{}]bool),
@@ -76,9 +76,7 @@ func Read(r io.Reader) (m *Mod, err error) {
 			err = ioErr.err
 		}
 	}()
-	m = &Mod{
-		Name: readString(r),
-	}
+	m = &Mod{Path: readString(r)}
 	var objs inObjs
 	n := readInt(r)
 	for i := 0; i < n; i++ {
