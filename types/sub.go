@@ -426,7 +426,7 @@ func subBlock(x *scope, sub map[*TypeVar]TypeName, block0 *Block) *Block {
 	block1 := &Block{
 		AST:    block0.AST,
 		Parms:  make([]Var, len(block0.Parms)),
-		Locals: make([]*Var, len(block0.Parms)),
+		Locals: make([]*Var, len(block0.Locals)),
 		typ:    subType(x, seen, sub, block0.typ),
 	}
 	x = x.new()
