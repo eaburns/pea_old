@@ -245,8 +245,7 @@ func captureLoad(load *Load) int {
 	if !ok {
 		return -1
 	}
-	arg, ok := field.Obj.(*Arg)
-	if !ok && arg.Parm.N == 0 {
+	if arg, ok := field.Obj.(*Arg); !ok || arg.Parm.N != 0 {
 		return -1
 	}
 	return field.Index
