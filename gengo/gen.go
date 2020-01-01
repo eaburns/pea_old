@@ -65,30 +65,36 @@ func writeMod(w io.Writer, mod *basic.Mod) error {
 	src := fmt.Sprintf("package %s", mod.Mod.AST.Path)
 	src += `
 		import "fmt"
-		func Func_1_String_print_(x *[]byte) {
+		func F1___0_String__main__print_3A__(x *[]byte) {
 			fmt.Printf("%v", string(*x))
 		}
-		func Func_1_1_and_String_print_(x *[]byte) {
+		func F1___1__26____0_String__main__print_3A__(x *[]byte) {
 			fmt.Printf("%v", string(*x))
 		}
-		func Func_1_Int_print_(x int) {
+		func F1___0_Int__main__print_3A__(x int) {
 			fmt.Printf("%v", x)
 		}
-		func Func_1_1_and_Int_print_(x *int) {
+		func F1___1__26____0_Int__main__print_3A__(x *int) {
 			fmt.Printf("%v", *x)
 		}
-		func Func_1_UInt_print_(x uint) {
+		func F1___0_UInt__main__print_3A__(x uint) {
 			fmt.Printf("%v", x)
 		}
-		func Func_1_Float_print_(x float64) {
+		func F1___0_Float__main__print_3A__(x float64) {
 			fmt.Printf("%v", x)
 		}
-		func Func_1_Bool_print_(x uint8) {
+		func F1___0_Bool__main__print_3A__(x uint8) {
 			fmt.Printf("%v", x == 1)
 		}
 	`
 	if path.Base(mod.Mod.AST.Path) == "main" {
-		src += "func main() { Func_main() }\n"
+		src += "func main() {\n"
+		for _, f := range mod.Funs {
+			if f.Fun == nil {
+				src += mangleFun(f, new(strings.Builder)).String() + "()\n"
+			}
+		}
+		src += "F0_main__main__()\n}\n"
 	}
 	src += s.String()
 
@@ -121,7 +127,7 @@ func WriteFun(w io.Writer, f *basic.Fun) error {
 	if f.Fun != nil && f.Block == nil {
 		ww.writeFmt("// %s\n", f.Fun)
 	}
-	ww.writeFmt("func %s(", mangleFun(f))
+	ww.writeFmt("func %s(", mangleFun(f, new(strings.Builder)).String())
 	writeParms(ww, f)
 	ww.writeString(") {\n")
 	writeBody(ww, f)
@@ -423,7 +429,7 @@ func writeMakeVirt(ww *writer, s *basic.MakeVirt) {
 	for i, v := range s.Virts {
 		ww.writeFmt("%s: ", virtName(typ, i))
 		n := writeVirtSig(ww, &typ.Virts[i])
-		ww.writeFmt("{%s(x%d", mangleFun(v), s.Obj.Num())
+		ww.writeFmt("{%s(x%d", mangleFun(v, new(strings.Builder)).String(), s.Obj.Num())
 		for i := 0; i < n; i++ {
 			ww.writeFmt(", p%d", i)
 		}
@@ -433,7 +439,7 @@ func writeMakeVirt(ww *writer, s *basic.MakeVirt) {
 }
 
 func writeCall(ww *writer, s *basic.Call) {
-	ww.writeFmt("%s(", mangleFun(s.Fun))
+	ww.writeFmt("%s(", mangleFun(s.Fun, new(strings.Builder)).String())
 	for i, arg := range s.Args {
 		if i > 0 {
 			ww.writeString(", ")

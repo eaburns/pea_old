@@ -615,12 +615,16 @@ func TestWriteMod(t *testing.T) {
 	}
 }
 
-func compile(src string) (*basic.Mod, []error) {
-	p := ast.NewParser("main")
+func check(modPath, src string) (*types.Mod, []error) {
+	p := ast.NewParser(modPath)
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		return nil, []error{err}
 	}
-	typesMod, errs := types.Check(p.Mod(), types.Config{})
+	return types.Check(p.Mod(), types.Config{})
+}
+
+func compile(src string) (*basic.Mod, []error) {
+	typesMod, errs := check("main", src)
 	if len(errs) > 0 {
 		return nil, errs
 	}
