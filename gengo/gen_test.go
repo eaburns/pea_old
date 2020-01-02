@@ -2,6 +2,9 @@ package gengo
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -16,9 +19,10 @@ import (
 func TestWriteMod(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name   string
-		src    string
-		stdout string
+		name    string
+		src     string
+		stdout  string
+		imports [][2]string
 	}{
 		{
 			name:   "empty",
@@ -469,9 +473,7 @@ func TestWriteMod(t *testing.T) {
 			stdout: "42\nHello",
 		},
 		{
-			// TODO: gengo stack overflows emitting a recursive type
-			// like Printer here, whcih has a method referring to itself.
-			name: "SKIP: virtual with return recursive type",
+			name: "virtual with return recursive type",
 			src: `
 				func [main |
 					v Printer := 42.
@@ -591,6 +593,257 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "42\nHello, World\n{x: 5 y: 10}\n",
 		},
+		{
+			name: "recursive type",
+			src: `
+				func [main |
+					abc String List := cons: "a" and: (cons: "b" and: (cons: "c" and: nil)).
+					abc do: [:s | print: s. print: "\n"]
+				]
+
+				type T List {nil | elm: T Elm&}
+
+				type T Elm {data: T next: T List}
+				meth T Elm [data ^T& | ^data]
+				meth T Elm [next ^T List | ^next]
+
+				func T [nil ^T List | ^{nil}]
+
+				func T [cons: t T and: ts T List ^T List | ^{elm: {data: t next: ts}}]
+
+				meth _ List [size ^Int |
+					^self ifNil: [0] ifElm: [:e | 1 + e next size]
+				]
+
+				meth T List [do: f (T&, Nil) Fun |
+					self ifNil: [] ifElm: [:e |
+						f value: e data.
+						e next do: f.
+					]
+				]
+			`,
+			stdout: "a\nb\nc\n",
+		},
+		{
+			name: "or type enum",
+			src: `
+				type Enum {one | two | three}
+				func [main |
+					x Enum := {one}.
+					x ifOne: [print: 1] ifTwo: [print: 2] ifThree: [print: 3].
+				]
+			`,
+			stdout: "1",
+		},
+		{
+			name: "imported val",
+			src: `
+				import "/test/sayhi"
+				func [main |
+					print: #sayhi helloWorld
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/sayhi",
+					`Val helloWorld := ["Hello, World"]`,
+				},
+			},
+			stdout: "Hello, World",
+		},
+		{
+			name: "same val name different imports",
+			src: `
+				import "/test/sayhi"
+				import "/test/sayhi2"
+				func [main |
+					print: #sayhi helloWorld.
+					print: "\n".
+					print: #sayhi2 helloWorld
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/sayhi",
+					`Val helloWorld := ["Hello, World"]`,
+				},
+				{
+					"/test/sayhi2",
+					`Val helloWorld := ["こんにちは、皆さん"]`,
+				},
+			},
+			stdout: "Hello, World\nこんにちは、皆さん",
+		},
+		{
+			name: "imported func",
+			src: `
+				import "/test/sayhi"
+				func [main |
+					print: #sayhi helloWorld
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/sayhi",
+					`Func [helloWorld ^String | ^"Hello, World"]`,
+				},
+			},
+			stdout: "Hello, World",
+		},
+		{
+			name: "same func selector different imports",
+			src: `
+				import "/test/sayhi"
+				import "/test/sayhi2"
+				func [main |
+					print: #sayhi helloWorld.
+					print: "\n".
+					print: #sayhi2 helloWorld
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/sayhi",
+					`Func [helloWorld ^String | ^"Hello, World"]`,
+				},
+				{
+					"/test/sayhi2",
+					`Func [helloWorld ^String | ^"こんにちは、皆さん"]`,
+				},
+			},
+			stdout: "Hello, World\nこんにちは、皆さん",
+		},
+		{
+			name: "imported type",
+			src: `
+				import "/test/point"
+				func [main |
+					p #point Point := {x: 5 y: 42}.
+					print: p #point x.
+					print: "\n".
+					print: p #point y
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/point",
+					`
+					Type Point {x: Int y: Int}
+					Meth Point [x ^Int | ^x]
+					Meth Point [y ^Int | ^y]
+					`,
+				},
+			},
+			stdout: "5\n42",
+		},
+		{
+			name: "same type name different imports",
+			src: `
+				import "/test/point"
+				import "/test/point2"
+				func [main |
+					p #point Point := {x: 5 y: 42}.
+					print: p #point x.
+					print: "\n".
+					print: p #point y.
+					print: "\n".
+					q #point2 Point := {x: 5.1 y: 42.2}.
+					print: q #point2 x.
+					print: "\n".
+					print: q #point2 y
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/point",
+					`
+					Type Point {x: Int y: Int}
+					Meth Point [x ^Int | ^x]
+					Meth Point [y ^Int | ^y]
+					`,
+				},
+				{
+					"/test/point2",
+					`
+					Type Point {x: Float y: Float}
+					Meth Point [x ^Float | ^x]
+					Meth Point [y ^Float | ^y]
+					`,
+				},
+			},
+			stdout: "5\n42\n5.1\n42.2",
+		},
+		{
+			name: "dedup type instances across imports",
+			src: `
+				Import "/test/opt"
+				import "/test/a"
+				import "/test/b"
+				func [main |
+					#a one ifNone: [] ifSome: [:i | print: i].
+					print: "\n".
+					#b two ifNone: [] ifSome: [:i | print: i].
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/opt",
+					`
+					Type T? {none | some: T}
+					`,
+				},
+				{
+					"/test/a",
+					`
+					Import "/test/opt"
+					Func [one ^Int? | ^{some: 1}]
+					`,
+				},
+				{
+					"/test/b",
+					`
+					Import "/test/opt"
+					Func [two ^Int? | ^{some: 2}]
+					`,
+				},
+			},
+			stdout: "1\n2",
+		},
+		{
+			name: "dedup func instances across imports",
+			src: `
+				import "/test/a"
+				import "/test/b"
+				func [main |
+					print: #a one.
+					print: "\n".
+					print: #b two.
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/yourself",
+					`
+					Func T [yourself: t T ^T | ^t]
+					`,
+				},
+				{
+					"/test/a",
+					`
+					Import "/test/yourself"
+					Func [one ^Int | ^#yourself yourself: 1]
+					`,
+				},
+				{
+					"/test/b",
+					`
+					Import "/test/yourself"
+					Func [two ^Int | ^#yourself yourself: 2]
+					`,
+				},
+			},
+			stdout: "1\n2",
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -599,12 +852,12 @@ func TestWriteMod(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
-			src := "func T [print: _ T]\n" + test.src
-			mod, errs := compile(src)
+			src := test.src + "\nfunc T [print: _ T]\n"
+			mods, errs := compileAll(src, test.imports...)
 			if len(errs) > 0 {
 				t.Fatalf("failed to compile: %v", errs)
 			}
-			stdout, err := run(mod)
+			stdout, err := run(mods)
 			if err != nil {
 				t.Fatalf("failed to run: %v", err)
 			}
@@ -615,16 +868,18 @@ func TestWriteMod(t *testing.T) {
 	}
 }
 
-func check(modPath, src string) (*types.Mod, []error) {
+func check(modPath, src string, imports ...[2]string) (*types.Mod, []error) {
 	p := ast.NewParser(modPath)
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
 		return nil, []error{err}
 	}
-	return types.Check(p.Mod(), types.Config{})
+	return types.Check(p.Mod(), types.Config{
+		Importer: testImporter(imports),
+	})
 }
 
-func compile(src string) (*basic.Mod, []error) {
-	typesMod, errs := check("main", src)
+func compile(modPath, src string, imports ...[2]string) (*basic.Mod, []error) {
+	typesMod, errs := check(modPath, src, imports...)
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -633,12 +888,38 @@ func compile(src string) (*basic.Mod, []error) {
 	return basicMod, nil
 }
 
-func run(mod *basic.Mod) (string, error) {
+func compileAll(src string, imports ...[2]string) ([]*basic.Mod, []error) {
+	mod, errs := compile("main", src, imports...)
+	if len(errs) > 0 {
+		return nil, errs
+	}
+	mods := []*basic.Mod{mod}
+	for _, imp := range imports {
+		mod, errs = compile(imp[0], imp[1], imports...)
+		if len(errs) > 0 {
+			return nil, errs
+		}
+		mods = append(mods, mod)
+	}
+	return mods, nil
+}
+
+func run(mods []*basic.Mod) (string, error) {
+	var writtenMods []io.Reader
+	for _, mod := range mods {
+		var b bytes.Buffer
+		if err := WriteMod(&b, mod); err != nil {
+			return "", err
+		}
+		writtenMods = append(writtenMods, &b)
+	}
 	f, err := ioutil.TempFile("", "gengo_test_*.go")
 	if err != nil {
 		return "", err
 	}
-	WriteMod(f, mod)
+	if err := MergeMods(f, writtenMods); err != nil {
+		return "", err
+	}
 	path := f.Name()
 	if err := f.Close(); err != nil {
 		return "", err
@@ -649,10 +930,57 @@ func run(mod *basic.Mod) (string, error) {
 	runErr := cmd.Run()
 	rmErr := os.Remove(path)
 	if runErr != nil {
+		writtenMods = nil
+		for _, mod := range mods {
+			var b bytes.Buffer
+			if err := WriteMod(&b, mod); err != nil {
+				return "", err
+			}
+			writtenMods = append(writtenMods, &b)
+		}
+		MergeMods(os.Stderr, writtenMods)
 		return "", runErr
 	}
 	if rmErr != nil {
 		return "", rmErr
 	}
 	return stdOut.String(), nil
+}
+
+type testImporter [][2]string
+
+func (imports testImporter) Import(cfg types.Config, path string) ([]types.Def, error) {
+	for i := range imports {
+		if imports[i][0] != path {
+			continue
+		}
+		src := imports[i][1]
+		p := ast.NewParser(path)
+		if err := p.Parse(path, strings.NewReader(src)); err != nil {
+			return nil, fmt.Errorf("failed to parse import: %s", err)
+		}
+		cfg.Trace = false
+		mod, errs := types.Check(p.Mod(), cfg)
+		if len(errs) > 0 {
+			return nil, fmt.Errorf("failed to check import: %s", errs)
+		}
+		setMod(path, mod.Defs)
+		return mod.Defs, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func setMod(path string, defs []types.Def) {
+	for _, def := range defs {
+		switch def := def.(type) {
+		case *types.Val:
+			def.ModPath = path
+		case *types.Fun:
+			def.ModPath = path
+		case *types.Type:
+			def.ModPath = path
+		default:
+			panic(fmt.Sprintf("impossible type: %T", def))
+		}
+	}
 }

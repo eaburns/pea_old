@@ -10,6 +10,20 @@ import (
 	"github.com/eaburns/pea/types"
 )
 
+func stringName(str *basic.String) string {
+	var s strings.Builder
+	mangleMod(str.Mod.Mod.Path, &s)
+	fmt.Fprintf(&s, "string%d", str.N)
+	return s.String()
+}
+
+func valName(v *types.Val) string {
+	var s strings.Builder
+	mangleMod(v.ModPath, &s)
+	writeStr(v.Var.Name, &s)
+	return s.String()
+}
+
 func fieldName(typ *types.Type, i int) string {
 	if i < 0 || i >= len(typ.Fields) || typ.Fields[i].Name == "" {
 		return fmt.Sprintf("_field%d", i)

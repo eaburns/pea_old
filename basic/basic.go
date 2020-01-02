@@ -103,6 +103,7 @@ type Mod struct {
 
 // A String is the data of a string constant.
 type String struct {
+	Mod *Mod
 	// N is unique among Mod-level defs.
 	N    int
 	Data string
@@ -110,6 +111,8 @@ type String struct {
 
 // A Var is a module-level variable.
 type Var struct {
+	Mod *Mod
+	// N is unique among Mod-level defs.
 	N    int
 	Init *Fun
 
@@ -118,9 +121,9 @@ type Var struct {
 
 // A Fun is a code block.
 type Fun struct {
+	Mod *Mod
 	// N is unique among Mod-level defs.
 	N         int
-	Mod       *Mod
 	NVals     int
 	Parms     []*Parm
 	Ret       *Parm // return parameter

@@ -125,7 +125,7 @@ func TestMangleFun(t *testing.T) {
 			if strings.HasPrefix(test.name, "SKIP") {
 				t.Skip()
 			}
-			mod, errs := compile(test.src)
+			mod, errs := compile("main", test.src)
 			if len(errs) > 0 {
 				t.Fatalf("failed to compile: %v", errs)
 			}

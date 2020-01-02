@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -72,10 +74,20 @@ func main() {
 	}
 
 	if *printGo {
-		gengo.WriteMod(os.Stdout, basicMod)
+		writeGo(os.Stdout, basicMod)
 	}
 	if *runGo {
 		run(basicMod)
+	}
+}
+
+func writeGo(w io.Writer, mod *basic.Mod) {
+	var b bytes.Buffer
+	if err := gengo.WriteMod(&b, mod); err != nil {
+		die(err)
+	}
+	if err := gengo.MergeMods(w, []io.Reader{&b}); err != nil {
+		die(err)
 	}
 }
 
@@ -84,7 +96,7 @@ func run(mod *basic.Mod) {
 	if err != nil {
 		die(err)
 	}
-	gengo.WriteMod(f, mod)
+	writeGo(f, mod)
 	path := f.Name()
 	if err := f.Close(); err != nil {
 		die(err)

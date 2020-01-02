@@ -3,200 +3,19 @@ package gengo
 
 import (
 	"fmt"
-	"go/format"
-	"go/parser"
-	"go/token"
 	"io"
-	"path"
+	"io/ioutil"
+	"sort"
 	"strings"
 
 	"github.com/eaburns/pea/basic"
 	"github.com/eaburns/pea/types"
 )
 
-type writer struct {
-	err error
-	w   io.Writer
-}
-
-func (ww *writer) writeFmt(f string, vs ...interface{}) {
-	if ww.err != nil {
-		return
-	}
-	_, ww.err = fmt.Fprintf(ww.w, f, vs...)
-}
-
-func (ww *writer) writeString(s string) {
-	if ww.err != nil {
-		return
-	}
-	_, ww.err = io.WriteString(ww.w, s)
-}
-
-// WriteMod writes the module as formatted Go code.
-func WriteMod(w io.Writer, mod *basic.Mod) error {
-	return writeMod(w, mod)
-}
-
-func writeMod(w io.Writer, mod *basic.Mod) error {
-	var s strings.Builder
-	for _, str := range mod.Strings {
-		if s.Len() > 0 {
-			s.WriteRune('\n')
-		}
-		WriteString(&s, str)
-	}
-	for _, v := range mod.Vars {
-		if s.Len() > 0 {
-			s.WriteRune('\n')
-		}
-		WriteVar(&s, v)
-	}
-	for _, f := range mod.Funs {
-		if f.BBlks == nil {
-			continue
-		}
-		if s.Len() > 0 {
-			s.WriteRune('\n')
-		}
-		WriteFun(&s, f)
-	}
-
-	src := fmt.Sprintf("package %s", mod.Mod.AST.Path)
-	src += `
-		import "fmt"
-		func F1___0_String__main__print_3A__(x *[]byte) {
-			fmt.Printf("%v", string(*x))
-		}
-		func F1___1__26____0_String__main__print_3A__(x *[]byte) {
-			fmt.Printf("%v", string(*x))
-		}
-		func F1___0_Int__main__print_3A__(x int) {
-			fmt.Printf("%v", x)
-		}
-		func F1___1__26____0_Int__main__print_3A__(x *int) {
-			fmt.Printf("%v", *x)
-		}
-		func F1___0_UInt__main__print_3A__(x uint) {
-			fmt.Printf("%v", x)
-		}
-		func F1___0_Float__main__print_3A__(x float64) {
-			fmt.Printf("%v", x)
-		}
-		func F1___0_Bool__main__print_3A__(x uint8) {
-			fmt.Printf("%v", x == 1)
-		}
-	`
-	if path.Base(mod.Mod.AST.Path) == "main" {
-		src += "func main() {\n"
-		for _, f := range mod.Funs {
-			if f.Fun == nil {
-				src += mangleFun(f, new(strings.Builder)).String() + "()\n"
-			}
-		}
-		src += "F0_main__main__()\n}\n"
-	}
-	src += s.String()
-
-	fset := token.NewFileSet()
-	root, err := parser.ParseFile(fset, "", src, parser.ParseComments)
-	if err != nil {
-		io.WriteString(w, src)
-		panic(err.Error())
-	}
-	return format.Node(w, fset, root)
-}
-
-// WriteString writes the Go code for a string definition.
-func WriteString(w io.Writer, f *basic.String) error {
-	_, err := fmt.Fprintf(w, "var string%d = []byte(%q)\n", f.N, f.Data)
-	return err
-}
-
-// WriteVar writes the Go code for a module-level variable definition.
-func WriteVar(w io.Writer, f *basic.Var) error {
-	ww := &writer{w: w}
-	ww.writeFmt("var _%s ", f.Val.Var.Name)
-	writeType(ww, f.Val.Var.Type())
-	return ww.err
-}
-
-// WriteFun writes the Go code for a function definition.
-func WriteFun(w io.Writer, f *basic.Fun) error {
-	ww := &writer{w: w}
-	if f.Fun != nil && f.Block == nil {
-		ww.writeFmt("// %s\n", f.Fun)
-	}
-	ww.writeFmt("func %s(", mangleFun(f, new(strings.Builder)).String())
-	writeParms(ww, f)
-	ww.writeString(") {\n")
-	writeBody(ww, f)
-	ww.writeString("}\n")
-	return ww.err
-}
-
-func writeParms(ww *writer, f *basic.Fun) {
-	if len(f.Parms) == 0 && f.Ret == nil {
-		return
-	}
-	for _, parm := range f.Parms {
-		ww.writeString("\n\t")
-		writeParm(ww, parm)
-		ww.writeString(" ")
-		writeType(ww, parm.Type)
-		ww.writeString(",")
-	}
-	if f.Ret != nil {
-		ww.writeString("\n\t")
-		writeParm(ww, f.Ret)
-		ww.writeString(" ")
-		writeType(ww, f.Ret.Type)
-		ww.writeString(",")
-	}
-	ww.writeString("\n")
-}
-
-func writeParm(ww *writer, parm *basic.Parm) {
-	if parm.Var != nil {
-		ww.writeFmt("p%d_%s", parm.N, parm.Var.Name)
-	} else {
-		ww.writeFmt("p%d", parm.N)
-	}
-}
-
-func writeType(ww *writer, typ *types.Type) {
-	switch {
-	case typ.BuiltIn == types.RefType:
-		ww.writeString("*")
-		writeType(ww, typ.Args[0].Type)
-
-	case typ.BuiltIn == types.ArrayType:
-		ww.writeString("[]")
-		writeType(ww, typ.Args[0].Type)
-
-	case len(typ.Virts) > 0:
-		writeVirtType(ww, typ)
-
-	case len(typ.Cases) > 0:
-		writeOrType(ww, typ)
-
-	case typ.BuiltIn == types.BlockType:
-		fallthrough
-	case typ.BuiltIn == types.NilType:
-		fallthrough
-	default:
-		writeAndType(ww, typ)
-
-	case typ.BuiltIn != 0:
-		if t, ok := builtInTypes[typ.BuiltIn]; ok {
-			ww.writeString(t)
-			return
-		}
-		ww.writeFmt("<%s>", typ)
-	}
-}
+type typeSet map[*types.Type]bool
 
 var builtInTypes = map[types.BuiltInType]string{
+	types.NilType:    "struct{}",
 	types.StringType: "[]byte",
 	types.BoolType:   "uint8",
 	// TODO: handle different size Int.
@@ -215,305 +34,6 @@ var builtInTypes = map[types.BuiltInType]string{
 	types.FloatType:   "float64",
 	types.Float32Type: "float32",
 	types.Float64Type: "float64",
-}
-
-func writeAndType(ww *writer, typ *types.Type) {
-	ww.writeString("struct{")
-	for i := range typ.Fields {
-		field := &typ.Fields[i]
-		if basic.EmptyType(field.Type()) {
-			continue
-		}
-		ww.writeString(fieldName(typ, i))
-		ww.writeString(" ")
-		writeType(ww, field.Type())
-		ww.writeString("; ")
-	}
-	ww.writeString("}")
-}
-
-func writeOrType(ww *writer, typ *types.Type) {
-	if basic.SimpleType(typ) {
-		// This case is an Or type converted to an int.
-		writeType(ww, typ.Tag())
-		return
-	}
-
-	ww.writeString("struct{tag ")
-	writeType(ww, typ.Tag())
-	ww.writeString("; ")
-	for i := range typ.Cases {
-		cas := &typ.Cases[i]
-		if cas.Type() == nil || basic.EmptyType(cas.Type()) {
-			continue
-		}
-		ww.writeString(caseName(typ, i))
-		ww.writeString(" ")
-		writeType(ww, cas.Type())
-		ww.writeString("; ")
-	}
-	ww.writeString("}")
-}
-
-func writeVirtType(ww *writer, typ *types.Type) {
-	ww.writeString("struct{")
-	for i := range typ.Virts {
-		ww.writeString(virtName(typ, i))
-		ww.writeString(" ")
-		writeVirtSig(ww, &typ.Virts[i])
-		ww.writeString("; ")
-	}
-	ww.writeString("}")
-}
-
-func writeVirtSig(ww *writer, virt *types.FunSig) int {
-	ww.writeString("func(")
-	var i int
-	for _, parm := range virt.Parms {
-		if basic.EmptyType(parm.Type()) {
-			continue
-		}
-		if i > 0 {
-			ww.writeString(", ")
-		}
-		ww.writeFmt("p%d ", i)
-		i++
-		if !basic.SimpleType(parm.Type()) {
-			ww.writeString("*")
-		}
-		writeType(ww, parm.Type())
-	}
-	if virt.Ret != nil && !basic.EmptyType(virt.Ret.Type) {
-		if i > 0 {
-			ww.writeString(", ")
-		}
-		ww.writeFmt("p%d *", i)
-		writeType(ww, virt.Ret.Type)
-		i++
-	}
-	ww.writeString(")")
-	return i
-}
-
-func writeBody(ww *writer, f *basic.Fun) {
-	for _, b := range f.BBlks {
-		for _, s := range b.Stmts {
-			v, ok := s.(basic.Val)
-			if !ok {
-				continue
-			}
-			ww.writeFmt("var x%d ", v.Num())
-			writeType(ww, v.Type())
-			ww.writeString("\n")
-		}
-	}
-	for i, b := range f.BBlks {
-		if i > 0 {
-			ww.writeFmt("L%d:\n", b.N)
-		}
-		for _, s := range b.Stmts {
-			writeStmt(ww, s)
-		}
-	}
-}
-
-func writeStmt(ww *writer, s basic.Stmt) {
-	ww.writeString("\t")
-	switch s := s.(type) {
-	case *basic.Comment:
-		ww.writeFmt("// %s", s.Text)
-	case *basic.Store:
-		ww.writeFmt("*x%d = x%d", s.Dst.Num(), s.Val.Num())
-	case *basic.Copy:
-		ww.writeFmt("*x%d = *x%d", s.Dst.Num(), s.Src.Num())
-	case *basic.MakeArray:
-		writeMakeArray(ww, s)
-	case *basic.MakeSlice:
-		writeMakeSlice(ww, s)
-	case *basic.MakeString:
-		writeMakeString(ww, s)
-	case *basic.MakeAnd:
-		writeMakeAnd(ww, s)
-	case *basic.MakeOr:
-		writeMakeOr(ww, s)
-	case *basic.MakeVirt:
-		writeMakeVirt(ww, s)
-	case *basic.Call:
-		writeCall(ww, s)
-	case *basic.VirtCall:
-		writeVirtCall(ww, s)
-	case *basic.Ret:
-		ww.writeFmt("return")
-	case *basic.Jmp:
-		ww.writeFmt("goto L%d", s.Dst.N)
-	case *basic.Switch:
-		writeSwitch(ww, s)
-	case basic.Val:
-		writeVal(ww, s)
-	default:
-		panic(fmt.Sprintf("impossible type %T", s))
-	}
-	ww.writeString("\n")
-}
-
-func writeMakeArray(ww *writer, s *basic.MakeArray) {
-	typ := s.Dst.Type().Args[0].Type
-	elmType := typ.Args[0].Type
-
-	ww.writeFmt("*x%d = ", s.Dst.Num())
-	writeType(ww, typ)
-	ww.writeString("{")
-	var deref string
-	if !basic.SimpleType(elmType) {
-		deref = "*"
-	}
-	for i, arg := range s.Args {
-		if i > 0 {
-			ww.writeString(", ")
-		}
-		ww.writeFmt("%sx%d", deref, arg.Num())
-	}
-	ww.writeString("}")
-}
-
-func writeMakeSlice(ww *writer, s *basic.MakeSlice) {
-	ww.writeFmt("*x%d = (*x%d)[x%d:x%d]",
-		s.Dst.Num(), s.Ary.Num(), s.From.Num(), s.To.Num())
-}
-
-func writeMakeString(ww *writer, s *basic.MakeString) {
-	ww.writeFmt("*x%d = string%d[:]", s.Dst.Num(), s.Data.N)
-}
-
-func writeMakeAnd(ww *writer, s *basic.MakeAnd) {
-	ww.writeFmt("*x%d = ", s.Dst.Num())
-	typ := s.Dst.Type().Args[0].Type
-	writeType(ww, typ)
-	ww.writeString("{")
-
-	for i, val := range s.Fields {
-		if val == nil {
-			continue
-		}
-		field := &typ.Fields[i]
-		var deref string
-		if !basic.SimpleType(field.Type()) {
-			deref = "*"
-		}
-		ww.writeFmt("%s: %sx%d, ", fieldName(typ, i), deref, val.Num())
-	}
-	ww.writeString("}")
-}
-
-func writeMakeOr(ww *writer, s *basic.MakeOr) {
-	ww.writeFmt("*x%d = ", s.Dst.Num())
-	typ := s.Dst.Type().Args[0].Type
-	writeType(ww, typ)
-	ww.writeFmt("{tag: %d, ", s.Case)
-	if s.Val != nil {
-		cas := &typ.Cases[s.Case]
-		var deref string
-		if !basic.SimpleType(cas.Type()) {
-			deref = "*"
-		}
-		ww.writeFmt("%s: %sx%d, ", caseName(typ, s.Case), deref, s.Val.Num())
-	}
-	ww.writeString("}")
-}
-
-func writeMakeVirt(ww *writer, s *basic.MakeVirt) {
-	ww.writeFmt("*x%d = ", s.Dst.Num())
-	typ := s.Dst.Type().Args[0].Type
-	writeType(ww, typ)
-	ww.writeString("{")
-	for i, v := range s.Virts {
-		ww.writeFmt("%s: ", virtName(typ, i))
-		n := writeVirtSig(ww, &typ.Virts[i])
-		ww.writeFmt("{%s(x%d", mangleFun(v, new(strings.Builder)).String(), s.Obj.Num())
-		for i := 0; i < n; i++ {
-			ww.writeFmt(", p%d", i)
-		}
-		ww.writeString(")}, ")
-	}
-	ww.writeString("}")
-}
-
-func writeCall(ww *writer, s *basic.Call) {
-	ww.writeFmt("%s(", mangleFun(s.Fun, new(strings.Builder)).String())
-	for i, arg := range s.Args {
-		if i > 0 {
-			ww.writeString(", ")
-		}
-		ww.writeFmt("x%d", arg.Num())
-	}
-	ww.writeString(")")
-}
-
-func writeVirtCall(ww *writer, s *basic.VirtCall) {
-	typ := s.Self.Type().Args[0].Type
-	ww.writeFmt("x%d.%s(", s.Self.Num(), virtName(typ, s.Index))
-	// Strip off the self argument.
-	// Go code gen handles that as a closure
-	// at the time the Virt is created.
-	for i, arg := range s.Args[1:] {
-		if i > 0 {
-			ww.writeString(", ")
-		}
-		ww.writeFmt("x%d", arg.Num())
-	}
-	ww.writeString(")")
-}
-
-func writeSwitch(ww *writer, s *basic.Switch) {
-	ww.writeFmt("switch x%d {", s.Val.Num())
-	if s.Val.Type().BuiltIn == types.BoolType {
-		// TODO: remove the hack to reverse bool 0/1.
-		for i, b := range s.Dsts {
-			ww.writeFmt("case %d: goto L%d; ", 1-i, b.N)
-		}
-	} else {
-		for i, b := range s.Dsts {
-			ww.writeFmt("case %d: goto L%d; ", i, b.N)
-		}
-	}
-	ww.writeString("}")
-}
-
-func writeVal(ww *writer, v basic.Val) {
-	ww.writeFmt("x%d = ", v.Num())
-	switch v := v.(type) {
-	case *basic.IntLit:
-		t := builtInTypes[v.Type().BuiltIn]
-		ww.writeFmt("%s(%s)", t, v.Val.String())
-	case *basic.FloatLit:
-		t := builtInTypes[v.Type().BuiltIn]
-		ww.writeFmt("%s(%s)", t, v.Val.String())
-	case *basic.Op:
-		writeOp(ww, v)
-	case *basic.Load:
-		ww.writeFmt("*x%d", v.Src.Num())
-	case *basic.Alloc:
-		ww.writeString("new(")
-		writeType(ww, v.Type().Args[0].Type)
-		ww.writeString(")")
-	case *basic.Arg:
-		writeParm(ww, v.Parm)
-	case *basic.Global:
-		ww.writeFmt("&_%s", v.Val.Var.Name)
-	case *basic.Index:
-		ww.writeFmt("&(*x%d)[x%d]", v.Ary.Num(), v.Index.Num())
-	case *basic.Field:
-		n := v.Obj.Num()
-		i := v.Index
-		typ := v.Obj.Type().Args[0].Type
-		if len(typ.Cases) > 0 {
-			ww.writeFmt("&x%d.%s", n, caseName(typ, i))
-		} else {
-			ww.writeFmt("&x%d.%s", n, fieldName(typ, i))
-		}
-	default:
-		panic(fmt.Sprintf("impossible type %T", v))
-	}
 }
 
 var numOps = map[basic.OpCode]string{
@@ -539,33 +59,568 @@ var cmpOps = map[basic.OpCode]string{
 	basic.GreaterEqOp: ">=",
 }
 
-func writeOp(ww *writer, op *basic.Op) {
+const header = `package main
+
+import "fmt"
+
+func F1___0_String__main__print_3A__(x *[]byte) {
+	fmt.Printf("%v", string(*x))
+}
+func F1___1__26____0_String__main__print_3A__(x *[]byte) {
+	fmt.Printf("%v", string(*x))
+}
+func F1___0_Int__main__print_3A__(x int) {
+	fmt.Printf("%v", x)
+}
+func F1___1__26____0_Int__main__print_3A__(x *int) {
+	fmt.Printf("%v", *x)
+}
+func F1___0_UInt__main__print_3A__(x uint) {
+	fmt.Printf("%v", x)
+}
+func F1___0_Float__main__print_3A__(x float64) {
+	fmt.Printf("%v", x)
+}
+func F1___0_Bool__main__print_3A__(x uint8) {
+	fmt.Printf("%v", x == 1)
+}
+`
+
+// MergeMods writes a package header
+// and then the merged, deduplicated definitions
+// from a slice of files written by WriteMod.
+// The result is a valid Go main package source file.
+func MergeMods(w io.Writer, rs []io.Reader) error {
+	if _, err := io.WriteString(w, header); err != nil {
+		return err
+	}
+	var inits []string
+	done := make(map[string]bool)
+	for _, r := range rs {
+		for {
+			var byteSize int64
+			var name string
+			_, err := fmt.Fscanf(r, "%d %s\n", &byteSize, &name)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			if done[name] {
+				if _, err := io.CopyN(ioutil.Discard, r, byteSize); err != nil {
+					return err
+				}
+				continue
+			}
+			if strings.HasSuffix(name, "init") {
+				inits = append(inits, name)
+			}
+			done[name] = true
+			if _, err := io.CopyN(w, r, byteSize); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := io.WriteString(w, "func main() {"); err != nil {
+		return err
+	}
+	for _, init := range inits {
+		if _, err := fmt.Fprintf(w, "\n\t%s()", init); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(w, "\n\tF0_main__main__()\n}\n"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// WriteMod writes the generated Go definitions of a module.
+// The output has a section for each definition.
+// A section begins with single line (\n delimited) header is:
+// the number of bytes, N, following the header
+// a single space (\20),
+// the globally unique name of the defintion.
+// The following N bytes are the Go source of the definition,
+// always ending in a newline.
+func WriteMod(w io.Writer, mod *basic.Mod) error {
+	ts := make(typeSet)
+	for _, str := range mod.Strings {
+		var s strings.Builder
+		genStringDef(str, &s)
+		_, err := fmt.Fprintf(w, "%d %s\n%s", s.Len(), stringName(str), s.String())
+		if err != nil {
+			return err
+		}
+	}
+	for _, v := range mod.Vars {
+		var s strings.Builder
+		genVarDef(v, ts, &s)
+		_, err := fmt.Fprintf(w, "%d %s\n%s", s.Len(), valName(v.Val), s.String())
+		if err != nil {
+			return err
+		}
+	}
+	for _, f := range mod.Funs {
+		if f.BBlks == nil {
+			continue
+		}
+		var s strings.Builder
+		genFunDef(f, ts, &s)
+		name := mangleFun(f, new(strings.Builder)).String()
+		_, err := fmt.Fprintf(w, "%d %s\n%s", s.Len(), name, s.String())
+		if err != nil {
+			return err
+		}
+	}
+	done := make(typeSet)
+	for {
+		var sorted []*types.Type
+		for typ := range ts {
+			if done[typ] {
+				continue
+			}
+			sorted = append(sorted, typ)
+		}
+		if len(sorted) == 0 {
+			break
+		}
+		sort.Slice(sorted, func(i, j int) bool {
+			return sorted[i].String() < sorted[j].String()
+		})
+		ts = make(typeSet)
+		for _, typ := range sorted {
+			done[typ] = true
+			var s strings.Builder
+			genTypeDef(typ, ts, &s)
+			name := mangleType(typ, new(strings.Builder))
+			_, err := fmt.Fprintf(w, "%d %s\n%s", s.Len(), name, s.String())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func genStringDef(str *basic.String, s *strings.Builder) {
+	fmt.Fprintf(s, "var %s = []byte(%q)\n", stringName(str), str.Data)
+}
+
+func genVarDef(v *basic.Var, ts typeSet, s *strings.Builder) {
+	fmt.Fprintf(s, "var %s ", valName(v.Val))
+	genTypeName(v.Val.Var.Type(), ts, s)
+	s.WriteRune('\n')
+}
+
+func genTypeName(typ *types.Type, ts typeSet, s *strings.Builder) {
+	switch {
+	case typ.BuiltIn == types.RefType:
+		s.WriteString("*")
+		genTypeName(typ.Args[0].Type, ts, s)
+	case typ.BuiltIn == types.ArrayType:
+		s.WriteString("[]")
+		genTypeName(typ.Args[0].Type, ts, s)
+	case len(typ.Cases) > 0 && basic.SimpleType(typ):
+		// This is actually an or-type reduced to an integer.
+		s.WriteString(builtInTypes[typ.Tag().BuiltIn])
+	case typ.BuiltIn == types.BlockType ||
+		typ.BuiltIn == types.FunType ||
+		typ.BuiltIn == 0:
+		ts[typ] = true
+		mangleType(typ, s)
+	case builtInTypes[typ.BuiltIn] != "":
+		s.WriteString(builtInTypes[typ.BuiltIn])
+	default:
+		panic(fmt.Sprintf("impossible type %s", typ))
+	}
+}
+
+func genTypeDef(typ *types.Type, ts typeSet, s *strings.Builder) {
+	switch {
+	case len(typ.Virts) > 0:
+		genVirtTypeDef(typ, ts, s)
+	case len(typ.Cases) > 0:
+		genOrTypeDef(typ, ts, s)
+	case typ.BuiltIn == types.BlockType ||
+		typ.BuiltIn == 0:
+		genAndTypeDef(typ, ts, s)
+	default:
+		// This is a built-in type that uses built-in Go types;
+		// we should never emit a definition for it.
+		panic("impossible")
+	}
+}
+
+func genAndTypeDef(typ *types.Type, ts typeSet, s *strings.Builder) {
+	s.WriteString("type ")
+	mangleType(typ, s)
+	s.WriteString(" struct{")
+	for i := range typ.Fields {
+		field := &typ.Fields[i]
+		if basic.EmptyType(field.Type()) {
+			continue
+		}
+		s.WriteString("\n\t")
+		s.WriteString(fieldName(typ, i))
+		s.WriteRune(' ')
+		genTypeName(field.Type(), ts, s)
+	}
+	s.WriteString("\n}\n")
+}
+
+func genOrTypeDef(typ *types.Type, ts typeSet, s *strings.Builder) {
+	if basic.SimpleType(typ) {
+		// This case is an Or type converted to an int.
+		// We never generate a definition in this case,
+		// becaues it just uses a built-in Go type.
+		panic("impossible")
+	}
+
+	s.WriteString("type ")
+	mangleType(typ, s)
+	s.WriteString(" struct{\n\ttag ")
+	genTypeName(typ.Tag(), ts, s)
+	for i := range typ.Cases {
+		cas := &typ.Cases[i]
+		if cas.Type() == nil || basic.EmptyType(cas.Type()) {
+			continue
+		}
+		s.WriteString("\n\t")
+		s.WriteString(caseName(typ, i))
+		s.WriteRune(' ')
+		genTypeName(cas.Type(), ts, s)
+	}
+	s.WriteString("\n}\n")
+}
+
+func genVirtTypeDef(typ *types.Type, ts typeSet, s *strings.Builder) {
+	s.WriteString("type ")
+	mangleType(typ, s)
+	s.WriteString(" struct{")
+	for i := range typ.Virts {
+		s.WriteString("\n\t")
+		s.WriteString(virtName(typ, i))
+		s.WriteRune(' ')
+		genVirtSig(&typ.Virts[i], ts, s)
+	}
+	s.WriteString("\n}\n")
+}
+
+func genVirtSig(virt *types.FunSig, ts typeSet, s *strings.Builder) int {
+	var i int
+	s.WriteString("func(")
+	for _, parm := range virt.Parms {
+		if basic.EmptyType(parm.Type()) {
+			continue
+		}
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		fmt.Fprintf(s, "p%d ", i)
+		i++
+		if !basic.SimpleType(parm.Type()) {
+			s.WriteRune('*')
+		}
+		genTypeName(parm.Type(), ts, s)
+	}
+	if virt.Ret != nil && !basic.EmptyType(virt.Ret.Type) {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		fmt.Fprintf(s, "p%d *", i)
+		i++
+		genTypeName(virt.Ret.Type, ts, s)
+	}
+	s.WriteRune(')')
+	return i
+}
+
+func genFunDef(f *basic.Fun, ts typeSet, s *strings.Builder) {
+	if f.Fun != nil && f.Block == nil {
+		fmt.Fprintf(s, "// %s\n", f.Fun)
+	}
+	s.WriteString("func ")
+	mangleFun(f, s)
+	s.WriteRune('(')
+	genFunParms(f, ts, s)
+	s.WriteString(") {\n")
+	genFunBody(f, ts, s)
+	s.WriteString("}\n")
+}
+
+func genFunParms(f *basic.Fun, ts typeSet, s *strings.Builder) {
+	if len(f.Parms) == 0 && f.Ret == nil {
+		return
+	}
+	var i int
+	for _, parm := range f.Parms {
+		fmt.Fprintf(s, "\n\tp%d ", i)
+		i++
+		s.WriteRune(' ')
+		genTypeName(parm.Type, ts, s)
+		s.WriteRune(',')
+	}
+	if f.Ret != nil {
+		fmt.Fprintf(s, "\n\tp%d ", i)
+		genTypeName(f.Ret.Type, ts, s)
+		s.WriteRune(',')
+	}
+	s.WriteRune('\n')
+}
+
+func genFunBody(f *basic.Fun, ts typeSet, s *strings.Builder) {
+	for _, b := range f.BBlks {
+		for _, stmt := range b.Stmts {
+			v, ok := stmt.(basic.Val)
+			if !ok {
+				continue
+			}
+			fmt.Fprintf(s, "\tvar x%d ", v.Num())
+			genTypeName(v.Type(), ts, s)
+			s.WriteRune('\n')
+		}
+	}
+	for i, b := range f.BBlks {
+		if i > 0 {
+			fmt.Fprintf(s, "L%d:\n", b.N)
+		}
+		for _, stmt := range b.Stmts {
+			genStmt(stmt, ts, s)
+		}
+	}
+}
+
+func genStmt(stmt basic.Stmt, ts typeSet, s *strings.Builder) {
+	s.WriteRune('\t')
+	switch stmt := stmt.(type) {
+	case *basic.Comment:
+		fmt.Fprintf(s, "// %s", stmt.Text)
+	case *basic.Store:
+		fmt.Fprintf(s, "*x%d = x%d", stmt.Dst.Num(), stmt.Val.Num())
+	case *basic.Copy:
+		fmt.Fprintf(s, "*x%d = *x%d", stmt.Dst.Num(), stmt.Src.Num())
+	case *basic.MakeArray:
+		genMakeArray(stmt, ts, s)
+	case *basic.MakeSlice:
+		genMakeSlice(stmt, s)
+	case *basic.MakeString:
+		genMakeString(stmt, s)
+	case *basic.MakeAnd:
+		genMakeAnd(stmt, ts, s)
+	case *basic.MakeOr:
+		genMakeOr(stmt, ts, s)
+	case *basic.MakeVirt:
+		genMakeVirt(stmt, ts, s)
+	case *basic.Call:
+		genCall(stmt, s)
+	case *basic.VirtCall:
+		genVirtCall(stmt, s)
+	case *basic.Ret:
+		s.WriteString("return")
+	case *basic.Jmp:
+		fmt.Fprintf(s, "goto L%d", stmt.Dst.N)
+	case *basic.Switch:
+		genSwitch(stmt, s)
+	case basic.Val:
+		genVal(stmt, ts, s)
+	default:
+		panic(fmt.Sprintf("impossible type %T", stmt))
+	}
+	s.WriteRune('\n')
+}
+
+func genMakeArray(stmt *basic.MakeArray, ts typeSet, s *strings.Builder) {
+	typ := stmt.Dst.Type().Args[0].Type
+	elmType := typ.Args[0].Type
+
+	fmt.Fprintf(s, "*x%d = ", stmt.Dst.Num())
+	genTypeName(typ, ts, s)
+	s.WriteRune('{')
+	var deref string
+	if !basic.SimpleType(elmType) {
+		deref = "*"
+	}
+	for i, arg := range stmt.Args {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		fmt.Fprintf(s, "%sx%d", deref, arg.Num())
+	}
+	s.WriteRune('}')
+}
+
+func genMakeSlice(stmt *basic.MakeSlice, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = (*x%d)[x%d:x%d]",
+		stmt.Dst.Num(), stmt.Ary.Num(), stmt.From.Num(), stmt.To.Num())
+}
+
+func genMakeString(stmt *basic.MakeString, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = %s[:]", stmt.Dst.Num(), stringName(stmt.Data))
+}
+
+func genMakeAnd(stmt *basic.MakeAnd, ts typeSet, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = ", stmt.Dst.Num())
+	typ := stmt.Dst.Type().Args[0].Type
+	genTypeName(typ, ts, s)
+	s.WriteRune('{')
+	for i, val := range stmt.Fields {
+		if val == nil {
+			continue
+		}
+		field := &typ.Fields[i]
+		var deref string
+		if !basic.SimpleType(field.Type()) {
+			deref = "*"
+		}
+		fmt.Fprintf(s, "%s: %sx%d, ", fieldName(typ, i), deref, val.Num())
+	}
+	s.WriteRune('}')
+}
+
+func genMakeOr(stmt *basic.MakeOr, ts typeSet, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = ", stmt.Dst.Num())
+	typ := stmt.Dst.Type().Args[0].Type
+	genTypeName(typ, ts, s)
+	i := stmt.Case
+	fmt.Fprintf(s, "{tag: %d, ", i)
+	if stmt.Val != nil {
+		cas := &typ.Cases[i]
+		var deref string
+		if !basic.SimpleType(cas.Type()) {
+			deref = "*"
+		}
+		fmt.Fprintf(s, "%s: %sx%d, ", caseName(typ, i), deref, stmt.Val.Num())
+	}
+	s.WriteRune('}')
+}
+
+func genMakeVirt(stmt *basic.MakeVirt, ts typeSet, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = ", stmt.Dst.Num())
+	typ := stmt.Dst.Type().Args[0].Type
+	genTypeName(typ, ts, s)
+	s.WriteRune('{')
+	for i, v := range stmt.Virts {
+		fmt.Fprintf(s, "%s: ", virtName(typ, i))
+		n := genVirtSig(&typ.Virts[i], ts, s)
+		s.WriteRune('{')
+		mangleFun(v, s)
+		fmt.Fprintf(s, "(x%d", stmt.Obj.Num())
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(s, ", p%d", i)
+		}
+		s.WriteString(")}, ")
+	}
+	s.WriteRune('}')
+}
+
+func genCall(stmt *basic.Call, s *strings.Builder) {
+	mangleFun(stmt.Fun, s)
+	s.WriteRune('(')
+	for i, arg := range stmt.Args {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		fmt.Fprintf(s, "x%d", arg.Num())
+	}
+	s.WriteRune(')')
+}
+
+func genVirtCall(stmt *basic.VirtCall, s *strings.Builder) {
+	typ := stmt.Self.Type().Args[0].Type
+	fmt.Fprintf(s, "x%d.%s(", stmt.Self.Num(), virtName(typ, stmt.Index))
+	// Strip off the self argument.
+	// Go code gen handles that as a closure
+	// at the time the Virt is created.
+	for i, arg := range stmt.Args[1:] {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		fmt.Fprintf(s, "x%d", arg.Num())
+	}
+	s.WriteRune(')')
+}
+
+func genSwitch(stmt *basic.Switch, s *strings.Builder) {
+	fmt.Fprintf(s, "switch x%d {", stmt.Val.Num())
+	if stmt.Val.Type().BuiltIn == types.BoolType {
+		// TODO: remove the hack to reverse bool 0/1.
+		for i, b := range stmt.Dsts {
+			fmt.Fprintf(s, "case %d: goto L%d; ", 1-i, b.N)
+		}
+	} else {
+		for i, b := range stmt.Dsts {
+			fmt.Fprintf(s, "case %d: goto L%d; ", i, b.N)
+		}
+	}
+	s.WriteRune('}')
+}
+
+func genVal(v basic.Val, ts typeSet, s *strings.Builder) {
+	fmt.Fprintf(s, "x%d = ", v.Num())
+	switch v := v.(type) {
+	case *basic.IntLit:
+		t := builtInTypes[v.Type().BuiltIn]
+		fmt.Fprintf(s, "%s(%s)", t, v.Val.String())
+	case *basic.FloatLit:
+		t := builtInTypes[v.Type().BuiltIn]
+		fmt.Fprintf(s, "%s(%s)", t, v.Val.String())
+	case *basic.Op:
+		genOp(v, s)
+	case *basic.Load:
+		fmt.Fprintf(s, "*x%d", v.Src.Num())
+	case *basic.Alloc:
+		s.WriteString("new(")
+		genTypeName(v.Type().Args[0].Type, ts, s)
+		s.WriteRune(')')
+	case *basic.Arg:
+		fmt.Fprintf(s, "p%d", v.Parm.N)
+	case *basic.Global:
+		fmt.Fprintf(s, "&%s", valName(v.Val))
+	case *basic.Index:
+		fmt.Fprintf(s, "&(*x%d)[x%d]", v.Ary.Num(), v.Index.Num())
+	case *basic.Field:
+		n := v.Obj.Num()
+		i := v.Index
+		typ := v.Obj.Type().Args[0].Type
+		if len(typ.Cases) > 0 {
+			fmt.Fprintf(s, "&x%d.%s", n, caseName(typ, i))
+		} else {
+			fmt.Fprintf(s, "&x%d.%s", n, fieldName(typ, i))
+		}
+	default:
+		panic(fmt.Sprintf("impossible type %T", v))
+	}
+}
+
+func genOp(op *basic.Op, s *strings.Builder) {
 	switch {
 	case op.Code == basic.ArraySizeOp:
-		ww.writeFmt("len(*x%d)", op.Args[0].Num())
+		fmt.Fprintf(s, "len(*x%d)", op.Args[0].Num())
 
 	case op.Code == basic.UnionTagOp:
-		ww.writeFmt("(*x%d).tag", op.Args[0].Num())
+		fmt.Fprintf(s, "(*x%d).tag", op.Args[0].Num())
 
 	case op.Code == basic.NumConvertOp:
-		ww.writeFmt("%s(x%d)",
+		fmt.Fprintf(s, "%s(x%d)",
 			builtInTypes[op.Type().BuiltIn], op.Args[0].Num())
 
 	case numOps[op.Code] != "":
 		c := numOps[op.Code]
 		l := op.Args[0].Num()
 		if len(op.Args) == 1 {
-			ww.writeFmt("%s x%d", c, l)
+			fmt.Fprintf(s, "%s x%d", c, l)
 			break
 		}
 		r := op.Args[1].Num()
-		ww.writeFmt("x%d %s x%d", l, c, r)
+		fmt.Fprintf(s, "x%d %s x%d", l, c, r)
 
 	case cmpOps[op.Code] != "":
 		c := cmpOps[op.Code]
 		l := op.Args[0].Num()
 		r := op.Args[1].Num()
-		ww.writeFmt("0; if x%d %s x%d { x%d = 1 }", l, c, r, op.Num())
+		fmt.Fprintf(s, "0; if x%d %s x%d { x%d = 1 }", l, c, r, op.Num())
 
 	default:
 		panic("impossible")

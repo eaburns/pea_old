@@ -21,6 +21,7 @@ func Build(typesMod *types.Mod) *Mod {
 	}
 	for _, v := range typesMod.SortedVals {
 		mod.Vars = append(mod.Vars, &Var{
+			Mod:  mod,
 			N:    mod.NDefs,
 			Init: buildVal(mod, v),
 			Val:  v,
@@ -67,7 +68,7 @@ func addString(mod *Mod, str string) *String {
 			return s
 		}
 	}
-	s := &String{N: mod.NDefs, Data: str}
+	s := &String{N: mod.NDefs, Mod: mod, Data: str}
 	mod.Strings = append(mod.Strings, s)
 	mod.NDefs++
 	return s
