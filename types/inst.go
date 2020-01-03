@@ -485,7 +485,7 @@ func rmLiftedFunInsts(defs []Def) {
 func instFunBody(x *scope, fun *Fun) {
 	defer x.tr("instFunStmts(%s)", fun)()
 
-	if x.defFiles[fun.Def] == nil {
+	if fun.BuiltIn != 0 {
 		x.log("skipping built-in")
 		return
 	}
