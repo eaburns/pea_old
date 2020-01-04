@@ -53,7 +53,7 @@ func (n FunSig) String() string {
 
 func (n Type) String() string {
 	var s strings.Builder
-	buildTypeString(&n, &s)
+	buildTypeString(false, &n, &s)
 	return s.String()
 }
 
@@ -65,7 +65,7 @@ func (n Type) fullString() string {
 		s.WriteString("Type ")
 	}
 	n.ModPath = ""
-	buildTypeString(&n, &s)
+	buildTypeString(false, &n, &s)
 	if n.Alias != nil {
 		s.WriteString(" := ")
 		s.WriteString(n.Alias.String())
@@ -147,23 +147,9 @@ func buildFunSigString(n *FunSig, stripSelf bool, s *strings.Builder) {
 
 func buildRecvString(n *Recv, s *strings.Builder) {
 	switch {
-	case len(n.Args) == 1:
-		buildTypeNameString(&n.Args[0], s)
-		if n.Mod != "" || !isOpType(n.Name) || isOpType(n.Args[0].Name) {
-			s.WriteRune(' ')
-		}
-	case len(n.Args) > 1:
-		s.WriteRune('(')
-		for i := range n.Args {
-			if i > 0 {
-				s.WriteString(", ")
-			}
-			buildTypeNameString(&n.Args[i], s)
-		}
-		s.WriteRune(')')
-		if n.Mod != "" || !isOpType(n.Name) {
-			s.WriteRune(' ')
-		}
+	case n.Type != nil:
+		buildTypeString(n.Mod == "", n.Type, s)
+		return
 	case len(n.Parms) == 0:
 		break
 	case len(n.Parms) == 1 && len(n.Parms[0].Ifaces) == 0:
@@ -184,11 +170,15 @@ func buildRecvString(n *Recv, s *strings.Builder) {
 	s.WriteString(n.Name)
 }
 
-func buildTypeString(n *Type, s *strings.Builder) {
+func buildTypeString(elideMod bool, n *Type, s *strings.Builder) {
+	modPath := n.ModPath
+	if elideMod {
+		modPath = ""
+	}
 	switch {
 	case len(n.Args) == 1:
 		buildTypeNameString(&n.Args[0], s)
-		if n.ModPath != "" || !isOpType(n.Name) || isOpType(n.Args[0].Name) {
+		if modPath != "" || !isOpType(n.Name) || isOpType(n.Args[0].Name) {
 			s.WriteRune(' ')
 		}
 	case len(n.Args) > 1:
@@ -200,24 +190,24 @@ func buildTypeString(n *Type, s *strings.Builder) {
 			buildTypeNameString(&n.Args[i], s)
 		}
 		s.WriteRune(')')
-		if n.ModPath != "" || !isOpType(n.Name) {
+		if modPath != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
 	case len(n.Parms) == 0:
 		break
 	case len(n.Parms) == 1 && len(n.Parms[0].Ifaces) == 0:
 		s.WriteString(n.Parms[0].Name)
-		if n.ModPath != "" || !isOpType(n.Name) {
+		if modPath != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
 	default:
 		buildTypeParms(n.Parms, s)
-		if n.ModPath != "" || !isOpType(n.Name) {
+		if modPath != "" || !isOpType(n.Name) {
 			s.WriteRune(' ')
 		}
 	}
-	if n.ModPath != "" {
-		s.WriteString(modName(n.ModPath))
+	if modPath != "" {
+		s.WriteString(modName(modPath))
 		s.WriteRune(' ')
 	}
 	s.WriteString(n.Name)
@@ -245,6 +235,9 @@ func isOpType(s string) bool {
 
 func buildTypeNameString(n *TypeName, s *strings.Builder) {
 	switch {
+	case n.Type != nil:
+		buildTypeString(n.Mod == "", n.Type, s)
+		return
 	case len(n.Args) == 0:
 		break
 	case len(n.Args) == 1:

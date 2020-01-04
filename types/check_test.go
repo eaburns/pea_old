@@ -4055,7 +4055,7 @@ func TestTypeInstSub(t *testing.T) {
 				type T List { data: T | next: T List? }
 				type T ? { none | some: T }
 			`,
-			want: "type Rune List { data: Rune | next: Rune List? }",
+			want: "type Int32 List { data: Int32 | next: Int32 List? }",
 		},
 		{
 			name: "sub type parms",
@@ -4063,7 +4063,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := (Rune, String) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Rune, String) Pair { x: Rune y: String }",
+			want: "type (Int32, String) Pair { x: Int32 y: String }",
 		},
 		{
 			name: "sub only some type parms",
@@ -4071,7 +4071,7 @@ func TestTypeInstSub(t *testing.T) {
 				type T Test := (Rune, T) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Rune, T) Pair { x: Rune y: T }",
+			want: "type (Int32, T) Pair { x: Int32 y: T }",
 		},
 		{
 			name: "sub alias",
@@ -4079,7 +4079,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := Rune DifferentArray.
 				type T DifferentArray := T Array.
 			`,
-			want: "type Rune Array {}",
+			want: "type Int32 Array {}",
 		},
 		{
 			name: "sub fields",
@@ -4087,7 +4087,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := (Rune, String) Pair.
 				type (X, Y) Pair { x: X y: Y }
 			`,
-			want: "type (Rune, String) Pair { x: Rune y: String }",
+			want: "type (Int32, String) Pair { x: Int32 y: String }",
 		},
 		{
 			name: "sub cases",
@@ -4095,7 +4095,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := Rune?.
 				type T? { none | some: T }
 			`,
-			want: "type Rune? { none | some: Rune }",
+			want: "type Int32? { none | some: Int32 }",
 		},
 		{
 			name: "sub virts",
@@ -4103,7 +4103,7 @@ func TestTypeInstSub(t *testing.T) {
 				type Test := Rune Eq.
 				type T Eq { [= T& ^Bool] }
 			`,
-			want: "type Rune Eq { [= Rune& ^Bool] }",
+			want: "type Int32 Eq { [= Int32& ^Bool] }",
 		},
 		{
 			name: "recursive type",
@@ -4112,7 +4112,7 @@ func TestTypeInstSub(t *testing.T) {
 				type T List { data: T& next: T List? }
 				type T? { none | some: T }
 			`,
-			want: "type Rune List { data: Rune& next: Rune List? }",
+			want: "type Int32 List { data: Int32& next: Int32 List? }",
 		},
 	}
 	for _, test := range tests {

@@ -33,8 +33,7 @@ echo gocyclo
 gocyclo -over 15 .\
 	| grep -v "grammar.go:" \
 	| grep -v "17 types TestIdentLookup types/check_test.go" \
-	| grep -v "19 types buildRecvString types/string.go" \
-	| grep -v "19 types buildTypeString types/string.go" \
+	| grep -v "20 types buildTypeString types/string.go" \
 	| grep -v "16 types findMsgFun types/check.go"\
 	| grep -v "16 types convertExpr types/check.go"\
 	| grep -v "17 types checkBlock types/check.go"\
