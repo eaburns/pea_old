@@ -28,6 +28,10 @@ func rmSelfTailCalls(f *Fun) bool {
 				}
 				parm = f.Parms[j]
 				dst = findParm(f, b0, parm.Var)
+				if load, ok := arg.(*Load); ok && load.Src == dst && readOnly(dst) {
+					// Avoid adding stores to unchanged parameters.
+					continue
+				}
 				if parm.Value {
 					// Remove the extra copy made for pass-by-value.
 					// The pass-by-value copy is read-only
@@ -59,6 +63,24 @@ func rmSelfTailCalls(f *Fun) bool {
 	}
 	f.BBlks = bblks
 	return n > 0
+}
+
+func readOnly(v Val) bool {
+	var def Stmt
+	for _, u := range v.Users() {
+		if u.storesTo(v) {
+			if def != nil {
+				return false
+			}
+			def = u
+			continue
+		}
+		if _, ok := u.(*Load); ok {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func selfTailCall(f *Fun, b *BBlk, i int, s Stmt) bool {
