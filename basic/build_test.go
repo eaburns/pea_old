@@ -308,11 +308,11 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 [self] Foo&
+						0 [self] #test Foo&
 						1 Int&
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Foo&)
+						$0 := alloc(#test Foo&)
 						$1 := arg(0 [self])
 						store($0, $1)
 						jmp 1
@@ -336,11 +336,11 @@ func TestBuild(t *testing.T) {
 			want: `
 				function0
 					parms:
-						0 [self] Foo&
+						0 [self] #test Foo&
 						1 String&
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Foo&)
+						$0 := alloc(#test Foo&)
 						$1 := arg(0 [self])
 						store($0, $1)
 						jmp 1
@@ -1755,11 +1755,11 @@ func TestBuild(t *testing.T) {
 						far return
 				function0
 					parms:
-						0 [self] Point&
+						0 [self] #test Point&
 						1 Int&
 					0:
 						[in:] [out: 1]
-						$0 := alloc(Point&)
+						$0 := alloc(#test Point&)
 						$1 := arg(0 [self])
 						store($0, $1)
 						$5 := alloc($Block0)

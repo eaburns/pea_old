@@ -844,6 +844,112 @@ func TestWriteMod(t *testing.T) {
 			},
 			stdout: "1\n2",
 		},
+		{
+			name: "modify simple-type self",
+			src: `
+				func [main |
+					i := 0.
+					i increment.
+					i increment.
+					i increment.
+					print: i.
+				]
+				meth Int [increment | self := self + 1]
+			`,
+			stdout: "3",
+		},
+		{
+			name: "modify composite-type self",
+			src: `
+				func [main |
+					s := "abc".
+					s set: "xyz".
+					print: s.
+				]
+				meth String [set: s String | self := s]
+			`,
+			stdout: "xyz",
+		},
+		{
+			name: "modify simple-type ref argument",
+			src: `
+				func [main |
+					i := 0.
+					increment: i.
+					increment: i.
+					increment: i.
+					print: i.
+				]
+				func [increment: i Int& | i increment]
+				meth Int [increment | self := self + 1]
+			`,
+			stdout: "3",
+		},
+		{
+			name: "modify composite-type ref argument",
+			src: `
+				func [main |
+					s := "abc".
+					set: s to: "xyz".
+					print: s.
+				]
+				func [set: s String& to: t String | s set: t]
+				meth String [set: s String | self := s]
+			`,
+			stdout: "xyz",
+		},
+		{
+			name: "modify simple-type array element",
+			src: `
+				func [main |
+					is Int Array := {0; 0; 0}.
+					(is at: 1) increment.
+					(is at: 1) increment.
+					(is at: 1) increment.
+					print: (is at: 1).
+				]
+				meth Int [increment | self := self + 1]
+			`,
+			stdout: "3",
+		},
+		{
+			name: "modify composite-type array element",
+			src: `
+				func [main |
+					ss String Array := {"abc"; "abc"; "abc"}.
+					(ss at: 1) set: "xyz".
+					print: (ss at: 1).
+				]
+				meth String [set: s String | self := s]
+			`,
+			stdout: "xyz",
+		},
+		{
+			name: "non-const Fun",
+			src: `
+				func [main |
+					x := [1].
+					x := [2].
+					print: x value
+				]
+			`,
+			stdout: "2",
+		},
+		{
+			name: "non-const Fun changed by method",
+			src: `
+				func [main |
+					x := [1].
+					x set: [2].
+					print: x value
+				]
+				meth T Fun [set: f T Fun |
+					print: "\n". // prevents inlining set:
+					self := f
+				]
+			`,
+			stdout: "\n2",
+		},
 	}
 	for _, test := range tests {
 		test := test

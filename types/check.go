@@ -833,24 +833,13 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 			if found.Val != nil {
 				x.use(found.Val, astAss)
 			}
-			if !found.isSelf() {
-				markCapture(x, found)
-				if astVar.Type != nil {
-					err := x.err(astVar, "%s redefined", astVar.Name)
-					note(err, "previous definition at %s", x.loc(found))
-					errs = append(errs, *err)
-				}
-				vars[i] = found
-				break
+			markCapture(x, found)
+			if astVar.Type != nil {
+				err := x.err(astVar, "%s redefined", astVar.Name)
+				note(err, "previous definition at %s", x.loc(found))
+				errs = append(errs, *err)
 			}
-			err := x.err(astVar, "cannot assign to self")
-			errs = append(errs, *err)
-			vars[i] = &Var{
-				AST:      astVar,
-				Name:     astVar.Name,
-				TypeName: typName,
-				typ:      typ,
-			}
+			vars[i] = found
 		case *Fun:
 			err := x.err(astVar, "assignment to a function")
 			note(err, "%s is defined at %s", found.Sig.Sel, x.loc(found))

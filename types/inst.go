@@ -37,21 +37,20 @@ func instFunTypes(x *scope, fun *Fun) (errs []checkError) {
 	if fun.Recv != nil {
 		errs = append(errs, instRecvTypes(x, fun.Recv)...)
 		// Set self parameter type.
-		selfBaseTypeName := TypeName{
+		selfTypeName := &TypeName{
 			AST:  fun.Recv.AST,
 			Mod:  fun.Recv.Mod,
 			Name: fun.Recv.Name,
 			Type: fun.Recv.Type,
 		}
 		if fun.Recv.Type != nil {
-			selfBaseTypeName.Args = fun.Recv.Type.Args
+			selfTypeName.Args = fun.Recv.Type.Args
 		}
-		selfType := builtInType(x, "&", selfBaseTypeName)
 		if fun.Sig.Parms[0].Name != "self" {
 			panic("impossible")
 		}
-		fun.Sig.Parms[0].TypeName = makeTypeName(selfType)
-		fun.Sig.Parms[0].typ = selfType
+		fun.Sig.Parms[0].TypeName = selfTypeName
+		fun.Sig.Parms[0].typ = fun.Recv.Type
 	}
 	errs = append(errs, instTypeParamTypes(x, fun.TParms)...)
 	errs = append(errs, instFunSigTypes(x, &fun.Sig)...)

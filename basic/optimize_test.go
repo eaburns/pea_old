@@ -215,6 +215,45 @@ func TestMakeOrRefCaseEscape(t *testing.T) {
 	}
 }
 
+// Test that we don't inline a value call on a Fun
+// that is the receiver of a method.
+// A method can modify its receiver value,
+// so receiving a method makes the Fun non-const,
+// and should prevent inlining, as we can't determine it's Block.
+func TestMethodMarksFunAsNonConst(t *testing.T) {
+	// The call to Bool ifTrue in foo should be inlined;
+	// the subsequent block literal value call should be inlined;
+	// and the remaining code should have no calls,
+	// just switch and jmps.
+	const src = `
+		func [foo ^Int |
+			x := [1].
+			x changeSelf.
+			^x value
+		]
+		type IntFun := Int Fun.
+		meth IntFun [changeSelf |
+			// We need to prevent inlining
+			// so our Fun actually is
+			// the receiver of a call.
+			preventInlining.
+			self := [2]
+		]
+		func [preventInlining]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); !strings.Contains(s, "virt call") {
+		t.Errorf("foo contains no virt call:\n%s\nexpected a virt call", s)
+	}
+}
+
 func compile(src string) (*Mod, []error) {
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {

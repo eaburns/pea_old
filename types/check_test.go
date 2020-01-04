@@ -1098,7 +1098,7 @@ func TestMethDef(t *testing.T) {
 			src: `
 				meth _ Array [foo | _ Int := self ]
 			`,
-			err: "have _ Array&, want Int",
+			err: "have _ Array, want Int",
 		},
 		{
 			name: "alias receiver with bound type arg",
@@ -1828,13 +1828,6 @@ func TestAssignError(t *testing.T) {
 				func [foo | ]
 			`,
 			err: "assignment to a function",
-		},
-		{
-			name: "assign to self",
-			src: `
-				meth Int [ foo | self := 5 ]
-			`,
-			err: "cannot assign to self",
 		},
 		{
 			name: "assign to shadowed self",
@@ -3356,7 +3349,7 @@ func TestIdent(t *testing.T) {
 					_ String := self
 				]
 			`,
-			err: "have Int&, want String",
+			err: "have Int, want String",
 		},
 		{
 			name: "val",

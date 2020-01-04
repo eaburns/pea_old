@@ -32,7 +32,7 @@ func rmSelfTailCalls(f *Fun) bool {
 					// Avoid adding stores to unchanged parameters.
 					continue
 				}
-				if parm.Value {
+				if parm.Value && !parm.Self {
 					// Remove the extra copy made for pass-by-value.
 					// The pass-by-value copy is read-only
 					// after we remove the function call,
@@ -75,7 +75,10 @@ func readOnly(v Val) bool {
 			def = u
 			continue
 		}
-		if _, ok := u.(*Load); ok {
+		switch u.(type) {
+		case *Load:
+			continue
+		case *Copy:
 			continue
 		}
 		return false

@@ -117,15 +117,16 @@ func inlineableBlockLitVirtCall(s Stmt) (*VirtCall, *Fun, *MakeAnd) {
 	val := virtCall.Self
 	var makeVirt *MakeVirt
 loop:
-	// We trace along chains of single-store Copys.
-	// This is not generally safe unless the Copys are read-only.
-	// But it's OK here, because built-in Fun, is immutable.
+	// We trace along chains of single-store read-only Copys.
 	for {
 		switch init := singleStore(val).(type) {
 		case *MakeVirt:
 			makeVirt = init
 			break loop
 		case *Copy:
+			if !readOnlyBesidesVirtCall(val, virtCall) {
+				return nil, nil, nil
+			}
 			val = init.Src
 		default:
 			return nil, nil, nil
@@ -286,6 +287,31 @@ func singleStore(v Val) Stmt {
 		}
 	}
 	return def
+}
+
+func readOnlyBesidesVirtCall(v Val, call *VirtCall) bool {
+	var def Stmt
+	for _, u := range v.Users() {
+		if u.storesTo(v) {
+			if def != nil {
+				return false
+			}
+			def = u
+			continue
+		}
+		switch u := u.(type) {
+		case *Load:
+			continue
+		case *Copy:
+			continue
+		case *VirtCall:
+			if u == call {
+				continue
+			}
+		}
+		return false
+	}
+	return true
 }
 
 func (*stmt) storesTo(Val) bool           { return false }

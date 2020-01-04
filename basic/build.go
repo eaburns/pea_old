@@ -75,7 +75,7 @@ func addString(mod *Mod, str string) *String {
 }
 
 func buildVal(mod *Mod, typesVal *types.Val) *Fun {
-	f := newFun(mod, nil, typesVal.Var.Type())
+	f := newFun(mod, false, nil, typesVal.Var.Type())
 	f.Val = typesVal
 	buildFunBody(f, f.Parms, typesVal.Locals, typesVal.Init)
 	return f
@@ -91,7 +91,7 @@ func buildFun(mod *Mod, typesFun *types.Fun) *Fun {
 	if typesFun.Sig.Ret != nil {
 		ret = typesFun.Sig.Ret.Type
 	}
-	f := newFun(mod, typesFun.Sig.Parms, ret)
+	f := newFun(mod, typesFun.Recv != nil, typesFun.Sig.Parms, ret)
 	f.Fun = typesFun
 	buildFunBody(f, f.Parms, typesFun.Locals, typesFun.Stmts)
 	return f
@@ -99,12 +99,14 @@ func buildFun(mod *Mod, typesFun *types.Fun) *Fun {
 
 func buildBlockFun(mod *Mod, fun *types.Fun, block *types.Block) *Fun {
 	ret := block.Type().Args[len(block.Type().Args)-1].Type
-	f := newFun(mod, block.Parms, ret)
+	f := newFun(mod, false, block.Parms, ret)
 	f.Fun = fun
 	f.Block = block
 
 	// Blocks always begin with a self parameter. Stick one on here.
-	f.Parms = append([]*Parm{{Type: block.BlockType.Ref()}}, f.Parms...)
+	f.Parms = append([]*Parm{
+		{Type: block.BlockType.Ref(), Self: true},
+	}, f.Parms...)
 	for i, p := range f.Parms {
 		p.N = i
 	}
@@ -117,7 +119,7 @@ func buildBlockFun(mod *Mod, fun *types.Fun, block *types.Block) *Fun {
 }
 
 func buildInit(mod *Mod) *Fun {
-	f := newFun(mod, nil, nil)
+	f := newFun(mod, false, nil, nil)
 	b0 := newBBlk(f)
 	if len(mod.Vars) == 0 {
 		addRet(b0)
@@ -137,7 +139,7 @@ func buildInit(mod *Mod) *Fun {
 	return f
 }
 
-func newFun(mod *Mod, parms []types.Var, ret *types.Type) *Fun {
+func newFun(mod *Mod, hasSelf bool, parms []types.Var, ret *types.Type) *Fun {
 	fun := &Fun{N: mod.NDefs, Mod: mod}
 	mod.Funs = append(mod.Funs, fun)
 	mod.NDefs++
@@ -149,7 +151,10 @@ func newFun(mod *Mod, parms []types.Var, ret *types.Type) *Fun {
 			continue
 		}
 		parm := &Parm{N: i, Type: typ, Var: &parms[i]}
-		if !SimpleType(typ) {
+		if i == 0 && hasSelf {
+			parm.Self = true
+			parm.Type = typ.Ref()
+		} else if !SimpleType(typ) {
 			parm.Value = true
 			parm.Type = typ.Ref()
 		}
@@ -178,17 +183,16 @@ func buildFunBody(f *Fun, parms []*Parm, locals []*types.Var, stmts []types.Stmt
 		parmAllocs = append(parmAllocs, a)
 	}
 	for _, local := range locals {
-		if local == nil {
-			panic("huh?")
-		}
 		a := addAlloc(f, b0, local.Type())
 		a.Var = local
 	}
-	for i, parm := range parms {
+	var i int
+	for _, parm := range parms {
 		if parm.Value {
 			continue
 		}
 		addStore(b0, parmAllocs[i], addArg(f, b0, parm))
+		i++
 	}
 	if stmts == nil {
 		f.BBlks = nil
@@ -482,7 +486,7 @@ func buildArraySlice(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 
 func buildCaseMeth(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 	if !isRefType(recv) || len(refElemType(recv).Cases) == 0 {
-		panic(fmt.Sprintf("case method on non-or-type-reference type %T", recv.Type()))
+		panic(fmt.Sprintf("case method on non-or type reference type %s", recv.Type()))
 	}
 
 	var args []Val
@@ -672,7 +676,13 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 		case cap.FunParm != nil:
 			fallthrough
 		case cap.BlkParm != nil:
-			args = append(args, findParm(f, b, cap))
+			var parm Val
+			if isSelfParm(f, cap) {
+				parm = addLoad(f, b, findParm(f, b, cap))
+			} else {
+				parm = findParm(f, b, cap)
+			}
+			args = append(args, parm)
 		default:
 			panic("impossible")
 		}
@@ -732,6 +742,9 @@ func buildVar(f *Fun, b *BBlk, vr *types.Var) Val {
 	case findCapture(f, vr) >= 0:
 		return buildCapture(f, b, vr)
 	case vr.FunParm != nil:
+		if isSelfParm(f, vr) {
+			return addLoad(f, b, findParm(f, b, vr))
+		}
 		return findParm(f, b, vr)
 	case vr.BlkParm != nil:
 		return findParm(f, b, vr)
@@ -760,6 +773,15 @@ func findParm(f *Fun, b *BBlk, vr *types.Var) Val {
 	}
 	// Note that vr cannot match the fun.Ret parm,
 	// since that does not correspond to a types.Var.
+	panic("imposible")
+}
+
+func isSelfParm(f *Fun, vr *types.Var) bool {
+	for _, p := range f.Parms {
+		if p.Var == vr {
+			return p.Self
+		}
+	}
 	panic("imposible")
 }
 

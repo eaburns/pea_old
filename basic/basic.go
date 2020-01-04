@@ -145,6 +145,8 @@ type Parm struct {
 	// If true, Type will be a &, but the caller is intended to make a copy
 	// and pass the address of the copy.
 	Value bool
+	// Self indicates that this is the self parameter of a method.
+	Self bool
 
 	// Var is nil for the Ret parm or block literal self parm.
 	Var *types.Var
