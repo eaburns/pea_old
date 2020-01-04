@@ -1548,6 +1548,33 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			// This is testing a regression where makeblock
+			// inside a nested block,
+			// inside a function with no return value
+			// would try to access beyond the end of the Type.Fields
+			// to set a non-existant capture
+			// for the return slot.
+			name: "makeblock in a nested block in a Nil return fun",
+			src: `
+				func [foo | [[3]]]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						$0 := alloc($Block1)
+						$1 := alloc(Int Fun Fun)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						and($0, {})
+						virt($1, $0, {block1})
+						return
+			`,
+		},
+		{
 			name: "block empty capture",
 			src: `
 				func [foo: n Nil ^Nil Fun | ^[n]]

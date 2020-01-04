@@ -680,9 +680,9 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 
 	// Store the far-return location as the last field of the block literal.
 	switch {
-	case f.Ret != nil && f.Block == nil:
+	case f.Block == nil && f.Ret != nil:
 		args = append(args, addArg(f, b, f.Ret))
-	case f.Ret != nil && f.Block != nil:
+	case f.Block != nil && f.Fun.Sig.Ret != nil:
 		// We are in a nested block.
 		// The far return location  is a capture
 		// of the containing block.
@@ -952,6 +952,9 @@ func addField(f *Fun, b *BBlk, obj Val, i int) *Field {
 	if obj.Type().BuiltIn == types.RefType {
 		switch objType := obj.Type().Args[0].Type; {
 		case objType.BuiltIn == types.BlockType:
+			if i < 0 || i >= len(objType.Fields) {
+				fmt.Printf("objType=%s\n", objType)
+			}
 			field.Field = &objType.Fields[i]
 			typ = field.Field.Type()
 		case len(objType.Fields) > 0:
