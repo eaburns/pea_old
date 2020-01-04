@@ -381,6 +381,49 @@ func TestInstCall(t *testing.T) {
 			`,
 			want: "Int Array [from: u Int fold: f (Int, Int, Int) Fun ^Int]",
 		},
+		{
+			name: "paritally-bound parameterized method",
+			src: `
+				val test := [
+					[:i Int | i < 5] from: 1 whileTrue: [:i | i + 1]
+				]
+				type T BoolFun := (T, Bool) Fun.
+				meth T BoolFun [from: t T whileTrue: f (T, T) Fun |
+					(self value: t) ifTrue: [
+						self from: (f value: t) whileTrue: f
+					]
+				]
+				meth Bool [ifTrue: _ Nil Fun]
+
+			`,
+			want: "(Int, Bool) Fun [from: t Int whileTrue: f (Int, Int) Fun]",
+		},
+		{
+			// This test is trying to catch a regression.
+			// A previous implementation of Recv instantiation
+			// created the substitution map looping over the args.
+			// However, that is not sufficient in this case,
+			// because the Param's use in the alias target
+			// is nested in an argument of the aliased type.
+			// We need a full, recursive unify to create the sub map.
+			name: "paritally-bound parameterized method with nesting",
+			src: `
+				val test := [
+					[some: 3] whileSome: [:i | i + 1. {}]
+				]
+				type T OptFun := T? Fun.
+				meth T OptFun [whileSome: f (T&, Nil) Fun |
+					self value ifSome: [:t |
+						f value: t.
+						self whileSome: f.
+					]
+				]
+				type T? {none | some: T}
+				func T [some: t T ^T? | ^{some: t}]
+				meth T? [ifSome: _ (T&, Nil) Fun]
+			`,
+			want: "Int #test ? Fun [whileSome: f (Int&, Nil) Fun]",
+		},
 	}
 	for _, test := range tests {
 		test := test

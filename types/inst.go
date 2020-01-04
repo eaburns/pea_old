@@ -219,17 +219,16 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 
 	var sub map[*TypeVar]TypeName
 	if fun.Recv.Type.Args != nil {
+		tparms := make(map[*TypeVar]bool)
+		for i := range fun.Recv.Parms {
+			tparms[&fun.Recv.Parms[i]] = true
+		}
+		funRecvName := makeTypeName(fun.Recv.Type)
+		recvName := makeTypeName(recv)
 		sub = make(map[*TypeVar]TypeName)
-		for i, arg := range recv.Args {
-			switch parm := fun.Recv.Type.Args[i].Type; {
-			case parm == nil || arg.Type == nil:
-				continue
-			case parm.Var != nil:
-				sub[parm.Var] = arg
-			case parm != arg.Type:
-				err := x.err(arg, "type mismatch: have %s, want %s", arg.Type, parm)
-				errs = append(errs, *err)
-			}
+		err := unify(x, fun, funRecvName, recvName, tparms, sub)
+		if err != nil {
+			errs = append(errs, *err)
 		}
 	} else {
 		sub = newSubMap(fun.Recv.Type.Parms, recv.Args)
@@ -260,6 +259,9 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	file.funInsts = append(file.funInsts, inst)
 	fun.Def.Insts = append(fun.Def.Insts, inst)
 	x.funTodo = append(x.funTodo, funFile{fun: inst, file: file})
+
+	x.log("instantiated: %s", inst)
+
 	return inst, errs
 }
 
@@ -350,7 +352,7 @@ func unifyFunTParms(x *scope, infer *Type, fun *Fun, argTypes argTypes) (sub map
 		// has a locatable node to use for error reporting.
 		inferName := makeTypeName(infer)
 		inferName.AST = argTypes.ast()
-		if err := unify(x, fun.Sig.Ret, inferName, tparms, sub); err != nil {
+		if err := unify(x, fun, fun.Sig.Ret, inferName, tparms, sub); err != nil {
 			errs = append(errs, *err)
 		}
 	}
@@ -378,7 +380,7 @@ func unifyFunTParms(x *scope, infer *Type, fun *Fun, argTypes argTypes) (sub map
 		}
 		argTypeName := makeTypeName(argType)
 		argTypeName.AST = argAST
-		if err := unify(x, tname, argTypeName, tparms, sub); err != nil {
+		if err := unify(x, fun, tname, argTypeName, tparms, sub); err != nil {
 			errs = append(errs, *err)
 		}
 	}
@@ -400,8 +402,7 @@ func hasTParm(tparms map[*TypeVar]bool, name *TypeName) bool {
 	return false
 }
 
-// TODO: unify should handle the case that typ.AST is nil.
-func unify(x *scope, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*TypeVar]TypeName) (err *checkError) {
+func unify(x *scope, loc Node, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*TypeVar]TypeName) (err *checkError) {
 	defer x.tr("unify(%s, %s, sub=%s)", pat, typ, subDebugString(sub))(err)
 
 	if tparms[pat.Type.Var] {
@@ -414,23 +415,27 @@ func unify(x *scope, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*Type
 		}
 		x.log("prev=%s", prev)
 		if prev.Type != typ.Type {
-			err = x.err(typ, "cannot bind %s to %s: already bound", typ, pat.Name)
+			err = x.err(loc, "cannot bind %s to %s: already bound", typ, pat.Name)
 			note(err, "previous binding to %s at %s", prev, x.loc(prev))
 			return err
 		}
 		return nil
 	}
 
+	if pat.Type == nil || typ.Type == nil {
+		return nil // error reported elsewhere
+	}
+
 	if pat.Type.ModPath != typ.Type.ModPath ||
 		pat.Type.Name != typ.Type.Name ||
 		pat.Type.Arity != typ.Type.Arity {
-		return x.err(typ, "type mismatch: have %s, want %s", typ.name(), pat.name())
+		return x.err(loc, "type mismatch: have %s, want %s", typ.name(), pat.name())
 	}
 	var errs []checkError
 	for i := range pat.Type.Args {
 		patArg := &pat.Type.Args[i]
 		typArg := &typ.Type.Args[i]
-		if e := unify(x, patArg, typArg, tparms, sub); e != nil {
+		if e := unify(x, loc, patArg, typArg, tparms, sub); e != nil {
 			if e.cause != nil {
 				errs = append(errs, e.cause...)
 			} else {
@@ -439,7 +444,7 @@ func unify(x *scope, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*Type
 		}
 	}
 	if len(errs) > 0 {
-		err = x.err(typ, "%s cannot unify with %s", typ, pat)
+		err = x.err(loc, "%s cannot unify with %s", typ, pat)
 		err.cause = errs
 		return err
 	}
@@ -525,7 +530,18 @@ func instFunBody(x *scope, fun *Fun) {
 
 	sub := newSubMap(fun.Def.TParms, fun.TArgs)
 	if fun.Def.Recv != nil {
-		addSubMap(fun.Def.Recv.Parms, fun.Recv.Args, sub)
+		x.log("recv type: %s", fun.Def.Recv.Type)
+		x.log("arg type: %s", fun.Recv.Type)
+		tparms := make(map[*TypeVar]bool)
+		for i := range fun.Def.Recv.Parms {
+			tparms[&fun.Def.Recv.Parms[i]] = true
+		}
+		patName := makeTypeName(fun.Def.Recv.Type)
+		recvName := makeTypeName(fun.Recv.Type)
+		err := unify(x, fun, patName, recvName, tparms, sub)
+		if err != nil {
+			panic(fmt.Sprintf("impossible: %v", err))
+		}
 	}
 	fun.Stmts = subStmts(x, sub, fun.Def.Stmts)
 }
