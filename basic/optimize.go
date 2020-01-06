@@ -1,5 +1,7 @@
 package basic
 
+import "github.com/eaburns/pea/types"
+
 // Optimize applies some simple optimizations.
 func Optimize(m *Mod) {
 	for _, f := range m.Funs {
@@ -25,7 +27,8 @@ func optimize(f *Fun) {
 		f.CanInline = f.BBlks != nil
 		return
 	}
-	if inlineCalls(f) {
+	var inlinedCall bool
+	if inlinedCall = inlineCalls(f); inlinedCall {
 		cleanUp(f)
 	}
 	if inlineBlockLits(f) {
@@ -48,5 +51,15 @@ func optimize(f *Fun) {
 	// to ensure we cleanUp once even if
 	// none of the above passes triggered.
 	cleanUp(f)
-	f.CanInline = canInline(f)
+	f.CanInline = canInline(f) && (hasFunParm(f) || !inlinedCall)
+}
+
+func hasFunParm(f *Fun) bool {
+	for _, p := range f.Parms {
+		if p.Type.BuiltIn == types.RefType &&
+			p.Type.Args[0].Type.BuiltIn == types.FunType {
+			return true
+		}
+	}
+	return false
 }

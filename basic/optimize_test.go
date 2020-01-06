@@ -254,6 +254,49 @@ func TestMethodMarksFunAsNonConst(t *testing.T) {
 	}
 }
 
+// Tests that we only inline leaf calls.
+func TestInlineOnlyLeaves(t *testing.T) {
+	const src = `
+		func [leaf ^String | ^"Hello, World"]
+		func [internal ^String | ^leaf]
+		func [foo ^String | ^internal]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); !strings.Contains(s, "call") {
+		t.Errorf("foo contains no call:\n%s\nexpected a call", s)
+	}
+}
+
+// Tests that we override the leaf-call restriction for inlining
+// in the case that the function has a Fun-type parameter.
+// Inlining this may allow further block-literal inlining,
+// which can remove expensive virt calls.
+func TestInlineFunParmFuncs(t *testing.T) {
+	const src = `
+		func [leaf: f String Fun ^String | ^f value]
+		func [internal: f String Fun ^String | ^leaf: f]
+		func [foo ^String | ^internal: ["Hello"]]
+	`
+	mod, errs := compile(src)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	foo := findTestFunBySelector(mod, "foo")
+	if s := foo.String(); strings.Contains(s, "BUG") {
+		t.Errorf("foo a bug:\n%s", s)
+	}
+	if s := foo.String(); strings.Contains(s, "call") {
+		t.Errorf("foo contains a call:\n%s\nexpected no call", s)
+	}
+}
+
 func compile(src string) (*Mod, []error) {
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {
