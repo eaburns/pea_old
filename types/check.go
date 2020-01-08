@@ -1220,17 +1220,7 @@ func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel
 			return nil, append(errs, *err)
 		}
 	}
-	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
-		if fun, errs = instRecv(x, recv, fun); len(errs) > 0 {
-			return nil, errs
-		}
-	}
-	if len(fun.TParms) > 0 {
-		if fun, errs = instFun(x, infer, fun, argTypes); len(errs) > 0 {
-			return nil, errs
-		}
-	}
-	return fun, nil
+	return instRecvAndFun(x, recv, infer, fun, argTypes)
 }
 
 func findIfaceMeth(x *scope, loc ast.Node, sel string, ifaces []TypeName) (*Type, *Fun, *checkError) {

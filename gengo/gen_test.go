@@ -950,6 +950,182 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "\n2",
 		},
+		{
+			name: "make virtual of built-in case method",
+			src: `
+				func [main |
+					iopt Int? := {some: 5}.
+					v (Int, Float) IfNoneIfSomer := iopt.
+					print: (v ifNone: [3.14] ifSome: [:i | i asFloat])
+				]
+				type (T, U) IfNoneIfSomer {
+					[ifNone: U Fun ifSome: (T&, U) Fun ^U]
+				}
+				type T? {none | some: T}
+			`,
+			stdout: "5",
+		},
+		{
+			name: "make virtual of built-in String byteSize method",
+			src: `
+				func [main |
+					s := "Hello".
+					v ByteSizer := s.
+					print: v byteSize
+				]
+				type ByteSizer {[byteSize ^Int]}
+			`,
+			stdout: "5",
+		},
+		{
+			// String atByte is broken in a few places
+			name: "SKIP: make virtual of built-in String atByte method",
+			src: `
+				func [main |
+					s := "Hello".
+					v AtByter := s.
+					print: (v atByte: 1) asInt.
+				]
+				type AtByter {[atByte: Int ^Byte]}
+			`,
+			stdout: "101", // e
+		},
+		{
+			name: "make virtual of built-in Array size method",
+			src: `
+				func [main |
+					ints Int Array := {5; 6; 7}.
+					v Sizer := ints.
+					print: v size
+				]
+				type Sizer {[size ^Int]}
+			`,
+			stdout: "3",
+		},
+		{
+			name: "make virtual of built-in Array at: method",
+			src: `
+				func [main |
+					ints Int Array := {5; 6; 7}.
+					v Ater := ints.
+					print: (v at: 1)
+				]
+				type Ater {[at: Int ^Int&]}
+			`,
+			stdout: "6",
+		},
+		{
+			name: "make virtual of built-in Array at:put: method",
+			src: `
+				func [main |
+					ints Int Array := {5; 6; 7}.
+					v AtPuter := ints.
+					v at: 1 put: 42.
+					print: (ints at: 1)
+				]
+				type AtPuter {[at: Int put: Int]}
+			`,
+			stdout: "42",
+		},
+		{
+			name: "make virtual of built-in Array from:to: method",
+			src: `
+				func [main |
+					ints Int Array := {5; 6; 7}.
+					v FromToer := ints.
+					x := v from: 1 to: 2.
+					print: (x at: 0)
+				]
+				type FromToer {[from: Int to: Int ^Int Array]}
+			`,
+			stdout: "6",
+		},
+		{
+			name: "make virtual of integer methods",
+			src: `
+				func [main |
+					v Num := 42 asInt8.		// 0010 1010 = 42
+					print: v & 42. print: "_".	// 42
+					print: v | 1. print: "_".	// 43
+					print: v not. print: "_".	// -43
+					print: v >> 1. print: "_".	// 0001 0101 = 21
+					print: v << 1. print: "_".	// 0101 0100 = 88
+					print: v neg. print: "_".	// -42
+					print: v + 1. print: "_".	// 43
+					print: v - 1. print: "_".	// 41
+					print: v * 2. print: "_".	// 84
+					print: v / 2. print: "_".	// 21
+					print: v % 2. print: "_".	// 0
+					print: v = 42. print: "_".	// true
+					print: v != 42. print: "_".	// false
+					print: v < 42. print: "_".	// false
+					print: v <= 42. print: "_".	// true
+					print: v > 42. print: "_".	// false
+					print: v >= 42. print: "_".	// true
+					print: v asUInt. print: "_".	// 42
+					print: v asFloat. print: "_".// 42
+				]
+				type Num {
+					[& Int8 ^Int8]
+					[| Int8 ^Int8]
+					[not ^Int8]
+					[>> Int ^Int8]
+					[<< Int ^Int8]
+					[neg ^Int8]
+					[+ Int8 ^Int8]
+					[- Int8 ^Int8]
+					[* Int8 ^Int8]
+					[/ Int8 ^Int8]
+					[% Int8 ^Int8]
+					[= Int8 ^Bool]
+					[!= Int8 ^Bool]
+					[< Int8 ^Bool]
+					[<= Int8 ^Bool]
+					[> Int8 ^Bool]
+					[>= Int8 ^Bool]
+					[asUInt ^UInt]
+					[asFloat ^Float]
+				}
+			`,
+			stdout: "42_43_-43_21_84_-42_43_41_84_21_0_true_false_false_true_false_true_42_42_",
+		},
+		{
+			name: "make virtual of float methods",
+			src: `
+				func [main |
+					v Num := 42.25 asFloat32.
+					print: v neg. print: "_".	// -42.25
+					print: v + 1. print: "_".	// 43.25
+					print: v - 1. print: "_".	// 41.25
+					print: v * 2. print: "_".	// 84.5
+					print: v / 2. print: "_".	// 21.125
+					print: v = 42.25. print: "_".	// true
+					print: v != 42.25. print: "_".	// false
+					print: v < 42.25. print: "_".	// false
+					print: v <= 42.25. print: "_".	// true
+					print: v > 42.25. print: "_".	// false
+					print: v >= 42.25. print: "_".	// true
+					print: v asUInt. print: "_".	// 42
+					print: v asFloat. print: "_".// 42.25
+				]
+				type Num {
+					[neg ^Float32]
+					[+ Float32 ^Float32]
+					[- Float32 ^Float32]
+					[* Float32 ^Float32]
+					[/ Float32 ^Float32]
+					[= Float32 ^Bool]
+					[!= Float32 ^Bool]
+					[< Float32 ^Bool]
+					[<= Float32 ^Bool]
+					[> Float32 ^Bool]
+					[>= Float32 ^Bool]
+					[asUInt ^UInt]
+					[asFloat ^Float]
+				}
+			`,
+			stdout: "-42.25_43.25_41.25_84.5_21.125_true_false_false_true_false_true_42_42.25_",
+		},
 	}
 	for _, test := range tests {
 		test := test

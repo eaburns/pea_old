@@ -249,11 +249,13 @@ func (n *Type) Ref() *Type {
 	ref.Args = []TypeName{*makeTypeName(n)}
 	ref.Insts = nil
 	ref.Parms = []TypeVar{ref.Parms[0]}
-	ref.Parms[0].Type = &Type{
+	typ := &Type{
 		Name:   ref.Parms[0].Name,
 		Var:    &ref.Parms[0],
 		refDef: n.refDef,
 	}
+	typ.Def = typ
+	ref.Parms[0].Type = typ
 	n.refDef.Insts = append(n.refDef.Insts, &ref)
 	return &ref
 }

@@ -312,7 +312,6 @@ func subExpr(x *scope, sub map[*TypeVar]TypeName, expr0 Expr) Expr {
 	default:
 		panic(fmt.Sprintf("impossible type: %T", expr0))
 	}
-
 	wantType := subType(x, map[*Type]*Type{}, sub, expr0.Type())
 	expr1, err := convertExpr(x, wantType, expr1)
 	if err != nil {
@@ -329,6 +328,7 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 		Recv: subExpr(x, sub, call0.Recv),
 	}
 	var recv *Type
+	var typeVarCall bool
 	if call1.Recv != nil {
 		recv = call1.Recv.Type()
 		if !isRef(recv) {
@@ -336,8 +336,9 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 			panic("impossible")
 		}
 		recv = recv.Args[0].Type
+		typeVarCall = call0.Recv.Type().Args[0].Type.Var != nil
 	}
-	call1.Msgs = subMsgs(x, sub, call1.typ, recv, call0.Msgs)
+	call1.Msgs = subMsgs(x, sub, call1.typ, recv, call0.Msgs, typeVarCall)
 
 	lastMsg := &call1.Msgs[len(call1.Msgs)-1]
 	if lastMsg.Fun.Sig.Ret == nil {
@@ -348,7 +349,7 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 	return call1
 }
 
-func subMsgs(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msgs0 []Msg) []Msg {
+func subMsgs(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msgs0 []Msg, typeVarCall bool) []Msg {
 	defer x.tr("subMsgs(ret1=%s, recv1=%s)", ret1, recv1)()
 
 	msgs1 := make([]Msg, len(msgs0))
@@ -357,12 +358,12 @@ func subMsgs(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msgs0 []Msg
 		if i == len(msgs0)-1 {
 			ret = ret1
 		}
-		msgs1[i] = subMsg(x, sub, ret, recv1, &msgs0[i])
+		msgs1[i] = subMsg(x, sub, ret, recv1, &msgs0[i], typeVarCall)
 	}
 	return msgs1
 }
 
-func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg) Msg {
+func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg, typeVarCall bool) Msg {
 	defer x.tr("subMsg(ret1=%s, recv1=%s, %s)", ret1, recv1, msg0.Sel)()
 
 	msg1 := Msg{
@@ -371,7 +372,15 @@ func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg) M
 		Sel:  msg0.Sel,
 		Args: subExprs(x, sub, msg0.Args),
 	}
-	if errs := findMsgFun(x, ret1, recv1, &msg1); len(errs) > 0 {
+	var errs []checkError
+	if typeVarCall {
+		// This is a type constraint. Look up the static method.
+		errs = findMsgFun(x, ret1, recv1, &msg1)
+	} else {
+		// This is a static or virtual call; instantiate it.
+		msg1.Fun, errs = instRecvAndFun(x, recv1, ret1, msg0.Fun.Def, &msg1)
+	}
+	if len(errs) > 0 {
 		panic(fmt.Sprintf("impossible: %v", errs))
 	}
 	if msg1.Fun.Sig.Ret != nil {

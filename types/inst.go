@@ -213,6 +213,20 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	return inst, errs
 }
 
+func instRecvAndFun(x *scope, recv, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs []checkError) {
+	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
+		if fun, errs = instRecv(x, recv, fun); len(errs) > 0 {
+			return nil, errs
+		}
+	}
+	if len(fun.TParms) > 0 {
+		if fun, errs = instFun(x, infer, fun, argTypes); len(errs) > 0 {
+			return nil, errs
+		}
+	}
+	return fun, nil
+}
+
 func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	defer x.tr("instRecv(%s, %s)", recv, fun)(&errs)
 
@@ -270,11 +284,15 @@ type argTypes interface {
 }
 
 func (m *Msg) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
-	// The type assertion to *ast.Msg is OK,
-	// since Msg.AST is only not a *ast.Msg
-	// for a 0-ary function call, but this has args.
-	arg, errs := checkExpr(x, nil, m.AST.(*ast.Msg).Args[i])
-	m.Args[i] = arg
+	var errs []checkError
+	arg := m.Args[i]
+	if arg == nil {
+		// The type assertion to *ast.Msg is OK,
+		// since Msg.AST is only not a *ast.Msg
+		// for a 0-ary function call, but this has args.
+		arg, errs = checkExpr(x, nil, m.AST.(*ast.Msg).Args[i])
+		m.Args[i] = arg
+	}
 	return arg.Type(), arg.ast(), errs
 }
 
@@ -489,10 +507,6 @@ func rmLiftedFunInsts(defs []Def) {
 func instFunBody(x *scope, fun *Fun) {
 	defer x.tr("instFunStmts(%s)", fun)()
 
-	if fun.BuiltIn != 0 {
-		x.log("skipping built-in")
-		return
-	}
 	if !isGroundFun(fun) {
 		x.log("skipping lifted instance: %s", fun)
 		return

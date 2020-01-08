@@ -75,10 +75,16 @@ func F1___0_Int__main__print_3A__(x int) {
 func F1___1__26____0_Int__main__print_3A__(x *int) {
 	fmt.Printf("%v", *x)
 }
+func F1___0_Int8__main__print_3A__(x int8) {
+	fmt.Printf("%v", x)
+}
 func F1___0_UInt__main__print_3A__(x uint) {
 	fmt.Printf("%v", x)
 }
 func F1___0_Float__main__print_3A__(x float64) {
+	fmt.Printf("%v", x)
+}
+func F1___0_Float32__main__print_3A__(x float32) {
 	fmt.Printf("%v", x)
 }
 func F1___0_Bool__main__print_3A__(x uint8) {

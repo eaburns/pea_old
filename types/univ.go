@@ -12,26 +12,40 @@ import (
 const MaxValueParms = 4
 
 // univ are the definitions of the universal package.
-// This is executed with text/template.
+// This is string executed with text/template.
+//
+// The basic package will not emit static calls for the methods below.
+// Instead it will emit inline the basic.Stmts that implement the method.
+// For example 1+1 will not generate a call to the + method of Int;
+// it will generate an add operator.
+//
+// However, we need the ability to emit the actual methods
+// so that they can be used in a virtual table for a virtual type.
+//
+// To this end, the methods below all have a method body
+// consisting of a single, static, call back to themselves.
+// When emitting the code for these methods,
+// the basic package will not actually emit recursive calls,
+// but instead will emit the implementation of the method.
 var univ = `
 	type _& {}
 
 	type Nil {}
 
-	type Bool { true | false }
+	type Bool {true | false}
 	func [true ^Bool | ^{true}]
 	func [false ^Bool | ^{false}]
 
 	type String {}
-	meth String [ byteSize ^Int]
-	meth String [ atByte: _ Int ^Byte]
-	meth String [ fromByte: _ Int toByte: _ Int ^String]
+	meth String [byteSize ^Int | ^self byteSize]
+	meth String [atByte: x Int ^Byte | ^self atByte: x]
+	meth String [fromByte: x Int toByte: y Int ^String | ^self fromByte: x toByte: y]
 
 	type _ Array {}
-	meth _ Array [ size ^Int]
-	meth T Array [ at: _ Int ^T&]
-	meth T Array [ at: _ Int put: _ T]
-	meth T Array [ from: _ Int to: _ Int ^T Array]
+	meth _ Array [size ^Int | ^self size]
+	meth T Array [at: x Int ^T& | ^self at: x]
+	meth T Array [at: x Int put: y T | self at: x put: y]
+	meth T Array [from: x Int to: y Int ^T Array | ^self from: x to: y]
 
 	type T Fun {[value ^T]}
 	type (T, U) Fun {[value: T ^U]}
@@ -45,50 +59,49 @@ var univ = `
 
 	{{range $_, $t := $.IntTypes}}
 		type {{$t}} {}
-		meth {{$t}} [ & _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ | _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ not ^{{$t}}]
-		meth {{$t}} [ >> _ Int ^{{$t}}]
-		meth {{$t}} [ << _ Int ^{{$t}}]
-		meth {{$t}} [ neg ^{{$t}}]
-		meth {{$t}} [ + _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ - _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ * _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ / _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ % _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ = _ {{$t}} ^Bool]
-		meth {{$t}} [ != _ {{$t}} ^Bool]
-		meth {{$t}} [ < _ {{$t}} ^Bool]
-		meth {{$t}} [ <= _ {{$t}} ^Bool]
-		meth {{$t}} [ > _ {{$t}} ^Bool]
-		meth {{$t}} [ >= _ {{$t}} ^Bool]
+		meth {{$t}} [& x {{$t}} ^{{$t}} | ^self & x]
+		meth {{$t}} [| x {{$t}} ^{{$t}} | ^self | x]
+		meth {{$t}} [not ^{{$t}} | ^self not]
+		meth {{$t}} [>> x Int ^{{$t}} | ^self >> x]
+		meth {{$t}} [<< x Int ^{{$t}} | ^self << x]
+		meth {{$t}} [neg ^{{$t}} | ^self neg]
+		meth {{$t}} [+ x {{$t}} ^{{$t}} | ^self + x]
+		meth {{$t}} [- x {{$t}} ^{{$t}} | ^self - x]
+		meth {{$t}} [* x {{$t}} ^{{$t}} | ^self * x]
+		meth {{$t}} [/ x {{$t}} ^{{$t}} | ^self / x]
+		meth {{$t}} [% x {{$t}} ^{{$t}} | ^self % x]
+		meth {{$t}} [= x {{$t}} ^Bool | ^self = x]
+		meth {{$t}} [!= x {{$t}} ^Bool | ^self != x]
+		meth {{$t}} [< x {{$t}} ^Bool | ^self < x]
+		meth {{$t}} [<= x {{$t}} ^Bool | ^self <= x]
+		meth {{$t}} [> x {{$t}} ^Bool | ^self > x]
+		meth {{$t}} [>= x {{$t}} ^Bool | ^self >= x]
 		{{range $_, $r := $.IntTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}}]
+			meth {{$t}} [as{{$r}} ^{{$r}} | ^self as{{$r}}]
 		{{end}}
 		{{range $_, $r := $.FloatTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}}]
+			meth {{$t}} [as{{$r}} ^{{$r}} | ^self as{{$r}}]
 		{{end}}
 	{{end}}
 
 	{{range $_, $t := $.FloatTypes}}
 		type {{$t}} {}
-		meth {{$t}} [ neg ^{{$t}}]
-		meth {{$t}} [ + _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ - _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ * _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ / _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ % _ {{$t}} ^{{$t}}]
-		meth {{$t}} [ = _ {{$t}} ^Bool]
-		meth {{$t}} [ != _ {{$t}} ^Bool]
-		meth {{$t}} [ < _ {{$t}} ^Bool]
-		meth {{$t}} [ <= _ {{$t}} ^Bool]
-		meth {{$t}} [ > _ {{$t}} ^Bool]
-		meth {{$t}} [ >= _ {{$t}} ^Bool]
+		meth {{$t}} [neg ^{{$t}} | ^self neg]
+		meth {{$t}} [+ x {{$t}} ^{{$t}} | ^self + x]
+		meth {{$t}} [- x {{$t}} ^{{$t}} | ^self - x]
+		meth {{$t}} [* x {{$t}} ^{{$t}} | ^self * x]
+		meth {{$t}} [/ x {{$t}} ^{{$t}} | ^self / x]
+		meth {{$t}} [= x {{$t}} ^Bool | ^self = x]
+		meth {{$t}} [!= x {{$t}} ^Bool | ^self != x]
+		meth {{$t}} [< x {{$t}} ^Bool | ^self < x]
+		meth {{$t}} [<= x {{$t}} ^Bool | ^self <= x]
+		meth {{$t}} [> x {{$t}} ^Bool | ^self > x]
+		meth {{$t}} [>= x {{$t}} ^Bool | ^self >= x]
 		{{range $_, $r := $.IntTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}}]
+			meth {{$t}} [as{{$r}} ^{{$r}} | ^self as{{$r}}]
 		{{end}}
 		{{range $_, $r := $.FloatTypes}}
-			meth {{$t}} [ as{{$r}} ^{{$r}}]
+			meth {{$t}} [as{{$r}} ^{{$r}} | ^self as{{$r}}]
 		{{end}}
 	{{end}}
 `

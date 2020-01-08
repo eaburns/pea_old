@@ -109,7 +109,7 @@ func (x *state) loc(n interface{}) ast.Loc {
 	case Node:
 		return x.astMod.Loc(n.ast())
 	default:
-		panic(fmt.Sprintf("bad type: %T", n))
+		return ast.Loc{}
 	}
 }
 

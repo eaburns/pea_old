@@ -222,6 +222,17 @@ func TestInstCallError(t *testing.T) {
 			`,
 			err: "have String, want Int32",
 		},
+		{
+			name: "subbed virtual call",
+			src: `
+				// The call to bar: will sub the virtual call to Foore foo.
+				val test String := [bar: 5]
+				meth Int [foo ^String | ^"string"]
+				type T Fooer {[foo ^T]}
+				func T [bar: f T Fooer ^T | ^f foo]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
@@ -246,7 +257,7 @@ func TestInstCall(t *testing.T) {
 			src: `
 				val test := [ 1 + 2 ]
 			`,
-			want: "Int [+ _ Int ^Int]",
+			want: "Int [+ x Int ^Int]",
 		},
 		{
 			name: "ground receiver subs return",
@@ -256,7 +267,7 @@ func TestInstCall(t *testing.T) {
 					recv at: 2
 				]
 			`,
-			want: "String Array [at: _ Int ^String&]",
+			want: "String Array [at: x Int ^String&]",
 		},
 		{
 			name: "ground receiver subs parm",
@@ -266,7 +277,7 @@ func TestInstCall(t *testing.T) {
 					recv at: 2 put: "hello"
 				]
 			`,
-			want: "String Array [at: _ Int put: _ String]",
+			want: "String Array [at: x Int put: y String]",
 		},
 		{
 			name: "ground multi-type-param receiver",
@@ -304,7 +315,7 @@ func TestInstCall(t *testing.T) {
 					5 < 6 ifTrue: ["hello"] ifFalse: ["goodbye"]
 				]
 			`,
-			want: "Bool [ifTrue: _ String Fun ifFalse: _ String Fun ^String]",
+			want: "Bool [ifTrue: x0 String Fun ifFalse: x1 String Fun ^String]",
 		},
 		{
 			name: "ground fun parameter type",
@@ -834,7 +845,7 @@ func TestFunInsts_ConvertArgsAndReturn(t *testing.T) {
 
 	ret, ok := bazInt.Stmts[0].(*Ret).Expr.(*Convert)
 	if !ok {
-		t.Fatalf("boo:bar: ret is a %T, want *Convert", bazInt.Stmts[0].(*Ret).Expr)
+		t.Fatalf("foo:bar: ret is a %T, want *Convert", bazInt.Stmts[0].(*Ret).Expr)
 	} else if ret.Ref != -1 {
 		t.Errorf("foo:bar: ret Ref=%d, want -1", ret.Ref)
 	} else if ret.typ.String() != "Int" {

@@ -157,6 +157,10 @@ func builtInMeths(x *scope, defs []Def) []Def {
 func makeCaseMeth(x *scope, typ *Type) *Fun {
 	var fun Fun
 
+	// We create a new instance of typ with its own, cloned params,
+	// becaue every definition needs its own unique type parameters.
+	recvParms, recvType := instWithClonedParms(x, typ)
+
 	tmp := x.newID()
 	tparms := []TypeVar{
 		{Name: tmp, ID: x.nextTypeVar()},
@@ -173,13 +177,13 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 	var sel strings.Builder
 	self := Var{
 		Name:     "self",
-		TypeName: makeTypeName(typ),
-		typ:      typ,
+		TypeName: makeTypeName(recvType),
+		typ:      recvType,
 		FunParm:  &fun,
 		Index:    0,
 	}
 	parms := []Var{self}
-	for i, c := range typ.Cases {
+	for i, c := range recvType.Cases {
 		sel.WriteString("if")
 		sel.WriteString(upperCase(c.Name))
 		var parmType *Type
@@ -191,7 +195,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			parmType = builtInType(x, "Fun", *makeTypeName(ref), retName)
 		}
 		parm := Var{
-			Name:     "_",
+			Name:     fmt.Sprintf("x%d", i),
 			TypeName: makeTypeName(parmType),
 			typ:      parmType,
 			FunParm:  &fun,
@@ -200,30 +204,26 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 		parms = append(parms, parm)
 	}
 	fun = Fun{
-		AST:     typ.AST,
+		AST:     recvType.AST,
 		Def:     &fun,
-		Priv:    typ.Priv,
+		Priv:    recvType.Priv,
 		ModPath: typ.ModPath,
 		Recv: &Recv{
-			// We clone the type parameters
-			// so they get their own distinct types.
-			// This probably doesn't matter,
-			// but when importing from the export format,
-			// they will get distinct types.
-			// This rids testing diffs.
-			Parms: cloneTypeParms(x, typ.Parms),
-			Arity: len(typ.Parms),
-			Name:  typ.Name,
-			Type:  typ,
+			Parms: recvParms,
+			Arity: len(recvType.Parms),
+			Name:  recvType.Name,
+			Type:  recvType,
 		},
 		TParms: tparms,
 		Sig: FunSig{
 			Sel:   sel.String(),
 			Parms: parms,
 			Ret:   &retName,
+			typ:   retType,
 		},
 		BuiltIn: CaseMeth,
 	}
+	fun.Stmts = makeCaseBody(x, &fun)
 	return &fun
 }
 
@@ -232,24 +232,71 @@ func upperCase(s string) string {
 	return string([]rune{unicode.ToUpper(r)}) + s[w:]
 }
 
+func makeCaseBody(x *scope, fun *Fun) []Stmt {
+	var args []Expr
+	for i := 1; i < len(fun.Sig.Parms); i++ {
+		parm := &fun.Sig.Parms[i]
+		args = append(args, &Ident{
+			Text: parm.Name,
+			Var:  parm,
+			typ:  parm.Type(),
+		})
+	}
+	msgs := []Msg{
+		{
+			Sel:  fun.Sig.Sel,
+			Args: args,
+			Fun:  fun,
+			typ:  fun.Sig.Ret.Type,
+		},
+	}
+	recv := &Convert{
+		Expr: &Ident{
+			Text: "self",
+			Var:  &fun.Sig.Parms[0],
+			typ:  fun.Sig.Parms[0].Type(),
+		},
+		Ref: 1,
+		typ: fun.Sig.Parms[0].Type().Ref(),
+	}
+	call := &Call{Recv: recv, Msgs: msgs}
+	ret := &Ret{Expr: call}
+	return []Stmt{ret}
+}
+
 func makeVirtMeths(x *scope, typ *Type) []Def {
 	var defs []Def
 	for _, virt := range typ.Virts {
-		defs = append(defs, makeVirtMeth(x, typ, virt))
+		defs = append(defs, makeVirtMeth(x, typ, virt.Sel))
 	}
 	return defs
 }
 
-func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
+func makeVirtMeth(x *scope, typ *Type, sel string) *Fun {
 	var fun Fun
+
+	// We create a new instance of typ with its own, cloned params,
+	// becaue every definition needs its own unique type parameters.
+	// We need to find the corresponding FunSig in the substituted type.
+	recvParms, recvType := instWithClonedParms(x, typ)
+	var sig FunSig
+	for _, virt := range recvType.Virts {
+		if virt.Sel == sel {
+			sig = virt
+			break
+		}
+	}
+	if sig.Sel == "" {
+		panic("impossible")
+	}
 
 	parms := make([]Var, len(sig.Parms)+1)
 	parms[0] = Var{
 		Name:     "self",
-		TypeName: makeTypeName(typ),
+		TypeName: makeTypeName(recvType),
 		FunParm:  &fun,
 		Index:    0,
-		typ:      typ,
+		typ:      recvType,
 	}
 	for i, p := range sig.Parms {
 		p.Name = "_"
@@ -261,20 +308,14 @@ func makeVirtMeth(x *scope, typ *Type, sig FunSig) *Fun {
 	fun = Fun{
 		AST:     sig.AST,
 		Def:     &fun,
-		Priv:    typ.Priv,
-		ModPath: typ.ModPath,
+		Priv:    recvType.Priv,
+		ModPath: recvType.ModPath,
 		Recv: &Recv{
-			// We clone the type parameters
-			// so they get their own distinct types.
-			// This probably doesn't matter,
-			// but when importing from the export format,
-			// they will get distinct types.
-			// This rids testing diffs.
-			Parms: cloneTypeParms(x, typ.Parms),
+			Parms: recvParms,
 			Mod:   modName(typ.ModPath),
 			Arity: len(typ.Parms),
 			Name:  typ.Name,
-			Type:  typ,
+			Type:  recvType,
 		},
 		Sig:     sig,
 		BuiltIn: VirtMeth,
@@ -326,6 +367,20 @@ func makeBlockType(x *scope, blk *Block) *Type {
 	}
 	typ.refDef = builtInType(x, "&", *makeTypeName(typ))
 	return typ
+}
+
+func instWithClonedParms(x *scope, typ *Type) ([]TypeVar, *Type) {
+	parms := cloneTypeParms(x, typ.Parms)
+	args := make([]TypeName, 0, len(typ.Parms))
+	for i := range parms {
+		args = append(args, *makeTypeName(parms[i].Type))
+	}
+	var errs []checkError
+	typ, errs = instType(x, typ, args)
+	if len(errs) > 0 {
+		panic(fmt.Sprintf("impossible: %v", errs))
+	}
+	return parms, typ
 }
 
 func cloneTypeParms(x *scope, parms0 []TypeVar) []TypeVar {

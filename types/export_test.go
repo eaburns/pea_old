@@ -232,6 +232,8 @@ func TestExportImport(t *testing.T) {
 				cmpopts.IgnoreFields(Mod{}, "SortedVals"),
 				cmpopts.IgnoreFields(Val{}, "Locals", "Init"),
 				cmpopts.IgnoreFields(Fun{}, "Insts"),
+				// TODO: implement exporting/importing statements.
+				cmpopts.IgnoreFields(Fun{}, "Stmts"),
 				cmpopts.IgnoreFields(Type{}, "Insts"),
 				// Outgoing Mod is set to whether the user typed it.
 				// Incoming Mod is set to the type's mod.
