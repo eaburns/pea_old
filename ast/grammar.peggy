@@ -415,21 +415,21 @@ UnaryMsg <- mod:ModName? i:Ident {
 	return Msg{location: i.location, Mod: mod, Sel: i.Text}
 }
 
-Binary <- r:( u:Unary { return Expr(u) } / Primary ) m:BinMsg {
+Binary <- r:( u:Unary { return Expr(u) } / Primary ) msgs:BinMsg+ {
 	s, _ := r.loc()
-	return &Call{
-		location: location{s, loc1(parser, end)},
-		Recv: r,
-		Msgs: []Msg{m},
+	recv := r
+	for _, msg := range msgs {
+		_, e := msg.loc()
+		recv = &Call{
+			location: location{s, e},
+			Recv: recv,
+			Msgs: []Msg{msg},
+		}
 	}
+	return recv.(*Call)
 }
 
-BinMsg <-
-	mod:ModName? n:Op a:(
-		b:Binary { return Expr(b) } /
-		u:Unary { return Expr(u) } /
-		Primary
-	) {
+BinMsg <- mod:ModName? n:Op a:( u:Unary { return Expr(u) } / Primary ) {
 	return Msg{
 		location: location{n.start, loc1(parser, end)},
 		Mod: mod,

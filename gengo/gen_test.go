@@ -1126,6 +1126,48 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "-42.25_43.25_41.25_84.5_21.125_true_false_false_true_false_true_42_42.25_",
 		},
+		{
+			name: "unary associativity",
+			src: `
+				func [main |
+					"" print1 print2 print3
+				]
+				meth String [print1 ^String | print: 1. ^""]
+				meth String [print2 ^String | print: 2. ^""]
+				meth String [print3 ^String | print: 3. ^""]
+			`,
+			stdout: "123",
+		},
+		{
+			name: "binary associativity",
+			src: `
+				func [main |
+					"" % 1 % 2 % 3
+				]
+				meth String [% i Int ^String | print: i. ^""]
+			`,
+			stdout: "123",
+		},
+		{
+			name: "binary associativity 2",
+			src: `
+				func [main |
+					print: 1 - 5 + 6
+				]
+			`,
+			stdout: "2",
+		},
+		{
+			name: "binary and unary precedence",
+			src: `
+				func [main |
+					"" print1 % 3
+				]
+				meth String [print1 ^Int | print: 1. ^2]
+				meth Int [% i Int | print: self. print: i]
+			`,
+			stdout: "123",
+		},
 	}
 	for _, test := range tests {
 		test := test

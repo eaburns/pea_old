@@ -212,3 +212,115 @@ func buildTypeNameString(n *TypeName, s *strings.Builder) {
 	}
 	s.WriteString(n.Name)
 }
+
+func (n *Ret) buildString(indent string, s *strings.Builder) {
+	s.WriteRune('^')
+	n.Expr.buildString(indent, s)
+}
+
+func (n *Assign) buildString(indent string, s *strings.Builder) {
+	for i, v := range n.Vars {
+		if i > 0 {
+			s.WriteString(", ")
+		}
+		s.WriteString(v.Name)
+		if v.Type != nil {
+			s.WriteRune(' ')
+			buildTypeNameString(v.Type, s)
+		}
+	}
+	s.WriteString(" := ")
+	n.Expr.buildString(indent, s)
+}
+
+func (n *Call) buildString(indent string, s *strings.Builder) {
+	if n.Recv != nil {
+		s.WriteRune('(')
+		n.Recv.buildString(indent, s)
+		s.WriteString(") ")
+	}
+	for i, msg := range n.Msgs {
+		if i > 0 {
+			s.WriteString("; ")
+		}
+		if msg.Mod != nil {
+			s.WriteString(msg.Mod.Text)
+			s.WriteRune(' ')
+		}
+		if len(msg.Args) == 0 {
+			s.WriteString(msg.Sel)
+			continue
+		}
+		keys := strings.SplitAfter(msg.Sel, ":")
+		for i, arg := range msg.Args {
+			if i > 0 {
+				s.WriteRune(' ')
+			}
+			s.WriteString(keys[i])
+			s.WriteString(" (")
+			arg.buildString(indent, s)
+			s.WriteRune(')')
+		}
+	}
+}
+
+func (n *Ctor) buildString(indent string, s *strings.Builder) {
+	s.WriteRune('{')
+	for i, arg := range n.Args {
+		if i > 0 {
+			s.WriteString("; ")
+		}
+		arg.buildString(indent, s)
+	}
+	s.WriteRune('}')
+}
+
+func (n *Block) buildString(indent string, s *strings.Builder) {
+	s.WriteRune('[')
+	for _, p := range n.Parms {
+		s.WriteString(p.Name)
+		if p.Type != nil {
+			s.WriteRune(' ')
+			buildTypeNameString(p.Type, s)
+			s.WriteRune(' ')
+		}
+	}
+	if len(n.Parms) > 0 {
+		s.WriteString("| ")
+	}
+	indentNext := indent + "\t"
+	for _, stmt := range n.Stmts {
+		s.WriteRune('\n')
+		s.WriteString(indent)
+		stmt.buildString(indentNext, s)
+	}
+	if len(n.Stmts) > 0 {
+		s.WriteRune('\n')
+		s.WriteString(indent)
+	}
+	s.WriteRune(']')
+}
+
+func (n *Ident) buildString(indent string, s *strings.Builder) {
+	if n.Mod != nil {
+		s.WriteString(n.Mod.Text)
+		s.WriteRune(' ')
+	}
+	s.WriteString(n.Text)
+}
+
+func (n *Int) buildString(indent string, s *strings.Builder) {
+	s.WriteString(n.Text)
+}
+
+func (n *Float) buildString(indent string, s *strings.Builder) {
+	s.WriteString(n.Text)
+}
+
+func (n *Rune) buildString(indent string, s *strings.Builder) {
+	s.WriteString(n.Text)
+}
+
+func (n *String) buildString(indent string, s *strings.Builder) {
+	s.WriteString(n.Text)
+}

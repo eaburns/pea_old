@@ -1,6 +1,8 @@
 // Package ast defines the syntax. It contains an AST and a parser.
 package ast
 
+import "strings"
+
 //go:generate peggy -t=false -o grammar.go grammar.peggy
 
 // A Mod is a module: the unit of compilation.
@@ -158,6 +160,7 @@ type Var struct {
 // A Stmt is a statement.
 type Stmt interface {
 	Node
+	buildString(string, *strings.Builder)
 }
 
 // A Ret is a return statement.
@@ -185,7 +188,7 @@ func (n *Assign) loc() (int, int) {
 
 // An Expr is an expression
 type Expr interface {
-	Node
+	Stmt
 	isExpr()
 }
 
