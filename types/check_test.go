@@ -1746,6 +1746,20 @@ func TestRetError(t *testing.T) {
 			`,
 			err: "return outside of a function or method",
 		},
+		{
+			name: "bad return type",
+			src: `
+				func [foo ^Int | ^"string"]
+			`,
+			err: "type mismatch: have String, want Int",
+		},
+		{
+			name: "return from no-return fun",
+			src: `
+				func [foo | ^"string"]
+			`,
+			err: "type mismatch: have String, want Nil",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

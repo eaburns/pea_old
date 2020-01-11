@@ -698,6 +698,8 @@ func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
 		errs = append(errs, *err)
 	} else if fun.Sig.Ret != nil {
 		want = fun.Sig.Ret.Type
+	} else {
+		want = builtInType(x, "Nil")
 	}
 	expr, es := checkExpr(x, want, astRet.Expr)
 	return &Ret{AST: astRet, Expr: expr}, append(errs, es...)
