@@ -1139,6 +1139,22 @@ func TestWriteMod(t *testing.T) {
 			stdout: "123",
 		},
 		{
+			// This test is to catch a bug regression
+			// found writing the initial implemention
+			// of the "unary associativity" test above.
+			// There was a crash with a nil receiver.
+			name: "call on nil receiver",
+			src: `
+				func [main |
+					"" print1 print2 print3
+				]
+				meth String [print1 | print: 1]
+				meth Nil [print2 | print: 2]
+				meth Nil [print3 | print: 3]
+			`,
+			stdout: "123",
+		},
+		{
 			name: "binary associativity",
 			src: `
 				func [main |

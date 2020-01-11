@@ -519,6 +519,29 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "empty-type receiver method call",
+			src: `
+				func [main |
+					n Nil := {}.
+					n foo.
+				]
+				meth Nil [foo]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						$0 := alloc(Nil)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						call function1()
+						return
+			`,
+		},
+		{
 			name: "pass by value",
 			src: `
 				func [foo: s String& | f: s]

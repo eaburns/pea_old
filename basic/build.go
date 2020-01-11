@@ -390,7 +390,7 @@ func buildCall(f *Fun, b *BBlk, call *types.Call) (Val, *BBlk) {
 func buildMsg(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 	var i int
 	var args []Val
-	if recv != nil {
+	if recv != nil && !EmptyType(recv.Type().Args[0].Type) {
 		args = append(args, recv)
 		i++
 	}
@@ -616,6 +616,9 @@ func buildOrCtor(f *Fun, b *BBlk, ctor *types.Ctor) (Val, *BBlk) {
 func buildConvert(f *Fun, b *BBlk, convert *types.Convert) Val {
 	switch val, b := buildExpr(f, b, convert.Expr); {
 	case convert.Ref > 0:
+		if val == nil {
+			return nil
+		}
 		if !SimpleType(convert.Expr.Type()) {
 			// Non-simple types are already a reference.
 			return val
