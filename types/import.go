@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/eaburns/pea/ast"
 )
@@ -67,6 +68,9 @@ func (ir *SourceImporter) Import(cfg Config, path string) ([]Def, error) {
 	}
 	p := ast.NewParser(path)
 	for _, fi := range finfos {
+		if !strings.HasSuffix(fi.Name(), ".pea") {
+			continue
+		}
 		err := p.ParseFile(filepath.Join(path, fi.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("error parsing import %s:\n%v", path, err)
