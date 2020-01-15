@@ -48,10 +48,15 @@ func (ir *importer) Import(cfg Config, path string) ([]Def, error) {
 	return defs, nil
 }
 
-type dirImporter struct{}
+// SourceImporter imports modules from their source code.
+type SourceImporter struct {
+	// Root is the root directory prepended to module paths.
+	Root string
+}
 
-func (ir *dirImporter) Import(cfg Config, path string) ([]Def, error) {
-	f, err := os.Open(path)
+// Import implemements the Importer interface.
+func (ir *SourceImporter) Import(cfg Config, path string) ([]Def, error) {
+	f, err := os.Open(filepath.Join(ir.Root, path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s: %s", path, err)
 	}

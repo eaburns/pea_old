@@ -84,7 +84,7 @@ func setConfigDefaults(x *state) {
 		panic("bad IntSize " + strconv.Itoa(x.cfg.IntSize))
 	}
 	if x.cfg.Importer == nil {
-		x.cfg.Importer = &dirImporter{}
+		x.cfg.Importer = &SourceImporter{}
 	}
 	if _, ok := x.cfg.Importer.(*importer); !ok {
 		x.cfg.Importer = newImporter(x, x.astMod.Path, x.cfg.Importer)
