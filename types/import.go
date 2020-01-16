@@ -56,8 +56,9 @@ type SourceImporter struct {
 }
 
 // Import implemements the Importer interface.
-func (ir *SourceImporter) Import(cfg Config, path string) ([]Def, error) {
-	f, err := os.Open(filepath.Join(ir.Root, path))
+func (ir *SourceImporter) Import(cfg Config, modPath string) ([]Def, error) {
+	path := filepath.Join(ir.Root, modPath)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s: %s", path, err)
 	}
@@ -66,7 +67,7 @@ func (ir *SourceImporter) Import(cfg Config, path string) ([]Def, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %s", path, err)
 	}
-	p := ast.NewParser(path)
+	p := ast.NewParser(modPath)
 	for _, fi := range finfos {
 		if !strings.HasSuffix(fi.Name(), ".pea") {
 			continue
