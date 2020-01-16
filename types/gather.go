@@ -117,26 +117,12 @@ func gatherFun(x *scope, def *Fun) (errs []checkError) {
 		def.Sig.Parms[i].FunParm = def
 		def.Sig.Parms[i].Index = i
 	}
-
-	if def.Recv != nil {
-		for i := range def.Recv.Parms {
-			tvar := &def.Recv.Parms[i]
-			if tvar.Name != "_" && !x.tvarUse[tvar] {
-				err := x.err(tvar, "%s defined and not used", tvar.Name)
-				errs = append(errs, *err)
-			}
-		}
-	}
 	for i := range def.TParms {
 		tvar := &def.TParms[i]
 		if tvar.Name == "_" {
 			err := x.err(tvar, "illegal function type variable name")
 			errs = append(errs, *err)
 			continue
-		}
-		if !x.tvarUse[tvar] {
-			err := x.err(tvar, "%s defined and not used", tvar.Name)
-			errs = append(errs, *err)
 		}
 	}
 	return errs

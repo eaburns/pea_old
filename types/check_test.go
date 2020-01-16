@@ -951,6 +951,22 @@ func TestFuncDef(t *testing.T) {
 			`,
 			err: "illegal function type variable name",
 		},
+		{
+			name: "func type variable only used in statements",
+			src: `
+				func T [foo | bar: [:_ T|] ]
+				func T [bar: _ (T, Nil) Fun]
+			`,
+			err: "",
+		},
+		{
+			name: "receiver type variable only used in statements",
+			src: `
+				meth T Array [foo | bar: [:_ T|]]
+				func T [bar: _ (T, Nil) Fun]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

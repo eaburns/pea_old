@@ -473,7 +473,25 @@ func checkFun(x *scope, def *Fun) (errs []checkError) {
 		def.Stmts = []Stmt{}
 	}
 
-	return append(errs, checkFunRet(x, def)...)
+	errs = append(errs, checkFunRet(x, def)...)
+
+	if def.Recv != nil {
+		for i := range def.Recv.Parms {
+			tvar := &def.Recv.Parms[i]
+			if tvar.Name != "_" && !x.tvarUse[tvar] {
+				err := x.err(tvar, "%s defined and not used", tvar.Name)
+				errs = append(errs, *err)
+			}
+		}
+	}
+	for i := range def.TParms {
+		tvar := &def.TParms[i]
+		if !x.tvarUse[tvar] {
+			err := x.err(tvar, "%s defined and not used", tvar.Name)
+			errs = append(errs, *err)
+		}
+	}
+	return errs
 }
 
 func checkFunRet(x *scope, fun *Fun) []checkError {
@@ -1445,7 +1463,7 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 		var es []checkError
 		parm.TypeName, es = gatherTypeName(x, astParm.Type)
 		errs = append(errs, es...)
-		errs = append(errs, instTypeName(x, parm.TypeName)...)
+		errs = append(errs, checkTypeName(x, parm.TypeName)...)
 		parm.typ = parm.TypeName.Type
 	}
 
