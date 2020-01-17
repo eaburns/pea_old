@@ -199,16 +199,13 @@ func copyForInline(src, dst *Fun, bRet *BBlk, caps, args []Val) []*BBlk {
 					// Ret to be in a position other than final.
 					panic("impossible")
 				}
-				if caps != nil && s.Far {
-					// This is a block literal inlining,
-					// change a far return to a normal.
-					s.Far = false
+				if s.Far {
+					// Inlining a block literal into a function
+					// changes a far return into a normal return.
+					s.Far = dst.Block != nil
 					continue
 				}
 				s.delete()
-				// Since we are at the end, addJmp will
-				// append the Jmp at the end of the block,
-				// after the Ret that we just deleted.
 				addJmp(b, bRet)
 			case *Arg:
 				s.value().n = n

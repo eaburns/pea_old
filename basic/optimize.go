@@ -52,6 +52,11 @@ func optimize(f *Fun) {
 	// none of the above passes triggered.
 	cleanUp(f)
 	f.CanInline = canInline(f) && (hasFunParm(f) || !inlinedCall)
+
+	if f.Block == nil && f.CanFarRet {
+		// We may have removed the far ret, so re-scan for it.
+		f.CanFarRet = canFarRet(f)
+	}
 }
 
 func hasFunParm(f *Fun) bool {
@@ -59,6 +64,32 @@ func hasFunParm(f *Fun) bool {
 		if p.Type.BuiltIn == types.RefType &&
 			p.Type.Args[0].Type.BuiltIn == types.FunType {
 			return true
+		}
+	}
+	return false
+}
+
+func canFarRet(f *Fun) bool {
+	for _, b := range f.BBlks {
+		for _, s := range b.Stmts {
+			ma, ok := s.(*MakeAnd)
+			if !ok || ma.BlockFun == nil {
+				continue
+			}
+			if hasFarRet(ma.BlockFun) || canFarRet(ma.BlockFun) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasFarRet(f *Fun) bool {
+	for _, b := range f.BBlks {
+		for _, s := range b.Stmts {
+			if r, ok := s.(*Ret); ok && r.Far {
+				return true
+			}
 		}
 	}
 	return false

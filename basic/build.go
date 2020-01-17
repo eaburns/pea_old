@@ -94,6 +94,9 @@ func buildFun(mod *Mod, typesFun *types.Fun) *Fun {
 	f := newFun(mod, typesFun.Recv != nil, typesFun.Sig.Parms, ret)
 	f.Fun = typesFun
 	buildFunBody(f, f.Parms, typesFun.Locals, typesFun.Stmts)
+	if f.Block == nil {
+		f.CanFarRet = canFarRet(f)
+	}
 	return f
 }
 
@@ -269,7 +272,9 @@ func buildRet(f *Fun, b *BBlk, typesRet *types.Ret) *BBlk {
 	}
 	ret := addRet(b)
 	ret.Ret = typesRet
-	ret.Far = f.Block != nil
+	if f.Block != nil {
+		ret.Far = true
+	}
 	return b
 }
 
@@ -705,10 +710,12 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 		args = append(args, ret)
 	}
 
-	blk := addAlloc(f, b, block.BlockType)
-	addMakeAnd(b, blk, args)
-
 	fun := buildBlockFun(f.Mod, f.Fun, block)
+
+	blk := addAlloc(f, b, block.BlockType)
+	obj := addMakeAnd(b, blk, args)
+	obj.BlockFun = fun
+
 	virt := addAlloc(f, b, block.Type())
 	addStmt(b, &MakeVirt{Dst: virt, Obj: blk, Virts: []*Fun{fun}})
 	return virt

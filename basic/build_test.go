@@ -3,6 +3,8 @@ package basic
 import (
 	"bufio"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -2283,4 +2285,88 @@ func trimLeadingTestIndent(src string) string {
 		panic(err.Error())
 	}
 	return strings.TrimSpace(s.String())
+}
+
+func TestHasFarRet(t *testing.T) {
+	tests := []struct {
+		src    string
+		has    []string
+		hasOpt []string
+	}{
+		{
+			src:    `func [foo |]`,
+			has:    nil,
+			hasOpt: nil,
+		},
+		{
+			src:    `func [foo ^Int | ^5]`,
+			has:    nil,
+			hasOpt: nil,
+		},
+		{
+			src:    `func [foo ^Int | ^[1 + 1] value]`,
+			has:    nil,
+			hasOpt: nil,
+		},
+		{
+			src:    `func [foo ^Int | [^1 + 1] value. ^2]`,
+			has:    []string{"function0"},
+			hasOpt: nil,
+		},
+		{
+			src:    `func [foo ^Int | [[[^1 + 1] value] value] value. ^2]`,
+			has:    []string{"function0"},
+			hasOpt: nil,
+		},
+		{
+			src: `
+				func [foo ^Int |
+					x := [^3].
+					true ifTrue: [x := [^2]] ifFalse: [].
+					x value.
+					^2.
+				]`,
+			has: []string{"function0"},
+			// Since the blocks calls cannot be inlined,
+			// these keep the far ret even after optimization.
+			hasOpt: []string{"function0"},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.src, func(t *testing.T) {
+			p := ast.NewParser("#test")
+			if err := p.Parse("", strings.NewReader(test.src)); err != nil {
+				t.Fatalf("failed to parse: %v", err)
+			}
+			typesMod, errs := types.Check(p.Mod(), types.Config{})
+			if len(errs) > 0 {
+				t.Fatalf("failed to check: %v", errs)
+			}
+			basicMod := Build(typesMod)
+
+			var has []string
+			for _, f := range basicMod.Funs {
+				if f.CanFarRet {
+					has = append(has, f.name())
+				}
+			}
+			sort.Strings(has)
+			if !reflect.DeepEqual(test.has, has) {
+				t.Errorf("unopt: got %v, want %v", has, test.has)
+			}
+
+			Optimize(basicMod)
+			has = nil
+			for _, f := range basicMod.Funs {
+				if f.CanFarRet {
+					has = append(has, f.name())
+				}
+			}
+			sort.Strings(has)
+			if !reflect.DeepEqual(test.hasOpt, has) {
+				t.Errorf("opt: got %v, want %v", has, test.has)
+			}
+		})
+	}
 }

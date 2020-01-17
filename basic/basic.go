@@ -129,6 +129,7 @@ type Fun struct {
 	Ret       *Parm // return parameter
 	BBlks     []*BBlk
 	CanInline bool
+	CanFarRet bool
 
 	Fun   *types.Fun
 	Block *types.Block
@@ -341,6 +342,8 @@ type MakeAnd struct {
 	Ctor *types.Ctor
 	// Block is non-nil if this originated from a block literal.
 	Block *types.Block
+	// BlockFun is the *Fun of the block.
+	BlockFun *Fun
 }
 
 func (n *MakeAnd) Uses() []Val {
