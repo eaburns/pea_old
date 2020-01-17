@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"sort"
 	"strings"
+	"text/template"
 
 	"github.com/eaburns/pea/basic"
 	"github.com/eaburns/pea/types"
@@ -61,7 +62,21 @@ var cmpOps = map[basic.OpCode]string{
 
 const header = `package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"sync/atomic"
+)
+
+var tokenCounter int64
+
+type retToken int64
+
+func nextToken() retToken {
+	return retToken(atomic.AddInt64(&tokenCounter, 1))
+}
+
+func use(interface{}) {}
 
 func F1___0_String__main__print_3A__(x *[]byte) {
 	fmt.Printf("%v", string(*x))
@@ -89,6 +104,25 @@ func F1___0_Float32__main__print_3A__(x float32) {
 }
 func F1___0_Bool__main__print_3A__(x uint8) {
 	fmt.Printf("%v", x == 1)
+}
+`
+
+var mainTemplate = `
+func main() {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		if _, ok := r.(retToken); !ok {
+			panic(r)
+		}
+		os.Stderr.WriteString("far return from a different stack\n")
+	}()
+	{{range .Inits -}}
+	{{.}}()
+	{{end -}}
+	F0_main__main__()
 }
 `
 
@@ -128,15 +162,11 @@ func MergeMods(w io.Writer, rs []io.Reader) error {
 			}
 		}
 	}
-	if _, err := io.WriteString(w, "func main() {"); err != nil {
-		return err
+	t, err := template.New("main").Parse(mainTemplate)
+	if err != nil {
+		panic(err)
 	}
-	for _, init := range inits {
-		if _, err := fmt.Fprintf(w, "\n\t%s()", init); err != nil {
-			return err
-		}
-	}
-	if _, err := io.WriteString(w, "\n\tF0_main__main__()\n}\n"); err != nil {
+	if err := t.Execute(w, map[string]interface{}{"Inits": inits}); err != nil {
 		return err
 	}
 	return nil
@@ -273,6 +303,12 @@ func genAndTypeDef(typ *types.Type, ts typeSet, s *strings.Builder) {
 		s.WriteRune(' ')
 		genTypeName(field.Type(), ts, s)
 	}
+	if typ.BuiltIn == types.BlockType {
+		// Add a field to store the far-return token
+		// used to match a possible far return with
+		// the function that must catch it.
+		s.WriteString("\ntoken retToken\n")
+	}
 	s.WriteString("\n}\n")
 }
 
@@ -343,6 +379,19 @@ func genVirtSig(virt *types.FunSig, ts typeSet, s *strings.Builder) int {
 	return i
 }
 
+const catchFarRet = `	token := nextToken()
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		tok, ok := r.(retToken)
+		if !ok || tok != token {
+			panic(r)
+		}
+	}()
+`
+
 func genFunDef(f *basic.Fun, ts typeSet, s *strings.Builder) {
 	if f.Fun != nil && f.Block == nil {
 		fmt.Fprintf(s, "// %s\n", f.Fun)
@@ -352,6 +401,14 @@ func genFunDef(f *basic.Fun, ts typeSet, s *strings.Builder) {
 	s.WriteRune('(')
 	genFunParms(f, ts, s)
 	s.WriteString(") {\n")
+	switch {
+	case f.CanFarRet:
+		s.WriteString(catchFarRet)
+	case f.Block != nil:
+		s.WriteString("token := p0.token\n\tuse(token)\n")
+	default:
+		s.WriteString("var token retToken\n\tuse(token)\n")
+	}
 	genFunBody(f, ts, s)
 	s.WriteString("}\n")
 }
@@ -424,7 +481,7 @@ func genStmt(stmt basic.Stmt, ts typeSet, s *strings.Builder) {
 	case *basic.VirtCall:
 		genVirtCall(stmt, s)
 	case *basic.Ret:
-		s.WriteString("return")
+		genRet(stmt, s)
 	case *basic.Jmp:
 		fmt.Fprintf(s, "goto L%d", stmt.Dst.N)
 	case *basic.Switch:
@@ -481,6 +538,9 @@ func genMakeAnd(stmt *basic.MakeAnd, ts typeSet, s *strings.Builder) {
 			deref = "*"
 		}
 		fmt.Fprintf(s, "%s: %sx%d, ", fieldName(typ, i), deref, val.Num())
+	}
+	if stmt.BlockFun != nil {
+		s.WriteString("token: token, ")
 	}
 	s.WriteRune('}')
 }
@@ -546,6 +606,14 @@ func genVirtCall(stmt *basic.VirtCall, s *strings.Builder) {
 		fmt.Fprintf(s, "x%d", arg.Num())
 	}
 	s.WriteRune(')')
+}
+
+func genRet(stmt *basic.Ret, s *strings.Builder) {
+	if stmt.Far {
+		s.WriteString("panic(p0.token)")
+	} else {
+		s.WriteString("return")
+	}
 }
 
 func genSwitch(stmt *basic.Switch, s *strings.Builder) {

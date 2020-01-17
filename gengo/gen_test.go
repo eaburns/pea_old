@@ -22,6 +22,7 @@ func TestWriteMod(t *testing.T) {
 		name    string
 		src     string
 		stdout  string
+		stderr  string
 		imports [][2]string
 	}{
 		{
@@ -1202,6 +1203,125 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "123",
 		},
+		{
+			name: "far return probably inlined",
+			src: `
+				func [main | print: num]
+				func [num ^Int | [^42] value. ^43]
+			`,
+			stdout: "42",
+		},
+		{
+			name: "far far return probably inlined",
+			src: `
+				func [main |print: num]
+				func [num ^Int | value3: [^42]. ^43]
+				func [value3: f Nil Fun | value2: f]
+				func [value2: f Nil Fun | value1: f]
+				func [value1: f Nil Fun | f value]
+			`,
+			stdout: "42",
+		},
+		{
+			name: "far return probably not inlined",
+			src: `
+				func [main | print: num]
+				func [num ^Int |
+					f := [^43].
+					true ifTrue: [f := [^42]] ifFalse: [].
+					f value.
+					^44
+				]
+			`,
+			stdout: "42",
+		},
+		{
+			name: "far far return probably not inlined",
+			src: `
+				func [main |print: num]
+				func [num ^Int |
+					f := [^43].
+					true ifTrue: [f := [^42]] ifFalse: [].
+					value3: f.
+					^44
+				]
+				func [value3: f Nil Fun | value2: f]
+				func [value2: f Nil Fun | value1: f]
+				func [value1: f Nil Fun | f value]
+			`,
+			stdout: "42",
+		},
+		{
+			name: "far return on different stack",
+			src: `
+				// TODO: fix Fun-type vals
+				// This is needlessly complex because there is a bug
+				// where the init function of Fun-type vals
+				// takes a parameter, which it should not.
+				val xyz Xyz := [makeXyz]
+				type Xyz {f: Nil Fun}
+				meth Xyz [f: ff Nil Fun | f := ff]
+				meth Xyz [f ^Nil Fun | ^f]
+				func [makeXyz ^Xyz | ^{f: []}]
+
+				func [main |
+					// TODO: allow unused function returns.
+					// There is a bug in gengo that will complain
+					// if we don't use the return of foo here.
+					// So just print it for now so that it's used.
+					print: foo.
+					xyz f value.
+				]
+
+				func [foo ^Int |
+					xyz f: [^42].
+					^0.
+				]
+			`,
+			stdout: "0",
+			stderr: "far return from a different stack\n",
+		},
+		{
+			name: "binary tree traversal far return",
+			src: `
+				func [main |
+					t Tree := {
+						x: 5
+						left: (x: 1 left: (x: 0) right: (x: 2))
+						right: (x: 43 left: (x: 42) right: (x: 44))
+					}.
+					(greaterThan40: t)
+						ifNone: [print: "none"]
+						ifSome: [:i | print: i].
+				]
+
+				func [greaterThan40: t Tree& ^Int? |
+					t do: [:i | i > 40 ifTrue: [^some: i] ifFalse: []].
+					^none
+				]
+
+				type T? {none | some: T}
+				func T [none ^T? | ^{none}]
+				func T [some: t T ^T? | ^{some: t}]
+
+				type Tree {x: Int left: Tree& ? right: Tree& ?}
+
+				func [x: i Int ^Tree& ? |
+					^some: {x: i left: none right: none}
+				]
+
+				func [x: i Int left: l Tree& ? right: r Tree& ? ^Tree& ? |
+					^some: {x: i left: l right: r}
+				]
+
+				meth Tree [do: f (Int, Nil) Fun |
+					left ifNone: [] ifSome: [:l | l do: f].
+					f value: x.
+					right ifNone: [] ifSome: [:l | l do: f].
+				]
+			`,
+			stdout: "42",
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -1215,12 +1335,15 @@ func TestWriteMod(t *testing.T) {
 			if len(errs) > 0 {
 				t.Fatalf("failed to compile: %v", errs)
 			}
-			stdout, err := run(mods)
+			stdout, stderr, err := run(mods)
 			if err != nil {
 				t.Fatalf("failed to run: %v", err)
 			}
 			if stdout != test.stdout {
-				t.Fatalf("got [%s], want [%s]", stdout, test.stdout)
+				t.Errorf("stdout: got [%s], want [%s]", stdout, test.stdout)
+			}
+			if stderr != test.stderr {
+				t.Errorf("stderr: got [%s], want [%s]", stderr, test.stderr)
 			}
 		})
 	}
@@ -1262,29 +1385,30 @@ func compileAll(src string, imports ...[2]string) ([]*basic.Mod, []error) {
 	return mods, nil
 }
 
-func run(mods []*basic.Mod) (string, error) {
+func run(mods []*basic.Mod) (string, string, error) {
 	var writtenMods []io.Reader
 	for _, mod := range mods {
 		var b bytes.Buffer
 		if err := WriteMod(&b, mod); err != nil {
-			return "", err
+			return "", "", err
 		}
 		writtenMods = append(writtenMods, &b)
 	}
 	f, err := ioutil.TempFile("", "gengo_test_*.go")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if err := MergeMods(f, writtenMods); err != nil {
-		return "", err
+		return "", "", err
 	}
 	path := f.Name()
 	if err := f.Close(); err != nil {
-		return "", err
+		return "", "", err
 	}
 	cmd := exec.Command("go", "run", path)
-	var stdOut bytes.Buffer
+	var stdOut, stdErr bytes.Buffer
 	cmd.Stdout = &stdOut
+	cmd.Stderr = &stdErr
 	runErr := cmd.Run()
 	rmErr := os.Remove(path)
 	if runErr != nil {
@@ -1292,17 +1416,17 @@ func run(mods []*basic.Mod) (string, error) {
 		for _, mod := range mods {
 			var b bytes.Buffer
 			if err := WriteMod(&b, mod); err != nil {
-				return "", err
+				return "", "", err
 			}
 			writtenMods = append(writtenMods, &b)
 		}
 		MergeMods(os.Stderr, writtenMods)
-		return "", runErr
+		return "", "", runErr
 	}
 	if rmErr != nil {
-		return "", rmErr
+		return "", "", rmErr
 	}
-	return stdOut.String(), nil
+	return stdOut.String(), stdErr.String(), nil
 }
 
 type testImporter [][2]string
