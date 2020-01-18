@@ -41,14 +41,16 @@ func caseName(typ *types.Type, i int) string {
 
 func mangleFun(f *basic.Fun, s *strings.Builder) *strings.Builder {
 	switch {
-	case f.Fun == nil:
-		mangleMod(f.Mod.Mod.Path, s)
-		s.WriteString("init")
+	case f.Val != nil:
+		fmt.Fprintf(s, "init__%s", valName(f.Val))
 	case f.Block != nil:
 		mangleMod(f.Fun.ModPath, s)
 		fmt.Fprintf(s, "block%d", f.N)
-	default:
+	case f.Fun != nil:
 		mangleTypesFun(f.Mod.Mod.Path, f.Fun, s)
+	default:
+		mangleMod(f.Mod.Mod.Path, s)
+		s.WriteString("init")
 	}
 	return s
 }

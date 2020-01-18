@@ -366,6 +366,24 @@ func TestWriteMod(t *testing.T) {
 			stdout: "42\n43",
 		},
 		{
+			// This is to catch a regression
+			// where non-inlined module variable init functions
+			// were not being generated.
+			name: "module variable init calls a function",
+			src: `
+				func [main |
+					print: fourtyTwo.
+					print: "\n".
+					print: fourtyThree.
+				]
+				// The calls here prevent inlining.
+				val fourtyTwo := [self: 42]
+				val fourtyThree := [self: 43]
+				func [self: i Int ^Int | ^i]
+			`,
+			stdout: "42\n43",
+		},
+		{
 			name: "virtual",
 			src: `
 				func [main |
