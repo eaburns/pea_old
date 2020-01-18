@@ -14,6 +14,9 @@ echo gofmt
 gofmt -s -l $(find . -name '*.go') > $o 2>&1
 test $(wc -l $o | awk '{ print $1 }') = "0" || fail
 
+echo go test
+go test -test.timeout=60s ./... > $o 2>&1 || fail
+
 echo govet
 go vet ./... > $o 2>&1 || fail
 
@@ -48,9 +51,6 @@ e=$(mktemp tmp.XXXXXXXXXX)
 touch $e
 diff $o $e > /dev/null || { rm $e; fail; }
 rm $e
-
-echo go test
-go test -test.timeout=60s ./... > $o 2>&1 || fail
 
 echo golint
 golint ./... \
