@@ -100,10 +100,11 @@ func buildFun(mod *Mod, typesFun *types.Fun) *Fun {
 	return f
 }
 
-func buildBlockFun(mod *Mod, fun *types.Fun, block *types.Block) *Fun {
+func buildBlockFun(mod *Mod, src *Fun, block *types.Block) *Fun {
 	ret := block.Type().Args[len(block.Type().Args)-1].Type
 	f := newFun(mod, false, block.Parms, ret)
-	f.Fun = fun
+	f.Fun = src.Fun
+	f.Val = src.Val
 	f.Block = block
 
 	// Blocks always begin with a self parameter. Stick one on here.
@@ -698,6 +699,9 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 
 	// Store the far-return location as the last field of the block literal.
 	switch {
+	case f.Val != nil:
+		// This is a Val initialization; there is no return.
+		break
 	case f.Block == nil && f.Ret != nil:
 		args = append(args, addArg(f, b, f.Ret))
 	case f.Block != nil && f.Fun.Sig.Ret != nil:
@@ -710,7 +714,7 @@ func buildBlockLit(f *Fun, b *BBlk, block *types.Block) Val {
 		args = append(args, ret)
 	}
 
-	fun := buildBlockFun(f.Mod, f.Fun, block)
+	fun := buildBlockFun(f.Mod, f, block)
 
 	blk := addAlloc(f, b, block.BlockType)
 	obj := addMakeAnd(b, blk, args)

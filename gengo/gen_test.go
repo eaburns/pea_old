@@ -1254,15 +1254,7 @@ func TestWriteMod(t *testing.T) {
 		{
 			name: "far return on different stack",
 			src: `
-				// TODO: fix Fun-type vals
-				// This is needlessly complex because there is a bug
-				// where the init function of Fun-type vals
-				// takes a parameter, which it should not.
-				val xyz Xyz := [makeXyz]
-				type Xyz {f: Nil Fun}
-				meth Xyz [f: ff Nil Fun | f := ff]
-				meth Xyz [f ^Nil Fun | ^f]
-				func [makeXyz ^Xyz | ^{f: []}]
+				val f Nil Fun := [[]]
 
 				func [main |
 					// TODO: allow unused function returns.
@@ -1270,11 +1262,11 @@ func TestWriteMod(t *testing.T) {
 					// if we don't use the return of foo here.
 					// So just print it for now so that it's used.
 					print: foo.
-					xyz f value.
+					f value.
 				]
 
 				func [foo ^Int |
-					xyz f: [^42].
+					f := [^42].
 					^0.
 				]
 			`,
