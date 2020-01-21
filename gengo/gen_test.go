@@ -1314,6 +1314,24 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "42",
 		},
+		{
+			name: "do not inline far return function",
+			src: `
+				val f Nil Fun := [[]]
+
+				func [main |
+					print: foo
+				]
+
+				func [foo ^Int |
+					f := [^0].
+					f := [^42].
+					f value.
+					^0
+				]
+			`,
+			stdout: "42",
+		},
 	}
 	for _, test := range tests {
 		test := test

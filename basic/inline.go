@@ -5,6 +5,12 @@ import (
 )
 
 func canInline(f *Fun) bool {
+	if f.CanFarRet {
+		// We do not inline functions that can far return,
+		// so codegen only needs to insert a far return catch
+		// in function premables, not internal to a function body.
+		return false
+	}
 	for _, b := range f.BBlks {
 		for _, s := range b.Stmts {
 			if s.deleted() {
