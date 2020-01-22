@@ -8,13 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/eaburns/pea/ast"
 	"github.com/eaburns/pea/basic"
 	"github.com/eaburns/pea/gengo"
+	"github.com/eaburns/pea/mod"
 	"github.com/eaburns/pea/types"
 )
 
@@ -34,8 +34,13 @@ func main() {
 		os.Exit(1)
 	}
 	srcPath := flag.Args()[0]
-	root := depGraph(srcPath, *modPath)
-	for _, m := range sortedTransitiveDeps(root) {
+	root, err := mod.NewMod(srcPath, *modPath, mod.Config{
+		ImportRootDir: *modRoot,
+	})
+	if err != nil {
+		die("failed to load module", err)
+	}
+	for _, m := range mod.TopologicalDeps(root) {
 		compile(m)
 	}
 	if *modPath == "main" {
@@ -43,141 +48,27 @@ func main() {
 	}
 }
 
-type mod struct {
-	modPath string
-	srcPath string
-	// srcDir may differ from srcPath for the root module
-	// if the root module is given as a .peago file, not a directory.
-	srcDir   string
-	srcFiles []string
-	objFile  string
-
-	deps []*mod
-}
-
-func newMod(srcPath, modPath string) *mod {
-	srcPath = realPath(srcPath)
-	srcFiles, srcDir := srcFiles(srcPath)
-	objFile := filepath.Join(srcDir, filepath.Base(srcDir)+".peago")
-	return &mod{
-		modPath:  modPath,
-		srcPath:  srcPath,
-		srcDir:   srcDir,
-		srcFiles: srcFiles,
-		objFile:  objFile,
-	}
-}
-
-func srcFiles(srcPath string) ([]string, string) {
-	srcFile, err := os.Open(srcPath)
-	if err != nil {
-		die("failed to open the source path", err)
-	}
-	defer srcFile.Close()
-	stat, err := srcFile.Stat()
-	if err != nil {
-		die("failed to stat", err)
-	}
-	if !stat.IsDir() {
-		return []string{srcPath}, filepath.Dir(srcPath)
-	}
-	finfos, err := srcFile.Readdir(-1)
-	if err != nil {
-		die("failed to read the source directory", err)
-	}
-	var paths []string
-	for _, finfo := range finfos {
-		if !strings.HasSuffix(finfo.Name(), ".pea") {
-			continue
-		}
-		path := filepath.Join(srcPath, finfo.Name())
-		paths = append(paths, path)
-	}
-	return paths, srcPath
-}
-
-func sortedTransitiveDeps(root *mod) []*mod {
-	var sorted []*mod
-	seen := make(map[*mod]bool)
-	var add func(*mod)
-	add = func(m *mod) {
-		if seen[m] {
-			return
-		}
-		seen[m] = true
-		for _, d := range m.deps {
-			add(d)
-		}
-		sorted = append(sorted, m)
-	}
-	add(root)
-	return sorted
-}
-
-func depGraph(srcPath, modPath string) *mod {
-	seen := make(map[string]*mod)
-	root := newMod(srcPath, modPath)
-	seen[modPath] = root
-	var addDeps func(*mod)
-	addDeps = func(m *mod) {
-		for _, depFile := range deps(m.srcFiles) {
-			if d, ok := seen[depFile]; ok {
-				m.deps = append(m.deps, d)
-				continue
-			}
-			d := newMod(filepath.Join(*modRoot, depFile), depFile)
-			m.deps = append(m.deps, d)
-			seen[depFile] = d
-			addDeps(d)
-		}
-	}
-	addDeps(root)
-	return root
-}
-
-func deps(srcFiles []string) []string {
-	var deps []string
-	for _, file := range srcFiles {
-		f, err := os.Open(file)
-		if err != nil {
-			die("failed to open source file", err)
-		}
-		ds, err := ast.ReadImports(bufio.NewReader(f))
-		if err != nil {
-			die("failed to read imports", err)
-		}
-		f.Close()
-		deps = append(deps, ds...)
-	}
-
-	sort.Strings(deps)
-
-	var i int
-	for _, d := range deps {
-		if i == 0 || d != deps[i-1] {
-			deps[i] = d
-			i++
-		}
-	}
-	return deps[:i]
-}
-
-func compile(m *mod) {
-	if !*force && lastModTime(m.srcFiles).Before(modTime(m.objFile)) {
-		vprintf("ok %s\n", m.modPath)
+func compile(m *mod.Mod) {
+	objFile := objFile(m)
+	if !*force && lastModTime(m.SrcFiles).Before(modTime(objFile)) {
+		vprintf("ok %s\n", m.ModPath)
 		return
 	}
-	vprintf("building %s\n", m.modPath)
+	vprintf("building %s\n", m.ModPath)
 	astMod := parse(m)
 	typesMod := check(astMod)
 	basicMod := basic.Build(typesMod)
 	basic.Optimize(basicMod)
-	writeObj(basicMod, m.objFile)
+	writeObj(basicMod, objFile)
 }
 
-func parse(m *mod) *ast.Mod {
-	p := ast.NewParser(m.modPath)
-	for _, srcFile := range m.srcFiles {
+func objFile(m *mod.Mod) string {
+	return filepath.Join(m.SrcDir, m.ModName+".peago")
+}
+
+func parse(m *mod.Mod) *ast.Mod {
+	p := ast.NewParser(m.ModPath)
+	for _, srcFile := range m.SrcFiles {
 		if err := p.ParseFile(srcFile); err != nil {
 			die("", err)
 		}
@@ -185,9 +76,14 @@ func parse(m *mod) *ast.Mod {
 	return p.Mod()
 }
 
+var testFileRegexp = regexp.MustCompile(".*_test.pea$")
+
 func check(astMod *ast.Mod) *types.Mod {
 	typesMod, errs := types.Check(astMod, types.Config{
-		Importer: &types.SourceImporter{Root: *modRoot},
+		Importer: &types.SourceImporter{
+			Root:   *modRoot,
+			Ignore: testFileRegexp,
+		},
 	})
 	if len(errs) > 0 {
 		for _, err := range errs {
@@ -216,10 +112,10 @@ func writeObj(basicMod *basic.Mod, objFile string) {
 	}
 }
 
-func link(m *mod) {
-	objFiles := []string{m.objFile}
-	for _, d := range m.deps {
-		objFiles = append(objFiles, d.objFile)
+func link(m *mod.Mod) {
+	objFiles := []string{objFile(m)}
+	for _, d := range m.Deps {
+		objFiles = append(objFiles, objFile(d))
 	}
 
 	dir := wd()
@@ -280,26 +176,6 @@ func merge(objFiles []string, goFile string) {
 	}
 	if err := f.Close(); err != nil {
 		die("failed to close", err)
-	}
-}
-
-func realPath(dir string) string {
-	switch dir {
-	case string([]rune{filepath.Separator}):
-		return dir
-	case ".":
-		return wd()
-	default:
-		base := filepath.Base(dir)
-		dir = realPath(filepath.Dir(dir))
-		switch base {
-		case ".":
-			return dir
-		case "..":
-			return filepath.Dir(dir)
-		default:
-			return filepath.Join(dir, base)
-		}
 	}
 }
 
