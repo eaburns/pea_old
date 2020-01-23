@@ -76,6 +76,12 @@ func nextToken() retToken {
 	return retToken(atomic.AddInt64(&tokenCounter, 1))
 }
 
+type panicVal struct {
+	msg string
+	file string
+	line int
+}
+
 func use(interface{}) {}
 
 func F1___0_String__main__print_3A__(x *[]byte) {
@@ -114,10 +120,14 @@ func main() {
 		if r == nil {
 			return
 		}
-		if _, ok := r.(retToken); !ok {
+		switch r := r.(type) {
+		case retToken:
+			os.Stderr.WriteString("far return from a different stack\n")
+		case panicVal:
+			fmt.Fprintf(os.Stderr, "%s:%d: panic: %s\n", r.file, r.line, r.msg)
+		default:
 			panic(r)
 		}
-		os.Stderr.WriteString("far return from a different stack\n")
 	}()
 	{{range .Inits -}}
 	{{.}}()
@@ -450,12 +460,12 @@ func genFunBody(f *basic.Fun, ts typeSet, s *strings.Builder) {
 			fmt.Fprintf(s, "L%d:\n", b.N)
 		}
 		for _, stmt := range b.Stmts {
-			genStmt(stmt, ts, s)
+			genStmt(f, stmt, ts, s)
 		}
 	}
 }
 
-func genStmt(stmt basic.Stmt, ts typeSet, s *strings.Builder) {
+func genStmt(f *basic.Fun, stmt basic.Stmt, ts typeSet, s *strings.Builder) {
 	s.WriteRune('\t')
 	switch stmt := stmt.(type) {
 	case *basic.Comment:
@@ -476,6 +486,8 @@ func genStmt(stmt basic.Stmt, ts typeSet, s *strings.Builder) {
 		genMakeOr(stmt, ts, s)
 	case *basic.MakeVirt:
 		genMakeVirt(stmt, ts, s)
+	case *basic.Panic:
+		genPanic(f, stmt, s)
 	case *basic.Call:
 		genCall(stmt, s)
 	case *basic.VirtCall:
@@ -579,6 +591,12 @@ func genMakeVirt(stmt *basic.MakeVirt, ts typeSet, s *strings.Builder) {
 		s.WriteString(")}, ")
 	}
 	s.WriteRune('}')
+}
+
+func genPanic(f *basic.Fun, stmt *basic.Panic, s *strings.Builder) {
+	loc := f.Mod.Mod.AST.Loc(stmt.Msg.AST)
+	fmt.Fprintf(s, "panic(panicVal{msg: string(*x%d), file: %q, line: %d})",
+		stmt.Arg.Num(), loc.Path, loc.Line[0])
 }
 
 func genCall(stmt *basic.Call, s *strings.Builder) {

@@ -134,6 +134,29 @@ func TestBuiltInMeths(t *testing.T) {
 	}
 }
 
+func TestPanic(t *testing.T) {
+	t.Parallel()
+	tests := []errorTest{
+		{
+			name: "panic ok",
+			src: `
+				func [foo | panic: "bar"]
+			`,
+			err: "",
+		},
+		{
+			name: "panic bad arg type",
+			src: `
+				func [foo | panic: 1]
+			`,
+			err: "type mismatch: have Int, want String",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 func TestCaseMethod(t *testing.T) {
 	t.Parallel()
 	tests := []errorTest{

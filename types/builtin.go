@@ -90,9 +90,11 @@ const (
 	GreaterMeth
 	GreaterEqMeth
 	NumConvertMeth
+	PanicFunc
 )
 
 var builtInFunTag = map[string]BuiltInMeth{
+	"panic:":                   PanicFunc,
 	"true":                     TrueFunc,
 	"false":                    FalseFunc,
 	"size":                     ArraySizeMeth,

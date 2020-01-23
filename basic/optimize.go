@@ -1,6 +1,8 @@
 package basic
 
-import "github.com/eaburns/pea/types"
+import (
+	"github.com/eaburns/pea/types"
+)
 
 // Optimize applies some simple optimizations.
 func Optimize(m *Mod) {

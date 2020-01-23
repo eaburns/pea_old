@@ -28,6 +28,8 @@ const MaxValueParms = 4
 // the basic package will not actually emit recursive calls,
 // but instead will emit the implementation of the method.
 var univ = `
+	func [panic: _ String]
+
 	type _& {}
 
 	type Nil {}

@@ -2229,6 +2229,28 @@ func TestBuild(t *testing.T) {
 						return
 			`,
 		},
+		{
+			name: "panic",
+			src: `
+				func [foo | panic: "bar"]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						$0 := alloc(String)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						string($0, string1)
+						panic($0)
+					2:
+						[in:] [out:]
+						return
+			`,
+		},
 	}
 	for _, test := range tests {
 		test := test

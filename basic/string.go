@@ -292,6 +292,11 @@ func (n *Ret) buildString(s *strings.Builder) *strings.Builder {
 	return s
 }
 
+func (n *Panic) buildString(s *strings.Builder) *strings.Builder {
+	fmt.Fprintf(s, "panic($%d)", n.Arg.Num())
+	return s
+}
+
 func (n *Jmp) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "jmp %d", n.Dst.N)
 	return s

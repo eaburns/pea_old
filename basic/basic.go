@@ -401,11 +401,6 @@ type Call struct {
 
 func (n *Call) Uses() []Val { return n.Args }
 
-func (n Call) shallowCopy() Stmt {
-	n.Args = append([]Val{}, n.Args...)
-	return &n
-}
-
 // VirtCall is a virtual function call.
 type VirtCall struct {
 	stmt
@@ -440,6 +435,17 @@ type Ret struct {
 }
 
 func (*Ret) Out() []*BBlk { return nil }
+
+// Panic is a built-in panic: function call.
+type Panic struct {
+	stmt
+	Arg Val
+
+	Msg *types.Msg
+}
+
+func (n *Panic) Uses() []Val { return []Val{n.Arg} }
+func (*Panic) Out() []*BBlk  { return nil }
 
 // Jmp is a Term that changes control to another BBlk.
 type Jmp struct {

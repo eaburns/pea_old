@@ -32,6 +32,8 @@ func subVals(bs []*BBlk, sub valMap) {
 	}
 }
 
+func (*stmt) subVals(valMap) {}
+
 func (n *Store) subVals(sub valMap) {
 	sub1(sub, n, &n.Dst)
 	sub1(sub, n, &n.Val)
@@ -94,7 +96,9 @@ func (n *VirtCall) subVals(sub valMap) {
 	}
 }
 
-func (*stmt) subVals(valMap) {}
+func (n *Panic) subVals(sub valMap) {
+	sub1(sub, n, &n.Arg)
+}
 
 func (n *Switch) subVals(sub valMap) {
 	sub1(sub, n, &n.Val)
@@ -160,7 +164,8 @@ func subBBlks(bs []*BBlk, sub bblkMap) {
 	}
 }
 
-func (*Ret) subBBlk(bblkMap) {}
+func (*Ret) subBBlk(bblkMap)   {}
+func (*Panic) subBBlk(bblkMap) {}
 
 func (n *Jmp) subBBlk(sub bblkMap) { n.Dst = sub.get(n.Dst) }
 

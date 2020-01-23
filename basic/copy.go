@@ -62,6 +62,12 @@ func (n MakeAnd) shallowCopy() Stmt {
 
 func (n MakeOr) shallowCopy() Stmt   { return &n }
 func (n MakeVirt) shallowCopy() Stmt { return &n }
+func (n Panic) shallowCopy() Stmt    { return &n }
+
+func (n Call) shallowCopy() Stmt {
+	n.Args = append([]Val{}, n.Args...)
+	return &n
+}
 
 func (n VirtCall) shallowCopy() Stmt {
 	n.Args = append([]Val{}, n.Args...)

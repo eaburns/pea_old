@@ -1332,6 +1332,30 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "42",
 		},
+		{
+			name: "panic",
+			src: `									// 1
+				func [main |						// 2
+					foo.							// 3
+					print: "this is not printed".	// 4
+				]									// 5
+													// 6
+				func [foo |							// 7
+					panic: "boo"					// 8
+				]
+			`,
+			stderr: ":8: panic: boo\n",
+		},
+		{
+			name: "ignore code after a panic",
+			src: `									// 1
+				func [main |						// 2
+					panic: "boo".					// 3
+					print: "this is not printed".
+				]
+			`,
+			stderr: ":3: panic: boo\n",
+		},
 	}
 	for _, test := range tests {
 		test := test

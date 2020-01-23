@@ -386,11 +386,22 @@ func buildCall(f *Fun, b *BBlk, call *types.Call) (Val, *BBlk) {
 			val, b = buildArraySlice(f, b, recv, msg)
 		case msg.Fun.BuiltIn == types.CaseMeth:
 			val, b = buildCaseMeth(f, b, recv, msg)
+		case msg.Fun.BuiltIn == types.PanicFunc:
+			b = buildPanic(f, b, msg)
 		default:
 			val, b = buildMsg(f, b, recv, msg)
 		}
 	}
 	return val, b
+}
+
+func buildPanic(f *Fun, b *BBlk, msg *types.Msg) *BBlk {
+	a, b := buildExpr(f, b, msg.Args[0])
+	addPanic(b, a, msg)
+	// Panic is terminal, so start a new BBlk
+	// to collect any dead code that may be after this.
+	// The optimize pass will remove the dead code.
+	return newBBlk(f)
 }
 
 func buildMsg(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
@@ -883,6 +894,10 @@ func addMakeVirt(f *Fun, b *BBlk, dst, obj Val, typesVirts []*types.Fun) *MakeVi
 	v := &MakeVirt{Dst: dst, Obj: obj, Virts: virts}
 	addStmt(b, v)
 	return v
+}
+
+func addPanic(b *BBlk, arg Val, msg *types.Msg) {
+	addStmt(b, &Panic{Arg: arg, Msg: msg})
 }
 
 func addCall(b *BBlk, calledFun *Fun, args []Val) *Call {
