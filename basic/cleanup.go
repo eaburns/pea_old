@@ -5,10 +5,10 @@ import (
 )
 
 func cleanUp(f *Fun) {
+	collapseChains(f)
 	propagateDeletes(f)
 	rmDeletes(f)
 	rmEmptyBBlks(f)
-	collapseChains(f)
 	renumber(f)
 }
 
@@ -132,8 +132,21 @@ func rmEmptyBBlks(f *Fun) {
 func collapseChains(f *Fun) {
 	i := 1
 	for _, b := range f.BBlks[1:] {
-		if b.Stmts == nil || (b.N > 0 && len(b.In) == 0) {
-			// This was deleted.
+		if b.Stmts == nil {
+			continue
+		}
+		if b.N > 0 && len(b.In) == 0 {
+			// This BBlk has no incoming edges.
+			// It should be deleted.
+			// Delete its statements, so we can propagate.
+			// The remaining empty block will be cleaned up
+			// in another pass.
+			for _, s := range b.Stmts[:len(b.Stmts)-1] {
+				s.delete()
+			}
+			b.N = i
+			f.BBlks[i] = b
+			i++
 			continue
 		}
 		for len(b.Out()) == 1 && len(b.Out()[0].In) == 1 {
@@ -147,6 +160,7 @@ func collapseChains(f *Fun) {
 			o.Stmts = nil
 			o.In = nil
 		}
+		b.N = i
 		f.BBlks[i] = b
 		i++
 	}
