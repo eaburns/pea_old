@@ -88,6 +88,7 @@ type Fun struct {
 	// Insts are all instances of this fun.
 	Insts   []*Fun
 	Priv    bool
+	Test    bool
 	ModPath string
 	Recv    *Recv
 	TParms  []TypeVar

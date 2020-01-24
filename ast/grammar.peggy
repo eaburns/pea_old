@@ -56,7 +56,7 @@ Import <- _ i:( kw:( "import" / "Import" ) path:String {
 	}
 }) { return Import(i) }
 
-Def <- Val / Fun / Meth / Type
+Def <- Val / Fun/ Test  / Meth / Type
 
 Val <- _ v:(key:("val" / "Val") id:Ident typ:TypeName? _":=" _"[" stmts:Stmts _"]" {
 	varEnd := id.end
@@ -85,6 +85,20 @@ Fun <- _ f:(
 		priv: key == "func",
 		TParms: tps,
 		Sig: sig,
+		Stmts: stmts,
+	}
+})   { return Def(f) }
+
+Test <- _ f:(
+	"test" _ "[" n:Ident _ "|" stmts:Stmts _"]" {
+	return &Fun{
+		location: loc(parser, start, end),
+		priv: true,
+		Test: true,
+		Sig: FunSig{
+			location: location{n.start, n.end},
+			Sel: n.Text,
+		},
 		Stmts: stmts,
 	}
 })   { return Def(f) }

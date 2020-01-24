@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/eaburns/pea/ast"
@@ -54,9 +53,6 @@ func (ir *importer) Import(cfg Config, path string) ([]Def, error) {
 type SourceImporter struct {
 	// Root is the root directory prepended to module paths.
 	Root string
-	// Ignore is an optional regular expression
-	// that causes the importer to ignore matching file names.
-	Ignore *regexp.Regexp
 }
 
 // Import implemements the Importer interface.
@@ -74,9 +70,6 @@ func (ir *SourceImporter) Import(cfg Config, modPath string) ([]Def, error) {
 	p := ast.NewParser(modPath)
 	for _, fi := range finfos {
 		if !strings.HasSuffix(fi.Name(), ".pea") {
-			continue
-		}
-		if ir.Ignore != nil && ir.Ignore.MatchString(fi.Name()) {
 			continue
 		}
 		err := p.ParseFile(filepath.Join(path, fi.Name()))

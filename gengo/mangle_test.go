@@ -117,6 +117,15 @@ func TestMangleFun(t *testing.T) {
 				"main__block[0-9]",
 			},
 		},
+		{
+			name: "test",
+			src: `
+				test [foo | 1]
+			`,
+			want: []string{
+				"T0_main__foo",
+			},
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -432,6 +441,32 @@ func TestMangleMod(t *testing.T) {
 		if got1 != test.path {
 			t.Errorf("demangleMod(%q)=%q, want %q", got0, got1, test.path)
 			continue
+		}
+	}
+}
+
+func TestDeangleTestName(t *testing.T) {
+	tests := []struct {
+		mangle string
+		mod    string
+		name   string
+		err    string
+	}{
+		{mangle: "T0_main__foo__", mod: "main", name: "foo"},
+		{mangle: "T0_main__fooBar__", mod: "main", name: "fooBar"},
+		{mangle: "T0_baz__fooBar__", mod: "baz", name: "fooBar"},
+		{mangle: "F0_main__fooBar__", err: "expected 'T'"},
+		{mangle: "T1_main__fooBar__", err: "expected 0 args"},
+	}
+	for _, test := range tests {
+		mod, name, err := demangleTestName(test.mangle)
+		switch {
+		case test.err == "" && err == nil && (name != test.name || mod != test.mod):
+			t.Errorf("demangleTestName(%q)=%q, %q, want %q, %q", test.mangle, mod, name, test.mod, test.name)
+		case test.err == "" && err != nil:
+			t.Errorf("demangleTestName(%q)=_,%v, want nil", test.mangle, err)
+		case test.err != "" && err.Error() != test.err:
+			t.Errorf("demangleTestName(%q)=_,%v, want _,%s", test.mangle, err, test.err)
 		}
 	}
 }

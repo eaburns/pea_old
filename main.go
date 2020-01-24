@@ -86,7 +86,14 @@ func writeGo(w io.Writer, mod *basic.Mod) {
 	if err := gengo.WriteMod(&b, mod); err != nil {
 		die(err)
 	}
-	if err := gengo.MergeMods(w, []io.Reader{&b}); err != nil {
+	merger, err := gengo.NewMerger(w)
+	if err != nil {
+		die(err)
+	}
+	if err := merger.Add(&b); err != nil {
+		die(err)
+	}
+	if err := merger.Done(); err != nil {
 		die(err)
 	}
 }

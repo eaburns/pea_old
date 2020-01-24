@@ -65,9 +65,12 @@ func mangleFun(f *basic.Fun, s *strings.Builder) *strings.Builder {
 // which is the mod path of the Fun definition.
 func mangleTypesFun(modPath string, fun *types.Fun, s *strings.Builder) *strings.Builder {
 	typeConstraint := false
-	if fun.Recv == nil {
+	switch {
+	case fun.Test:
+		s.WriteRune('T')
+	case fun.Recv == nil:
 		s.WriteRune('F')
-	} else {
+	default:
 		s.WriteRune('M')
 		mangleType(fun.Recv.Type, s)
 		for _, p := range fun.Recv.Parms {
@@ -111,6 +114,31 @@ func mangleTypesFun(modPath string, fun *types.Fun, s *strings.Builder) *strings
 	return s
 }
 
+func demangleTestName(s string) (mod, name string, err error) {
+	rr := strings.NewReader(s)
+	switch r, _, err := rr.ReadRune(); {
+	case err == io.EOF:
+		return "", "", errors.New("unexpected EOF")
+	case err != nil:
+		return "", "", err
+	case r != 'T':
+		return "", "", errors.New("expected 'T'")
+	}
+	switch nargs, err := readInt(rr); {
+	case err != nil:
+		return "", "", err
+	case nargs != 0:
+		return "", "", errors.New("expected 0 args")
+	}
+	if mod, err = demangleMod(rr); err != nil {
+		return "", "", err
+	}
+	if name, err = readStr(rr); err != nil {
+		return "", "", err
+	}
+	return mod, name, err
+}
+
 func demangleFun(rr io.RuneReader) (string, error) {
 	var out strings.Builder
 	switch r, _, err := rr.ReadRune(); {
@@ -128,6 +156,8 @@ func demangleFun(rr io.RuneReader) (string, error) {
 		}
 		out.WriteString(recvType)
 		out.WriteRune(' ')
+	case r == 'T':
+		out.WriteString("test ")
 	default:
 		return "", fmt.Errorf("expected F or M, got %c", r)
 	}

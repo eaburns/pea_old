@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -1420,19 +1419,24 @@ func compileAll(src string, imports ...[2]string) ([]*basic.Mod, []error) {
 }
 
 func run(mods []*basic.Mod) (string, string, error) {
-	var writtenMods []io.Reader
+	f, err := ioutil.TempFile("", "gengo_test_*.go")
+	if err != nil {
+		return "", "", err
+	}
+	merger, err := NewMerger(f)
+	if err != nil {
+		return "", "", err
+	}
 	for _, mod := range mods {
 		var b bytes.Buffer
 		if err := WriteMod(&b, mod); err != nil {
 			return "", "", err
 		}
-		writtenMods = append(writtenMods, &b)
+		if err := merger.Add(&b); err != nil {
+			return "", "", err
+		}
 	}
-	f, err := ioutil.TempFile("", "gengo_test_*.go")
-	if err != nil {
-		return "", "", err
-	}
-	if err := MergeMods(f, writtenMods); err != nil {
+	if err := merger.Done(); err != nil {
 		return "", "", err
 	}
 	path := f.Name()
@@ -1446,15 +1450,6 @@ func run(mods []*basic.Mod) (string, string, error) {
 	runErr := cmd.Run()
 	rmErr := os.Remove(path)
 	if runErr != nil {
-		writtenMods = nil
-		for _, mod := range mods {
-			var b bytes.Buffer
-			if err := WriteMod(&b, mod); err != nil {
-				return "", "", err
-			}
-			writtenMods = append(writtenMods, &b)
-		}
-		MergeMods(os.Stderr, writtenMods)
 		return "", "", runErr
 	}
 	if rmErr != nil {

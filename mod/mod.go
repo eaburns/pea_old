@@ -34,12 +34,6 @@ type Mod struct {
 
 // Config has configuration parameters for module and dependency finding.
 type Config struct {
-	// IncludeTestFiles indicates whether to include files ending with _test.pea
-	// in the the root module SrcFiles list.
-	// Files ending with _test.pea are never included in dependency
-	// Mod SrcFiles lists.
-	IncludeTestFiles bool
-
 	// ImportRootDir is the root directory to use for imported modules.
 	ImportRootDir string
 }
@@ -47,7 +41,7 @@ type Config struct {
 // NewMod returns a *Mod for the module modPath, loaded from srcPath.
 // srcPath may be either a .pea source file or a directory of .pea source files.
 func NewMod(srcPath, modPath string, config Config) (*Mod, error) {
-	m, err := newMod(config.IncludeTestFiles, srcPath, modPath)
+	m, err := newMod(srcPath, modPath)
 	if err != nil {
 		return nil, err
 	}
@@ -57,12 +51,12 @@ func NewMod(srcPath, modPath string, config Config) (*Mod, error) {
 	return m, nil
 }
 
-func newMod(testFiles bool, srcPath, modPath string) (*Mod, error) {
+func newMod(srcPath, modPath string) (*Mod, error) {
 	srcPath, err := realPath(srcPath)
 	if err != nil {
 		return nil, err
 	}
-	srcFiles, srcDir, err := srcFiles(testFiles, srcPath)
+	srcFiles, srcDir, err := srcFiles(srcPath)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +93,7 @@ func realPath(dir string) (string, error) {
 	}
 }
 
-func srcFiles(testFiles bool, srcPath string) ([]string, string, error) {
+func srcFiles(srcPath string) ([]string, string, error) {
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return nil, "", err
@@ -119,9 +113,6 @@ func srcFiles(testFiles bool, srcPath string) ([]string, string, error) {
 	var paths []string
 	for _, finfo := range finfos {
 		if !strings.HasSuffix(finfo.Name(), ".pea") {
-			continue
-		}
-		if !testFiles && strings.HasSuffix(finfo.Name(), "_test.pea") {
 			continue
 		}
 		path := filepath.Join(srcPath, finfo.Name())
@@ -146,7 +137,7 @@ func loadDeps(modRootDir string, root *Mod) error {
 				continue
 			}
 			srcPath := filepath.Join(modRootDir, depFile)
-			d, err := newMod(false, srcPath, depFile)
+			d, err := newMod(srcPath, depFile)
 			if err != nil {
 				return err
 			}

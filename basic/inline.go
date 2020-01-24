@@ -27,6 +27,12 @@ func canInline(f *Fun) bool {
 }
 
 func inlineCalls(f *Fun) bool {
+	if f.Block == nil && f.Fun != nil && f.Fun.Test {
+		// Don't inline calls in tests,
+		// because we want panics to report line numbers
+		// within the body of the test source.
+		return false
+	}
 	// There can be no calls in the 0th bblock,
 	// and we need to make sure it's here to copy
 	// inlined block0 allocs, so just copy it over now.

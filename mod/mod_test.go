@@ -96,33 +96,6 @@ func TestSourceDirModule(t *testing.T) {
 	}
 }
 
-func TestSourceDirIgnoreTestFiles(t *testing.T) {
-	root, err := newFS([]file{
-		{path: "foo.pea", body: ""},
-		{path: "bar_test.pea", body: ""},
-		{path: "baz_test.pea", body: ""},
-	})
-	if err != nil {
-		t.Fatalf("newFS failed: %v", err)
-	}
-	defer rmDirRecur(root)
-
-	m, err := NewMod(root, "foo", Config{})
-	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
-	}
-
-	want := []string{
-		filepath.Join(root, "foo.pea"),
-	}
-	if !reflect.DeepEqual(m.SrcFiles, want) {
-		t.Errorf("m.SrcFiles=%v, want %v", m.SrcFiles, want)
-	}
-	if len(m.Deps) > 0 {
-		t.Errorf("len(m.Deps)=%d, want 0", len(m.Deps))
-	}
-}
-
 func TestSourceDirIgnoreNonPeaFiles(t *testing.T) {
 	root, err := newFS([]file{
 		{path: "foo.pea", body: ""},
@@ -142,37 +115,6 @@ func TestSourceDirIgnoreNonPeaFiles(t *testing.T) {
 	}
 
 	want := []string{
-		filepath.Join(root, "foo.pea"),
-	}
-	if !reflect.DeepEqual(m.SrcFiles, want) {
-		t.Errorf("m.SrcFiles=%v, want %v", m.SrcFiles, want)
-	}
-	if len(m.Deps) > 0 {
-		t.Errorf("len(m.Deps)=%d, want 0", len(m.Deps))
-	}
-}
-
-func TestSourceDirIncludeTestFiles(t *testing.T) {
-	root, err := newFS([]file{
-		{path: "foo.pea", body: ""},
-		{path: "bar_test.pea", body: ""},
-		{path: "baz_test.pea", body: ""},
-	})
-	if err != nil {
-		t.Fatalf("newFS failed: %v", err)
-	}
-	defer rmDirRecur(root)
-
-	m, err := NewMod(root, "foo", Config{
-		IncludeTestFiles: true,
-	})
-	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
-	}
-
-	want := []string{
-		filepath.Join(root, "bar_test.pea"),
-		filepath.Join(root, "baz_test.pea"),
 		filepath.Join(root, "foo.pea"),
 	}
 	if !reflect.DeepEqual(m.SrcFiles, want) {
@@ -256,41 +198,6 @@ func TestLoadDeps(t *testing.T) {
 	}
 	if len(baz.Deps) != 0 {
 		t.Errorf("len(baz.Deps)=%d, want 0", len(baz.Deps))
-	}
-}
-
-func TestIgnoreTestFilesInImports(t *testing.T) {
-	root, err := newFS([]file{
-		{path: "foo/foo.pea", body: `import "bar"`},
-		{path: "bar/bar_test.pea", body: `import "baz"`},
-		{path: "baz/baz.pea", body: ``},
-	})
-	if err != nil {
-		t.Fatalf("newFS failed: %v", err)
-	}
-	defer rmDirRecur(root)
-
-	fooDir := filepath.Join(root, "foo")
-
-	foo, err := NewMod(fooDir, "foo", Config{
-		ImportRootDir: root,
-	})
-	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
-	}
-	if len(foo.Deps) != 1 {
-		t.Fatalf("len(foo.Deps)=%d, want 1", len(foo.Deps))
-	}
-
-	bar := foo.Deps[0]
-	if bar.ModPath != "bar" {
-		t.Errorf("bar.ModPath=%v, want bar", bar.ModPath)
-	}
-	if len(bar.SrcFiles) != 0 {
-		t.Fatalf("len(bar.SrcFiles)=%d, want 0", len(bar.SrcFiles))
-	}
-	if len(bar.Deps) != 0 {
-		t.Fatalf("len(bar.Deps)=%d, want 0", len(bar.Deps))
 	}
 }
 

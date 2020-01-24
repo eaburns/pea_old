@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"time"
 
 	"github.com/eaburns/pea/ast"
@@ -22,6 +20,7 @@ var (
 	modPath = flag.String("path", "main", "the current module's path")
 	modRoot = flag.String("root", ".", "root directory for imported modules")
 	force   = flag.Bool("force", false, "force compilation event if up-to-date")
+	test    = flag.Bool("test", false, "build a test executable")
 	verbose = flag.Bool("v", false, "enable verbose output")
 	output  = flag.String("o", "", "name of executable file or directory")
 )
@@ -43,7 +42,7 @@ func main() {
 	for _, m := range mod.TopologicalDeps(root) {
 		compile(m)
 	}
-	if *modPath == "main" {
+	if *modPath == "main" || *test {
 		link(root)
 	}
 }
@@ -76,14 +75,9 @@ func parse(m *mod.Mod) *ast.Mod {
 	return p.Mod()
 }
 
-var testFileRegexp = regexp.MustCompile(".*_test.pea$")
-
 func check(astMod *ast.Mod) *types.Mod {
 	typesMod, errs := types.Check(astMod, types.Config{
-		Importer: &types.SourceImporter{
-			Root:   *modRoot,
-			Ignore: testFileRegexp,
-		},
+		Importer: &types.SourceImporter{Root: *modRoot},
 	})
 	if len(errs) > 0 {
 		for _, err := range errs {
@@ -119,7 +113,14 @@ func link(m *mod.Mod) {
 	}
 
 	dir := wd()
-	goFile := filepath.Join(dir, filepath.Base(dir)+".go")
+	var goFile string
+	if *test {
+		// The go build command ignores _test.go files,
+		// so we stick a trailing _ on there as a workaround.
+		goFile = filepath.Join(dir, filepath.Base(dir)+"_test_.go")
+	} else {
+		goFile = filepath.Join(dir, filepath.Base(dir)+".go")
+	}
 	merge(objFiles, goFile)
 
 	var binFile string
@@ -134,6 +135,9 @@ func link(m *mod.Mod) {
 		} else {
 			binFile = filepath.Join(*output, filepath.Base(dir))
 		}
+	}
+	if *test && *output == "" {
+		binFile += "_test"
 	}
 
 	if !*force && modTime(goFile).Before(modTime(binFile)) {
@@ -153,23 +157,33 @@ func merge(objFiles []string, goFile string) {
 	if !*force && lastModTime(objFiles).Before(modTime(goFile)) {
 		return
 	}
-	var rs []io.Reader
+	f, err := os.Create(goFile)
+	if err != nil {
+		die("failed to create temp file", err)
+	}
+	w := bufio.NewWriter(f)
+	merger, err := gengo.NewMerger(w)
+	if err != nil {
+		die("failed to write Go header", err)
+	}
+	if *test {
+		merger.TestMod = *modPath
+	}
 	for _, file := range objFiles {
 		f, err := os.Open(file)
 		if err != nil {
 			die("failed to open object file", err)
 		}
-		defer f.Close()
-		rs = append(rs, bufio.NewReader(f))
-	}
-	f, err := os.Create(goFile)
-	if err != nil {
-		die("failed to create temp file", err)
+		if err := merger.Add(bufio.NewReader(f)); err != nil {
+			die("failed to read peago", err)
+		}
+		if err := f.Close(); err != nil {
+			die("failed to close peago", err)
+		}
 	}
 	vprintf("merging %s:\n%v\n", goFile, objFiles)
-	w := bufio.NewWriter(f)
-	if err := gengo.MergeMods(w, rs); err != nil {
-		die("failed to write Go file", err)
+	if err := merger.Done(); err != nil {
+		die("failed to write Go footer", err)
 	}
 	if err := w.Flush(); err != nil {
 		die("failed to flush output", err)

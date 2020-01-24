@@ -67,6 +67,7 @@ func (n *Val) Priv() bool { return n.priv }
 type Fun struct {
 	location
 	priv   bool
+	Test   bool
 	Recv   *Recv
 	TParms []Var // types may be nil
 	Sig    FunSig

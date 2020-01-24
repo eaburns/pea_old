@@ -167,6 +167,7 @@ func makeDef(x *scope, astDef ast.Def, isUniv bool) Def {
 			AST:     astDef,
 			ModPath: x.astMod.Path,
 			Priv:    astDef.Priv(),
+			Test:    astDef.Test,
 			Sig: FunSig{
 				AST: &astDef.Sig,
 				Sel: astDef.Sig.Sel,
@@ -1175,6 +1176,10 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 		msg.Args, es = checkExprs(x, astMsg.Args)
 		return msg, append(errs, es...)
 	}
+	// We don't check whether msg.Fun is a test here,
+	// because tests can currently only be unary functions.
+	// Unary function calls are handled as a special case
+	// in checkIdent.
 	parms := msg.Fun.Sig.Parms
 	if msg.Fun.Recv != nil {
 		parms = parms[1:]
@@ -1581,6 +1586,10 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		call := &Call{AST: astIdent, Msgs: []Msg{msg}}
 		if msg.Fun == nil {
 			return call, errs
+		}
+		if msg.Fun.Test {
+			err := x.err(astIdent, "tests cannot be called")
+			errs = append(errs, *err)
 		}
 		if msg.Fun.Sig.Ret == nil {
 			call.typ = builtInType(x, "Nil")

@@ -3015,6 +3015,14 @@ func TestCall(t *testing.T) {
 			},
 			err: "",
 		},
+		{
+			name: "tests cannot be called",
+			src: `
+				func [foo | bar]
+				test [bar | panic: "fail"]
+			`,
+			err: "tests cannot be called",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

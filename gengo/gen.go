@@ -4,10 +4,8 @@ package gengo
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sort"
 	"strings"
-	"text/template"
 
 	"github.com/eaburns/pea/basic"
 	"github.com/eaburns/pea/types"
@@ -58,128 +56,6 @@ var cmpOps = map[basic.OpCode]string{
 	basic.LessEqOp:    "<=",
 	basic.GreaterOp:   ">",
 	basic.GreaterEqOp: ">=",
-}
-
-const header = `package main
-
-import (
-	"fmt"
-	"os"
-	"sync/atomic"
-)
-
-var tokenCounter int64
-
-type retToken int64
-
-func nextToken() retToken {
-	return retToken(atomic.AddInt64(&tokenCounter, 1))
-}
-
-type panicVal struct {
-	msg string
-	file string
-	line int
-}
-
-func use(interface{}) {}
-
-func F1___0_String__main__print_3A__(x *[]byte) {
-	fmt.Printf("%v", string(*x))
-}
-func F1___1__26____0_String__main__print_3A__(x *[]byte) {
-	fmt.Printf("%v", string(*x))
-}
-func F1___0_Int__main__print_3A__(x int) {
-	fmt.Printf("%v", x)
-}
-func F1___1__26____0_Int__main__print_3A__(x *int) {
-	fmt.Printf("%v", *x)
-}
-func F1___0_Int8__main__print_3A__(x int8) {
-	fmt.Printf("%v", x)
-}
-func F1___0_UInt__main__print_3A__(x uint) {
-	fmt.Printf("%v", x)
-}
-func F1___0_Float__main__print_3A__(x float64) {
-	fmt.Printf("%v", x)
-}
-func F1___0_Float32__main__print_3A__(x float32) {
-	fmt.Printf("%v", x)
-}
-func F1___0_Bool__main__print_3A__(x uint8) {
-	fmt.Printf("%v", x == 1)
-}
-`
-
-var mainTemplate = `
-func main() {
-	defer func() {
-		r := recover()
-		if r == nil {
-			return
-		}
-		switch r := r.(type) {
-		case retToken:
-			os.Stderr.WriteString("far return from a different stack\n")
-		case panicVal:
-			fmt.Fprintf(os.Stderr, "%s:%d: panic: %s\n", r.file, r.line, r.msg)
-		default:
-			panic(r)
-		}
-	}()
-	{{range .Inits -}}
-	{{.}}()
-	{{end -}}
-	F0_main__main__()
-}
-`
-
-// MergeMods writes a package header
-// and then the merged, deduplicated definitions
-// from a slice of files written by WriteMod.
-// The result is a valid Go main package source file.
-func MergeMods(w io.Writer, rs []io.Reader) error {
-	if _, err := io.WriteString(w, header); err != nil {
-		return err
-	}
-	var inits []string
-	done := make(map[string]bool)
-	for _, r := range rs {
-		for {
-			var byteSize int64
-			var name string
-			_, err := fmt.Fscanf(r, "%d %s\n", &byteSize, &name)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
-			if done[name] {
-				if _, err := io.CopyN(ioutil.Discard, r, byteSize); err != nil {
-					return err
-				}
-				continue
-			}
-			if strings.HasSuffix(name, "init") {
-				inits = append(inits, name)
-			}
-			done[name] = true
-			if _, err := io.CopyN(w, r, byteSize); err != nil {
-				return err
-			}
-		}
-	}
-	t, err := template.New("main").Parse(mainTemplate)
-	if err != nil {
-		panic(err)
-	}
-	if err := t.Execute(w, map[string]interface{}{"Inits": inits}); err != nil {
-		return err
-	}
-	return nil
 }
 
 // WriteMod writes the generated Go definitions of a module.
@@ -489,7 +365,7 @@ func genStmt(f *basic.Fun, stmt basic.Stmt, ts typeSet, s *strings.Builder) {
 	case *basic.Panic:
 		genPanic(f, stmt, s)
 	case *basic.Call:
-		genCall(stmt, s)
+		genCall(f, stmt, s)
 	case *basic.VirtCall:
 		genVirtCall(stmt, s)
 	case *basic.Ret:
@@ -599,7 +475,17 @@ func genPanic(f *basic.Fun, stmt *basic.Panic, s *strings.Builder) {
 		stmt.Arg.Num(), loc.Path, loc.Line[0])
 }
 
-func genCall(stmt *basic.Call, s *strings.Builder) {
+func genCall(f *basic.Fun, stmt *basic.Call, s *strings.Builder) {
+	if f.Block == nil && f.Fun != nil && f.Fun.Test {
+		// This is a call made from a test.
+		// Wrap the call in a function containing a defer
+		// to catch a panicVal panic and
+		// set the testFile and testLine.
+		loc := f.Mod.Mod.AST.Loc(stmt.Msg.AST)
+		fmt.Fprintf(s, "func() {defer recoverTestLoc(%q, %d); ",
+			loc.Path, loc.Line[0])
+		defer s.WriteString("}()")
+	}
 	mangleFun(stmt.Fun, s)
 	s.WriteRune('(')
 	for i, arg := range stmt.Args {
