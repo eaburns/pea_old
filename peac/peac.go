@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,18 +113,26 @@ func link(m *mod.Mod) {
 	for _, d := range m.Deps {
 		objFiles = append(objFiles, objFile(d))
 	}
-
-	dir := wd()
-	var goFile string
-	if *test {
-		// The go build command ignores _test.go files,
-		// so we stick a trailing _ on there as a workaround.
-		goFile = filepath.Join(dir, filepath.Base(dir)+"_test_.go")
-	} else {
-		goFile = filepath.Join(dir, filepath.Base(dir)+".go")
+	binFile := binFile()
+	if !*force && lastModTime(objFiles).Before(modTime(binFile)) {
+		return
 	}
-	merge(objFiles, goFile)
 
+	goFile := merge(objFiles)
+	vprintf("linking %s\n", binFile)
+	cmd := exec.Command("go", "build", "-o", binFile, goFile)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		die("failed to run go build", err)
+	}
+
+	os.Remove(goFile)
+}
+
+func binFile() string {
+	dir := wd()
 	var binFile string
 	if *output == "" {
 		binFile = filepath.Join(dir, filepath.Base(dir))
@@ -140,28 +149,15 @@ func link(m *mod.Mod) {
 	if *test && *output == "" {
 		binFile += "_test"
 	}
-
-	if !*force && modTime(goFile).Before(modTime(binFile)) {
-		return
-	}
-	vprintf("linking %s\n", binFile)
-	cmd := exec.Command("go", "build", "-o", binFile, goFile)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	if err := cmd.Run(); err != nil {
-		die("failed to run go build", err)
-	}
+	return binFile
 }
 
-func merge(objFiles []string, goFile string) {
-	if !*force && lastModTime(objFiles).Before(modTime(goFile)) {
-		return
-	}
-	f, err := os.Create(goFile)
+func merge(objFiles []string) string {
+	f, err := ioutil.TempFile(wd(), "*.go")
 	if err != nil {
-		die("failed to create temp file", err)
+		die("failed to make temp .go file", err)
 	}
+	goFile := f.Name()
 	w := bufio.NewWriter(f)
 	merger, err := gengo.NewMerger(w)
 	if err != nil {
@@ -182,7 +178,7 @@ func merge(objFiles []string, goFile string) {
 			die("failed to close peago", err)
 		}
 	}
-	vprintf("merging %s:\n%v\n", goFile, objFiles)
+	vprintf("merging %v → %s\n", objFiles, goFile)
 	if err := merger.Done(); err != nil {
 		die("failed to write Go footer", err)
 	}
@@ -192,6 +188,7 @@ func merge(objFiles []string, goFile string) {
 	if err := f.Close(); err != nil {
 		die("failed to close", err)
 	}
+	return goFile
 }
 
 func lastModTime(files []string) time.Time {
