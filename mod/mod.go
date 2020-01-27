@@ -29,23 +29,16 @@ type Mod struct {
 
 	// Deps are the module dependencies
 	// in alphabetical order on ModPath.
+	//
+	// Deps is nil until after a call to LoadDeps.
 	Deps []*Mod
 }
 
-// Config has configuration parameters for module and dependency finding.
-type Config struct {
-	// ImportRootDir is the root directory to use for imported modules.
-	ImportRootDir string
-}
-
-// NewMod returns a *Mod for the module modPath, loaded from srcPath.
+// Load returns a *Mod for the module modPath, loaded from srcPath.
 // srcPath may be either a .pea source file or a directory of .pea source files.
-func NewMod(srcPath, modPath string, config Config) (*Mod, error) {
+func Load(srcPath, modPath string) (*Mod, error) {
 	m, err := newMod(srcPath, modPath)
 	if err != nil {
-		return nil, err
-	}
-	if err := loadDeps(config.ImportRootDir, m); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -120,6 +113,13 @@ func srcFiles(srcPath string) ([]string, string, error) {
 	}
 	sort.Strings(paths)
 	return paths, srcPath, nil
+}
+
+// LoadDeps loads the modules's dependencies, setting the Deps field.
+// Dependencies are loaded transitively, so all modules in Deps
+// also have their Deps loaded.
+func (m *Mod) LoadDeps(root string) error {
+	return loadDeps(root, m)
 }
 
 func loadDeps(modRootDir string, root *Mod) error {

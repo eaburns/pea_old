@@ -16,15 +16,12 @@ func TestEmptyModule(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	m, err := NewMod(root, "foo", Config{})
+	m, err := Load(root, "foo")
 	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 	if len(m.SrcFiles) > 0 {
 		t.Errorf("len(m.SrcFiles)=%d, want 0", len(m.SrcFiles))
-	}
-	if len(m.Deps) > 0 {
-		t.Errorf("len(m.Deps)=%d, want 0", len(m.Deps))
 	}
 }
 
@@ -37,18 +34,15 @@ func TestSourceFileModule(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	m, err := NewMod(filepath.Join(root, "foo.pea"), "foo", Config{})
+	m, err := Load(filepath.Join(root, "foo.pea"), "foo")
 	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 	want := []string{
 		filepath.Join(root, "foo.pea"),
 	}
 	if !reflect.DeepEqual(m.SrcFiles, want) {
 		t.Errorf("m.SrcFiles=%v, want %v", m.SrcFiles, want)
-	}
-	if len(m.Deps) > 0 {
-		t.Errorf("len(m.Deps)=%d, want 0", len(m.Deps))
 	}
 }
 
@@ -61,9 +55,9 @@ func TestSourceFileNotFound(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	_, err = NewMod(filepath.Join(root, "nothing.pea"), "foo", Config{})
+	_, err = Load(filepath.Join(root, "nothing.pea"), "foo")
 	if err == nil {
-		t.Fatalf("NewMod() succeeded, wanted an error")
+		t.Fatalf("Load() succeeded, wanted an error")
 	}
 }
 
@@ -78,9 +72,9 @@ func TestSourceDirModule(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	m, err := NewMod(root, "foo", Config{})
+	m, err := Load(root, "foo")
 	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 
 	want := []string{
@@ -90,9 +84,6 @@ func TestSourceDirModule(t *testing.T) {
 	}
 	if !reflect.DeepEqual(m.SrcFiles, want) {
 		t.Errorf("m.SrcFiles=%v, want %v", m.SrcFiles, want)
-	}
-	if len(m.Deps) > 0 {
-		t.Errorf("len(m.Deps)=%d, want 0", len(m.Deps))
 	}
 }
 
@@ -109,9 +100,9 @@ func TestSourceDirIgnoreNonPeaFiles(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	m, err := NewMod(root, "foo", Config{})
+	m, err := Load(root, "foo")
 	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
 	}
 
 	want := []string{
@@ -119,9 +110,6 @@ func TestSourceDirIgnoreNonPeaFiles(t *testing.T) {
 	}
 	if !reflect.DeepEqual(m.SrcFiles, want) {
 		t.Errorf("m.SrcFiles=%v, want %v", m.SrcFiles, want)
-	}
-	if len(m.Deps) > 0 {
-		t.Errorf("len(m.Deps)=%d, want 0", len(m.Deps))
 	}
 }
 
@@ -136,11 +124,12 @@ func TestMalformedImport(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	_, err = NewMod(filepath.Join(root, "foo"), "foo", Config{
-		ImportRootDir: root,
-	})
-	if err == nil {
-		t.Fatalf("NewMod() succeeded, wanted an error")
+	m, err := Load(filepath.Join(root, "foo"), "foo")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if err := m.LoadDeps(root); err == nil {
+		t.Fatalf("LoadDeps succeeded, wanted an error")
 	}
 }
 
@@ -153,11 +142,12 @@ func TestMissingDep(t *testing.T) {
 	}
 	defer rmDirRecur(root)
 
-	_, err = NewMod(filepath.Join(root, "foo"), "foo", Config{
-		ImportRootDir: root,
-	})
-	if err == nil {
-		t.Fatalf("NewMod() succeeded, wanted an error")
+	m, err := Load(filepath.Join(root, "foo"), "foo")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if err := m.LoadDeps(root); err == nil {
+		t.Fatalf("LoadDeps succeeded, wanted an error")
 	}
 }
 
@@ -174,11 +164,12 @@ func TestLoadDeps(t *testing.T) {
 
 	fooDir := filepath.Join(root, "foo")
 
-	foo, err := NewMod(fooDir, "foo", Config{
-		ImportRootDir: root,
-	})
+	foo, err := Load(fooDir, "foo")
 	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
+	}
+	if err := foo.LoadDeps(root); err != nil {
+		t.Fatalf("LoadDeps failed: %v", err)
 	}
 	if len(foo.Deps) != 1 {
 		t.Fatalf("len(foo.Deps)=%d, want 1", len(foo.Deps))
@@ -220,11 +211,12 @@ func TestTopologicalDeps(t *testing.T) {
 
 	fooDir := filepath.Join(root, "foo")
 
-	foo, err := NewMod(fooDir, "foo", Config{
-		ImportRootDir: root,
-	})
+	foo, err := Load(fooDir, "foo")
 	if err != nil {
-		t.Fatalf("NewMod failed: %v", err)
+		t.Fatalf("Load failed: %v", err)
+	}
+	if err := foo.LoadDeps(root); err != nil {
+		t.Fatalf("LoadDeps failed: %v", err)
 	}
 
 	sorted := TopologicalDeps(foo)

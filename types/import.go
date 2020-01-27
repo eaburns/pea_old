@@ -2,11 +2,10 @@ package types
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/mod"
 )
 
 // An Importer imports modules by path.
@@ -58,38 +57,29 @@ type SourceImporter struct {
 // Import implemements the Importer interface.
 func (ir *SourceImporter) Import(cfg Config, modPath string) ([]Def, error) {
 	path := filepath.Join(ir.Root, modPath)
-	f, err := os.Open(path)
+	mod, err := mod.Load(path, modPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open %s: %s", path, err)
-	}
-	finfos, err := f.Readdir(0) // all
-	f.Close()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read %s: %s", path, err)
+		return nil, fmt.Errorf("failed to load %s: %s", path, err)
 	}
 	p := ast.NewParser(modPath)
-	for _, fi := range finfos {
-		if !strings.HasSuffix(fi.Name(), ".pea") {
-			continue
-		}
-		err := p.ParseFile(filepath.Join(path, fi.Name()))
-		if err != nil {
+	for _, f := range mod.SrcFiles {
+		if err := p.ParseFile(f); err != nil {
 			return nil, fmt.Errorf("error parsing import %s:\n%v", path, err)
 		}
 	}
 	cfg.Trace = false // don't trace imports
-	mod, errs := Check(p.Mod(), cfg)
+	checkedMod, errs := Check(p.Mod(), cfg)
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("error checking import %s:\n%v", path, errs)
 	}
-	setMod(path, mod.Defs)
+	setMod(path, checkedMod.Defs)
 	// A future importer should read imported trees from a file.
 	// In this case, there will likely be no AST,
 	// so we do not want to assume one now.
 	// We nill out the AST of defs here to expose early
 	// any assumption that they are non-nil.
-	clearAST(mod.Defs)
-	return mod.Defs, nil
+	clearAST(checkedMod.Defs)
+	return checkedMod.Defs, nil
 }
 
 func setMod(path string, defs []Def) {

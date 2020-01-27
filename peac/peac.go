@@ -33,11 +33,12 @@ func main() {
 		os.Exit(1)
 	}
 	srcPath := flag.Args()[0]
-	root, err := mod.NewMod(srcPath, *modPath, mod.Config{
-		ImportRootDir: *modRoot,
-	})
+	root, err := mod.Load(srcPath, *modPath)
 	if err != nil {
 		die("failed to load module", err)
+	}
+	if err := root.LoadDeps(*modRoot); err != nil {
+		die("failed to load dependencies", err)
 	}
 	for _, m := range mod.TopologicalDeps(root) {
 		compile(m)
