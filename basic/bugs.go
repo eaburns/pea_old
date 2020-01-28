@@ -65,6 +65,18 @@ func (n *MakeArray) bugs() (b string) {
 	return ""
 }
 
+func (n *NewArray) bugs() (b string) {
+	defer recoverBug(&b)
+	bugIf(!isRefType(n.Dst),
+		"make array of non-reference type %s", n.Dst.Type())
+	bugIf(refElemType(n.Dst).BuiltIn != types.ArrayType,
+		"make string of non-array-reference type %s",
+		refElemType(n.Dst))
+	bugIf(n.Size.Type().BuiltIn != types.IntType,
+		"new array size is not Int: %s", n.Dst.Type())
+	return ""
+}
+
 func (n *MakeSlice) bugs() (b string) {
 	defer recoverBug(&b)
 	bugIf(!isRefType(n.Dst),

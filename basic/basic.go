@@ -279,7 +279,7 @@ type Copy struct {
 
 func (n *Copy) Uses() []Val { return []Val{n.Dst, n.Src} }
 
-// MakeArray initializes an array.
+// MakeArray initializes an array literal.
 // It assumes that Dst holds the size and data address,
 // and that the data address is set by MakeArray
 // to a newly allocated object of len(Args) elements.
@@ -296,6 +296,20 @@ type MakeArray struct {
 }
 
 func (n *MakeArray) Uses() []Val { return append(n.Args, n.Dst) }
+
+// NewArray allocates a new, uninitialized array.
+// It assumes that Dst holds the size and data address,
+// and that the data address is set by NewArray
+// to a newly allocated object of the given size elements.
+type NewArray struct {
+	stmt
+	Dst  Val
+	Size Val
+
+	Msg *types.Msg
+}
+
+func (n *NewArray) Uses() []Val { return []Val{n.Dst, n.Size} }
 
 // MakeSlice initializes an array by slicing another array.
 type MakeSlice struct {
@@ -323,6 +337,17 @@ type MakeString struct {
 }
 
 func (n *MakeString) Uses() []Val { return []Val{n.Dst} }
+
+// NewString allocates a new String with contents copied from a Byte Array.
+type NewString struct {
+	stmt
+	Dst  Val
+	Data Val
+
+	Msg *types.Msg
+}
+
+func (n *NewString) Uses() []Val { return []Val{n.Dst, n.Data} }
 
 // MakeAnd initializes an and-type.
 type MakeAnd struct {

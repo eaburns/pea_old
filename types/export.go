@@ -40,6 +40,7 @@ func Write(w io.Writer, m *Mod) (err error) {
 		writeObj(w, objs, def)
 	}
 	writeInt(w, getTypeNum(objs, m.IntType))
+	writeInt(w, getTypeNum(objs, m.BoolType))
 
 	for {
 		var todo []interface{}
@@ -83,6 +84,7 @@ func Read(r io.Reader) (m *Mod, err error) {
 		m.Defs = append(m.Defs, readObj(r, &objs).(Def))
 	}
 	patchType(&objs, readInt(r), &m.IntType)
+	patchType(&objs, readInt(r), &m.BoolType)
 
 	for {
 		n := readInt(r)

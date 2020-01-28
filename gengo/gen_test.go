@@ -1332,6 +1332,91 @@ func TestWriteMod(t *testing.T) {
 			stdout: "42",
 		},
 		{
+			name: "newArray:init: empty array",
+			src: `
+				func [main |
+					ary := newArray: 0 init: [:i Int | i].
+					print: ary size. print: "\n".
+				]
+			`,
+			stdout: "0\n",
+		},
+		{
+			name: "newArray:init: simple type",
+			src: `
+				func [main |
+					ary := newArray: 3 init: [:i Int | i].
+					print: ary size. print: "\n".
+					print: (ary at: 0). print: "\n".
+					print: (ary at: 1). print: "\n".
+					print: (ary at: 2). print: "\n".
+				]
+			`,
+			stdout: "3\n0\n1\n2\n",
+		},
+		{
+			name: "newArray:init: composite type",
+			src: `
+				func [main |
+					ary := newArray: 3 init: [:i Int | pt Point := {x: i y: i}. pt].
+					print: ary size. print: "\n".
+					(ary at: 0) print. print: "\n".
+					(ary at: 1) print. print: "\n".
+					(ary at: 2) print. print: "\n".
+				]
+
+				type Point {x: Int y: Int}
+
+				meth Point [print |
+					print: "{x: ". print: x. print: " y: ". print: y. print: "}"
+				]
+			`,
+			stdout: "3\n{x: 0 y: 0}\n{x: 1 y: 1}\n{x: 2 y: 2}\n",
+		},
+		{
+			name: "newString",
+			src: `
+				func [main |
+					print: (newString: {104; 101; 108; 108; 111; 10}).
+				]
+			`,
+			stdout: "hello\n",
+		},
+		{
+			name: "newString is immutable",
+			src: `
+				func [main |
+					data Byte Array := {104; 101; 108; 108; 111; 10}.
+					str := newString: data.
+					data at: 0 put: 0.
+					data at: 1 put: 0.
+					data at: 2 put: 0.
+					data at: 3 put: 0.
+					data at: 4 put: 0.
+					print: str.
+				]
+			`,
+			stdout: "hello\n",
+		},
+		{
+			name: "newString empty",
+			src: `
+				func [main |
+					print: (newString: {}).
+				]
+			`,
+			stdout: "",
+		},
+		{
+			name: "newString unicode",
+			src: `
+				func [main |
+					print: (newString: {226; 152; 186}).
+				]
+			`,
+			stdout: "☺",
+		},
+		{
 			name: "panic",
 			src: `									// 1
 				func [main |						// 2

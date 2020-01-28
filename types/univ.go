@@ -39,11 +39,13 @@ var univ = `
 	func [false ^Bool | ^{false}]
 
 	type String {}
+	func [newString: a Byte Array ^String | ^newString: a]
 	meth String [byteSize ^Int | ^self byteSize]
 	meth String [atByte: x Int ^Byte | ^self atByte: x]
 	meth String [fromByte: x Int toByte: y Int ^String | ^self fromByte: x toByte: y]
 
 	type _ Array {}
+	func T [newArray: s Int init: f (Int, T) Fun ^T Array | ^newArray: s init: f]
 	meth _ Array [size ^Int | ^self size]
 	meth T Array [at: x Int ^T& | ^self at: x]
 	meth T Array [at: x Int put: y T | self at: x put: y]

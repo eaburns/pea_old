@@ -23,6 +23,8 @@ type Mod struct {
 
 	// IntType is a pointer to the Int type.
 	IntType *Type
+	// BoolType is a pointer to the Bool type.
+	BoolType *Type
 }
 
 // A Node is a node of the AST with location information.

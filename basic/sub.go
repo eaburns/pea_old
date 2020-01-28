@@ -51,6 +51,11 @@ func (n *MakeArray) subVals(sub valMap) {
 	}
 }
 
+func (n *NewArray) subVals(sub valMap) {
+	sub1(sub, n, &n.Dst)
+	sub1(sub, n, &n.Size)
+}
+
 func (n *MakeSlice) subVals(sub valMap) {
 	sub1(sub, n, &n.Dst)
 	sub1(sub, n, &n.Ary)
@@ -60,6 +65,11 @@ func (n *MakeSlice) subVals(sub valMap) {
 
 func (n *MakeString) subVals(sub valMap) {
 	sub1(sub, n, &n.Dst)
+}
+
+func (n *NewString) subVals(sub valMap) {
+	sub1(sub, n, &n.Dst)
+	sub1(sub, n, &n.Data)
 }
 
 func (n *MakeAnd) subVals(sub valMap) {

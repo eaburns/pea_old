@@ -2230,6 +2230,105 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "newArray:init simple type",
+			src: `
+				func [foo ^Int Array | ^newArray: 5 init: [:_ | 0]]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 Int Array&
+					0:
+						[in:] [out: 1]
+						$0 := alloc(Int Array)
+						$3 := alloc($Block0)
+						$4 := alloc((Int, Int) Fun)
+						$5 := alloc(Int)
+						$9 := alloc(Int)
+						jmp 1
+					1:
+						[in: 0] [out: 2]
+						$1 := 5
+						$2 := arg(0)
+						and($3, {$2})
+						virt($4, $3, {block1})
+						array($0, $1)
+						$6 := 0
+						store($5, $6)
+						jmp 2
+					2:
+						[in: 1 3] [out: 3 4]
+						$7 := load($5)
+						$8 := $7 < $1
+						switch $8 [true 3] [false 4]
+					3:
+						[in: 2] [out: 2]
+						virt call $4.0($4, $7, $9)
+						$10 := $0[$7]
+						$11 := load($9)
+						store($10, $11)
+						$12 := 1
+						$13 := $7 + $12
+						store($5, $13)
+						jmp 2
+					4:
+						[in: 2] [out:]
+						$14 := arg(0)
+						copy($14, $0, Int Array)
+						return
+			`,
+		},
+		{
+			name: "newArray:init composite type",
+			src: `
+				func [foo ^String Array | ^newArray: 5 init: [:_ | ""]]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 String Array&
+					0:
+						[in:] [out: 1]
+						$0 := alloc(String Array)
+						$3 := alloc($Block0)
+						$4 := alloc((Int, String) Fun)
+						$5 := alloc(Int)
+						$9 := alloc(String)
+						jmp 1
+					1:
+						[in: 0] [out: 2]
+						$1 := 5
+						$2 := arg(0)
+						and($3, {$2})
+						virt($4, $3, {block1})
+						array($0, $1)
+						$6 := 0
+						store($5, $6)
+						jmp 2
+					2:
+						[in: 1 3] [out: 3 4]
+						$7 := load($5)
+						$8 := $7 < $1
+						switch $8 [true 3] [false 4]
+					3:
+						[in: 2] [out: 2]
+						virt call $4.0($4, $7, $9)
+						$10 := $0[$7]
+						copy($10, $9, String)
+						$11 := 1
+						$12 := $7 + $11
+						store($5, $12)
+						jmp 2
+					4:
+						[in: 2] [out:]
+						$13 := arg(0)
+						copy($13, $0, String Array)
+						return
+			`,
+		},
+		{
 			name: "panic",
 			src: `
 				func [foo | panic: "bar"]

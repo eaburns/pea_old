@@ -352,10 +352,14 @@ func genStmt(f *basic.Fun, stmt basic.Stmt, ts typeSet, s *strings.Builder) {
 		fmt.Fprintf(s, "*x%d = *x%d", stmt.Dst.Num(), stmt.Src.Num())
 	case *basic.MakeArray:
 		genMakeArray(stmt, ts, s)
+	case *basic.NewArray:
+		genNewArray(stmt, ts, s)
 	case *basic.MakeSlice:
 		genMakeSlice(stmt, s)
 	case *basic.MakeString:
 		genMakeString(stmt, s)
+	case *basic.NewString:
+		genNewString(stmt, s)
 	case *basic.MakeAnd:
 		genMakeAnd(stmt, ts, s)
 	case *basic.MakeOr:
@@ -402,6 +406,12 @@ func genMakeArray(stmt *basic.MakeArray, ts typeSet, s *strings.Builder) {
 	s.WriteRune('}')
 }
 
+func genNewArray(stmt *basic.NewArray, ts typeSet, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = make(", stmt.Dst.Num())
+	genTypeName(stmt.Dst.Type().Args[0].Type, ts, s)
+	fmt.Fprintf(s, ", x%d)", stmt.Size.Num())
+}
+
 func genMakeSlice(stmt *basic.MakeSlice, s *strings.Builder) {
 	fmt.Fprintf(s, "*x%d = (*x%d)[x%d:x%d]",
 		stmt.Dst.Num(), stmt.Ary.Num(), stmt.From.Num(), stmt.To.Num())
@@ -409,6 +419,10 @@ func genMakeSlice(stmt *basic.MakeSlice, s *strings.Builder) {
 
 func genMakeString(stmt *basic.MakeString, s *strings.Builder) {
 	fmt.Fprintf(s, "*x%d = %s[:]", stmt.Dst.Num(), stringName(stmt.Data))
+}
+
+func genNewString(stmt *basic.NewString, s *strings.Builder) {
+	fmt.Fprintf(s, "*x%d = append([]byte{}, *x%d...)", stmt.Dst.Num(), stmt.Data.Num())
 }
 
 func genMakeAnd(stmt *basic.MakeAnd, ts typeSet, s *strings.Builder) {

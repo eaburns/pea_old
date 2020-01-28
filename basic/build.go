@@ -378,6 +378,10 @@ func buildCall(f *Fun, b *BBlk, call *types.Call) (Val, *BBlk) {
 		switch msg := &call.Msgs[i]; {
 		case builtInMethOp[msg.Fun.BuiltIn] > 0:
 			val, b = buildOp(f, b, recv, msg)
+		case msg.Fun.BuiltIn == types.NewStringFunc:
+			val, b = buildNewString(f, b, msg)
+		case msg.Fun.BuiltIn == types.NewArrayFunc:
+			val, b = buildNewArray(f, b, msg)
 		case msg.Fun.BuiltIn == types.ArrayLoadMeth:
 			val, b = buildArrayLoad(f, b, recv, msg)
 		case msg.Fun.BuiltIn == types.ArrayStoreMeth:
@@ -393,6 +397,54 @@ func buildCall(f *Fun, b *BBlk, call *types.Call) (Val, *BBlk) {
 		}
 	}
 	return val, b
+}
+
+func buildNewString(f *Fun, b *BBlk, msg *types.Msg) (Val, *BBlk) {
+	dst := addAlloc(f, b, msg.Type())
+	data, b := buildExpr(f, b, msg.Args[0])
+	s := addNewString(b, dst, data)
+	s.Msg = msg
+	return dst, b
+}
+
+func buildNewArray(f *Fun, b *BBlk, msg *types.Msg) (Val, *BBlk) {
+	dst := addAlloc(f, b, msg.Type())
+	size, b := buildExpr(f, b, msg.Args[0])
+	fun, b := buildExpr(f, b, msg.Args[1])
+
+	na := addNewArray(b, dst, size)
+	na.Msg = msg
+	bCond := newBBlk(f)
+	bDo := newBBlk(f)
+	bDone := newBBlk(f)
+
+	iptr := addAlloc(f, f.BBlks[0], f.Mod.Mod.IntType)
+	zero := addIntLit(f, b, f.Mod.Mod.IntType, big.NewInt(0))
+	addStore(b, iptr, zero)
+	addJmp(b, bCond)
+
+	// bCond
+	i := addLoad(f, bCond, iptr)
+	cmp := addOp(f, bCond, f.Mod.Mod.BoolType, LessOp, i, size)
+	addSwitch(bCond, cmp, []*BBlk{bDo, bDone}, f.Mod.Mod.BoolType)
+
+	// bDo
+	elmType := dst.Type().Args[0].Type.Args[0].Type
+	x := addAlloc(f, bDo, elmType)
+	addVirtCallIndex(bDo, 0, []Val{fun, i, x})
+	elm := addIndex(f, bDo, dst, i)
+	if SimpleType(elmType) {
+		addStore(bDo, elm, addLoad(f, bDo, x))
+	} else {
+		addCopy(bDo, elm, x)
+	}
+	one := addIntLit(f, bDo, f.Mod.Mod.IntType, big.NewInt(1))
+	inext := addOp(f, bDo, f.Mod.Mod.IntType, PlusOp, i, one)
+	addStore(bDo, iptr, inext)
+	addJmp(bDo, bCond)
+
+	// bDone
+	return dst, bDone
 }
 
 func buildPanic(f *Fun, b *BBlk, msg *types.Msg) *BBlk {
@@ -862,6 +914,12 @@ func addMakeArray(b *BBlk, dst Val, args []Val) *MakeArray {
 	return s
 }
 
+func addNewArray(b *BBlk, dst Val, size Val) *NewArray {
+	s := &NewArray{Dst: dst, Size: size}
+	addStmt(b, s)
+	return s
+}
+
 func addMakeSlice(b *BBlk, dst, ary, from, to Val) *MakeSlice {
 	s := &MakeSlice{Dst: dst, Ary: ary, From: from, To: to}
 	addStmt(b, s)
@@ -870,6 +928,12 @@ func addMakeSlice(b *BBlk, dst, ary, from, to Val) *MakeSlice {
 
 func addMakeString(b *BBlk, dst Val, str *String) *MakeString {
 	s := &MakeString{Dst: dst, Data: str}
+	addStmt(b, s)
+	return s
+}
+
+func addNewString(b *BBlk, dst Val, data Val) *NewString {
+	s := &NewString{Dst: dst, Data: data}
 	addStmt(b, s)
 	return s
 }

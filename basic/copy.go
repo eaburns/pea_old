@@ -52,8 +52,10 @@ func (n Comment) shallowCopy() Stmt    { return &n }
 func (n Store) shallowCopy() Stmt      { return &n }
 func (n Copy) shallowCopy() Stmt       { return &n }
 func (n MakeArray) shallowCopy() Stmt  { return &n }
+func (n NewArray) shallowCopy() Stmt   { return &n }
 func (n MakeSlice) shallowCopy() Stmt  { return &n }
 func (n MakeString) shallowCopy() Stmt { return &n }
+func (n NewString) shallowCopy() Stmt  { return &n }
 
 func (n MakeAnd) shallowCopy() Stmt {
 	n.Fields = append([]Val{}, n.Fields...)

@@ -176,6 +176,11 @@ func (n *MakeArray) buildString(s *strings.Builder) *strings.Builder {
 	return s
 }
 
+func (n *NewArray) buildString(s *strings.Builder) *strings.Builder {
+	fmt.Fprintf(s, "array($%d, $%d)", n.Dst.Num(), n.Size.Num())
+	return s
+}
+
 func (n *MakeSlice) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "slice($%d, $%d[$%d:$%d])",
 		n.Dst.Num(), n.Ary.Num(), n.From.Num(), n.To.Num())
@@ -184,6 +189,11 @@ func (n *MakeSlice) buildString(s *strings.Builder) *strings.Builder {
 
 func (n *MakeString) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "string($%d, string%d)", n.Dst.Num(), n.Data.N)
+	return s
+}
+
+func (n *NewString) buildString(s *strings.Builder) *strings.Builder {
+	fmt.Fprintf(s, "string($%d, $%d)", n.Dst.Num(), n.Data.Num())
 	return s
 }
 
