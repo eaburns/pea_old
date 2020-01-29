@@ -907,7 +907,7 @@ func checkExpr(x *scope, infer *Type, astExpr ast.Expr) (expr Expr, errs []check
 func convertExpr(x *scope, want *Type, expr Expr) (_ Expr, err *checkError) {
 	defer x.tr("convertExpr(want=%s, have=%s)", want, expr.Type())(&err)
 
-	if expr.Type() == nil || want == nil {
+	if expr.Type() == nil || want == nil || isPanic(expr) {
 		return expr, nil
 	}
 
@@ -1498,6 +1498,8 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	for i := range blk.Parms {
 		parm := &blk.Parms[i]
 		if parm.Type() == nil {
+			// TODO: this is an error.
+			// We cannot figure out the block param type?
 			return blk, errs
 		}
 		if parm.TypeName != nil {
@@ -1514,23 +1516,31 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 		}
 	}
 
-	resType := builtInType(x, "Nil")
-	if n := len(blk.Stmts); n > 0 && isExpr(blk.Stmts[n-1]) {
+	var resType *Type
+	switch n := len(blk.Stmts); {
+	default:
+		fallthrough
+	case n == 0:
+		resType = builtInType(x, "Nil")
+		blk.Stmts = append(blk.Stmts, nilLiteral(x))
+	case isRet(blk.Stmts[n-1]) || isPanic(blk.Stmts[n-1]):
+		if resInfer == nil {
+			resType = builtInType(x, "Nil")
+		} else {
+			resType = resInfer
+		}
+	case isExpr(blk.Stmts[n-1]):
 		expr, _ := blk.Stmts[n-1].(Expr)
 		resType = expr.Type()
 		if resType == nil {
+			// TODO: this is an error.
+			// We cannot figure out the block result type.
+			// test:
+			//	f Foo := xyz: [f].
+			// we may not have checked the type of f yet
+			// when checking the block statements.
 			return blk, errs
 		}
-	} else if n == 0 || !isRet(blk.Stmts[n-1]) {
-		// Add a Nil constructor expression, {}, at the end.
-		nilTyp := builtInType(x, "Nil")
-		blk.Stmts = append(blk.Stmts, &Convert{
-			Expr: &Ctor{
-				typ: builtInType(x, "&", *makeTypeName(nilTyp)),
-			},
-			Ref: -1,
-			typ: nilTyp,
-		})
 	}
 	typeArgs[len(typeArgs)-1] = TypeName{
 		AST:  astBlock,
@@ -1544,9 +1554,29 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	return blk, errs
 }
 
+func nilLiteral(x *scope) *Convert {
+	nilType := builtInType(x, "Nil")
+	return &Convert{
+		Expr: &Ctor{
+			typ: builtInType(x, "&", *makeTypeName(nilType)),
+		},
+		Ref: -1,
+		typ: nilType,
+	}
+}
+
 func isExpr(stmt Stmt) bool {
 	_, ok := stmt.(Expr)
 	return ok
+}
+
+func isPanic(stmt Stmt) bool {
+	call, ok := stmt.(*Call)
+	if !ok || len(call.Msgs) == 0 {
+		return false
+	}
+	msg := &call.Msgs[len(call.Msgs)-1]
+	return msg.Fun != nil && msg.Fun.BuiltIn == PanicFunc
 }
 
 func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []checkError) {

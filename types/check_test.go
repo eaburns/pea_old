@@ -3696,6 +3696,28 @@ func TestBlockLiteral(t *testing.T) {
 			`,
 			err: "have Int, want String",
 		},
+		{
+			name: "any result type is OK in return-ending block",
+			src: `
+				func [foo ^Int |
+					bar: [^3].
+					^2.
+				]
+				func [bar: f Float Fun]
+			`,
+			err: "",
+		},
+		{
+			name: "any result type is OK in panic-ending block",
+			src: `
+				func [foo ^Int |
+					bar: [panic: "oh no!"].
+					^2.
+				]
+				func [bar: f Float Fun]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

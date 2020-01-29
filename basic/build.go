@@ -229,7 +229,8 @@ func buildStmts(f *Fun, b *BBlk, stmts []types.Stmt) *BBlk {
 		case types.Expr:
 			var v Val
 			v, b = buildExpr(f, b, stmt)
-			if i == len(stmts)-1 && (f.Block != nil || f.Val != nil) {
+			// v can be nil here if the block ends in a panic:.
+			if i == len(stmts)-1 && v != nil && (f.Block != nil || f.Val != nil) {
 				buildBlockFunRet(f, b, v)
 			}
 		default:

@@ -1440,6 +1440,31 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stderr: ":3: panic: boo\n",
 		},
+		{
+			name: "return-ending block can have any result type",
+			src: `
+				func [main | print: foo]
+				func [foo ^Int |
+					// This is a String Fun because it ends in a return.
+					bar: [^42].
+					^0.
+				]
+				func [bar: f String Fun | print: f value]
+			`,
+			stdout: "42",
+		},
+		{
+			name: "panic-ending block can have any result type",
+			src: `							// 1
+				func [main | print: foo]	// 2
+				func [foo ^Int |			// 3
+					bar: [panic: "oh no"].	// 4
+					^0.
+				]
+				func [bar: f String Fun | print: f value]
+			`,
+			stderr: ":4: panic: oh no\n",
+		},
 	}
 	for _, test := range tests {
 		test := test
