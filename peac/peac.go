@@ -119,8 +119,12 @@ func link(m *mod.Mod) {
 	}
 
 	goFile := merge(objFiles)
-	vprintf("linking %s\n", binFile)
-	cmd := exec.Command("go", "build", "-o", binFile, goFile)
+	objFile := binFile + ".o"
+
+	vprintf("compiling %s\n", objFile)
+	args := []string{"tool", "compile", "-o", objFile, goFile}
+	args = append(args, goFiles(m)...)
+	cmd := exec.Command("go", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -129,6 +133,17 @@ func link(m *mod.Mod) {
 	}
 
 	os.Remove(goFile)
+
+	vprintf("linking %s\n", binFile)
+	cmd = exec.Command("go", "tool", "link", "-o", binFile, objFile)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		die("failed to run go build", err)
+	}
+
+	os.Remove(objFile)
 }
 
 func binFile() string {
@@ -150,6 +165,23 @@ func binFile() string {
 		binFile += "_test"
 	}
 	return binFile
+}
+
+func goFiles(m *mod.Mod) []string {
+	var goFiles []string
+	seen := make(map[*mod.Mod]bool)
+	var addGoFiles func(*mod.Mod)
+	addGoFiles = func(m *mod.Mod) {
+		if seen[m] {
+			return
+		}
+		goFiles = append(goFiles, m.GoSrcFiles...)
+		for _, d := range m.Deps {
+			addGoFiles(d)
+		}
+	}
+	addGoFiles(m)
+	return goFiles
 }
 
 func merge(objFiles []string) string {
@@ -178,7 +210,7 @@ func merge(objFiles []string) string {
 			die("failed to close peago", err)
 		}
 	}
-	vprintf("merging %v → %s\n", objFiles, goFile)
+	vprintf("merging %s\n", goFile)
 	if err := merger.Done(); err != nil {
 		die("failed to write Go footer", err)
 	}

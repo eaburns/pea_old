@@ -66,6 +66,8 @@ func TestSourceDirModule(t *testing.T) {
 		{path: "foo.pea", body: ""},
 		{path: "bar.pea", body: ""},
 		{path: "baz.pea", body: ""},
+		{path: "zzz.go", body: ""},
+		{path: "qux.go", body: ""},
 	})
 	if err != nil {
 		t.Fatalf("newFS failed: %v", err)
@@ -84,6 +86,13 @@ func TestSourceDirModule(t *testing.T) {
 	}
 	if !reflect.DeepEqual(m.SrcFiles, want) {
 		t.Errorf("m.SrcFiles=%v, want %v", m.SrcFiles, want)
+	}
+	wantGo := []string{
+		filepath.Join(root, "qux.go"),
+		filepath.Join(root, "zzz.go"),
+	}
+	if !reflect.DeepEqual(m.GoSrcFiles, wantGo) {
+		t.Errorf("m.GoSrcFiles=%v, want %v", m.GoSrcFiles, wantGo)
 	}
 }
 

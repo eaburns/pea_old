@@ -27,6 +27,9 @@ type Mod struct {
 	// SrcFiles contains the source file paths in alphabetical order.
 	SrcFiles []string
 
+	// GoSrcFiles are Go source files for the module.
+	GoSrcFiles []string
+
 	// Deps are the module dependencies
 	// in alphabetical order on ModPath.
 	//
@@ -49,18 +52,15 @@ func newMod(srcPath, modPath string) (*Mod, error) {
 	if err != nil {
 		return nil, err
 	}
-	srcFiles, srcDir, err := srcFiles(srcPath)
-	if err != nil {
+	m := &Mod{
+		ModPath: modPath,
+		ModName: filepath.Base(modPath),
+		SrcPath: srcPath,
+	}
+	if err := findSrcFiles(m); err != nil {
 		return nil, err
 	}
-	m := &Mod{
-		ModPath:  modPath,
-		ModName:  filepath.Base(modPath),
-		SrcPath:  srcPath,
-		SrcDir:   srcDir,
-		SrcFiles: srcFiles,
-	}
-	return m, err
+	return m, nil
 }
 
 func realPath(dir string) (string, error) {
@@ -86,33 +86,38 @@ func realPath(dir string) (string, error) {
 	}
 }
 
-func srcFiles(srcPath string) ([]string, string, error) {
-	srcFile, err := os.Open(srcPath)
+func findSrcFiles(m *Mod) error {
+	srcFile, err := os.Open(m.SrcPath)
 	if err != nil {
-		return nil, "", err
+		return err
 	}
 	defer srcFile.Close()
 	stat, err := srcFile.Stat()
 	if err != nil {
-		return nil, "", err
+		return err
 	}
 	if !stat.IsDir() {
-		return []string{srcPath}, filepath.Dir(srcPath), nil
+		m.SrcFiles = []string{m.SrcPath}
+		m.SrcDir = filepath.Dir(m.SrcPath)
+		return nil
 	}
 	finfos, err := srcFile.Readdir(-1)
 	if err != nil {
-		return nil, "", err
+		return err
 	}
-	var paths []string
 	for _, finfo := range finfos {
-		if !strings.HasSuffix(finfo.Name(), ".pea") {
-			continue
+		path := filepath.Join(m.SrcPath, finfo.Name())
+		if strings.HasSuffix(finfo.Name(), ".pea") {
+			m.SrcFiles = append(m.SrcFiles, path)
 		}
-		path := filepath.Join(srcPath, finfo.Name())
-		paths = append(paths, path)
+		if strings.HasSuffix(finfo.Name(), ".go") {
+			m.GoSrcFiles = append(m.GoSrcFiles, path)
+		}
 	}
-	sort.Strings(paths)
-	return paths, srcPath, nil
+	sort.Strings(m.SrcFiles)
+	sort.Strings(m.GoSrcFiles)
+	m.SrcDir = m.SrcPath
+	return nil
 }
 
 // LoadDeps loads the modules's dependencies, setting the Deps field.
