@@ -72,7 +72,7 @@ func (ir *SourceImporter) Import(cfg Config, modPath string) ([]Def, error) {
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("error checking import %s:\n%v", path, errs)
 	}
-	setMod(path, checkedMod.Defs)
+	setMod(modPath, checkedMod.Defs)
 	// A future importer should read imported trees from a file.
 	// In this case, there will likely be no AST,
 	// so we do not want to assume one now.
