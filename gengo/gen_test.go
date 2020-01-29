@@ -1512,6 +1512,7 @@ func run(mods []*basic.Mod) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	merger.includePrintForTests = true
 	for _, mod := range mods {
 		var b bytes.Buffer
 		if err := WriteMod(&b, mod); err != nil {

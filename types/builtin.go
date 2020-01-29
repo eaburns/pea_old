@@ -93,9 +93,12 @@ const (
 	PanicFunc
 	NewStringFunc
 	NewArrayFunc
+
+	PrintFunc
 )
 
 var builtInFunTag = map[string]BuiltInMeth{
+	"print:":                   PrintFunc,
 	"newString:":               NewStringFunc,
 	"newArray:init:":           NewArrayFunc,
 	"panic:":                   PanicFunc,

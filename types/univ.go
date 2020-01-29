@@ -28,6 +28,10 @@ const MaxValueParms = 4
 // the basic package will not actually emit recursive calls,
 // but instead will emit the implementation of the method.
 var univ = `
+	// print: is not part of the language, but a temporary function
+	// that will be removed once proper library support is implemented.
+	func [print: _ String]
+
 	func [panic: _ String]
 
 	type _& {}

@@ -15,6 +15,8 @@ type Merger struct {
 	seen    map[string]bool
 	inits   []string
 	tests   []testFun
+
+	includePrintForTests bool
 }
 
 type testFun struct {
@@ -80,6 +82,12 @@ func (m *Merger) Done() error {
 	}
 	m.seen = nil
 
+	if m.includePrintForTests {
+		if _, err := io.WriteString(m.w, printForTests); err != nil {
+			return err
+		}
+	}
+
 	t, err := template.New("main").Parse(mainTemplate)
 	if err != nil {
 		panic(err)
@@ -130,32 +138,8 @@ func recoverTestLoc(file string, line int) {
 
 func use(interface{}) {}
 
-func F1___0_String__main__print_3A__(x *[]byte) {
+func F0___print_3A__(x *[]byte) {
 	fmt.Printf("%v", string(*x))
-}
-func F1___1__26____0_String__main__print_3A__(x *[]byte) {
-	fmt.Printf("%v", string(*x))
-}
-func F1___0_Int__main__print_3A__(x int) {
-	fmt.Printf("%v", x)
-}
-func F1___1__26____0_Int__main__print_3A__(x *int) {
-	fmt.Printf("%v", *x)
-}
-func F1___0_Int8__main__print_3A__(x int8) {
-	fmt.Printf("%v", x)
-}
-func F1___0_UInt__main__print_3A__(x uint) {
-	fmt.Printf("%v", x)
-}
-func F1___0_Float__main__print_3A__(x float64) {
-	fmt.Printf("%v", x)
-}
-func F1___0_Float32__main__print_3A__(x float32) {
-	fmt.Printf("%v", x)
-}
-func F1___0_Bool__main__print_3A__(x uint8) {
-	fmt.Printf("%v", x == 1)
 }
 `
 
@@ -202,5 +186,41 @@ func main() {
 		runTest({{printf "%q" .Name}}, {{.Fun}})
 		{{end -}}
 	{{end -}}
+}
+`
+
+// These implement the main package's
+// 	func T [print: _T]
+// assumed in tests.
+const printForTests = `
+func F1___0_String__print_3A__(x *[]byte) {
+	fmt.Printf("%v", string(*x))
+}
+func F1___0_String__main__print_3A__(x *[]byte) {
+	fmt.Printf("%v", string(*x))
+}
+func F1___1__26____0_String__main__print_3A__(x *[]byte) {
+	fmt.Printf("%v", string(*x))
+}
+func F1___0_Int__main__print_3A__(x int) {
+	fmt.Printf("%v", x)
+}
+func F1___1__26____0_Int__main__print_3A__(x *int) {
+	fmt.Printf("%v", *x)
+}
+func F1___0_Int8__main__print_3A__(x int8) {
+	fmt.Printf("%v", x)
+}
+func F1___0_UInt__main__print_3A__(x uint) {
+	fmt.Printf("%v", x)
+}
+func F1___0_Float__main__print_3A__(x float64) {
+	fmt.Printf("%v", x)
+}
+func F1___0_Float32__main__print_3A__(x float32) {
+	fmt.Printf("%v", x)
+}
+func F1___0_Bool__main__print_3A__(x uint8) {
+	fmt.Printf("%v", x == 1)
 }
 `
