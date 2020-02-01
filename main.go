@@ -25,6 +25,7 @@ var (
 	runGo      = flag.Bool("rungo", false, "compiles to Go and runs")
 	opt        = flag.Bool("opt", false, "optimize the basic representation")
 	trace      = flag.Bool("trace", false, "enable tracing in the type checker")
+	modRoot    = flag.String("root", ".", "the module root directory")
 )
 
 func main() {
@@ -50,7 +51,10 @@ func main() {
 		fmt.Println("")
 	}
 
-	typesMod, errs := types.Check(astMod, types.Config{Trace: *trace})
+	typesMod, errs := types.Check(astMod, types.Config{
+		Trace:    *trace,
+		Importer: &types.SourceImporter{Root: *modRoot},
+	})
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
