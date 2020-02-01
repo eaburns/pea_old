@@ -315,6 +315,10 @@ func (n *Jmp) buildString(s *strings.Builder) *strings.Builder {
 func (n *Switch) buildString(s *strings.Builder) *strings.Builder {
 	fmt.Fprintf(s, "switch $%d", n.Val.Num())
 	for i, dst := range n.Dsts {
+		if i >= len(n.OrType.Cases) {
+			fmt.Fprintf(s, " [<bad case %s> %d]", n.OrType, dst.N)
+			break
+		}
 		cas := &n.OrType.Cases[i]
 		fmt.Fprintf(s, " [%s %d]", cas.Name, dst.N)
 	}

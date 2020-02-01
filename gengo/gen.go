@@ -571,7 +571,10 @@ func genVal(v basic.Val, ts typeSet, s *strings.Builder) {
 	case *basic.Global:
 		fmt.Fprintf(s, "&%s", valName(v.Val))
 	case *basic.Index:
-		fmt.Fprintf(s, "&(*x%d)[x%d]", v.Ary.Num(), v.Index.Num())
+		if v.Type().BuiltIn == types.RefType {
+			s.WriteRune('&')
+		}
+		fmt.Fprintf(s, "(*x%d)[x%d]", v.Ary.Num(), v.Index.Num())
 	case *basic.Field:
 		n := v.Obj.Num()
 		i := v.Index

@@ -264,7 +264,8 @@ func (n *Index) bugs() (b string) {
 	bugIf(!isRefType(n.Ary),
 		"index of non-reference type %s", n.Ary.Type())
 	aryType := refElemType(n.Ary)
-	bugIf(aryType.BuiltIn != types.ArrayType,
+	bugIf(aryType.BuiltIn != types.ArrayType &&
+		aryType.BuiltIn != types.StringType,
 		"index of non-array reference type %s", n.Ary.Type())
 	bugIf(n.Index.Type().BuiltIn != types.IntType,
 		"index with non-Int index type %s", n.Index.Type())

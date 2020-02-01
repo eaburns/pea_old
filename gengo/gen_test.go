@@ -322,6 +322,15 @@ func TestWriteMod(t *testing.T) {
 			stdout: "42\n43",
 		},
 		{
+			name: "string element",
+			src: `
+				func [main |
+					print: ("Hello" atByte: 2).
+				]
+			`,
+			stdout: "108", // l
+		},
+		{
 			name: "array element",
 			src: `
 				func [main |

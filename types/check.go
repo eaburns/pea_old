@@ -127,6 +127,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 
 	mod.IntType = builtInType(x, "Int")
 	mod.BoolType = builtInType(x, "Bool")
+	mod.ByteType = builtInType(x, "UInt8")
 
 	return mod, errs
 }

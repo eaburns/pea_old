@@ -809,6 +809,30 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "string atByte",
+			src: `
+				func [foo: a String ^UInt8 | ^a atByte: 123]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 [a] String& (value)
+						1 UInt8&
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$0 := arg(0 [a])
+						$1 := 123
+						$2 := $0[$1]
+						$3 := arg(1)
+						store($3, $2)
+						return
+			`,
+		},
+		{
 			name: "array simple load",
 			src: `
 				func [foo: a Int Array ^Int | ^a at: 123]
@@ -901,6 +925,29 @@ func TestBuild(t *testing.T) {
 						string($2, string1)
 						$3 := $0[$1]
 						copy($3, $2, String)
+						return
+			`,
+		},
+		{
+			name: "string byteSize",
+			src: `
+				Func [size: a String ^Int | ^a byteSize]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+						0 [a] String& (value)
+						1 Int&
+					0:
+						[in:] [out: 1]
+						jmp 1
+					1:
+						[in: 0] [out:]
+						$0 := arg(0 [a])
+						$1 := size($0)
+						$2 := arg(1)
+						store($2, $1)
 						return
 			`,
 		},

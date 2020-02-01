@@ -1053,12 +1053,16 @@ func addGlobal(f *Fun, b *BBlk, val *types.Val) *Global {
 
 func addIndex(f *Fun, b *BBlk, ary, i Val) *Index {
 	v := &Index{val: newVal(f, ary.Type()), Ary: ary, Index: i}
-	if ary.Type().BuiltIn == types.RefType &&
-		ary.Type().Args[0].Type.BuiltIn == types.ArrayType {
-		// If ary is indeed an Array&, then this is the element type.
-		v.val.typ = ary.Type().Args[0].Type.Args[0].Type.Ref()
-	}
 	addStmt(b, v)
+	if ary.Type().BuiltIn != types.RefType {
+		return v
+	}
+	typ := ary.Type().Args[0].Type
+	if typ.BuiltIn == types.ArrayType {
+		v.val.typ = typ.Args[0].Type.Ref()
+	} else if typ.BuiltIn == types.StringType {
+		v.val.typ = f.Mod.Mod.ByteType
+	}
 	return v
 }
 
