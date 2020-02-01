@@ -673,6 +673,14 @@ func checkTypeName(x *scope, name *TypeName) (errs []checkError) {
 
 func checkStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []checkError) {
 	defer x.tr("gatherStmts(want=%s)", want)(&errs)
+
+	switch {
+	case astStmts == nil:
+		return nil, nil
+	case len(astStmts) == 0:
+		return []Stmt{nilLiteral(x)}, nil
+	}
+
 	var stmts []Stmt
 	for i, astStmt := range astStmts {
 		switch astStmt := astStmt.(type) {
@@ -689,24 +697,63 @@ func checkStmts(x *scope, want *Type, astStmts []ast.Stmt) (_ []Stmt, errs []che
 		case ast.Expr:
 			var expr Expr
 			var es []checkError
-			if i == len(astStmts)-1 {
-				expr, es = checkExpr(x, want, astStmt)
-			} else {
+			if i < len(astStmts)-1 {
 				expr, es = checkExpr(x, nil, astStmt)
+				errs = append(errs, es...)
+				stmts = append(stmts, expr)
+				continue
 			}
+
+			// This is the trailing, result expression of a Block or Val.
+			// We need to handle a Nil want-type specially.
+			// If we want a Nil, and the expression is not Nil convertable,
+			// we insert a trailing {} constructor.
+			// Otherwise just convert the type as normal.
+			expr, es = _checkExpr(x, want, astStmt)
 			errs = append(errs, es...)
+			if isNil(want) && !isNilConvertable(x, expr.Type()) {
+				stmts = append(stmts, expr)
+				stmts = append(stmts, nilLiteral(x))
+				continue
+			}
+			expr, err := convertExpr(x, want, expr)
+			if err != nil {
+				errs = append(errs, *err)
+			}
 			stmts = append(stmts, expr)
 		default:
 			panic(fmt.Sprintf("impossible type: %T", astStmt))
 		}
 	}
+	errs = append(errs, checkUnusedLocals(x)...)
+	return stmts, errs
+}
+
+func checkUnusedLocals(x *scope) []checkError {
+	var errs []checkError
 	for _, loc := range *x.locals() {
 		if loc.Name != "_" && loc.AST != nil && !x.localUse[loc] {
 			err := x.err(loc, "%s declared and not used", loc.Name)
 			errs = append(errs, *err)
 		}
 	}
-	return stmts, errs
+	return errs
+}
+
+func isNilConvertable(x *scope, typ *Type) bool {
+	_, base := refBaseType(x, typ)
+	return isNil(base)
+}
+
+func nilLiteral(x *scope) *Convert {
+	nilType := builtInType(x, "Nil")
+	return &Convert{
+		Expr: &Ctor{
+			typ: builtInType(x, "&", *makeTypeName(nilType)),
+		},
+		Ref: -1,
+		typ: nilType,
+	}
 }
 
 func checkRet(x *scope, astRet *ast.Ret) (_ *Ret, errs []checkError) {
@@ -1517,20 +1564,17 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	}
 
 	var resType *Type
-	switch n := len(blk.Stmts); {
-	default:
-		fallthrough
-	case n == 0:
-		resType = builtInType(x, "Nil")
-		blk.Stmts = append(blk.Stmts, nilLiteral(x))
-	case isRet(blk.Stmts[n-1]) || isPanic(blk.Stmts[n-1]):
+	// checkStmts inserts a {}, so len(blk.Stmts) is always >0.
+	switch last := blk.Stmts[len(blk.Stmts)-1]; {
+	case isRet(last) || isPanic(last):
 		if resInfer == nil {
 			resType = builtInType(x, "Nil")
 		} else {
 			resType = resInfer
 		}
-	case isExpr(blk.Stmts[n-1]):
-		expr, _ := blk.Stmts[n-1].(Expr)
+
+	case isExpr(last):
+		expr, _ := last.(Expr)
 		resType = expr.Type()
 		if resType == nil {
 			// TODO: this is an error.
@@ -1541,6 +1585,10 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 			// when checking the block statements.
 			return blk, errs
 		}
+
+	default:
+		resType = builtInType(x, "Nil")
+		blk.Stmts = append(blk.Stmts, nilLiteral(x))
 	}
 	typeArgs[len(typeArgs)-1] = TypeName{
 		AST:  astBlock,
@@ -1552,17 +1600,6 @@ func checkBlock(x *scope, infer *Type, astBlock *ast.Block) (_ *Block, errs []ch
 	blk.typ = builtInType(x, "Fun", typeArgs...)
 	blk.BlockType = makeBlockType(x, blk)
 	return blk, errs
-}
-
-func nilLiteral(x *scope) *Convert {
-	nilType := builtInType(x, "Nil")
-	return &Convert{
-		Expr: &Ctor{
-			typ: builtInType(x, "&", *makeTypeName(nilType)),
-		},
-		Ref: -1,
-		typ: nilType,
-	}
 }
 
 func isExpr(stmt Stmt) bool {

@@ -3718,6 +3718,16 @@ func TestBlockLiteral(t *testing.T) {
 			`,
 			err: "",
 		},
+		{
+			name: "non-Nil type expr OK as Nil result",
+			src: `
+				func [foo |
+					bar: [1].
+				]
+				func [bar: f Nil Fun]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
