@@ -163,6 +163,11 @@ func (s bblkMap) get(v *BBlk) *BBlk {
 
 func subBBlks(bs []*BBlk, sub bblkMap) {
 	for _, b := range bs {
+		if len(b.Stmts) == 0 {
+			// The BBlk can have 0 statements during cleanup
+			// after deleted statements have been removed.
+			continue
+		}
 		term := b.Stmts[len(b.Stmts)-1].(Term)
 		for _, o := range term.Out() {
 			o.rmIn(b)
