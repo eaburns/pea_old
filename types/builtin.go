@@ -351,14 +351,16 @@ func makeBlockType(x *scope, blk *Block) *Type {
 			TypeName: cap.TypeName,
 			Field:    typ,
 			Index:    i,
-			typ:      cap.typ.Ref(),
 		}
-		if v.TypeName == nil {
-			// Fields always need a type name.
-			// Some captures may have one from the source,
-			// if so we want that one, because it will have AST info.
-			// Otherwise, we construct a new one here.
-			v.TypeName = makeTypeName(cap.typ.Ref())
+		if cap.typ != nil {
+			v.typ = cap.typ.Ref()
+			if v.TypeName == nil {
+				// Fields always need a type name.
+				// Some captures may have one from the source,
+				// if so we want that one, because it will have AST info.
+				// Otherwise, we construct a new one here.
+				v.TypeName = makeTypeName(cap.typ.Ref())
+			}
 		}
 		typ.Fields = append(typ.Fields, v)
 	}
