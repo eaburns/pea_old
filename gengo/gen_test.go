@@ -1220,6 +1220,13 @@ func TestWriteMod(t *testing.T) {
 			stdout: "42",
 		},
 		{
+			name: "nil far return",
+			src: `
+				func [main | print: ([^{}] value)]
+			`,
+			stdout: "",
+		},
+		{
 			name: "far far return probably inlined",
 			src: `
 				func [main |print: num]

@@ -1620,6 +1620,44 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
+			name: "block nil far return",
+			src: `
+				func [foo | [^{}]]
+			`,
+			fun: "",
+			want: `
+				block1
+					parms:
+						0 #test $Block0&
+					0:
+						[in:] [out: 1]
+						$0 := alloc(#test $Block0&)
+						$1 := arg(0)
+						store($0, $1)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						far return
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						$0 := alloc(#test $Block0)
+						$1 := alloc(Nil Fun)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						and($0, {})
+						virt($1, $0, {block1})
+						return
+				function2
+					parms:
+					0:
+						[in:] [out:]
+						return
+			`,
+		},
+		{
 			// This is testing a regression where makeblock
 			// inside a nested block,
 			// inside a function with no return value

@@ -253,6 +253,7 @@ func buildRet(f *Fun, b *BBlk, typesRet *types.Ret) *BBlk {
 	if val == nil {
 		ret := addRet(b)
 		ret.Ret = typesRet
+		ret.Far = f.Block != nil
 		return b
 	}
 
@@ -274,9 +275,7 @@ func buildRet(f *Fun, b *BBlk, typesRet *types.Ret) *BBlk {
 	}
 	ret := addRet(b)
 	ret.Ret = typesRet
-	if f.Block != nil {
-		ret.Far = true
-	}
+	ret.Far = f.Block != nil
 	return b
 }
 
