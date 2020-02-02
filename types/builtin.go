@@ -338,6 +338,7 @@ func makeBlockType(x *scope, blk *Block) *Type {
 	typ := &Type{
 		AST:     blk.AST,
 		Priv:    true,
+		ModPath: x.astMod.Path,
 		Name:    name,
 		BuiltIn: BlockType,
 	}

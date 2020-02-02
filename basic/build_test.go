@@ -692,11 +692,11 @@ func TestBuild(t *testing.T) {
 			want: `
 				block1
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 						1 Int&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -711,7 +711,7 @@ func TestBuild(t *testing.T) {
 						0 Int Fun&
 					0:
 						[in:] [out: 1]
-						$1 := alloc($Block0)
+						$1 := alloc(#test $Block0)
 						$2 := alloc(Int Fun)
 						jmp 1
 					1:
@@ -1410,9 +1410,9 @@ func TestBuild(t *testing.T) {
 						[in:] [out: 1]
 						$0 := alloc(Int #test ?)
 						$1 := alloc(Int #test ?)
-						$2 := alloc($Block0)
+						$2 := alloc(#test $Block0)
 						$3 := alloc(Nil Fun)
-						$4 := alloc($Block1)
+						$4 := alloc(#test $Block1)
 						$5 := alloc((Int&, Nil) Fun)
 						jmp 1
 					1:
@@ -1457,9 +1457,9 @@ func TestBuild(t *testing.T) {
 						[in:] [out: 1]
 						$0 := alloc(Int #test ?)
 						$1 := alloc(Int #test ?)
-						$3 := alloc($Block0)
+						$3 := alloc(#test $Block0)
 						$4 := alloc(Int Fun)
-						$6 := alloc($Block1)
+						$6 := alloc(#test $Block1)
 						$7 := alloc((Int&, Int) Fun)
 						$8 := alloc(Int)
 						jmp 1
@@ -1511,9 +1511,9 @@ func TestBuild(t *testing.T) {
 						[in:] [out: 1]
 						$0 := alloc(Int #test ?)
 						$1 := alloc(Int #test ?)
-						$3 := alloc($Block0)
+						$3 := alloc(#test $Block0)
 						$4 := alloc(String Fun)
-						$6 := alloc($Block1)
+						$6 := alloc(#test $Block1)
 						$7 := alloc((Int&, String) Fun)
 						$8 := alloc(String)
 						jmp 1
@@ -1558,7 +1558,7 @@ func TestBuild(t *testing.T) {
 						0 Int Fun&
 					0:
 						[in:] [out: 1]
-						$1 := alloc($Block0)
+						$1 := alloc(#test $Block0)
 						$2 := alloc(Int Fun)
 						jmp 1
 					1:
@@ -1580,10 +1580,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block1
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1600,7 +1600,7 @@ func TestBuild(t *testing.T) {
 						0 Int&
 					0:
 						[in:] [out: 1]
-						$1 := alloc($Block0)
+						$1 := alloc(#test $Block0)
 						$2 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1636,7 +1636,7 @@ func TestBuild(t *testing.T) {
 					parms:
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block1)
+						$0 := alloc(#test $Block1)
 						$1 := alloc(Int Fun Fun)
 						jmp 1
 					1:
@@ -1655,10 +1655,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block1
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1670,7 +1670,7 @@ func TestBuild(t *testing.T) {
 						0 Nil Fun&
 					0:
 						[in:] [out: 1]
-						$1 := alloc($Block0)
+						$1 := alloc(#test $Block0)
 						$2 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1697,10 +1697,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block1
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1724,7 +1724,7 @@ func TestBuild(t *testing.T) {
 						$0 := alloc(Int)
 						$1 := arg(0 [i])
 						store($0, $1)
-						$3 := alloc($Block0)
+						$3 := alloc(#test $Block0)
 						$4 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1752,10 +1752,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block1
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1776,7 +1776,7 @@ func TestBuild(t *testing.T) {
 					0:
 						[in:] [out: 1]
 						$0 := alloc(Int)
-						$3 := alloc($Block0)
+						$3 := alloc(#test $Block0)
 						$4 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1807,10 +1807,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block1
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1834,7 +1834,7 @@ func TestBuild(t *testing.T) {
 						$0 := alloc(#test Point&)
 						$1 := arg(0 [self])
 						store($0, $1)
-						$5 := alloc($Block0)
+						$5 := alloc(#test $Block0)
 						$6 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1864,10 +1864,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block2
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1884,18 +1884,18 @@ func TestBuild(t *testing.T) {
 						far return
 				block1
 					parms:
-						0 $Block1&
+						0 #test $Block1&
 						1 [i] Int
 						2 Nil Fun&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block1&)
+						$0 := alloc(#test $Block1&)
 						$1 := alloc(Int)
 						$2 := arg(0)
 						store($0, $2)
 						$3 := arg(1 [i])
 						store($1, $3)
-						$7 := alloc($Block0)
+						$7 := alloc(#test $Block0)
 						$8 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1913,7 +1913,7 @@ func TestBuild(t *testing.T) {
 						0 Int&
 					0:
 						[in:] [out: 1]
-						$1 := alloc($Block1)
+						$1 := alloc(#test $Block1)
 						$2 := alloc((Int, Nil Fun) Fun)
 						jmp 1
 					1:
@@ -1941,10 +1941,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block2
 					parms:
-						0 $Block0&
+						0 #test $Block0&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block0&)
+						$0 := alloc(#test $Block0&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -1961,14 +1961,14 @@ func TestBuild(t *testing.T) {
 						far return
 				block1
 					parms:
-						0 $Block1&
+						0 #test $Block1&
 						1 Nil Fun&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block1&)
+						$0 := alloc(#test $Block1&)
 						$1 := arg(0)
 						store($0, $1)
-						$8 := alloc($Block0)
+						$8 := alloc(#test $Block0)
 						$9 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -1993,7 +1993,7 @@ func TestBuild(t *testing.T) {
 						$0 := alloc(Int)
 						$1 := arg(0 [i])
 						store($0, $1)
-						$3 := alloc($Block1)
+						$3 := alloc(#test $Block1)
 						$4 := alloc(Nil Fun Fun)
 						jmp 1
 					1:
@@ -2074,9 +2074,9 @@ func TestBuild(t *testing.T) {
 						[in:] [out: 1]
 						$0 := alloc(Bool)
 						$1 := alloc(Bool)
-						$4 := alloc($Block0)
+						$4 := alloc(#test $Block0)
 						$5 := alloc(Nil Fun)
-						$6 := alloc($Block1)
+						$6 := alloc(#test $Block1)
 						$7 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -2118,9 +2118,9 @@ func TestBuild(t *testing.T) {
 						[in:] [out: 1]
 						$0 := alloc(#test Num)
 						$1 := alloc(#test Num)
-						$4 := alloc($Block0)
+						$4 := alloc(#test $Block0)
 						$5 := alloc(Nil Fun)
-						$6 := alloc($Block1)
+						$6 := alloc(#test $Block1)
 						$7 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -2161,9 +2161,9 @@ func TestBuild(t *testing.T) {
 						[in:] [out: 1]
 						$1 := alloc(Int)
 						$5 := alloc(Bool)
-						$6 := alloc($Block0)
+						$6 := alloc(#test $Block0)
 						$7 := alloc(Nil Fun)
-						$8 := alloc($Block1)
+						$8 := alloc(#test $Block1)
 						$9 := alloc(Nil Fun)
 						jmp 1
 					1:
@@ -2206,10 +2206,10 @@ func TestBuild(t *testing.T) {
 			want: `
 				block3
 					parms:
-						0 $Block1&
+						0 #test $Block1&
 					0:
 						[in:] [out: 1]
-						$0 := alloc($Block1&)
+						$0 := alloc(#test $Block1&)
 						$1 := arg(0)
 						store($0, $1)
 						jmp 1
@@ -2289,7 +2289,7 @@ func TestBuild(t *testing.T) {
 					0:
 						[in:] [out: 1]
 						$0 := alloc(Int Array)
-						$3 := alloc($Block0)
+						$3 := alloc(#test $Block0)
 						$4 := alloc((Int, Int) Fun)
 						$5 := alloc(Int)
 						$9 := alloc(Int)
@@ -2339,7 +2339,7 @@ func TestBuild(t *testing.T) {
 					0:
 						[in:] [out: 1]
 						$0 := alloc(String Array)
-						$3 := alloc($Block0)
+						$3 := alloc(#test $Block0)
 						$4 := alloc((Int, String) Fun)
 						$5 := alloc(Int)
 						$9 := alloc(String)
