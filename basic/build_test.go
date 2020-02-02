@@ -2435,6 +2435,58 @@ func TestBuild(t *testing.T) {
 						return
 			`,
 		},
+		{
+			// This is testing for regression of a bug
+			// where building a Convert didn't return a new BBlk,
+			// so calling a conversion on a case method paniced.
+			name: "conversion with case-receiver",
+			src: `
+				func [foo | (true ifTrue: [5] ifFalse: [6]) + 1]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						$0 := alloc(Bool)
+						$2 := alloc(Bool)
+						$3 := alloc(#test $Block0)
+						$4 := alloc(Int Fun)
+						$5 := alloc(#test $Block1)
+						$6 := alloc(Int Fun)
+						$7 := alloc(Int)
+						$10 := alloc(Int)
+						jmp 1
+					1:
+						[in: 0] [out: 2 3]
+						call function1($0)
+						$1 := load($0)
+						store($2, $1)
+						and($3, {})
+						virt($4, $3, {block2})
+						and($5, {})
+						virt($6, $5, {block3})
+						$8 := load($2)
+						switch $8 [true 2] [false 3]
+					2:
+						[in: 1] [out: 4]
+						virt call $4.0($4, $7)
+						jmp 4
+					3:
+						[in: 1] [out: 4]
+						virt call $6.0($6, $7)
+						jmp 4
+					4:
+						[in: 2 3] [out:]
+						$9 := load($7)
+						store($10, $9)
+						$11 := load($10)
+						$12 := 1
+						$13 := $11 + $12
+						return
+				`,
+		},
 	}
 	for _, test := range tests {
 		test := test

@@ -319,7 +319,7 @@ func buildExpr(f *Fun, b *BBlk, expr types.Expr) (Val, *BBlk) {
 	case *types.Ctor:
 		return buildCtor(f, b, expr)
 	case *types.Convert:
-		return buildConvert(f, b, expr), b
+		return buildConvert(f, b, expr)
 	case *types.Block:
 		return buildBlockLit(f, b, expr), b
 	case *types.Ident:
@@ -373,6 +373,7 @@ func buildCall(f *Fun, b *BBlk, call *types.Call) (Val, *BBlk) {
 	if call.Recv != nil {
 		recv, b = buildExpr(f, b, call.Recv)
 	}
+
 	var val Val
 	for i := range call.Msgs {
 		switch msg := &call.Msgs[i]; {
@@ -682,34 +683,34 @@ func buildOrCtor(f *Fun, b *BBlk, ctor *types.Ctor) (Val, *BBlk) {
 	}
 }
 
-func buildConvert(f *Fun, b *BBlk, convert *types.Convert) Val {
+func buildConvert(f *Fun, b *BBlk, convert *types.Convert) (Val, *BBlk) {
 	switch val, b := buildExpr(f, b, convert.Expr); {
 	case convert.Ref > 0:
 		if val == nil {
-			return nil
+			return nil, b
 		}
 		if !SimpleType(convert.Expr.Type()) {
 			// Non-simple types are already a reference.
-			return val
+			return val, b
 		}
 		a := addAlloc(f, b, val.Type())
 		if val != nil {
 			addStore(b, a, val)
 		}
-		return a
+		return a, b
 	case convert.Ref < 0:
 		if val == nil {
-			return nil
+			return nil, b
 		}
 		if !SimpleType(convert.Type()) {
 			// Ignore converts that dereference to a composite type.
 			// Composite types cannot fit in a register,
 			// so they are passed around by reference.
-			return val
+			return val, b
 		}
 		l := addLoad(f, b, val)
 		l.Convert = convert
-		return l
+		return l, b
 	case len(convert.Virts) != 0:
 		if SimpleType(convert.Expr.Type()) {
 			tmp := addAlloc(f, b, val.Type())
@@ -719,7 +720,7 @@ func buildConvert(f *Fun, b *BBlk, convert *types.Convert) Val {
 		a := addAlloc(f, b, convert.Type())
 		v := addMakeVirt(f, b, a, val, convert.Virts)
 		v.Convert = convert
-		return a
+		return a, b
 	default:
 		panic("impossible")
 	}
@@ -1071,9 +1072,6 @@ func addField(f *Fun, b *BBlk, obj Val, i int) *Field {
 	if obj.Type().BuiltIn == types.RefType {
 		switch objType := obj.Type().Args[0].Type; {
 		case objType.BuiltIn == types.BlockType:
-			if i < 0 || i >= len(objType.Fields) {
-				fmt.Printf("objType=%s\n", objType)
-			}
 			field.Field = &objType.Fields[i]
 			typ = field.Field.Type()
 		case len(objType.Fields) > 0:

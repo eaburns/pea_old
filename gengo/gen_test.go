@@ -1481,6 +1481,16 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stderr: ":4: panic: oh no\n",
 		},
+		{
+			// This is testing for regression of a fixed bug
+			// where the basic package paniced
+			// if a conversion receiver was a case method.
+			name: "convert result of a case method",
+			src: `
+				func [main | print: (true ifTrue: [42] ifFalse: [0]) asInt8]
+			`,
+			stdout: "42",
+		},
 	}
 	for _, test := range tests {
 		test := test
