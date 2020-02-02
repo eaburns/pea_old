@@ -1,0 +1,32 @@
+import "io"
+Import "num/bool"
+import "os/posix"
+
+// Returns an #io Reader that reads from standard input.
+Func [stdin ^#io Reader | ^_stdin]
+
+// Returns an #io Writer that writes to standard output.
+// The writer is not buffered.
+Func [stdout ^#io Writer | ^_stdout]
+
+// Returns an #io Writer that writes to standard error.
+Func [stderr ^#io Writer | ^_stderr]
+
+val _stdin file := [{descr: #posix STDIN_FILENO}]
+val _stdout file := [{descr: #posix STDOUT_FILENO}]
+val _stderr file := [{descr: #posix STDERR_FILENO}]
+
+type file {descr: Int}
+
+meth file [read: buf Byte Array ^#io ReadResult |
+	n := #posix read: descr buf: buf.
+	n < 0 ifTrue: [^{error: (errnoError: n)}].
+	n = 0 ifTrue: [^{end}].
+	^{ok: n}.
+]
+
+meth file [write: buf Byte Array ^#io WriteResult |
+	n := #posix write: descr buf: buf.
+	n < 0 ifTrue: [^{error: (errnoError: n)}].
+	^{ok: n}.
+]

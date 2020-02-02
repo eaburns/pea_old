@@ -1,0 +1,50 @@
+Import "num/int"
+Import "test/assert"
+
+test [toDo |
+	s := 5.
+	e := 10.
+	vs Int Array := newArray: e - s init: [:_ | -1].
+	j := 0.
+	s to: e - 1 do: [:i | vs at: j put: i. j increment].
+	assert: (vs at: 0) equals: 5.
+	assert: (vs at: 1) equals: 6.
+	assert: (vs at: 2) equals: 7.
+	assert: (vs at: 3) equals: 8.
+	assert: (vs at: 4) equals: 9.
+]
+
+test [toDoBounds |
+	called := false.
+	0 to: 0 do: [:_ | called := true].
+	assertTrue: called msg: "expected loop body to be evaluated".
+
+	0 to: -1 do: [:_ | panic: "expected loop body to not be evaluated"].
+	1 to: 0 do: [:_ | panic: "expected loop body to not be evaluated"].
+	2 to: 1 do: [:_ | panic: "expected loop body to not be evaluated"].
+	10 to: 0 do: [:_ | panic: "expected loop body to not be evaluated"].
+]
+
+test [downToDo |
+	s := 5.
+	e := 10.
+	vs Int Array := newArray: e - s init: [:_ | -1].
+	j := 0.
+	e - 1 downTo: s do: [:i | vs at: j put: i. j increment].
+	assert: (vs at: 0) equals: 9.
+	assert: (vs at: 1) equals: 8.
+	assert: (vs at: 2) equals: 7.
+	assert: (vs at: 3) equals: 6.
+	assert: (vs at: 4) equals: 5.
+]
+
+test [downToDoBounds |
+	called := false.
+	0 downTo: 0 do: [:_ | called := true].
+	assertTrue: called msg: "expected loop body to be evaluated".
+
+	-1 downTo: 0 do: [:_ | panic: "expected loop body to not be evaluated"].
+	0 downTo: 1 do: [:_ | panic: "expected loop body to not be evaluated"].
+	1 downTo: 2 do: [:_ | panic: "expected loop body to not be evaluated"].
+	0 downTo: 10 do: [:_ | panic: "expected loop body to not be evaluated"].
+]

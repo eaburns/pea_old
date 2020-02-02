@@ -1,0 +1,47 @@
+// Evaluates f if the receiver is false, otherwise t.
+Meth Bool [ifFalse: f Nil Fun ifTrue: t Nil Fun |
+	self ifTrue: t ifFalse: f
+]
+
+// Evaluates t if the receiver is true.
+Meth Bool [ifTrue: t Nil Fun |
+	self ifTrue: t ifFalse: []
+]
+
+// Evaluates f if the receiver is false.
+Meth Bool [ifFalse: f Nil Fun |
+	self ifTrue: [] ifFalse: f
+]
+
+// Returns false if the receiver is true, otherwise true.
+Meth Bool [not ^Bool |
+	^self ifTrue: [false] ifFalse: [true]
+]
+
+// Returns the logical-and of the receiver and the argument.
+Meth Bool [&& other Bool ^Bool |
+	self ifFalse: [^false].
+	other ifFalse: [^false].
+	^true.
+]
+
+// Returns the logical-OR of the receiver and the argument.
+Meth Bool [|| other Bool ^Bool |
+	self ifTrue: [^true].
+	other ifTrue: [^true].
+	^false.
+]
+
+// A Fun that returns a Bool when evaluated.
+type BoolFun := Bool Fun.
+
+// Continually evaluates the receiver until it returns false.
+// Each time the receiver evaluates to true, it evalutaes f.
+Meth BoolFun  [whileTrue: f Nil Fun |
+	self value ifFalse: [^{}].
+	f value.
+	self whileTrue: f.
+]
+
+// Returns a non-cryptographic hash of the receiver.
+Meth Bool [hash ^UInt | ^self ifTrue: [0] ifFalse: [1]]

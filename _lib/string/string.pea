@@ -1,0 +1,80 @@
+Import "num/bool"
+Import "num/int"
+
+// Returns the receiver String.
+Meth String [asString ^String | ^self]
+
+// Returns the string from byte s to the end of the receiver.
+Meth String [fromByte: s Int ^String |
+	^self fromByte: s toByte: self byteSize.
+]
+
+// Returns the string from byte 0 to byte e of the receiver.
+Meth String [toByte: e Int ^String |
+	^self fromByte: 0 toByte: e.
+]
+
+// Returns whether the receiver is equal to s.
+Meth String [= s String ^Bool |
+	self byteSize = s byteSize ifFalse: [^false].
+	0 to: self byteSize - 1 do: [:i |
+		(self atByte: i) = (s atByte: i) ifFalse: [^false].
+	].
+	^true.
+]
+
+// Returns whether the receiver is lexically, byte-wise less than s.
+Meth String [< s String ^Bool |
+	self byteSize < s byteSize ifTrue: [^true].
+	self byteSize > s byteSize ifTrue: [^false].
+	0 to: self byteSize - 1 do: [:i |
+		(self atByte: i) < (s atByte: i) ifTrue: [^true].
+	].
+	^false.
+]
+
+test [lessThan |
+	"ABC" < "def" ifFalse: [panic: "ABC ≮ def"].
+	"def" < "ABC" ifTrue: [panic: "def < ABC"].
+]
+
+// Returns whether the receiver is not equal to s.
+Meth String [!= s String ^Bool | ^(self = s) not]
+
+// Returns a String that is the concatenation of the receiver and then s.
+Meth String [+ s String ^String |
+	size := self byteSize + s byteSize.
+	data Byte Array := newArray: size init: [:_ | 0].
+	0 to: self byteSize - 1 do: [:i |
+		data at: i put: (self atByte: i).
+	].
+	i := self byteSize.
+	0 to: s byteSize - 1 do: [:j |
+		data at: i put: (s atByte: j).
+		i increment.
+	].
+	^newString: data.
+]
+
+// Evaluates f with each byte of the receiver in order.
+Meth String [doBytes: f (Byte, Nil) Fun |
+	0 to: self byteSize - 1 do: [:i |
+		f value: (self atByte: i)
+	]
+]
+
+// Returns a non-cryptographic hash of the receiver.
+Meth String [hash ^UInt |
+	// TODO: implement a better string hash function.
+	h UInt := 0.
+	self doBytes: [:b |
+		h := h * 31 + b asUInt
+	].
+	^h
+]
+
+// Returns whether the receiver has a prefix p.
+Meth String [hasPrefix: p String ^Bool |
+	self byteSize >= p byteSize ifFalse: [^false].
+	^(self toByte: (p byteSize)) = p
+]

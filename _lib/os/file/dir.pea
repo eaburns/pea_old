@@ -1,0 +1,62 @@
+Import "num/bool"
+Import "option"
+Import "os"
+import "os/posix"
+
+// An open directory.
+// This type behaves as a reference,
+// so copies all refer to the same directory.
+Type Dir := _DirRef.
+
+type _DirRef {ref: _Dir &}
+
+type _Dir {descr: #posix Dir&}
+meth _Dir [descr ^#posix Dir& | ^descr]
+
+// Creates a new directory with
+// permissions set to perm (before umask).
+Func [createDir: path String perm: perm Int ^#os Error? |
+	res := #posix mkdir: path perm: perm.
+	res < 0 ifTrue: [^{some: (#os errnoError: res)}].
+	^{none}.
+]
+
+// Creates a new directory with permissions 0777 before umask.
+Func [createDir: path String ^#os Error? |
+	^createDir: path perm: 0777.
+]
+
+// Returns a newly opened direcory at the given path or an error.
+Func [openDir: path String ^Dir #os Result |
+	mode := #posix O_DIRECTORY| #posix O_RDONLY.
+	fd := #posix open: path mode: mode perm: 0.
+	fd < 0 ifTrue: [
+		^{error: (#os errnoError: fd)}
+	].
+	dir := (#posix fdOpenDir: fd) #posix ifErrno: [:errno |
+		^{error: (#os errnoError: errno)}
+	].
+	^{ok: {ref: {descr: dir}}}
+]
+
+// A result from Dir read.
+Type ReadDirResult {error: #os Error | end | ok: String}
+
+// Returns the file name if the case is ok,
+// returns the result of evaluating ferr with the error if the case is error,
+// or returns the result of evaluating fend if the case is end.
+Meth ReadDirResult [ifError: ferr (#os Error, String) Fun ifEnd: fend String Fun ^String |
+	^self
+		ifError: [:e #os Error | ferr value: e]
+		ifEnd: [fend value]
+		ifOk: [:name | name].
+]
+
+// Reads the next entry from the directory.
+// The order of file names read from the directory is not specified.
+Meth Dir [read ^ReadDirResult |
+	name := (#posix readDir: ref descr)
+		#posix ifErrno: [:e | ^{error: (#os errnoError: e)}]
+		ifEnd: [^{end}].
+	^{ok: name}
+]

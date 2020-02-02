@@ -1,0 +1,15 @@
+Import "num/bool"
+
+// Evaluates f with each integer from the receiver increasing to e, inclusive.
+Meth Int [to: e Int do: f (Int, Nil) Fun |
+	self > e ifTrue: [^{}].
+	f value: self.
+	self + 1 to: e do: f.
+]
+
+// Evaluates f with each integer from the receiver decreasing to e, inclusive.
+Meth Int [downTo: e Int do: f (Int, Nil) Fun |
+	self < e ifTrue: [^{}].
+	f value: self.
+	self - 1 downTo: e do: f.
+]

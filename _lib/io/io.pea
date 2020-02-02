@@ -1,0 +1,60 @@
+Import "error"
+Import "container/array"
+Import "num/bool"
+Import "option"
+Import "string"
+
+// The result of a read operation.
+Type ReadResult {
+	| error: Error
+	| end
+	| ok: Int
+}
+
+// Returns the number of bytes transfered if the receiver case is ok,
+// the value of evaluating ferr if the receiver case is error, or
+// the value of evaluating fend if the receiver case is end.
+Meth ReadResult [ifError: ferr (Error, Int) Fun ifEnd: fend Int Fun ^Int |
+	^self
+		ifError: [:e | ferr value: e]
+		ifEnd: [fend value]
+		ifOk: [:n | n]
+]
+
+// An interface implemented by types that can read into a byte array.
+Type Reader {
+	// Reads from the reader into the argument and returns the result.
+	[read: Byte Array ^ReadResult]
+}
+
+// The result of a write operation.
+Type WriteResult {
+	| error: Error
+	| ok: Int
+}
+
+// An interface implemented by types that can write from a byte array.
+Type Writer {
+	// Writes from the argument into the receiver and
+	// on success returns the number of bytes written.
+	[write: Byte Array ^WriteResult]
+}
+
+// Writes all of the bytes of data to the receiver.
+Meth Writer [writeAll: data Byte Array ^Error? |
+	[data size > 0] whileTrue: [
+		(self write: data)
+			ifError: [:e | ^some: e]
+			ifOk: [:n | data := data from: n]
+	].
+	^none
+]
+
+// Writes the formatted string to the receiver.
+Meth Writer [printf: fmt String values: values #string Stringer Array ^WriteResult |
+	builder := #string newBuilder.
+	builder addFormat: fmt values: values.
+	data := builder resetBytes.
+	(self writeAll: data) ifError: [:e | ^{error: e}].
+	^{ok: data size}
+]

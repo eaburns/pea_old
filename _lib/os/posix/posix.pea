@@ -1,0 +1,211 @@
+/*
+The posix module provides low-level, POSIX-like functions.
+These functions are intended to be used to implement
+higher-level libraries and not to be used directly themselves.
+
+All functions in this module handle EINTR internally, so callers need not.
+*/
+
+import "error"
+
+// Errno values.
+Func [EACCES ^Int]
+Func [EEXIST ^Int]
+Func [EISDIR ^Int]
+Func [ENOENT ^Int]
+Func [ENOTDIR  ^Int]
+
+// The file descriptor numbers of stdin, stdout, and stderr.
+Func [STDIN_FILENO ^Int]
+Func [STDOUT_FILENO ^Int]
+Func [STDERR_FILENO ^Int]
+
+// Returns a localized string describing a errno number.
+// The absolute value of the argument is used,
+// so either a negative or positive errno number may be given.
+Func [strerror: _ Int ^String]
+
+// Open flags.
+Func [O_RDONLY ^Int]
+Func [O_WRONLY ^Int]
+Func [O_RDWR ^Int]
+Func [O_APPEND ^Int]
+Func [O_CREAT ^Int]
+Func [O_EXCL ^Int]
+Func [O_TRUNC ^Int]
+Func [O_DIRECTORY ^Int]
+
+// Opens the file  at the path for the given mode and
+// on success returns the file descriptor as a non-negative integer,
+// on error returns a negative errno number.
+//
+// The mode is one of
+// 	O_RDONLY 	read only
+// 	O_WRONLY 	write only
+// 	O_RDWR 		read and write
+// and it may be bit-wise-ored with any of
+// 	O_APPEND 	writes append to the end of the file
+// 	O_CREAT 	the file is created if it did not exist
+// 	O_EXCL 		fail if the file already exists
+// 	O_TRUNC 	truncate the file if it already exists.
+// 	O_DIRECTORY	return an error if the path is not a directory.
+//
+// If the mode is O_CREAT and a file did not previously exist,
+// it is created created with permissions set from perm (and umask).
+Func [open: _ String mode: _ Int perm: _ Int  ^Int]
+
+// Closes the file descriptor and
+// on success returns 0,
+// on error returns a negative errno number.
+Func [close: _ Int ^Int]
+
+// Reads from the file descriptor into the buffer and
+// on success returns the non-negative number of bytes read
+// (a return of 0 means end-of-file has been reached),
+// on error returns a negative errno number.
+Func [read: _ Int buf: _ Byte Array ^Int]
+
+// Writes to the file descriptor from the buffer and
+// on success returns the positive number of bytes written,
+// on error returns a negative errno number.
+Func [write: _ Int buf: _ Byte Array ^Int]
+
+// The result of a call to stat or fstat.
+Type StatResult {errno: Int | ok: Stat}
+
+// Returns the Stat if the receiver case is ok,
+// otherwise returns the result of evaluating f
+// with the errno number.
+Meth StatResult [ifErrno: f (Int, Stat) Fun ^Stat |
+	^self
+		ifErrno: [:e Int | f value: e]
+		ifOk: [:s | s]
+]
+
+// Returns the Stat if the receiver case is ok,
+// otherwise returns the result of evaluating f
+// with the error reported by the errno number.
+// This method implements the Stat ! interface.
+Meth StatResult [ifError: f (#error Error, Stat) Fun ^Stat |
+	^self
+		ifErrno: [:e Int | f value: (#error new: (strerror: e))]
+		ifOk: [:s | s]
+]
+
+// Information about a file or directory.
+Type Stat {
+	// The file's mode bits.
+	mode: UInt
+	// The file size in bytes.
+	size: Int64
+}
+
+// Returns the mode field of the receiver.
+Meth Stat [mode ^UInt | ^mode]
+
+// Returns the size field of the receiver.
+Meth Stat [size ^Int64 | ^size]
+
+// Stat mode bits.
+Func [S_IFMT ^UInt]
+Func [S_IFBLK ^UInt]
+Func [S_IFCHR ^UInt]
+Func [S_IFIFO ^UInt]
+Func [S_IFREG ^UInt]
+Func [S_IFDIR ^UInt]
+Func [S_IFLNK ^UInt]
+Func [S_IFSOCK ^UInt]
+Func [S_IRWXU ^UInt]
+Func [S_IRUSR ^UInt]
+Func [S_IWUSR ^UInt]
+Func [S_IXUSR ^UInt]
+Func [S_IRWXG ^UInt]
+Func [S_IRGRP ^UInt]
+Func [S_IWGRP ^UInt]
+Func [S_IXGRP ^UInt]
+Func [S_IRWXO ^UInt]
+Func [S_IROTH ^UInt]
+Func [S_IWOTH ^UInt]
+Func [S_IXOTH ^UInt]
+Func [S_ISUID ^UInt]
+Func [S_ISGID ^UInt]
+
+// Returns information about an open file descriptor.
+Func [fstat: _ Int ^StatResult]
+
+// Removes the link to a file at the given path and
+// on success returns 0,
+// on error returns a negative errno number.
+Func [unlink: _ String ^Int]
+
+// An open directory.
+Type Dir := _Dir.
+
+type _Dir {
+	fd: Int
+	buf: Byte Array
+	n: Int
+	p: Int
+}
+
+// The result of a call to openDir.
+Type OpenDirResult {errno: Int | ok: Dir&}
+
+// Returns the directory if the receiver case is ok,
+// otherwise returns the result of evaluating f
+// with the errno number.
+Meth OpenDirResult [ifErrno: f (Int, Dir&) Fun ^Dir& |
+	^self
+		ifErrno: [:e Int | f value: e]
+		ifOk: [:d | d]
+]
+
+// Returns the directory if the receiver case is ok,
+// otherwise returns the result of evaluating f
+// with the error reported by the errno number.
+// This method implements the Dir& ! interface.
+Meth OpenDirResult [ifError: f (#error Error, Dir&) Fun ^Dir& |
+	^self
+		ifErrno: [:e Int | f value: (#error new: (strerror: e))]
+		ifOk: [:d | d]
+]
+
+// Opens a directory given by an open file descriptor
+// on success returns the directory handle,
+// on error returns the errno number.
+//
+// On success, he file descriptor is taken by fdOpenDir;
+// it should not be closed with a call to close:, but closeDir:.
+Func [fdOpenDir: _ Int ^OpenDirResult]
+
+// The result of a call to readDir.
+Type ReadDirResult {errno: Int | end | ok: String}
+
+// Returns the file name if the case is ok,
+// returns the result of evaluating ferr with the errno if the case is errno,
+// or returns the result of evaluating fend if the case is end.
+Meth ReadDirResult [ifErrno: ferr (Int, String) Fun ifEnd: fend String Fun ^String |
+	^self
+		ifErrno: [:e Int | ferr value: e]
+		ifEnd: [fend value]
+		ifOk: [:name | name].
+]
+
+// Reads the next entry from a directory and returns its name.
+Func [readDir: _ Dir& ^ReadDirResult]
+
+// Closes the directory and
+// on success returns 0,
+// on error returns a negative errno number.
+Func [closeDir: _ Dir& ^Int]
+
+// Creates a new directory with
+// permissions set to perm (before umask) and
+// on success returns 0,
+// on error returns a negative errno number.
+Func [mkdir: _ String perm: perm Int ^Int]
+
+// Removes the link to a directory at the given path and
+// on success returns 0,
+// on error returns a negative errno number.
+Func [rmdir: _ String ^Int]

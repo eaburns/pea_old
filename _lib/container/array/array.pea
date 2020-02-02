@@ -1,0 +1,75 @@
+Import "num/bool"
+Import "num/int"
+Import "string"
+
+// Returns a new, empty array.
+Func T [new ^T Array | ^{}]
+
+// Returns a new Array of size size, with each element initialized
+// to the value of f evaluated at the element's index.
+Func T [new: size Int init: f (Int, T) Fun ^T Array |
+	^newArray: size init: f
+]
+
+// Returns a new Array of size size, with all elements set to t.
+Func T [new: size Int fill: t T ^T Array |
+	^newArray: size init: [:_ | t]
+]
+
+// Swaps the elements at indices i and j.
+Meth T Array [swap: i Int and: j Int |
+	t T := self at: i.
+	self at: i put: (self at: j).
+	self at: j put: t.
+]
+
+// Returns a the slice of the receiver from s to the end.
+Meth T Array [from: s Int ^T Array |
+	^self from: s to: self size.
+]
+
+// Returns the slice of the receiver from 0 to e.
+Meth T Array [to: e Int ^T Array |
+	^self from: 0 to: e.
+]
+
+// Returns a new copy of the receiver.
+Meth T Array [copy ^T Array |
+	^new: self size init: [:i | self at: i].
+]
+
+// Evaluates f with a reference to the value at each element of the receiver
+// in increasing order of the elements' indices.
+Meth T Array [do: f (T&, Nil) Fun |
+	0 to: self size - 1 do: [:i |
+		f value: (self at: i)
+	]
+]
+
+// An interface implemented by types with an = method.
+Type T Eq {[= T ^Bool]}
+
+// Returns whether the receiver is equal to other.
+// Two arrays are equal if they have the same size
+// and all elements with equal indices are equal.
+Meth (T T Eq) Array [= other T Array ^Bool |
+	self size = other size ifFalse: [^false].
+	0 to: self size - 1 do: [:i |
+		(self at: i) = (other at: i) ifFalse: [^false]
+	].
+	^true
+]
+
+// An interface implemented by types with an asString method.
+Type Stringer {[asString ^String]}
+
+// Returns a string representation of the receiver.
+Meth (_ Stringer) Array [asString ^String |
+	s := "{".
+	0 to: self size - 1 do: [:i |
+		i > 0 ifTrue: [s := s + "; "].
+		t := self at: i.
+		s := s + t asString.
+	].
+	^s + "}"
+]

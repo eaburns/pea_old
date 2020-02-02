@@ -1,0 +1,193 @@
+Import "container/array"
+Import "num/bool"
+Import "num/int"
+Import "test/assert"
+
+// A resizable array of references to a type T.
+Type T Vector := T _Vector.
+
+type T _Vector {
+	size: Int
+	data: T& Array
+}
+
+// Returns a new, empty vector.
+Func T [new ^T Vector& |
+	^{size: 0 data: {}}
+]
+
+// Returns a new vector with contents referencing the array elements.
+Func T [new: ts T Array ^T Vector& |
+	vec T Vector& := new.
+	vec pushAll: ts.
+	^vec.
+]
+
+test [new_ |
+	ints Int Vector& := new.
+	assert: ints size equals: 0.
+
+	ints := new: {}.
+	assert: ints size equals: 0.
+
+	ints := new: {5; 6; 7}.
+	assert: ints size equals: 3.
+	assert: (ints at: 0) equals: 5.
+	assert: (ints at: 1) equals: 6.
+	assert: (ints at: 2) equals: 7.
+]
+
+// Returns the number of elements in the receiver.
+Meth _ Vector [size ^Int | ^size]
+
+// Returns the ith element of the receiver.
+Meth T Vector [at: i Int ^T& | ^data at: i]
+
+// Sets the ith element of the receiver.
+Meth T Vector [at: i Int put: t T& | data at: i put: t]
+
+// Adds an element to the end of the receiver.
+Meth T Vector [push: t T& |
+	self ensureCap: 1 fill: t.
+	data at: size put: t.
+	size increment.
+]
+
+test [push |
+	ints Int Vector& := new.
+	ints push: 42.
+	assert: ints size equals: 1.
+	assert: (ints at: 0) equals: 42.
+
+	ints push: 43.
+	assert: ints size equals: 2.
+	assert: (ints at: 0) equals: 42.
+	assert: (ints at: 1) equals: 43.
+
+	ints push: 44.
+	assert: ints size equals: 3.
+	assert: (ints at: 0) equals: 42.
+	assert: (ints at: 1) equals: 43.
+	assert: (ints at: 2) equals: 44.
+]
+
+// An interface satisfied by types that implement do-style loops
+// and have a size method.
+Type T SizeDoer {
+	[size ^Int]
+	[do: (T&, Nil) Fun]
+}
+
+// Appends all elements of ts to the end of the receiver.
+Meth T Vector [pushAll: ts T SizeDoer |
+	ensured := false.
+	ts do: [:t |
+		ensured ifFalse: [
+			self  ensureCap: ts size fill: t.
+			ensured := true.
+		].
+		data at: size put: t.
+		size increment.
+	].
+]
+
+test [pushAll |
+	intArray Int Array := #array new.
+
+	ints Int Vector& := new.
+	ints pushAll: intArray.
+	assert: ints size equals: 0.
+
+	intArray := {5; 6; 7}.
+	ints pushAll: intArray.
+	assert: ints size equals: 3.
+	assert: (ints at: 0) equals: 5.
+	assert: (ints at: 1) equals: 6.
+	assert: (ints at: 2) equals: 7.
+
+	intArray := {8; 9; 10}.
+	ints pushAll: intArray.
+	assert: ints size equals: 6.
+	assert: (ints at: 0) equals: 5.
+	assert: (ints at: 1) equals: 6.
+	assert: (ints at: 2) equals: 7.
+	assert: (ints at: 3) equals: 8.
+	assert: (ints at: 4) equals: 9.
+	assert: (ints at: 5) equals: 10.
+]
+
+// Removes and returns an element from the end of the vector.
+Meth T Vector [pop ^T& |
+	size := size - 1.
+	^data at: size.
+]
+
+test [pop_ |
+	a Int Array := {5; 6; 7}.
+	v Int Vector& := new: a.
+
+	assert: v size equals: 3.
+
+	assert: v pop equals: 7.
+	assert: v size equals: 2.
+
+	assert: v pop equals: 6.
+	assert: v size equals: 1.
+
+	assert: v pop equals: 5.
+	assert: v size equals: 0.
+]
+
+// Evaluates f with each element of the vector in increasing order of index.
+Meth T Vector [do: f (T&, Nil) Fun |
+	0 to: size - 1 do: [:i |
+		f value: (data at: i).
+	].
+]
+
+test [do |
+	a Int Array := {5; 6; 7}.
+	got Int Array := {0; 0; 0}.
+	i := 0.
+	(new: a) do: [:t |
+		got at: i put: t.
+		i increment.
+	].
+	assert: (got at: 0) equals: 5.
+	assert: (got at: 1) equals: 6.
+	assert: (got at: 2) equals: 7.
+]
+
+// Evaluates f with the index and value of each element
+// of the vector in increasing order of index.
+Meth T Vector [doI: f (Int, T&, Nil) Fun |
+	0 to: size - 1 do: [:i |
+		f value: i value: (data at: i).
+	].
+]
+
+test [doI |
+	a Int Array := {5; 6; 7}.
+	got Int Array := {0; 0; 0}.
+	(new: a) doI: [:i :t |
+		got at: i put: t
+	].
+	assert: (got at: 0) equals: 5.
+	assert: (got at: 1) equals: 6.
+	assert: (got at: 2) equals: 7.
+]
+
+meth T _Vector [ensureCap: delta Int fill: t T& |
+	size + delta < data size ifTrue: [^{}].
+
+	s := data size < 2 ifTrue: [2] ifFalse: [data size].
+	[s < (size + delta)] whileTrue: [
+		s := s * s
+	].
+
+	d := #array new: s fill: t.
+	0 to: size - 1 do: [:i |
+		d at: i put: (data at: i)
+	].
+	data := d.
+]

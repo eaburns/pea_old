@@ -1,0 +1,174 @@
+Import "container/array"
+Import "num/bool"
+Import "num/int"
+Import "option"
+Import "string"
+Import "test/assert"
+
+// A key-to-value map implemented as a hash table.
+type (K K Key, V) HashMap := (K, V) _HashMap.
+
+type (K, V) _HashMap {
+	size: Int
+	data: (K, V) Entry& ? Array
+}
+
+// An interface implemented by types that can be hash keys.
+Type T Key {
+	[= T ^Bool]
+	[hash ^UInt]
+}
+
+// Returns a new, empty HashMap.
+Func (K K Key, V) [new ^(K, V) HashMap& |
+	minSize := 16.
+	^{data: (#array new: minSize fill: none) size: 0}
+]
+
+// Returns the number of entries in the map.
+Meth (K K Key, _) HashMap [size ^Int | ^size]
+
+// Returns the element of the receiver mapped to key k, if any.
+Meth (K K Key, V) HashMap [at: k K ^V? |
+	h := k hash % data size asUInt.
+	b := (data at: h asInt) ifNone: [^none].
+	b do: [:e |
+		e key = k ifTrue: [^some: e value]
+	].
+	^none
+]
+
+// Adds or sets the value mapped to by key k to the value v
+// and returns the previously mapped value if any.
+Meth (K K Key, V) HashMap [at: k K put: v V ^V? |
+	h := k hash % data size asUInt.
+	b := data at: h asInt.
+	b ifSome: [:e0 |
+		e0 do: [:e |
+			e key = k ifTrue: [
+				prev := e value.
+				e value: v.
+				^some: prev.
+			]
+		]
+	].
+	// TODO: grow the table if it gets too full.
+	size increment.
+	newEntry (K, V) Entry& := {key: k value: v next: b}.
+	data at: h asInt put: (some: newEntry).
+	^none
+]
+
+test [insertAndLookup |
+	map (String, Int) HashMap& := new.
+
+	assert: map size equals: 0.
+	assertNone: (map at: "foo").
+
+	assertNone: (map at: "foo" put: 1).
+	assert: map size equals: 1.
+	assert: (map at: "foo") isSome: 1.
+
+	assertNone: (map at: "bar" put: 2).
+	assert: map size equals: 2.
+	assert: (map at: "foo") isSome: 1.
+	assert: (map at: "bar") isSome: 2.
+
+	assertNone: (map at: "baz" put: 3).
+	assert: map size equals: 3.
+	assert: (map at: "foo") isSome: 1.
+	assert: (map at: "bar") isSome: 2.
+	assert: (map at: "baz") isSome: 3.
+
+	assert: (map at: "foo" put: 4) isSome: 1.
+	assert: (map at: "bar" put: 5) isSome: 2.
+	assert: (map at: "baz" put: 6) isSome: 3.
+	assert: map size equals: 3.
+	assert: (map at: "foo") isSome: 4.
+	assert: (map at: "bar") isSome: 5.
+	assert: (map at: "baz") isSome: 6.
+]
+
+// Removes the binding from k to a value
+// and return the bound value if one existed.
+Meth (K K Key, V) HashMap [remove: k K ^V? |
+	h := k hash % data size asUInt.
+	b := data at: h asInt.
+	b ifSome: [:head |
+		head key = k ifTrue: [
+			data at: h asInt put: head next.
+			size := size - 1.
+			^some: head value
+		].
+		head do: [:e |
+			n := e next ifNone: [
+				^none
+			].
+			n key = k ifTrue: [
+				e next: (n next).
+				size := size - 1.
+				^some: n value
+			]
+		]
+	].
+	^none
+]
+
+test [remove |
+	map (String, Int) HashMap& := new.
+
+	assert: map size equals: 0.
+
+	assertNone: (map remove: "qux").
+	assert: map size equals: 0.
+
+	assertNone: (map at: "foo" put: 1).
+	assertNone: (map at: "bar" put: 2).
+	assertNone: (map at: "baz" put: 3).
+	assert: map size equals: 3.
+
+	assertNone: (map remove: "qux").
+	assert: map size equals: 3.
+
+	assert: (map remove: "bar") isSome: 2.
+	assert: map size equals: 2.
+	assert: (map at: "foo") isSome: 1.
+	assertNone: (map at: "bar").
+	assert: (map at: "baz") isSome: 3.
+
+	assert: (map remove: "foo") isSome: 1.
+	assert: map size equals: 1.
+	assertNone: (map at: "foo").
+	assertNone: (map at: "bar").
+	assert: (map at: "baz") isSome: 3.
+
+	assert: (map remove: "baz") isSome: 3.
+	assert: map size equals: 0.
+	assertNone: (map at: "foo").
+	assertNone: (map at: "bar").
+	assertNone: (map at: "baz").
+]
+
+// A hash table entry.
+type (K, V) Entry {
+	key: K
+	value: V
+	next: (K, V) Entry& ?
+}
+
+// Returns the key of the receiver.
+Meth (K, _) Entry [key ^K | ^key]
+
+// Returns the value of the receiver.
+Meth (_, V) Entry [value ^V | ^value]
+
+meth (_, V) Entry [value: v V | value := v]
+meth (K, V) Entry [next ^(K, V) Entry& ? | ^next]
+meth (K, V) Entry [next: n (K, V) Entry& ? | next := n]
+
+meth (K, V) Entry [do: f ((K, V) Entry&, Nil) Fun |
+	f value: self.
+	next ifSome: [:n |
+		n do: f
+	]
+]

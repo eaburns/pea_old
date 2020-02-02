@@ -1,0 +1,72 @@
+Import "num/bool"
+Import "num/int"
+Import "string"
+Import "test/assert"
+
+// An interface implemented by types with a < ordering.
+Type T Ord {[< T ^Bool]}
+
+// Sorts the array in increasing order of <.
+// The sort is not stable, so equal elements may be reordered
+// with respect to eachother.
+Meth (T T Ord) Array [sort | self sortBy: [:x T& :y T& | x < y]]
+
+// Sorts the array in increasing order of the predicate less.
+// The sort is not stable, so equal elements may be reordered
+// with respect to eachother.
+Meth T Array [sortBy: less (T&, T&, Bool) Fun |
+	more := [:x T& :y T& | less value: y value: x].
+	self size / 2 downTo: 0 do: [:i |
+		self siftDown: i less: more
+	].
+	self size - 1 downTo: 1 do: [:i |
+		self swap: 0 and: i.
+		(self to: i) siftDown: 0 less: more
+	].
+]
+
+meth T Array [siftDown: i Int less: less (T&, T&, Bool) Fun |
+	l := (i * 2) + 1.
+	[l < self size] whileTrue: [
+		s := i.
+		(less value: (self at: l) value: (self at: s)) ifTrue: [
+			s := l.
+		].
+		r := l + 1.
+		r < self size ifTrue: [
+			(less value: (self at: r) value: (self at: s)) ifTrue: [
+				s := r.
+			].
+		].
+		s = i ifTrue: [^{}].
+		self swap: s and: i.
+		i := s.
+		l := (s * 2) + 1.
+	]
+]
+
+test [sortArray |
+	sortInts := [:ints Int Array | ints sort. ints].
+	assert: (sortInts value: {}) equals: {}.
+	assert: (sortInts value: {1}) equals: {1}.
+	assert: (sortInts value: {1; 2}) equals: {1; 2}.
+	assert: (sortInts value: {2; 1}) equals: {1; 2}.
+	assert: (sortInts value: {1; 2; 3}) equals: {1; 2; 3}.
+	assert: (sortInts value: {1; 3; 2}) equals: {1; 2; 3}.
+	assert: (sortInts value: {2; 1; 3}) equals: {1; 2; 3}.
+	assert: (sortInts value: {2; 3; 1}) equals: {1; 2; 3}.
+	assert: (sortInts value: {3; 1; 2}) equals: {1; 2; 3}.
+	assert: (sortInts value: {3; 2; 1}) equals: {1; 2; 3}.
+
+	sortStrings := [:strings String Array | strings sort. strings].
+	assert: (sortStrings value: {}) equals: {}.
+	assert: (sortStrings value: {"ABC"}) equals: {"ABC"}.
+	assert: (sortStrings value: {"ABC"; "def"}) equals: {"ABC"; "def"}.
+	assert: (sortStrings value: {"def"; "ABC"}) equals: {"ABC"; "def"}.
+	assert: (sortStrings value: {"ABC"; "def"; "xyz"}) equals: {"ABC"; "def"; "xyz"}.
+	assert: (sortStrings value: {"ABC"; "xyz"; "def"}) equals: {"ABC"; "def"; "xyz"}.
+	assert: (sortStrings value: {"def"; "ABC"; "xyz"}) equals: {"ABC"; "def"; "xyz"}.
+	assert: (sortStrings value: {"def"; "xyz"; "ABC"}) equals: {"ABC"; "def"; "xyz"}.
+	assert: (sortStrings value: {"xyz"; "ABC"; "def"}) equals: {"ABC"; "def"; "xyz"}.
+	assert: (sortStrings value: {"xyz"; "def"; "ABC"}) equals: {"ABC"; "def"; "xyz"}.
+]

@@ -1,0 +1,36 @@
+// An optional type.
+Type T? {none | some: T}
+
+// Returns a none case T?.
+Func T [none ^T? | ^{none}]
+
+// Returns a some case T? wih the value t.
+Func T [some: t T ^T? | ^{some: t}]
+
+// Evaluates s if the case is some, otherwise it evaluates n.
+Meth T? R [ifSome: s (T, R) Fun ifNone: n R Fun ^R |
+	^self ifNone: n ifSome: s
+]
+
+// Evaluates f with the value if the case of the receiver is some.
+Meth T? [ifSome: f (T, Nil) Fun |
+	^self ifSome: [:t | f value: t] ifNone: []
+]
+
+// Returns the value if the receiver case is some,
+// otherwise returns the result of evaluating f.
+Meth T? [ifNone: f T& Fun ^T& |
+	^self ifSome: [:t | t] ifNone: [f value]
+]
+
+// A Fun that returns an T? when evaluated.
+Type T OptFun := T? Fun.
+
+// Continually evaluates the receiver until its result is none.
+// Each time the receiver evaluates to a some case,
+// it evaluates f with the value.
+Meth T OptFun [whileSome: f (T&, Nil) Fun |
+	t := self value ifNone: [^{}].
+	f value: t.
+	self whileSome: f.
+]

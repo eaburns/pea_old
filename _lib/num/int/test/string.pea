@@ -1,0 +1,184 @@
+Import "num/int"
+Import "string"
+Import "test/assert"
+
+test [Int8_asString |
+	assert: 0 asInt8 asString equals: "0".
+	assert: 1 asInt8 asString equals: "1".
+	assert: -1 asInt8 asString equals: "-1".
+	assert: 100 asInt8 asString equals: "100".
+	assert: -100 asInt8 asString equals: "-100".
+	assert: maxInt8 asString equals: "127".
+	assert: minInt8 asString equals: "-128".
+]
+
+test [Int16_asString |
+	assert: 0 asInt16 asString equals: "0".
+	assert: 1 asInt16 asString equals: "1".
+	assert: -1 asInt16 asString equals: "-1".
+	assert: 100 asInt16 asString equals: "100".
+	assert: -100 asInt16 asString equals: "-100".
+	assert: maxInt16 asString equals: "32767".
+	assert: minInt16 asString equals: "-32768".
+]
+
+test [Int32_asString |
+	assert: 0 asInt32 asString equals: "0".
+	assert: 1 asInt32 asString equals: "1".
+	assert: -1 asInt32 asString equals: "-1".
+	assert: 100 asInt32 asString equals: "100".
+	assert: -100 asInt32 asString equals: "-100".
+	assert: maxInt32 asString equals: "2147483647".
+	assert: minInt32 asString equals: "-2147483648".
+]
+
+test [Int64_asString |
+	assert: 0 asInt64 asString equals: "0".
+	assert: 1 asInt64 asString equals: "1".
+	assert: -1 asInt64 asString equals: "-1".
+	assert: 100 asInt64 asString equals: "100".
+	assert: -100 asInt64 asString equals: "-100".
+	assert: maxInt64 asString equals: "9223372036854775807".
+	assert: minInt64 asString equals: "-9223372036854775808".
+]
+
+test [UInt8_asString |
+	assert: 0 asUInt8 asString equals: "0".
+	assert: 1 asUInt8 asString equals: "1".
+	assert: 100 asUInt8 asString equals: "100".
+	assert: maxUInt8 asString equals: "255".
+]
+
+test [UInt16_asString |
+	assert: 0 asUInt16 asString equals: "0".
+	assert: 1 asUInt16 asString equals: "1".
+	assert: 100 asUInt16 asString equals: "100".
+	assert: maxUInt16 asString equals: "65535".
+]
+
+test [UInt32_asString |
+	assert: 0 asUInt32 asString equals: "0".
+	assert: 1 asUInt32 asString equals: "1".
+	assert: 100 asUInt32 asString equals: "100".
+	assert: maxUInt32 asString equals: "4294967295".
+]
+
+test [UInt64_asString |
+	assert: 0 asUInt64 asString equals: "0".
+	assert: 1 asUInt64 asString equals: "1".
+	assert: 100 asUInt64 asString equals: "100".
+	assert: maxUInt64 asString equals: "18446744073709551615".
+]
+
+test [parseSigned |
+	assert: (parseSigned: "0") isOkAndEquals: 0.
+	assert: (parseSigned: "1") isOkAndEquals: 1.
+	assert: (parseSigned: "10") isOkAndEquals: 10.
+	assert: (parseSigned: "12") isOkAndEquals: 12.
+	assert: (parseSigned: "9223372036854775807") isOkAndEquals: maxInt64.
+
+	assert: (parseSigned: "+0") isOkAndEquals: 0.
+	assert: (parseSigned: "+1") isOkAndEquals: 1.
+	assert: (parseSigned: "+10") isOkAndEquals: 10.
+	assert: (parseSigned: "+12") isOkAndEquals: 12.
+	assert: (parseSigned: "+9223372036854775807") isOkAndEquals: maxInt64.
+
+	assert: (parseSigned: "-0") isOkAndEquals: 0.
+	assert: (parseSigned: "-1") isOkAndEquals: -1.
+	assert: (parseSigned: "-10") isOkAndEquals: -10.
+	assert: (parseSigned: "-12") isOkAndEquals: -12.
+	assert: (parseSigned: "-9223372036854775808") isOkAndEquals: minInt64.
+
+	assert: (parseSigned: "0b0") isOkAndEquals: 0.
+	assert: (parseSigned: "0b1") isOkAndEquals: 1.
+	assert: (parseSigned: "0b11") isOkAndEquals: 3.
+	assert: (parseSigned: "0b1111") isOkAndEquals: 15.
+	assert: (parseSigned: "-0b10") isOkAndEquals: -2.
+
+	assert: (parseSigned: "00") isOkAndEquals: 0.
+	assert: (parseSigned: "01") isOkAndEquals: 1.
+	assert: (parseSigned: "010") isOkAndEquals: 8.
+	assert: (parseSigned: "011") isOkAndEquals: 9.
+	assert: (parseSigned: "07") isOkAndEquals: 7.
+	assert: (parseSigned: "-010") isOkAndEquals: -8.
+
+	assert: (parseSigned: "0x1") isOkAndEquals: 1.
+	assert: (parseSigned: "0x10") isOkAndEquals: 16.
+	assert: (parseSigned: "0x1a") isOkAndEquals: 26.
+	assert: (parseSigned: "-0x10") isOkAndEquals: -16.
+	assert: (parseSigned: "0xa") isOkAndEquals: 10.
+	assert: (parseSigned: "0xb") isOkAndEquals: 11.
+	assert: (parseSigned: "0xc") isOkAndEquals: 12.
+	assert: (parseSigned: "0xd") isOkAndEquals: 13.
+	assert: (parseSigned: "0xe") isOkAndEquals: 14.
+	assert: (parseSigned: "0xf") isOkAndEquals: 15.
+	assert: (parseSigned: "0xA") isOkAndEquals: 10.
+	assert: (parseSigned: "0xB") isOkAndEquals: 11.
+	assert: (parseSigned: "0xC") isOkAndEquals: 12.
+	assert: (parseSigned: "0xD") isOkAndEquals: 13.
+	assert: (parseSigned: "0xE") isOkAndEquals: 14.
+	assert: (parseSigned: "0xF") isOkAndEquals: 15.
+
+	assert: (parseSigned: "") isError: "unexpected end of input".
+	assert: (parseSigned: "-") isError: "unexpected end of input".
+	assert: (parseSigned: "+") isError: "unexpected end of input".
+	assert: (parseSigned: "0b") isError: "unexpected end of input".
+	assert: (parseSigned: "0x") isError: "unexpected end of input".
+	assert: (parseSigned: "-0b") isError: "unexpected end of input".
+	assert: (parseSigned: "-0x") isError: "unexpected end of input".
+	assert: (parseSigned: ".") isError: "not a digit".
+	assert: (parseSigned: "☺") isError: "not a digit".
+	assert: (parseSigned: "123☺") isError: "not a digit".
+	assert: (parseSigned: "0-") isError: "not a digit".
+	assert: (parseSigned: "9223372036854775808") isError: "too big".
+	assert: (parseSigned: "-9223372036854775809") isError: "too small".
+	assert: (parseSigned: "0b2") isError: "bad digit".
+	assert: (parseSigned: "08") isError: "bad digit".
+	assert: (parseSigned: "a") isError: "bad digit".
+]
+
+test [parseUnsigned |
+	assert: (parseUnsigned: "0") isOkAndEquals: 0.
+	assert: (parseUnsigned: "1") isOkAndEquals: 1.
+	assert: (parseUnsigned: "10") isOkAndEquals: 10.
+	assert: (parseUnsigned: "12") isOkAndEquals: 12.
+	assert: (parseUnsigned: "18446744073709551615") isOkAndEquals: maxUInt64.
+	assert: (parseUnsigned: "0b0") isOkAndEquals: 0.
+	assert: (parseUnsigned: "0b1") isOkAndEquals: 1.
+	assert: (parseUnsigned: "0b11") isOkAndEquals: 3.
+	assert: (parseUnsigned: "0b1111") isOkAndEquals: 15.
+	assert: (parseUnsigned: "00") isOkAndEquals: 0.
+	assert: (parseUnsigned: "01") isOkAndEquals: 1.
+	assert: (parseUnsigned: "010") isOkAndEquals: 8.
+	assert: (parseUnsigned: "011") isOkAndEquals: 9.
+	assert: (parseUnsigned: "07") isOkAndEquals: 7.
+	assert: (parseUnsigned: "0x1") isOkAndEquals: 1.
+	assert: (parseUnsigned: "0x10") isOkAndEquals: 16.
+	assert: (parseUnsigned: "0xa") isOkAndEquals: 10.
+	assert: (parseUnsigned: "0xb") isOkAndEquals: 11.
+	assert: (parseUnsigned: "0xc") isOkAndEquals: 12.
+	assert: (parseUnsigned: "0xd") isOkAndEquals: 13.
+	assert: (parseUnsigned: "0xe") isOkAndEquals: 14.
+	assert: (parseUnsigned: "0xf") isOkAndEquals: 15.
+	assert: (parseUnsigned: "0xA") isOkAndEquals: 10.
+	assert: (parseUnsigned: "0xB") isOkAndEquals: 11.
+	assert: (parseUnsigned: "0xC") isOkAndEquals: 12.
+	assert: (parseUnsigned: "0xD") isOkAndEquals: 13.
+	assert: (parseUnsigned: "0xE") isOkAndEquals: 14.
+	assert: (parseUnsigned: "0xF") isOkAndEquals: 15.
+
+	assert: (parseUnsigned: "") isError: "unexpected end of input".
+	assert: (parseUnsigned: "-") isError: "not a digit".
+	assert: (parseUnsigned: "-123") isError: "not a digit".
+	assert: (parseUnsigned: "+") isError: "not a digit".
+	assert: (parseUnsigned: "0b") isError: "unexpected end of input".
+	assert: (parseUnsigned: "0x") isError: "unexpected end of input".
+	assert: (parseUnsigned: ".") isError: "not a digit".
+	assert: (parseUnsigned: "☺") isError: "not a digit".
+	assert: (parseUnsigned: "123☺") isError: "not a digit".
+	assert: (parseUnsigned: "0-") isError: "not a digit".
+	assert: (parseUnsigned: "18446744073709551616") isError: "too big".
+	assert: (parseUnsigned: "0b2") isError: "bad digit".
+	assert: (parseUnsigned: "08") isError: "bad digit".
+	assert: (parseUnsigned: "a") isError: "bad digit".
+]

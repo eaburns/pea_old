@@ -1,0 +1,193 @@
+Import "container/array"
+Import "num/bool"
+Import "num/int"
+Import "test/assert"
+
+// An resizable array of items of type T that can be
+// expanded or contracted at a single end.
+//
+// A Stack behaves as a reference type: all copies of the Stack
+// refer to the same underlying array, and calling reset
+// on any copy of the stack will reset the underlying array for all.
+//
+// Stacks are useful for building arrays of non-predetermined size.
+// To do this, push the elemnts onto the stack,
+// and when finished, call reset to get the resulting array.
+Type T Stack := T _StackRef.
+
+type T _StackRef {
+	// We add a level of indirection so that copies of the Stack
+	// all reference the same underlying Array.
+	ref: T _Stack&
+}
+
+// Returns a new, empty stack.
+Func T [new ^T Stack | ^{ref: {size: 0 data: {}}}]
+
+// Returns a new stack using ts as its initial underlying array.
+// Note that push operations may cause the stack to grow,
+// causing it to allocate a new underlying array.
+Func T [new: ts T Array ^T Stack |
+	^{ref: {data: ts size: ts size}}
+]
+
+test [new_ |
+	ints Int Stack := new.
+	assert: ints size equals: 0.
+
+	ints := new: {5; 6; 7}.
+	assert: ints size equals: 3.
+
+	strings String Stack := new.
+	assert: strings size equals: 0.
+
+	strings := new: {"hello"; "world"; "!"}.
+	assert: strings size equals: 3.
+]
+
+test [newDoesNotCopy |
+	array Int Array := {5; 6; 7}.
+	stack Int Stack := new: array.
+	assert: stack last equals: 7.
+	array at: 2 put: 8.
+	assert: stack last equals: 8.
+]
+
+// Returns the number of elements on the receiver.
+Meth _ Stack [size ^Int | ^ref size]
+
+// Returns the last element added to the receiver.
+Meth T Stack [last ^T | ^ref data at: ref size - 1]
+
+// Appends t to the end of the receiver.
+Meth T Stack [push: t T |
+	ref ensureCap: 1 fill: t.
+	ref data at: ref size put: t.
+	ref size increment.
+]
+
+test [push |
+	ints Int Stack := new: {5; 6; 7}.
+	assert: ints size equals: 3.
+
+	ints push: 8.
+	assert: ints size equals: 4.
+	assert: ints last equals: 8.
+
+	ints push: 9.
+	assert: ints size equals: 5.
+	assert: ints last equals: 9.
+
+	ints push: 10.
+	assert: ints size equals: 6.
+	assert: ints last equals: 10.
+]
+
+// An interface satisfied by types that implement do-style loops
+// and have a size method.
+Type T SizeDoer {
+	[size ^Int]
+	[do: (T&, Nil) Fun]
+}
+
+// Appends all elements of ts to the end of the receiver.
+Meth T Stack [pushAll: ts T SizeDoer |
+	ensured := false.
+	ts do: [:t |
+		ensured ifFalse: [
+			ref ensureCap: ts size fill: t.
+			ensured := true.
+		].
+		ref data at: ref size put: t.
+		ref size increment.
+	].
+]
+
+test [pushAll |
+	ints Int Stack := new: {5; 6; 7}.
+	assert: ints size equals: 3.
+
+	intArray Int Array := {8; 9; 10}.
+	ints pushAll: intArray.
+	assert: ints size equals: 6.
+	assert: ints last equals: 10.
+
+	intArray := {11; 12; 13}.
+	ints pushAll: intArray.
+	assert: ints size equals: 9.
+	assert: ints last equals: 13.
+]
+
+// Removes and returns the end of the receiver.
+Meth T Stack [pop ^T |
+	t := ref data at: ref size - 1.
+	ref size: ref size - 1.
+	^t
+]
+
+test [pop |
+	ints Int Stack := new: {5; 6; 7}.
+	assert: ints size equals: 3.
+
+	assert: ints pop equals: 7.
+	assert: ints size equals: 2.
+	assert: ints last equals: 6.
+
+	assert: ints pop equals: 6.
+	assert: ints size equals: 1.
+	assert: ints last equals: 5.
+
+	assert: ints pop equals: 5.
+	assert: ints size equals: 0.
+]
+
+// Returns the array of stack elements and resets the receiver to empty.
+Meth T Stack [reset ^T Array |
+	data := ref data from: 0.
+	ref data: {}.
+	ref size: 0.
+	^data
+]
+
+test [reset |
+	ints Int Stack := new: {5; 6; 7}.
+	intsCopy := ints.
+
+	assert: ints size equals: 3.
+	assert: ints last equals: 7.
+	assert: intsCopy size equals: 3.
+	assert: intsCopy last equals: 7.
+
+	r := ints reset.
+	assert: ints size equals: 0.
+	assert: intsCopy size equals: 0.
+	assert: r size equals: 3.
+	assert: (r at: 0) equals: 5.
+	assert: (r at: 1) equals: 6.
+	assert: (r at: 2) equals: 7.
+]
+
+type T _Stack {
+	size: Int
+	data: T Array
+}
+
+meth _ _Stack [size ^Int& | ^size]
+meth _ _Stack [size: i Int | size := i]
+meth T _Stack [data ^T Array | ^data]
+meth T _Stack [data: d T Array | data := d]
+
+meth T _Stack [ensureCap: delta Int fill: t T |
+	size + delta < data size ifTrue: [^{}].
+
+	s := data size < 2 ifTrue: [2] ifFalse: [data size].
+	[s < (size + delta)] whileTrue: [
+		s := s * s
+	].
+
+	d := #array new: s fill: t.
+	0 to: size - 1 do: [:i |
+		d at: i put: (data at: i)
+	].
+	data := d.
+]

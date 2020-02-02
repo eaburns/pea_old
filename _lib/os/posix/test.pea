@@ -1,0 +1,108 @@
+Import "test/assert"
+Import "container/array"
+Import "error"
+Import "num/bool"
+Import "num/int"
+Import "string"
+
+test [openWriteReadUnlink |
+	path := "hello".
+
+	fd := open: path mode: O_WRONLY|O_CREAT perm: 0666.
+	assertErrnoOk: fd.
+	writeBuf Byte Array := {'h'; 'e'; 'l'; 'l'; 'o'}.
+
+	n := write: fd buf: writeBuf.
+	assertErrnoOk: n.
+	assert: n equals: writeBuf size.
+	res := close: fd.
+	assertErrnoOk: res.
+
+	fd := open: path mode: O_RDONLY perm: 0666.
+	assertErrnoOk: fd.
+
+	readBuf Byte Array := #array new: 10 fill: '0'.
+	n := read: fd buf: readBuf.
+	assertErrnoOk: n.
+	assert: n equals: writeBuf size.
+	assert: (newString: (readBuf to: n)) equals: "hello".
+	assertErrnoOk: (close: fd).
+	assertErrnoOk: (unlink: path).
+]
+
+test [mkdirOpenDirReadUnlink |
+	dir := "./a".
+	file0 := "./a/b".
+	file1 := "./a/c".
+
+	res := mkdir: dir perm: 0755.
+	assertErrnoOk: res.
+	touch: file0.
+	touch: file1.
+
+	fd := open: dir mode: O_DIRECTORY|O_RDONLY perm: 0.
+	assertErrnoOk: fd.
+	d := (fdOpenDir: fd) ifError: [:err | panic: err errorMsg].
+
+	(readDir: d)
+		ifErrno: [:e Int | panic: (strerror: e)]
+		ifEnd: [panic: "unexpected EOF"]
+		ifOk: [:_ |].
+
+	(readDir: d)
+		ifErrno: [:e Int | panic: (strerror: e)]
+		ifEnd: [panic: "unexpected EOF"]
+		ifOk: [:_ |].
+
+	(readDir: d)
+		ifErrno: [:e Int | panic: (strerror: e)]
+		ifEnd: []
+		ifOk: [:s | panic: "unexpected directory entry: " + s].
+
+	assertErrnoOk: (closeDir: d).
+	assertErrnoOk: (unlink: file0).
+	assertErrnoOk: (unlink: file1).
+	assertErrnoOk: (rmdir: dir).
+]
+
+test [fstatFile |
+	file := "test_file".
+	fd := open: file mode: O_RDONLY|O_CREAT|O_TRUNC perm: 0666.
+	assertErrnoOk: fd.
+	(fstat: fd)
+		ifErrno: [:e Int | panic: (strerror: e)]
+		ifOk: [:s |
+			assert: s size equals: 0.
+			assert: s mode & S_IFREG equals: S_IFREG.
+		].
+	assertErrnoOk: (close: fd).
+	assertErrnoOk: (unlink: file).
+]
+
+test [fstatDir |
+	dir := "test_dir".
+	assertErrnoOk: (mkdir: dir perm: 0777).
+	fd := open: dir mode: O_RDONLY|O_DIRECTORY perm: 0.
+	assertErrnoOk: fd.
+	(fstat: fd)
+		ifErrno: [:e Int | panic: (strerror: e)]
+		ifOk: [:s | assert: s mode & S_IFDIR equals: S_IFDIR].
+	assertErrnoOk: (close: fd).
+	assertErrnoOk: (rmdir: dir).
+]
+
+test [fstatError |
+	(fstat: -1)
+		ifErrno: [:_ Int | ]
+		ifOk: [:_ | panic: "expected an error"].
+]
+
+func [touch: path String |
+	fd := open: path mode: O_EXCL|O_CREAT|O_WRONLY perm: 0666.
+	assertErrnoOk: fd.
+	assertErrnoOk: (close: fd).
+]
+
+func [assertErrnoOk: errno Int |
+	errno < 0 ifTrue: [panic: (strerror: errno)]
+]

@@ -1,0 +1,66 @@
+import "error"
+Import "num/bool"
+Import "option"
+import "os/posix"
+
+// Either a value of type T or a #file Error.
+// T Result also implements T!.
+Type T Result {error: Error | ok: T}
+
+// Returns the value if the case is ok,
+// otherwise returns the result of evaluating f with the error.
+// This implements the T #error ! interface.
+Meth T Result [ifError: f (#error Error, T) Fun ^T |
+	^self ifError: [:e | f value: e] ifOk: [:t | t]
+]
+
+// An error resulting from a failed file operation.
+Type Error {
+	msg: String
+	code: ErrorCode
+}
+
+// Returns the error code.
+Meth Error [code ^ErrorCode | ^code]
+
+// Returns the error message.
+// This implements the #error Error interface.
+Meth Error [errorMsg ^String | ^msg]
+
+// An Error? implements Nil!.
+Type ErrorOpt := Error?.
+
+// Returns an Error from an errno number.
+// The absolute value of e is used as the errno number,
+// so a negative errno will be interpreted as its positive value.
+Func [errnoError: e Int ^Error |
+	^{msg: (#posix strerror: e) code: (errnoCode: e)}
+]
+
+// Evaluates f with an the Error if the receiver case is error.
+Meth ErrorOpt [ifError: f (Error, Nil) Fun ^Nil |
+	^self ifSome: [:e Error | f value: e] ifNone: []
+]
+
+// An error code describing the error.
+Type ErrorCode {
+	| exists
+	| notExists
+	| isDir
+	| notDir
+	| permDenied
+	| other	// some other, unknown error
+}
+
+// Retruns an error code corresponding to the errno number.
+// The absolute value of e is used as the errno number,
+// so a negative errno will be interpreted as its positive value.
+func [errnoCode: e Int ^ErrorCode |
+	e < 0 ifTrue: [e := e neg].
+	e = #posix EACCES ifTrue: [^{permDenied}].
+	e = #posix EEXIST ifTrue: [^{exists}].
+	e = #posix EISDIR ifTrue: [^{isDir}].
+	e = #posix ENOENT ifTrue: [^{notExists}].
+	e = #posix ENOTDIR ifTrue: [^{notDir}].
+	^{other}
+]

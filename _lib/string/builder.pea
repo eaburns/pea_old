@@ -1,0 +1,93 @@
+Import "num/bool"
+Import "num/int"
+
+// An interface implemented by types that can iterate over bytes.
+Type ByteDoer {
+	[byteSize ^Int]
+	[doBytes: (Byte, Nil) Fun]
+}
+
+// A builder to efficiently create new strings.
+// A Builder behaves as reference type,
+// so copies of a builder construct the same string,
+// and calling reset on any copy resets all copies.
+Type Builder {ref: _Builder&}
+
+// Returns a new, empty Builder.
+Func [newBuilder ^Builder |
+	^{ref: {size: 0 data: {}}}
+]
+
+// Returns the number of bytes added to the builder.
+Meth Builder [byteSize ^Int | ^ref size]
+
+// Evaluates f for each byte already added to the builder in order.
+Meth Builder [doBytes: f (Byte, Nil) Fun |
+	0 to: ref size - 1 do: [:i |
+		f value: (ref data at: i)
+	]
+]
+
+// Adds a byte to the string under construction.
+Meth Builder [addByte: b Byte |
+	self ensureCap: 1.
+	ref data at: ref size put: b.
+	ref size increment.
+]
+
+// Adds bytes to the string under construction.
+Meth Builder (S ByteDoer) [add: s S |
+	self ensureCap: s byteSize.
+	s doBytes: [:b |
+		ref data at: ref size put: b.
+		ref size increment.
+	]
+]
+
+meth Builder [ensureCap: delta Int |
+	ref size + delta < ref data size ifTrue: [^{}].
+
+	s := ref data size < 2 ifTrue: [2] ifFalse: [ref data size].
+	[s < (ref size + delta)] whileTrue: [
+		s := s * s
+	].
+
+	d Byte Array := newArray: s init: [:_ | '0'].
+	0 to: ref size - 1 do: [:i |
+		d at: i put: (ref data at: i)
+	].
+	ref data: d.
+]
+
+// Returns the constructed string and resets the Builder to empty.
+Meth Builder [reset ^String |
+	// TODO: implement #string Builder reset without copying.
+	// This makes a copy of the array; the point of this interface
+	// is to avoid needless copying.
+	// Once we have some unsafe package, use that
+	// to convert the byte array right to a string.
+	s := newString: (ref data from: 0 to: ref size).
+	ref size: 0.
+	ref data: {}.
+	^s
+]
+
+// Returns the constructed string as a Byte Array and
+// resets the Builder to empty.
+Meth Builder [resetBytes ^Byte Array |
+	d := ref data from: 0 to: ref size.
+	ref size: 0.
+	ref data: {}.
+	^d
+]
+
+
+type _Builder {
+	size: Int
+	data: Byte Array
+}
+
+meth _Builder [size ^Int& | ^size]
+meth _Builder [size: i Int | size := i]
+meth _Builder [data ^Byte Array | ^data]
+meth _Builder [data: d Byte Array | data := d]

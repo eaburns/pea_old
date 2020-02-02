@@ -1,0 +1,132 @@
+Import "num/bool"
+Import "error"
+
+// Returns the decimal String representing the receiver.
+Meth Int8 [asString ^String | ^format: self asInt64 base: 10]
+Meth Int16 [asString ^String | ^format: self asInt64 base: 10]
+Meth Int32 [asString ^String | ^format: self asInt64 base: 10]
+Meth Int64 [asString ^String | ^format: self asInt64 base: 10]
+Meth Int [asString ^String | ^format: self asInt64 base: 10]
+Meth UInt8 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+Meth UInt16 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+Meth UInt32 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+Meth UInt64 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+Meth UInt [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+
+func [format: x Int64 base: base Int ^String |
+	u := (x < 0 ifTrue: [x neg] ifFalse: [x]) asUInt64.
+	^format: u base: base neg: x < 0.
+]
+
+func [format: u UInt64 base: base Int neg: neg Bool ^String |
+	// 20 bytes is the largest possible including a leading -.
+	bytes Byte Array := newArray: 20 init: [:_ | 0].
+	b := base asUInt64.
+	i := bytes size - 1.
+	[u >= b] whileTrue: [
+		uNext := u / b.
+		d := u - (uNext * b).
+		bytes at: i put: (digit: d).
+		i := i - 1.
+		u := uNext.
+	].
+	bytes at: i put: (digit: u).
+	neg ifTrue: [
+		i := i - 1.
+		bytes at: i put: '-'
+	].
+	^newString: (bytes from: i to: bytes size).
+]
+
+func [digit: x UInt64 ^Byte |
+	b := x asUInt8.
+	^x < 10 ifTrue: [b + '0'] ifFalse: [b + 'a']
+]
+
+// Returns an Int64 parsed from the string or an error.
+// The string may begin with a leading - or + to indicate the sign.
+// If the sign is not explicit, it is assumed to be positive.
+// Following the sign, is an optional prefix to denote the base.
+// The prefix can be:
+// 	0b for base 2,
+// 	0 for base 8, or
+// 	0x for base 16.
+// If the prefix is omitted, the base is assumed to be 10.
+Func [parseSigned: s String ^Int64! |
+	neg := s consumeSign.
+	base := s consumeBase.
+	u := (parse: s base: base) ifError: [:e | ^error: e].
+	i := neg ifTrue: [
+		u > minInt64 asUInt64 ifTrue: [^error: (#error new: "too small")].
+		u = minInt64 asUInt64 ifTrue: [^ok: minInt64].
+		u asInt64 neg.
+	] ifFalse: [
+		u > maxInt64 asUInt64 ifTrue: [^error: (#error new: "too big")].
+		u asInt64.
+	].
+	^ok: i.
+]
+
+// Returns a UInt64 parsed from the string or an error.
+// An optional prefix denotes the base.
+// The prefix can be:
+// 	0b for base 2,
+// 	0 for base 8, or
+// 	0x for base 16.
+// If the prefix is omitted, the base is assumed to be 10.
+Func [parseUnsigned: s String ^UInt64! |
+	base := s consumeBase.
+	^parse: s base: base.
+]
+
+func [parse: s String base: base UInt64 ^UInt64! |
+	s byteSize = 0 ifTrue: [^error: (#error new: "unexpected end of input")].
+
+	u UInt64 := 0.
+	[s byteSize > 0] whileTrue: [
+		b := s atByte: 0.
+		d := (digitValue: b) ifError: [:e | ^error: e].
+		d >= base ifTrue: [^error: (#error new: "bad digit")].
+		uNext := (u * base) + d.
+		uNext < u ifTrue: [^error: (#error new: "too big")].
+		u := uNext.
+		s consumeByte.
+	].
+	^ok: u
+]
+
+func [digitValue: b UInt8 ^UInt64! |
+	(b >= '0') && (b <= '9') ifTrue: [
+		^ok: (b - '0') asUInt64
+	].
+	(b >= 'a') && (b <= 'f') ifTrue: [
+		^ok: ((b - 'a') + 10) asUInt64
+	].
+	(b >= 'A') && (b <= 'F') ifTrue: [
+		^ok: ((b - 'A') + 10) asUInt64
+	].
+	^error: (#error new: "not a digit").
+]
+
+meth String [consumeSign ^Bool |
+	self byteSize = 0 ifTrue: [^false].
+	b := self atByte: 0.
+	b = '-' ifTrue: [self consumeByte. ^true].
+	b = '+' ifTrue: [self consumeByte. ^false].
+	^false
+]
+
+meth String [consumeBase ^UInt64 |
+	self byteSize < 2 ifTrue: [^10].
+	b := self atByte: 0.
+	b != '0' ifTrue: [^10].
+	self consumeByte.
+	b := self atByte: 0.
+	b = 'b' ifTrue: [self consumeByte. ^2].
+	b = 'x' ifTrue: [self consumeByte. ^16].
+	^8
+]
+
+meth String [consumeByte |
+	self := self fromByte: 1 toByte: self byteSize
+]

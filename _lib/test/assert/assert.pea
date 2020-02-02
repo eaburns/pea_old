@@ -1,0 +1,97 @@
+Import "error"
+Import "num/bool"
+Import "option"
+Import "string"
+
+// An interface satisfied by types that implement equality and asString.
+Type T Eq {
+	[= T ^Bool]
+	[asString ^String]
+}
+
+// An interface satisfied by types that implement asString.
+Type Stringer {
+	[asString ^String]
+}
+
+// An interface satisfied by types that implement do-style loops.
+Type T Doer {
+	[do: (T, Nil) Fun]
+}
+
+// Panics the string s if b is false.
+Func [assertTrue: b Bool msg: s String |
+	b ifFalse: [
+		panic: s
+	].
+]
+
+// Panics if b is false.
+Func [assertTrue: b Bool |
+	b ifFalse: [panic: "got false, expected true"]
+]
+
+// Panics the string s if b is true.
+Func [assertFalse: b Bool msg: s String |
+	b ifTrue: [
+		panic: s
+	]
+]
+
+// Panics if b is true.
+Func [assertFalse: b Bool |
+	b ifTrue: [panic: "got true, expected false"]
+]
+
+// Panics if x = y is false, reporting the string of each value.
+Func (T T Eq)  [assert: x T equals: y T |
+	x = y ifFalse: [
+		panic: x asString + " = " + y asString + " is false"
+	]
+]
+
+// Panics if x = y is true, reporting the string of each value.
+Func (T T Eq)  [assert: x T notEquals: y T |
+	x = y ifTrue: [
+		panic: x asString + " = " + y asString + " is true"
+	]
+]
+
+// Panics if xOpt is the some case.
+Func (T Stringer) [assertNone: xOpt T? |
+	x := xOpt ifNone: [^{}].
+	panic: "some: " + x asString.
+]
+
+// Panics if xOpt is the none case or
+// if the value does not equal y with the = method.
+Func (T T Eq) [assert: xOpt T? isSome: y T |
+	x := xOpt ifNone: [panic: "none"].
+	x = y ifFalse: [
+		panic: x asString + " = " + y asString + " is false"
+	]
+]
+
+// Panics if xOrErr is the error case or
+// if the ok-value does not = y.
+Func (T T Eq) [assert: xOrErr T! isOkAndEquals: y T |
+	xOrErr ifError: [:e Error |
+		panic: "not ok: " + e errorMsg
+	] ifOk: [:x T |
+		x = y ifFalse: [
+			panic: x asString + " = " + y asString + " is false"
+		].
+	]
+]
+
+// Panics if xOrErr is the ok case or
+// if the error-case errorMsg does not equal msg.
+Func (T Stringer) [assert: xOrErr T! isError: msg String |
+	xOrErr ifError: [:e Error |
+		e errorMsg != msg ifTrue: [
+			panic: "errorMsg " + e errorMsg + " != " + msg
+		]
+	] ifOk: [:x T |
+		panic: "ok: " + x asString
+	]
+]

@@ -1,0 +1,94 @@
+import "io"
+Import "num/bool"
+Import "option"
+Import "os"
+import "os/posix"
+
+// An open file.
+// This type behaves as a reference,
+// so copies all refer to the same file.
+Type File := _FileRef.
+
+type _FileRef {ref: _File &}
+
+type _File {descr: Int}
+meth _File [descr ^Int | ^descr]
+
+// A flag indicating to open the file for read-only access.
+Func [O_RDONLY ^Int | ^#posix O_RDONLY]
+
+// A flag indicating to open the file for write-only access.
+Func [O_WRONLY ^Int | ^#posix O_WRONLY]
+
+// A flag indicating to open the file for read/write access.
+Func [O_RDWR ^Int | ^#posix O_RDWR]
+
+// A flag indicating that writes to the file begin at its end.
+Func [O_APPEND ^Int | ^#posix O_APPEND]
+
+// A flag indicating to create the file if it does not exist.
+Func [O_CREATE ^Int | ^#posix O_CREAT]
+
+// A flag indicating to fail if the file already exists.
+Func [O_EXCL ^Int | ^#posix O_EXCL]
+
+// A flag indicating to truncate the file if it already exists.
+Func [O_TRUNC ^Int | ^#posix O_TRUNC]
+
+// Returns a newly opened file at the given path or an error.
+//
+// The mode is one of
+// 	O_RDONLY 	read only
+// 	O_WRONLY 	write only
+// 	O_RDWR 		read and write
+// and it may be bit-wise-ored with any of
+// 	O_APPEND 	writes append to the end of the file
+// 	O_CREATE 	the file is created if it did not exist
+// 	O_EXCL 		fail if the file already exists
+// 	O_TRUNC 	truncate the file if it already exists.
+//
+// If the mode is O_CREATE and a file did not previously exist,
+// it is created created with permissions set from perm (and umask).
+Func [open: path String mode: mode Int perm: perm Int ^File #os Result |
+	fd := #posix open: path mode: mode perm: perm.
+	fd < 0 ifTrue: [^{error: (#os errnoError: fd)}].
+	^{ok: {ref: {descr: fd}}}
+]
+
+// Returns a newly opened file at the given path or an error.
+// This is the same as open:mode:
+// with mode: O_RDONLY.
+// and perm: 0666.
+Func [open: path String ^File #os Result |
+	^open: path mode: O_RDONLY perm: 0666.
+]
+
+// Returns a newly opened file at the given path or an error.
+// This is the same as open:mode: with
+// mode: O_WRONLY|O_CREATE|O_TRUNC.
+Func [create: path String ^File #os Result |
+	^open: path mode: O_WRONLY|O_CREATE|O_TRUNC perm: 0666.
+]
+
+// Reads from the receiver's file into the buffer.
+Meth File [read: buf Byte Array ^#io ReadResult |
+	n := #posix read: ref descr buf: buf.
+	n < 0 ifTrue: [^{error: (#os errnoError: n)}].
+	n = 0 ifTrue: [^{end}].
+	^{ok: n}.
+]
+
+// Writes contents from the buffer into the receiver's file.
+Meth File [write: buf Byte Array ^#io WriteResult |
+	n := #posix write: ref descr buf: buf.
+	n < 0 ifTrue: [^{error: (#os errnoError: n)}].
+	^{ok: n}.
+]
+
+// Closes the receiver's file.
+// The file must no longer be used after it is closed.
+Meth File [close ^Error? |
+	res := #posix close: ref descr.
+	res < 0 ifTrue: [^some: (#os errnoError: res)].
+	^none
+]

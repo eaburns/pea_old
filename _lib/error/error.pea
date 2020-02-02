@@ -1,0 +1,68 @@
+Import "option"
+
+// An interface implemented by types that can return error message strings.
+Type Error {
+	// Returns a human readable description of the error.
+	[errorMsg ^String]
+}
+
+// Returns the error message string.
+Meth Error [asString ^String | ^self errorMsg]
+
+type StringError {msg: String}
+meth StringError [errorMsg ^String | ^msg]
+
+// Returns a new Error that reports msg as its error message.
+Func [new: msg String ^Error |
+	e StringError := {msg: msg}.
+	^e
+]
+
+// An interface implemented by types that are either
+// a value of type T or an Error.
+Type T! {
+	[ifError: (Error, T) Fun ^T]
+}
+
+// Returns the result of evaluating fo with the value if the case is ok,
+// otherwise returns the result of evaluating fe with the error.
+Meth T! R [ifOk: fo (T, R) Fun ifError: fe (Error, R) Fun ^R |
+	t := self ifError: [:e | ^fe value: e].
+	^fo value: t.
+]
+
+// Returns the result of evaluating fo with the value if the case is ok,
+// otherwise returns the result of evaluating fe with the error.
+Meth T! R [ifError: fe (Error, R) Fun ifOk: fo (T, R) Fun ^R |
+	t := self ifError: [:e | ^fe value: e].
+	^fo value: t.
+]
+
+type T OrError {ok: T | error: Error}
+
+// Returns t if the receiver case is ok,
+// otherwise returns the result of evaluating f
+// with the error.
+Meth T OrError [ifError: f (Error, T) Fun ^T |
+	^self ifOk: [:t | t] ifError: [:e | f value: e]
+]
+
+// Returns an ok-case T! of the given value.
+Func T [ok: t T ^T! |
+	tOr T OrError := {ok: t}.
+	^tOr.
+]
+
+// Returns an error-case T! with the given Error.
+Func T [error: e Error ^T! |
+	tOr T OrError := {error: e}.
+	^tOr
+]
+
+// An Error? implements Nil!.
+Type ErrorOpt := Error?.
+
+// Evaluates f with an the Error the receiver case is error.
+Meth ErrorOpt [ifError: f (Error, Nil) Fun ^Nil |
+	^self ifSome: [:e Error | f value: e] ifNone: []
+]

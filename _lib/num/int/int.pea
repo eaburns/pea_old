@@ -1,0 +1,30 @@
+Func [maxInt8 ^Int8 | ^127]
+Func [minInt8 ^Int8 | ^-128]
+Func [maxInt16 ^Int16 | ^32767]
+Func [minInt16 ^Int16 | ^-32768]
+Func [maxInt32 ^Int32 | ^2147483647]
+Func [minInt32 ^Int32 | ^-2147483648]
+Func [maxInt64 ^Int64 | ^9223372036854775807]
+Func [minInt64 ^Int64 | ^-9223372036854775808]
+Func [maxUInt8 ^UInt8 | ^255]
+Func [maxUInt16 ^UInt16 | ^65535]
+Func [maxUInt32 ^UInt32 | ^4294967295]
+Func [maxUInt64 ^UInt64 | ^18446744073709551615]
+
+// Increases the value of the receiver by 1.
+Meth Int [increment | self := self + 1]
+
+// Decreases the value of the receiver by 1.
+Meth Int [decrement | self := self - 1]
+
+// Returns a non-cryptographic hash of the receiver.
+Meth Int8 [hash ^Word | ^self asUInt]
+Meth Int16 [hash ^Word | ^self asUInt]
+Meth Int32 [hash ^Word | ^self asUInt]
+Meth Int64 [hash ^Word | ^self asUInt]
+Meth Int [hash ^Word | ^self asUInt]
+Meth UInt8 [hash ^Word | ^self asUInt]
+Meth UInt16 [hash ^Word | ^self asUInt]
+Meth UInt32 [hash ^Word | ^self asUInt]
+Meth UInt64 [hash ^Word | ^self asUInt]
+Meth UInt [hash ^Word | ^self asUInt]

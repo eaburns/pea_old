@@ -1,0 +1,146 @@
+Import "num/int"
+Import "string"
+Import "test/assert"
+
+test [equal |
+	assertTrue: "" = "" msg: `"" != ""`.
+	assertFalse: "" = "a" msg: `"" = "a"`.
+	assertFalse: "a" = "" msg: `"a" = ""`.
+	assertTrue: "a" = "a" msg: `"a" != "a"`.
+	assertFalse: "a" = "b" msg: `"a" = "b"`.
+	assertFalse: "aa" = "a" msg: `"aa" = "a"`.
+	assertFalse: "Hello, World" = "こんにちは、皆さん"
+		msg: `"Hello, World" = "こんにちは、皆さん"`.
+	assertTrue: "こんにちは、皆さん" = "こんにちは、皆さん"
+		msg: `"こんにちは、皆さん" != "こんにちは、皆さん"`.
+]
+
+test [notEqual |
+	assertFalse: "" != "" msg: `"" = ""`.
+	assertTrue: "" != "a" msg: `"" != "a"`.
+	assertTrue: "a" != "" msg: `"a" != ""`.
+	assertFalse: "a" != "a" msg: `"a" = "a"`.
+	assertTrue: "a" != "b" msg: `"a" != "b"`.
+	assertTrue: "aa" != "a" msg: `"aa" != "a"`.
+	assertTrue: "Hello, World" != "こんにちは、皆さん"
+		msg: `"Hello, World" = "こんにちは、皆さん"`.
+	assertFalse: "こんにちは、皆さん" != "こんにちは、皆さん"
+		msg: `"こんにちは、皆さん" = "こんにちは、皆さん"`.
+]
+
+test [plus |
+	assertTrue: "" + "" = "" msg: `"" + "" != ""`.
+	assertTrue: "" + "a" = "a" msg: `"" + "a" != "a"`.
+	assertTrue: "a" + "" = "a" msg: `"a" + "" != "a"`.
+	assertTrue: "Hello," + " World" = "Hello, World"
+		msg: `"Hello," + " World" != "Hello, World"`.
+	assertTrue: "こんにちは" + "、皆さん" = "こんにちは、皆さん"
+		msg: `"こんにちは" + "、皆さん" != "こんいちは、皆さん"`.
+]
+
+test [hasPrefix |
+	assertFalse: ("" hasPrefix: "a").
+	assertFalse: ("a" hasPrefix: "b").
+	assertFalse: ("ABC" hasPrefix: "ABCD").
+	assertFalse: ("☺☹" hasPrefix: "123").
+
+	assertTrue: ("" hasPrefix: "").
+	assertTrue: ("a" hasPrefix: "").
+	assertTrue: ("a" hasPrefix: "a").
+	assertTrue: ("abc" hasPrefix: "a").
+	assertTrue: ("abcdef" hasPrefix: "abc").
+	assertTrue: ("こんにちは、皆さん" hasPrefix: "こんにちは").
+]
+
+test [builderReset |
+	b := #string newBuilder.
+	assert: b byteSize equals: 0.
+
+	b reset.
+	assert: b byteSize equals: 0.
+
+	b add: "abc".
+	assert: b byteSize equals: 3.
+	assert: b reset equals: "abc".
+	assert: b byteSize equals: 0.
+
+	b reset.
+	assert: b byteSize equals: 0.
+]
+
+test [builderResetBytes |
+	b := #string newBuilder.
+	assert: b byteSize equals: 0.
+
+	b resetBytes.
+	assert: b byteSize equals: 0.
+
+	b add: "abc".
+	assert: b byteSize equals: 3.
+	ary := b resetBytes.
+	assert: ary size equals: 3.
+	assert: (ary at: 0) equals: 'a' asUInt8.
+	assert: (ary at: 1) equals: 'b' asUInt8.
+	assert: (ary at: 2) equals: 'c' asUInt8.
+	assert: b byteSize equals: 0.
+
+	// Adding to the reset Builder uses a different array.
+	b add: "xyz".
+	assert: ary size equals: 3.
+	assert: (ary at: 0) equals: 'a' asUInt8.
+	assert: (ary at: 1) equals: 'b' asUInt8.
+	assert: (ary at: 2) equals: 'c' asUInt8.
+]
+
+test [builderAddByte |
+	b := #string newBuilder.
+	b addByte: 'b'.
+	assert: b byteSize equals: 1.
+	assert: b reset equals: "b".
+]
+
+test [builderAdd |
+	assert: (#string newBuilder add: "", reset) equals: "".
+	assert: (#string newBuilder add: "a", reset) equals: "a".
+	assert: (#string newBuilder add: "Hello", reset) equals: "Hello".
+	assert: (#string newBuilder add: "こんいちは", reset) equals: "こんいちは".
+	assert: (#string newBuilder
+		add: "a",
+		add: "",
+		add: "b",
+		add: "",
+		add: "c",
+		add: "",
+		reset) equals: "abc".
+	assert: (#string newBuilder
+		add: "Hello",
+		add: ", ",
+		add: "World",
+		add: "!",
+		reset) equals: "Hello, World!".
+	assert: (#string newBuilder
+		add: "こんいちは",
+		add: "、",
+		add: "皆さん",
+		reset) equals: "こんいちは、皆さん".
+
+	b0 := #string newBuilder.
+	b0 add: "def".
+	b1 := #string newBuilder.
+	b1 add: "ghi".
+	assert: (#string newBuilder add: "abc", add: b0, add: b1, reset)
+		equals: "abcdefghi".
+]
+
+test [format |
+	assert: (format: "" values: {}) equals: "".
+	assert: (format: "abc" values: {}) equals: "abc".
+	assert: (format: "こんにちは" values: {}) equals: "こんにちは".
+	assert: (format: "{" values: {1; 2; 3}) equals: "{".
+	assert: (format: "{abc" values: {1; 2; 3}) equals: "{abc".
+	assert: (format: "{}" values: {1; 2; 3}) equals: "1".
+	assert: (format: "{} {} {}" values: {1; 2; 3}) equals: "1 2 3".
+	assert: (format: "{{}} {{}} {{}}" values: {1; 2; 3}) equals: "{} {} {}".
+	assert: (format: "Hello, {}. I can count to {}." values: {"Friend"; 10})
+		equals: "Hello, Friend. I can count to 10.".
+]

@@ -1,0 +1,60 @@
+Import "num/bool"
+Import "num/int"
+
+// An interface implemented by types that can be converted to a String.
+Type Stringer {[asString ^String]}
+
+// Returns a string corresponding to the format.
+// The return is the format string with:
+// 	{{}} is replaced by {}.
+//	{} replaced by (values at: i) asString,
+// 		where i is the number of previously replaced {}.
+Func [format: fmt String  values: values Stringer Array ^String |
+	builder := newBuilder.
+	builder addFormat: fmt values: values.
+	^builder reset
+]
+
+// Adds the result of the format to the receiver.
+// See format:values: for a description of how formats are evaluated.
+Meth Builder [addFormat: fmt String values: values Stringer Array |
+	formatter Formatter := {in: fmt out: self n: 0 values: values}.
+	formatter format.
+]
+
+type Formatter {
+	in: String&
+	out: Builder&
+	n: Int
+	values: Stringer Array
+}
+
+meth Formatter [format |
+	[in byteSize > 0] whileTrue: [
+		(in atByte: 0) = '{' ifTrue: [
+			self formatToken
+		] ifFalse: [
+			out addByte: (in atByte: 0).
+			in := in fromByte: 1.
+		]
+	]
+]
+
+meth Formatter [formatToken |
+	(in atByte: 0) = '{' ifFalse: [panic: "impossible"].
+	in := in fromByte: 1.
+
+	(in hasPrefix: "}") ifTrue: [
+		out add: (values at: n) asString.
+		n increment.
+		in := in fromByte: 1.
+		^{}
+	].
+	(in hasPrefix: "{}}") ifTrue: [
+		out add: "{}".
+		in := in fromByte: 3.
+		^{}
+	].
+	// We failed to match anything, so just emit the opening {.
+	out addByte: '{'.
+]

@@ -1,0 +1,22 @@
+Import "num/bool"
+import "os"
+Import "os/posix"
+
+// The result of an openPath call.
+Type OpenPathResult {
+	| error: #os Error
+	| file: File
+	| dir: Dir
+}
+
+// Returns a file or directory at the given path newly opened for reading.
+Func [openPath: path String ^OpenPathResult |
+	fd := #posix open: path mode: #posix O_RDONLY perm: 0.
+	fd < 0 ifTrue: [^{error: (#os errnoError: fd)}].
+	stat := (#posix fstat: fd) ifErrno: [:e | ^{error: (#os errnoError: e)}].
+	(stat mode | #posix S_IFMT) = #posix S_IFDIR ifTrue: [
+		dir := (#posix fdOpenDir: fd) ifErrno: [:e | ^{error: (#os errnoError: e)}].
+		^{dir: {ref: {descr: dir}}}
+	].
+	^{file: {ref: {descr: fd}}}
+]
