@@ -46,6 +46,26 @@ func TestBugRegressions(t *testing.T) {
 			`,
 			err: "",
 		},
+		{
+			// This is testing a bug regression causing a crash
+			// when a reference type was bound to a type variable
+			// and a method was called on that variable.
+			// We need to add additional derefs on the receiver
+			// so that the types match up.
+			name: "type variable method reference receiver",
+			src: `
+				func [main |
+					x Int & := 1.
+					y Int & := 2.
+					assert: x equals: y.
+				]
+				type T Eq {[= T ^Bool]}
+				func (T T Eq) [assert: x T equals: y T |
+					x = y ifTrue: [] ifFalse: [panic: "oh no!"].
+				]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

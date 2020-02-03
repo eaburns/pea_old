@@ -330,6 +330,13 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 	var recv *Type
 	var typeVarCall bool
 	if call1.Recv != nil {
+		// The receiver may have too many levels of reference.
+		// If so, we dereference down to just a single one.
+		if isRef(call1.Recv.Type()) && isRef(call1.Recv.Type().Args[0].Type) {
+			for isRef(call1.Recv.Type().Args[0].Type) {
+				call1.Recv = deref(call1.Recv)
+			}
+		}
 		recv = call1.Recv.Type()
 		if !isRef(recv) {
 			// The receiver is always converted to a ref by the check pass.
