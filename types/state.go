@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/loc"
 )
 
 type state struct {
@@ -102,14 +103,14 @@ func (x *state) nextTypeVar() int {
 	return n
 }
 
-func (x *state) loc(n interface{}) ast.Loc {
+func (x *state) loc(n interface{}) *loc.Loc {
 	switch n := n.(type) {
 	case ast.Node:
-		return x.astMod.Loc(n)
+		return x.astMod.Locs.Loc(n.GetRange())
 	case Node:
-		return x.astMod.Loc(n.ast())
+		return x.astMod.Locs.Loc(n.ast().GetRange())
 	default:
-		return ast.Loc{}
+		return nil
 	}
 }
 
@@ -136,7 +137,7 @@ func (x *state) err(n interface{}, f string, vs ...interface{}) *checkError {
 			}
 		}
 	}
-	return &checkError{loc: x.loc(n), msg: fmt.Sprintf(f, vs...)}
+	return &checkError{loc: *x.loc(n), msg: fmt.Sprintf(f, vs...)}
 }
 
 const indent = "-"

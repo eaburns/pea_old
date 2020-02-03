@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/loc"
 	"github.com/eaburns/pretty"
 )
 
@@ -4404,13 +4405,13 @@ func (test errorTest) run(t *testing.T) {
 
 type testImporter [][2]string
 
-func (imports testImporter) Import(cfg Config, path string) ([]Def, error) {
+func (imports testImporter) Import(cfg Config, locs *loc.Files, path string) ([]Def, error) {
 	for i := range imports {
 		if imports[i][0] != path {
 			continue
 		}
 		src := imports[i][1]
-		p := ast.NewParser(path)
+		p := ast.NewParserWithLocs(path, locs)
 		if err := p.Parse(path, strings.NewReader(src)); err != nil {
 			return nil, fmt.Errorf("failed to parse import: %s", err)
 		}

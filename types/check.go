@@ -210,7 +210,7 @@ func imports(x *scope, file *file) []checkError {
 		astImp := &file.ast.Imports[i]
 		p := astImp.Path[1 : len(astImp.Path)-1] // trim "
 		x.log("importing %s", p)
-		defs, err := x.cfg.Importer.Import(x.cfg, p)
+		defs, err := x.cfg.Importer.Import(x.cfg, x.astMod.Locs, p)
 		if err != nil {
 			errs = append(errs, *x.err(astImp, err.Error()))
 			continue
@@ -1084,12 +1084,12 @@ func findVirt(x *scope, loc ast.Node, recv *Type, want *FunSig, allowConvert boo
 		funSig.Parms[i].Name = ""
 	}
 	var gotWhere string
-	if fun.AST != nil {
-		gotWhere = fmt.Sprintf(" from %s", x.loc(fun.AST))
+	if w := x.loc(fun.AST); w != nil {
+		gotWhere = fmt.Sprintf(" from %s", w)
 	}
 	var wantWhere string
-	if want.AST != nil {
-		wantWhere = fmt.Sprintf(" from %s", x.loc(want.AST))
+	if w := x.loc(want.AST); w != nil {
+		wantWhere = fmt.Sprintf(" from %s", w)
 	}
 	err := x.err(loc, "wrong type for method %s", want.Sel)
 	err.notes = []string{

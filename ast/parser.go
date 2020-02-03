@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/eaburns/pea/loc"
 	"github.com/eaburns/peggy/peg"
 )
 
@@ -12,18 +13,25 @@ import (
 type Parser struct {
 	files []File
 	defs  []Def
-	offs  int
 	mod   string
+	locs  *loc.Files
 }
 
 // NewParser returns a new parser for the named module.
 func NewParser(modPath string) *Parser {
-	return &Parser{mod: modPath}
+	return &Parser{mod: modPath, locs: new(loc.Files)}
+}
+
+// NewParserWithLocs returns a new parser for the named module.
+// The parser appends file location information to the given loc.Files.
+// If the loc.Files is nil, nothing is appended, and all AST locs are -1.
+func NewParserWithLocs(modPath string, locs *loc.Files) *Parser {
+	return &Parser{mod: modPath, locs: locs}
 }
 
 // Mod returns the module built from the parsed files.
 func (p *Parser) Mod() *Mod {
-	return &Mod{Path: p.mod, Files: p.files}
+	return &Mod{Path: p.mod, Files: p.files, Locs: p.locs}
 }
 
 // Parse parses a *File from an io.Reader.
@@ -40,18 +48,11 @@ func (p *Parser) Parse(path string, r io.Reader) error {
 		return parseError{path: path, loc: perr, text: _p.text, fail: t}
 	}
 	_, file := _FileAction(_p, 0)
-
-	var lines []int
-	for i, r := range _p.text {
-		if r == '\n' {
-			lines = append(lines, p.offs+i)
-		}
-	}
 	file.Path = path
-	file.offs = p.offs
-	file.lines = lines
 	p.files = append(p.files, *file)
-	p.offs += len(_p.text)
+	if p.locs != nil {
+		p.locs.Add(path, _p.text)
+	}
 	return nil
 }
 

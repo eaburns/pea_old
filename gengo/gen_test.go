@@ -12,6 +12,7 @@ import (
 
 	"github.com/eaburns/pea/ast"
 	"github.com/eaburns/pea/basic"
+	"github.com/eaburns/pea/loc"
 	"github.com/eaburns/pea/types"
 )
 
@@ -1491,6 +1492,26 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "42",
 		},
+		{
+			// This is testing for regression in reporting panic locations.
+			// The bug crashed when reporting a location
+			// from an imported module panic: occurring in
+			// a parameterized Fun.
+			name: "panic in imported parameterized function",
+			src: `
+				Import "/test/bar"
+				func [main | bar: 5]
+			`,
+			imports: [][2]string{
+				{"/test/bar", `
+					// ..................................................................
+					// padding to push the location of bar: later in the file.
+					// ..................................................................
+					Func T [bar: t T | panic: "oh no!"]
+				`},
+			},
+			stderr: "/test/bar:5: panic: oh no!\n",
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -1597,13 +1618,13 @@ func run(mods []*basic.Mod) (string, string, error) {
 
 type testImporter [][2]string
 
-func (imports testImporter) Import(cfg types.Config, path string) ([]types.Def, error) {
+func (imports testImporter) Import(cfg types.Config, locs *loc.Files, path string) ([]types.Def, error) {
 	for i := range imports {
 		if imports[i][0] != path {
 			continue
 		}
 		src := imports[i][1]
-		p := ast.NewParser(path)
+		p := ast.NewParserWithLocs(path, locs)
 		if err := p.Parse(path, strings.NewReader(src)); err != nil {
 			return nil, fmt.Errorf("failed to parse import: %s", err)
 		}

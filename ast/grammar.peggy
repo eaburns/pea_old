@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/eaburns/pea/loc"
 	"github.com/eaburns/peggy/peg"
 )
 
@@ -33,12 +34,22 @@ func hex(s string) rune {
 	return rune(x)
 }
 
-func loc(p *_Parser, start, end int) location {
-	offs := p.data.(*Parser).offs
-	return location{start: start + offs, end: end + offs}
+func makeRange(p *_Parser, start, end int) loc.Range {
+	_p := p.data.(*Parser)
+	if _p.locs == nil {
+		return loc.Range{-1, -1}
+	}
+	offs := _p.locs.Len()
+	return loc.Range{start + offs, end + offs}
 }
 
-func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
+func point(p *_Parser, pos int) int {
+	_p := p.data.(*Parser)
+	if _p.locs == nil {
+		return -1
+	}
+	return pos + _p.locs.Len()
+}
 }
 
 File <- imports:Import* defs:Def* _ EOF {
@@ -50,7 +61,7 @@ File <- imports:Import* defs:Def* _ EOF {
 
 Import <- _ i:( kw:( "import" / "Import" ) path:String {
 	return Import{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		All: kw == "Import",
 		Path: path.Text,
 	}
@@ -59,15 +70,15 @@ Import <- _ i:( kw:( "import" / "Import" ) path:String {
 Def <- Val / Fun/ Test  / Meth / Type
 
 Val <- _ v:(key:("val" / "Val") id:Ident typ:TypeName? _":=" _"[" stmts:Stmts _"]" {
-	varEnd := id.end
+	varEnd := id.Range[1]
 	if typ != nil {
-		varEnd = typ.end
+		varEnd = typ.Range[1]
 	}
 	return &Val{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		priv: key == "val",
 		Var: Var{
-			location: location{start: id.start, end: varEnd},
+			Range: loc.Range{id.Range[0], varEnd},
 			Name: id.Text,
 			Type: typ,
 		},
@@ -81,7 +92,7 @@ Fun <- _ f:(
 		stmts = []Stmt{}
 	}
 	return &Fun{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		priv: key == "func",
 		TParms: tps,
 		Sig: sig,
@@ -92,11 +103,11 @@ Fun <- _ f:(
 Test <- _ f:(
 	"test" _ "[" n:Ident _ "|" stmts:Stmts _"]" {
 	return &Fun{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		priv: true,
 		Test: true,
 		Sig: FunSig{
-			location: location{n.start, n.end},
+			Range: n.Range,
 			Sel: n.Text,
 		},
 		Stmts: stmts,
@@ -108,7 +119,7 @@ Meth <- _ m:(key:("meth" / "Meth") recv:Recv tps:TParms _ "[" sig:FunSig body: (
 		stmts = []Stmt{}
 	}
 	return &Fun{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		priv: key == "meth",
 		Recv: &recv,
 		TParms: tps,
@@ -118,13 +129,13 @@ Meth <- _ m:(key:("meth" / "Meth") recv:Recv tps:TParms _ "[" sig:FunSig body: (
 }) { return Def(m) }
 
 Recv <- tps:TParms mod:ModName? n:( Ident / Op ) {
-	l := loc(parser, start, end)
+	l := makeRange(parser, start, end)
 	if len(tps) > 0 {
-		l.start = tps[0].start
+		l[0] = tps[0].Range[0]
 	}
 	return Recv{
 		TypeSig: TypeSig{
-			location: l,
+			Range: l,
 			Name: n.Text,
 			Parms: tps,
 		},
@@ -136,7 +147,7 @@ FunSig <- ps:Parms r:Ret? {
 	if len(ps) == 1 && ps[0].name.Text == "" {
 		p := ps[0]
 		return FunSig{
-			location: location{p.key.start, p.typ.end},
+			Range: loc.Range{p.key.Range[0], p.typ.Range[1]},
 			Sel: p.key.Text,
 			Ret: r,
 		}
@@ -147,13 +158,13 @@ FunSig <- ps:Parms r:Ret? {
 		p := &ps[i]
 		sel += p.key.Text
 		parms = append(parms, Var{
-			location: location{p.key.start, p.typ.end},
+			Range: loc.Range{p.key.Range[0], p.typ.Range[1]},
 			Name: p.name.Text,
 			Type: &p.typ,
 		})
 	}
 	return FunSig{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		Sel: sel,
 		Parms: parms,
 		Ret: r,
@@ -176,12 +187,12 @@ Ret <- _ "^" t:TypeName {
 }
 
 TypeSig <- tps:TParms n:( Ident / Op ) {
-	l := loc(parser, start, end)
+	l := makeRange(parser, start, end)
 	if len(tps) > 0 {
-		l.start = tps[0].start
+		l[0] = tps[0].Range[0]
 	}
 	return TypeSig{
-		location: l,
+		Range: l,
 		Name: n.Text,
 		Parms: tps,
 	}
@@ -189,10 +200,10 @@ TypeSig <- tps:TParms n:( Ident / Op ) {
 
 TParms <- tps:(
 	n:TypeVar {
-		return []Var{{location: n.location, Name: n.Text}}
+		return []Var{{Range: n.Range, Name: n.Text}}
 	} /
 	_ v:( "_" {
-		return []Var{{location: n.location, Name: "_"}}
+		return []Var{{Range: n.Range, Name: "_"}}
 	} ) { return []Var(v) } /
 	_"(" p0:TParm ps:( _"," p1:TParm { return Var(p1) } )* ( _ "," )? _")" {
 		return []Var(append([]Var{p0}, ps...))
@@ -206,16 +217,16 @@ TParms <- tps:(
 
 TParm <- n:(
 	TypeVar /
-	_ empty:( "_" { return Ident{location:loc(parser, start, end), Text: "_"} } ) {
+	_ empty:( "_" { return Ident{Range:makeRange(parser, start, end), Text: "_"} } ) {
 		 return Ident(empty)
 	}
 ) t1:TypeName? {
-	e := n.end
+	e := n.Range[1]
 	if t1 != nil {
-		e = t1.end
+		e = t1.Range[1]
 	}
 	return Var{
-		location: location{n.start, e},
+		Range: loc.Range{n.Range[0], e},
 		Name: n.Text,
 		Type: t1,
 	}
@@ -223,15 +234,15 @@ TParm <- n:(
 
 TypeName <-
 	tv1:TypeVar? ns0:TName+ {
-		s := ns0[0].name.start
+		s := ns0[0].name.Range[0]
 		var a []TypeName
 		if tv1 != nil {
-			s = tv1.start
-			a = []TypeName{{location: tv1.location, Name: tv1.Text, Var: true}}
+			s = tv1.Range[0]
+			a = []TypeName{{Range: tv1.Range, Name: tv1.Text, Var: true}}
 		}
 		for _, n := range ns0[:len(ns0)-1] {
 			a = []TypeName{{
-				location: location{s, n.name.end},
+				Range: loc.Range{s, n.name.Range[0]},
 				Mod: n.mod,
 				Name: n.name.Text,
 				Args: a,
@@ -239,28 +250,28 @@ TypeName <-
 		}
 		n := ns0[len(ns0)-1]
 		return TypeName{
-			location: location{s, n.name.end},
+			Range: loc.Range{s, n.name.Range[1]},
 			Mod: n.mod,
 			Name: n.name.Text,
 			Args: a,
 		}
 	} /
 	tv2:TypeVar {
-		return TypeName{location: tv2.location, Name: tv2.Text, Var: true}
+		return TypeName{Range: tv2.Range, Name: tv2.Text, Var: true}
 	} /
 	_ tn0:(
 		"(" ns1:TypeNameList _")" ns2:TName+ {
-		s := loc1(parser, start)
+		s := point(parser, start)
 		for _, n := range ns2[:len(ns2)-1] {
 			ns1 = []TypeName{{
-				location: location{s, n.name.end},
+				Range: loc.Range{s, n.name.Range[1]},
 				Mod: n.mod,
 				Name: n.name.Text,
 				Args: ns1,
 			}}
 		}
 		return TypeName{
-			location: loc(parser, start, end),
+			Range: makeRange(parser, start, end),
 			Mod: ns2[len(ns2)-1].mod,
 			Name: ns2[len(ns2)-1].name.Text,
 			Args: ns1,
@@ -275,7 +286,7 @@ TypeNameList <- n0:TypeName ns:( _"," n1:TypeName { return TypeName(n1) } )* ( _
 TName <- mod:ModName? n:( TypeOp / Ident ) { return tname{mod: mod, name: n} }
 
 Type <- _ def:(key:("type"/"Type") sig:TypeSig _ typ:( Alias / And / Or / Virt ) {
-	typ.location = loc(parser, start, end)
+	typ.Range = makeRange(parser, start, end)
 	typ.priv = key == "type"
 	typ.Sig = sig
 	return Def(&typ)
@@ -287,7 +298,7 @@ And <- _ "{" fs:Field* _ "}" { return Type{Fields: fs} }
 
 Field <- n:IdentC t:TypeName {
 	return Var{
-		location: n.location,
+		Range: n.Range,
 		Name: strings.TrimSuffix(n.Text, ":"),
 		Type: &t,
 	}
@@ -300,13 +311,13 @@ Or <- _ "{" ( _ "|" )? c:Case cs:( _ "|" c1:Case { return Var(c1) } )* _ "}" {
 Case <-
 	id0:Ident {
 		return Var{
-			location: id0.location,
+			Range: id0.Range,
 			Name: id0.Text,
 		}
 	} /
 	id1:IdentC t:TypeName {
 		return Var{
-			location: id1.location,
+			Range: id1.Range,
 			Name: id1.Text,
 			Type: &t,
 		}
@@ -329,7 +340,7 @@ MethSig <- _ sig:( "[" ps:(
 		}
 	}
 	return FunSig{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		Sel: s,
 		Parms: parms,
 		Ret: r,
@@ -353,7 +364,7 @@ Stmt <-
 	e:Expr { return Stmt(e) }
 
 Return <- _ r:(
-	"^" e:Expr { return &Ret{start: loc1(parser, start), Expr: e} }
+	"^" e:Expr { return &Ret{start: point(parser, start), Expr: e} }
 ) {
 	return Stmt(r)
 }
@@ -362,24 +373,24 @@ Assign <- l:Lhs _ ":=" r:Expr { return Stmt(&Assign{Vars: l, Expr: r}) }
 
 Lhs <- id:(
 		i0:Ident t0:TypeName? {
-			e := i0.end
+			e := i0.Range[1]
 			if t0 != nil {
-				e = t0.end
+				e = t0.Range[1]
 			}
 			return Var{
-				location: location{i0.start, e},
+				Range: loc.Range{i0.Range[0], e},
 				Name: i0.Text,
 				Type: t0,
 			}
 		}
 	) is:(
 		_ "," i1:Ident t1:TypeName? {
-			e := i1.end
+			e := i1.Range[1]
 			if t1 != nil {
-				e = t1.end
+				e = t1.Range[1]
 			}
 			return Var{
-				location: location{i1.start, e},
+				Range: loc.Range{i1.Range[0], e},
 				Name: i1.Text,
 				Type: t1,
 			}
@@ -398,20 +409,20 @@ Call <- c:( Nary / Binary / Unary ) cs:(
 }
 
 Unary <- r:Primary? ms:UnaryMsg+ {
-	s := ms[0].start
+	s := ms[0].Range[0]
 	var recv Expr
 	if r != nil {
-		s, _ = (*r).loc()
+		s = (*r).GetRange()[0]
 		recv = *r
 	}
 	c := &Call{
-		location: location{s, ms[0].end},
+		Range: loc.Range{s, ms[0].Range[1]},
 		Recv: recv,
 		Msgs: []Msg{ms[0]},
 	}
 	for _, m := range ms[1:] {
 		c = &Call{
-			location: location{s, m.end},
+			Range: loc.Range{s, m.Range[1]},
 			Recv: c,
 			Msgs: []Msg{m},
 		}
@@ -426,16 +437,15 @@ Unary <- r:Primary? ms:UnaryMsg+ {
 }
 
 UnaryMsg <- mod:ModName? i:Ident {
-	return Msg{location: i.location, Mod: mod, Sel: i.Text}
+	return Msg{Range: i.Range, Mod: mod, Sel: i.Text}
 }
 
 Binary <- r:( u:Unary { return Expr(u) } / Primary ) msgs:BinMsg+ {
-	s, _ := r.loc()
+	s := r.GetRange()[0]
 	recv := r
 	for _, msg := range msgs {
-		_, e := msg.loc()
 		recv = &Call{
-			location: location{s, e},
+			Range: loc.Range{s, msg.Range[1]},
 			Recv: recv,
 			Msgs: []Msg{msg},
 		}
@@ -445,7 +455,7 @@ Binary <- r:( u:Unary { return Expr(u) } / Primary ) msgs:BinMsg+ {
 
 BinMsg <- mod:ModName? n:Op a:( u:Unary { return Expr(u) } / Primary ) {
 	return Msg{
-		location: location{n.start, loc1(parser, end)},
+		Range: loc.Range{n.Range[0], point(parser, end)},
 		Mod: mod,
 		Sel: n.Text,
 		Args: []Expr{a},
@@ -457,14 +467,14 @@ Nary <- r:(
 	u:Unary {return Expr(u) } /
 	Primary
 )? m:NaryMsg {
-	s := m.start
+	s := m.Range[0]
 	var recv Expr
 	if r != nil {
-		s, _ = (*r).loc()
+		s = (*r).GetRange()[0]
 		recv = *r
 	}
 	return &Call{
-		location: location{s, loc1(parser, end)},
+		Range: loc.Range{s, point(parser, end)},
 		Recv: recv,
 		Msgs: []Msg{m},
 	}
@@ -484,7 +494,7 @@ NaryMsg <- mod:ModName? as:(
 		es = append(es, a.val)
 	}
 	return Msg{
-		location: location{as[0].name.start, loc1(parser, end)},
+		Range: loc.Range{as[0].name.Range[0], point(parser, end)},
 		Mod: mod,
 		Sel: sel,
 		Args: es,
@@ -503,9 +513,9 @@ Primary <-
 
 Ctor <- _ ctor:( "{" es:Exprs?  _"}"  {
 	if es == nil {
-		return &Ctor{location: loc(parser, start, end)}
+		return &Ctor{Range: makeRange(parser, start, end)}
 	}
-	return &Ctor{location: loc(parser, start, end), Args: *es}
+	return &Ctor{Range: makeRange(parser, start, end), Args: *es}
 } ) {
 	return Expr(ctor)
 }
@@ -516,11 +526,11 @@ Exprs <- e0:Expr  es:( _ ";" e:Expr { return Expr(e) } )* ( _";" )? {
 
 Block <- _ b:( "[" (
 	( ps:( n:CIdent t:TypeName? {
-		return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
+		return Var{Range: makeRange(parser, start, end), Name: n.Text, Type: t}
 	} )+ _ "|" )? ss:Stmts
 ) _ "]"  {
 	return &Block{
-		location: loc(parser, start, end),
+		Range: makeRange(parser, start, end),
 		Parms: ps,
 		Stmts: ss,
 	}
@@ -529,11 +539,11 @@ Block <- _ b:( "[" (
 # Tokens
 
 Int "integer" <- _ tok:( text:( [+\-]? [0-9]+ ) {
-	return &Int{location: loc(parser, start, end), Text: text}
+	return &Int{Range: makeRange(parser, start, end), Text: text}
 } ) { return Expr(tok) }
 
 Float "floating point" <- _ tok:( text:( [+\-]? [0-9]+ "." [0-9]+ ( [eE] [+\-]? [0-9]+ )? ) {
-	return &Float{location: loc(parser, start, end), Text: text}
+	return &Float{Range: makeRange(parser, start, end), Text: text}
 } ) { return Expr(tok) }
 
 Rune "rune" <- _ tok:( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
@@ -541,20 +551,20 @@ Rune "rune" <- _ tok:( text:( ['] !"\n" data:( Esc / "\\'" / [^'] ) ['] ) {
 	if w != len(data) {
 		panic("impossible")
 	}
-	return &Rune{location: loc(parser, start, end), Text: text, Rune: r}
+	return &Rune{Range: makeRange(parser, start, end), Text: text, Rune: r}
 } ) { return Expr(tok) }
 
 String "string" <-
 	_ tok0:( text0:( ["] data0:( !"\n" ( Esc / "\\\"" / [^"] ) )* ["] ) {
 		return String{
-			location: loc(parser, start, end),
+			Range: makeRange(parser, start, end),
 			Text: text0,
 			Data: data0,
 		}
 	} ) { return String(tok0) } /
 	_ tok1:( text1: ( [`] data1:( "\\`" / [^`] )* [`] ) {
 		return String{
-			location: loc(parser, start, end),
+			Range: makeRange(parser, start, end),
 			Text: text1,
 			Data: data1,
 		}
@@ -572,31 +582,31 @@ Esc <-
 X <- [a-fA-F0-9]
 
 Op "operator" <- _ !"//" !"/*" tok:( text:( [!%&*+\-/<=>?@\\|~]+ ) {
-	return Ident{location: loc(parser, start, end), Text: text}
+	return Ident{Range: makeRange(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
 TypeOp "type operator" <- _ tok:( text:( [!&?]+ ) {
-	return Ident{location: loc(parser, start, end), Text: text}
+	return Ident{Range: makeRange(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
 ModName "module name" <- _ tok:( text:( "#" [_a-zA-Z][_a-zA-Z0-9]* ) {
-	return ModTag{location: loc(parser, start, end), Text: text}
+	return ModTag{Range: makeRange(parser, start, end), Text: text}
 } ) { return ModTag(tok) }
 
 IdentC "identifier:" <- _ !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ":" ) {
-	return Ident{location: loc(parser, start, end), Text: text}
+	return Ident{Range: makeRange(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
 CIdent ":identifier"<- _ ":" !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ) {
-	return Ident{location: loc(parser, start, end), Text: text}
+	return Ident{Range: makeRange(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
 Ident "identifier" <- _ !TypeVar !"import" tok:( text:( [_a-zA-Z][_a-zA-Z0-9]* ) !":" {
-	return Ident{location: loc(parser, start, end), Text: text}
+	return Ident{Range: makeRange(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
 TypeVar "type variable" <- _ tok:( text:( [A-Z] ![_a-zA-Z0-9] ) {
-	return Ident{location: loc(parser, start, end), Text: text}
+	return Ident{Range: makeRange(parser, start, end), Text: text}
 } ) { return Ident(tok) }
 
 _ "" <- ( Space / Cmnt )* { return struct{}{} }

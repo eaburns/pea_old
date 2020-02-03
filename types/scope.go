@@ -39,7 +39,7 @@ type imp struct {
 }
 
 func newUnivScope(x *state) *scope {
-	defs, err := x.cfg.Importer.Import(x.cfg, "")
+	defs, err := x.cfg.Importer.Import(x.cfg, x.astMod.Locs, "")
 	if err != nil {
 		panic(err.Error())
 	}

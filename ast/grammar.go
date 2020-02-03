@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/eaburns/pea/loc"
 	"github.com/eaburns/peggy/peg"
 )
 
@@ -32,12 +33,22 @@ func hex(s string) rune {
 	return rune(x)
 }
 
-func loc(p *_Parser, start, end int) location {
-	offs := p.data.(*Parser).offs
-	return location{start: start + offs, end: end + offs}
+func makeRange(p *_Parser, start, end int) loc.Range {
+	_p := p.data.(*Parser)
+	if _p.locs == nil {
+		return loc.Range{-1, -1}
+	}
+	offs := _p.locs.Len()
+	return loc.Range{start + offs, end + offs}
 }
 
-func loc1(p *_Parser, pos int) int { return pos + p.data.(*Parser).offs }
+func point(p *_Parser, pos int) int {
+	_p := p.data.(*Parser)
+	if _p.locs == nil {
+		return -1
+	}
+	return pos + _p.locs.Len()
+}
 
 const (
 	_File         int = 0
@@ -679,9 +690,9 @@ func _ImportAction(parser *_Parser, start int) (int, *Import) {
 				label2 = func(
 					start, end int, kw string, path String) Import {
 					return Import{
-						location: loc(parser, start, end),
-						All:      kw == "Import",
-						Path:     path.Text,
+						Range: makeRange(parser, start, end),
+						All:   kw == "Import",
+						Path:  path.Text,
 					}
 				}(
 					start3, pos, label0, label1)
@@ -1316,17 +1327,17 @@ func _ValAction(parser *_Parser, start int) (int, *Def) {
 				pos++
 				label4 = func(
 					start, end int, id Ident, key string, stmts []Stmt, typ *TypeName) *Val {
-					varEnd := id.end
+					varEnd := id.Range[1]
 					if typ != nil {
-						varEnd = typ.end
+						varEnd = typ.Range[1]
 					}
 					return &Val{
-						location: loc(parser, start, end),
-						priv:     key == "val",
+						Range: makeRange(parser, start, end),
+						priv:  key == "val",
 						Var: Var{
-							location: location{start: id.start, end: varEnd},
-							Name:     id.Text,
-							Type:     typ,
+							Range: loc.Range{id.Range[0], varEnd},
+							Name:  id.Text,
+							Type:  typ,
 						},
 						Init: stmts,
 					}
@@ -1810,11 +1821,11 @@ func _FunAction(parser *_Parser, start int) (int, *Def) {
 						stmts = []Stmt{}
 					}
 					return &Fun{
-						location: loc(parser, start, end),
-						priv:     key == "func",
-						TParms:   tps,
-						Sig:      sig,
-						Stmts:    stmts,
+						Range:  makeRange(parser, start, end),
+						priv:   key == "func",
+						TParms: tps,
+						Sig:    sig,
+						Stmts:  stmts,
 					}
 				}(
 					start3, pos, label4, label0, label2, label3, label1)
@@ -2121,12 +2132,12 @@ func _TestAction(parser *_Parser, start int) (int, *Def) {
 				label2 = func(
 					start, end int, n Ident, stmts []Stmt) *Fun {
 					return &Fun{
-						location: loc(parser, start, end),
-						priv:     true,
-						Test:     true,
+						Range: makeRange(parser, start, end),
+						priv:  true,
+						Test:  true,
 						Sig: FunSig{
-							location: location{n.start, n.end},
-							Sel:      n.Text,
+							Range: n.Range,
+							Sel:   n.Text,
 						},
 						Stmts: stmts,
 					}
@@ -2641,12 +2652,12 @@ func _MethAction(parser *_Parser, start int) (int, *Def) {
 						stmts = []Stmt{}
 					}
 					return &Fun{
-						location: loc(parser, start, end),
-						priv:     key == "meth",
-						Recv:     &recv,
-						TParms:   tps,
-						Sig:      sig,
-						Stmts:    stmts,
+						Range:  makeRange(parser, start, end),
+						priv:   key == "meth",
+						Recv:   &recv,
+						TParms: tps,
+						Sig:    sig,
+						Stmts:  stmts,
 					}
 				}(
 					start3, pos, label5, label0, label1, label3, label4, label2)
@@ -2897,15 +2908,15 @@ func _RecvAction(parser *_Parser, start int) (int, *Recv) {
 		}
 		node = func(
 			start, end int, mod *ModTag, n Ident, tps []Var) Recv {
-			l := loc(parser, start, end)
+			l := makeRange(parser, start, end)
 			if len(tps) > 0 {
-				l.start = tps[0].start
+				l[0] = tps[0].Range[0]
 			}
 			return Recv{
 				TypeSig: TypeSig{
-					location: l,
-					Name:     n.Text,
-					Parms:    tps,
+					Range: l,
+					Name:  n.Text,
+					Parms: tps,
 				},
 				Mod: mod,
 			}
@@ -3065,9 +3076,9 @@ func _FunSigAction(parser *_Parser, start int) (int, *FunSig) {
 			if len(ps) == 1 && ps[0].name.Text == "" {
 				p := ps[0]
 				return FunSig{
-					location: location{p.key.start, p.typ.end},
-					Sel:      p.key.Text,
-					Ret:      r,
+					Range: loc.Range{p.key.Range[0], p.typ.Range[1]},
+					Sel:   p.key.Text,
+					Ret:   r,
 				}
 			}
 			var sel string
@@ -3076,16 +3087,16 @@ func _FunSigAction(parser *_Parser, start int) (int, *FunSig) {
 				p := &ps[i]
 				sel += p.key.Text
 				parms = append(parms, Var{
-					location: location{p.key.start, p.typ.end},
-					Name:     p.name.Text,
-					Type:     &p.typ,
+					Range: loc.Range{p.key.Range[0], p.typ.Range[1]},
+					Name:  p.name.Text,
+					Type:  &p.typ,
 				})
 			}
 			return FunSig{
-				location: loc(parser, start, end),
-				Sel:      sel,
-				Parms:    parms,
-				Ret:      r,
+				Range: makeRange(parser, start, end),
+				Sel:   sel,
+				Parms: parms,
+				Ret:   r,
 			}
 		}(
 			start0, pos, label0, label1)
@@ -3901,14 +3912,14 @@ func _TypeSigAction(parser *_Parser, start int) (int, *TypeSig) {
 		}
 		node = func(
 			start, end int, n Ident, tps []Var) TypeSig {
-			l := loc(parser, start, end)
+			l := makeRange(parser, start, end)
 			if len(tps) > 0 {
-				l.start = tps[0].start
+				l[0] = tps[0].Range[0]
 			}
 			return TypeSig{
-				location: l,
-				Name:     n.Text,
-				Parms:    tps,
+				Range: l,
+				Name:  n.Text,
+				Parms: tps,
 			}
 		}(
 			start0, pos, label1, label0)
@@ -4313,7 +4324,7 @@ func _TParmsAction(parser *_Parser, start int) (int, *([]Var)) {
 						}
 						*label5 = func(
 							start, end int, n Ident) []Var {
-							return []Var{{location: n.location, Name: n.Text}}
+							return []Var{{Range: n.Range, Name: n.Text}}
 						}(
 							start10, pos, label0)
 					}
@@ -4345,7 +4356,7 @@ func _TParmsAction(parser *_Parser, start int) (int, *([]Var)) {
 								pos++
 								label1 = func(
 									start, end int, n Ident) []Var {
-									return []Var{{location: n.location, Name: "_"}}
+									return []Var{{Range: n.Range, Name: "_"}}
 								}(
 									start16, pos, label0)
 							}
@@ -4724,7 +4735,7 @@ func _TParmAction(parser *_Parser, start int) (int, *Var) {
 							pos++
 							label0 = func(
 								start, end int) Ident {
-								return Ident{location: loc(parser, start, end), Text: "_"}
+								return Ident{Range: makeRange(parser, start, end), Text: "_"}
 							}(
 								start12, pos)
 						}
@@ -4769,14 +4780,14 @@ func _TParmAction(parser *_Parser, start int) (int, *Var) {
 		}
 		node = func(
 			start, end int, empty Ident, n Ident, t1 *TypeName) Var {
-			e := n.end
+			e := n.Range[1]
 			if t1 != nil {
-				e = t1.end
+				e = t1.Range[1]
 			}
 			return Var{
-				location: location{n.start, e},
-				Name:     n.Text,
-				Type:     t1,
+				Range: loc.Range{n.Range[0], e},
+				Name:  n.Text,
+				Type:  t1,
 			}
 		}(
 			start0, pos, label0, label1, label2)
@@ -5243,26 +5254,26 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 			}
 			node = func(
 				start, end int, ns0 []tname, tv1 *Ident) TypeName {
-				s := ns0[0].name.start
+				s := ns0[0].name.Range[0]
 				var a []TypeName
 				if tv1 != nil {
-					s = tv1.start
-					a = []TypeName{{location: tv1.location, Name: tv1.Text, Var: true}}
+					s = tv1.Range[0]
+					a = []TypeName{{Range: tv1.Range, Name: tv1.Text, Var: true}}
 				}
 				for _, n := range ns0[:len(ns0)-1] {
 					a = []TypeName{{
-						location: location{s, n.name.end},
-						Mod:      n.mod,
-						Name:     n.name.Text,
-						Args:     a,
+						Range: loc.Range{s, n.name.Range[0]},
+						Mod:   n.mod,
+						Name:  n.name.Text,
+						Args:  a,
 					}}
 				}
 				n := ns0[len(ns0)-1]
 				return TypeName{
-					location: location{s, n.name.end},
-					Mod:      n.mod,
-					Name:     n.name.Text,
-					Args:     a,
+					Range: loc.Range{s, n.name.Range[1]},
+					Mod:   n.mod,
+					Name:  n.name.Text,
+					Args:  a,
 				}
 			}(
 				start5, pos, label1, label0)
@@ -5288,7 +5299,7 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 			}
 			node = func(
 				start, end int, ns0 []tname, tv1 *Ident, tv2 Ident) TypeName {
-				return TypeName{location: tv2.location, Name: tv2.Text, Var: true}
+				return TypeName{Range: tv2.Range, Name: tv2.Text, Var: true}
 			}(
 				start18, pos, label1, label0, label2)
 		}
@@ -5377,20 +5388,20 @@ func _TypeNameAction(parser *_Parser, start int) (int, *TypeName) {
 					}
 					label5 = func(
 						start, end int, ns0 []tname, ns1 []TypeName, ns2 []tname, tv1 *Ident, tv2 Ident) TypeName {
-						s := loc1(parser, start)
+						s := point(parser, start)
 						for _, n := range ns2[:len(ns2)-1] {
 							ns1 = []TypeName{{
-								location: location{s, n.name.end},
-								Mod:      n.mod,
-								Name:     n.name.Text,
-								Args:     ns1,
+								Range: loc.Range{s, n.name.Range[1]},
+								Mod:   n.mod,
+								Name:  n.name.Text,
+								Args:  ns1,
 							}}
 						}
 						return TypeName{
-							location: loc(parser, start, end),
-							Mod:      ns2[len(ns2)-1].mod,
-							Name:     ns2[len(ns2)-1].name.Text,
-							Args:     ns1,
+							Range: makeRange(parser, start, end),
+							Mod:   ns2[len(ns2)-1].mod,
+							Name:  ns2[len(ns2)-1].name.Text,
+							Args:  ns1,
 						}
 					}(
 						start24, pos, label1, label3, label4, label0, label2)
@@ -6346,7 +6357,7 @@ func _TypeAction(parser *_Parser, start int) (int, *Def) {
 				}
 				label3 = func(
 					start, end int, key string, sig TypeSig, typ Type) Def {
-					typ.location = loc(parser, start, end)
+					typ.Range = makeRange(parser, start, end)
 					typ.priv = key == "type"
 					typ.Sig = sig
 					return Def(&typ)
@@ -6850,9 +6861,9 @@ func _FieldAction(parser *_Parser, start int) (int, *Var) {
 		node = func(
 			start, end int, n Ident, t TypeName) Var {
 			return Var{
-				location: n.location,
-				Name:     strings.TrimSuffix(n.Text, ":"),
-				Type:     &t,
+				Range: n.Range,
+				Name:  strings.TrimSuffix(n.Text, ":"),
+				Type:  &t,
 			}
 		}(
 			start0, pos, label0, label1)
@@ -7379,8 +7390,8 @@ func _CaseAction(parser *_Parser, start int) (int, *Var) {
 			node = func(
 				start, end int, id0 Ident) Var {
 				return Var{
-					location: id0.location,
-					Name:     id0.Text,
+					Range: id0.Range,
+					Name:  id0.Text,
 				}
 			}(
 				start5, pos, label0)
@@ -7420,9 +7431,9 @@ func _CaseAction(parser *_Parser, start int) (int, *Var) {
 			node = func(
 				start, end int, id0 Ident, id1 Ident, t TypeName) Var {
 				return Var{
-					location: id1.location,
-					Name:     id1.Text,
-					Type:     &t,
+					Range: id1.Range,
+					Name:  id1.Text,
+					Type:  &t,
 				}
 			}(
 				start8, pos, label0, label1, label2)
@@ -8246,10 +8257,10 @@ func _MethSigAction(parser *_Parser, start int) (int, *FunSig) {
 						}
 					}
 					return FunSig{
-						location: loc(parser, start, end),
-						Sel:      s,
-						Parms:    parms,
-						Ret:      r,
+						Range: makeRange(parser, start, end),
+						Sel:   s,
+						Parms: parms,
+						Ret:   r,
 					}
 				}(
 					start3, pos, label0, label3, label1, label5, label6, label2, label4)
@@ -8930,7 +8941,7 @@ func _ReturnAction(parser *_Parser, start int) (int, *Stmt) {
 				}
 				label1 = func(
 					start, end int, e Expr) *Ret {
-					return &Ret{start: loc1(parser, start), Expr: e}
+					return &Ret{start: point(parser, start), Expr: e}
 				}(
 					start3, pos, label0)
 			}
@@ -9393,14 +9404,14 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Var) {
 				}
 				label2 = func(
 					start, end int, i0 Ident, t0 *TypeName) Var {
-					e := i0.end
+					e := i0.Range[1]
 					if t0 != nil {
-						e = t0.end
+						e = t0.Range[1]
 					}
 					return Var{
-						location: location{i0.start, e},
-						Name:     i0.Text,
-						Type:     t0,
+						Range: loc.Range{i0.Range[0], e},
+						Name:  i0.Text,
+						Type:  t0,
 					}
 				}(
 					start3, pos, label0, label1)
@@ -9466,14 +9477,14 @@ func _LhsAction(parser *_Parser, start int) (int, *[]Var) {
 					}
 					node14 = func(
 						start, end int, i0 Ident, i1 Ident, id Var, t0 *TypeName, t1 *TypeName) Var {
-						e := i1.end
+						e := i1.Range[1]
 						if t1 != nil {
-							e = t1.end
+							e = t1.Range[1]
 						}
 						return Var{
-							location: location{i1.start, e},
-							Name:     i1.Text,
-							Type:     t1,
+							Range: loc.Range{i1.Range[0], e},
+							Name:  i1.Text,
+							Type:  t1,
 						}
 					}(
 						start16, pos, label0, label3, label2, label1, label4)
@@ -10190,22 +10201,22 @@ func _UnaryAction(parser *_Parser, start int) (int, **Call) {
 		}
 		node = func(
 			start, end int, ms []Msg, r *Expr) *Call {
-			s := ms[0].start
+			s := ms[0].Range[0]
 			var recv Expr
 			if r != nil {
-				s, _ = (*r).loc()
+				s = (*r).GetRange()[0]
 				recv = *r
 			}
 			c := &Call{
-				location: location{s, ms[0].end},
-				Recv:     recv,
-				Msgs:     []Msg{ms[0]},
+				Range: loc.Range{s, ms[0].Range[1]},
+				Recv:  recv,
+				Msgs:  []Msg{ms[0]},
 			}
 			for _, m := range ms[1:] {
 				c = &Call{
-					location: location{s, m.end},
-					Recv:     c,
-					Msgs:     []Msg{m},
+					Range: loc.Range{s, m.Range[1]},
+					Recv:  c,
+					Msgs:  []Msg{m},
 				}
 			}
 			// TODO: fix the (*Call)(c) workaround for a Peggy bug.
@@ -10370,7 +10381,7 @@ func _UnaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 		}
 		node = func(
 			start, end int, i Ident, mod *ModTag) Msg {
-			return Msg{location: i.location, Mod: mod, Sel: i.Text}
+			return Msg{Range: i.Range, Mod: mod, Sel: i.Text}
 		}(
 			start0, pos, label1, label0)
 	}
@@ -10627,14 +10638,13 @@ func _BinaryAction(parser *_Parser, start int) (int, **Call) {
 		}
 		node = func(
 			start, end int, msgs []Msg, r Expr, u *Call) *Call {
-			s, _ := r.loc()
+			s := r.GetRange()[0]
 			recv := r
 			for _, msg := range msgs {
-				_, e := msg.loc()
 				recv = &Call{
-					location: location{s, e},
-					Recv:     recv,
-					Msgs:     []Msg{msg},
+					Range: loc.Range{s, msg.Range[1]},
+					Recv:  recv,
+					Msgs:  []Msg{msg},
 				}
 			}
 			return recv.(*Call)
@@ -10907,10 +10917,10 @@ func _BinMsgAction(parser *_Parser, start int) (int, *Msg) {
 		node = func(
 			start, end int, a Expr, mod *ModTag, n Ident, u *Call) Msg {
 			return Msg{
-				location: location{n.start, loc1(parser, end)},
-				Mod:      mod,
-				Sel:      n.Text,
-				Args:     []Expr{a},
+				Range: loc.Range{n.Range[0], point(parser, end)},
+				Mod:   mod,
+				Sel:   n.Text,
+				Args:  []Expr{a},
 			}
 		}(
 			start0, pos, label3, label0, label1, label2)
@@ -11201,16 +11211,16 @@ func _NaryAction(parser *_Parser, start int) (int, **Call) {
 		}
 		node = func(
 			start, end int, b *Call, m Msg, r *Expr, u *Call) *Call {
-			s := m.start
+			s := m.Range[0]
 			var recv Expr
 			if r != nil {
-				s, _ = (*r).loc()
+				s = (*r).GetRange()[0]
 				recv = *r
 			}
 			return &Call{
-				location: location{s, loc1(parser, end)},
-				Recv:     recv,
-				Msgs:     []Msg{m},
+				Range: loc.Range{s, point(parser, end)},
+				Recv:  recv,
+				Msgs:  []Msg{m},
 			}
 		}(
 			start0, pos, label0, label3, label2, label1)
@@ -11813,10 +11823,10 @@ func _NaryMsgAction(parser *_Parser, start int) (int, *Msg) {
 				es = append(es, a.val)
 			}
 			return Msg{
-				location: location{as[0].name.start, loc1(parser, end)},
-				Mod:      mod,
-				Sel:      sel,
-				Args:     es,
+				Range: loc.Range{as[0].name.Range[0], point(parser, end)},
+				Mod:   mod,
+				Sel:   sel,
+				Args:  es,
 			}
 		}(
 			start0, pos, label5, label2, label0, label1, label3, label4)
@@ -12526,9 +12536,9 @@ func _CtorAction(parser *_Parser, start int) (int, *Expr) {
 				label1 = func(
 					start, end int, es *([]Expr)) *Ctor {
 					if es == nil {
-						return &Ctor{location: loc(parser, start, end)}
+						return &Ctor{Range: makeRange(parser, start, end)}
 					}
-					return &Ctor{location: loc(parser, start, end), Args: *es}
+					return &Ctor{Range: makeRange(parser, start, end), Args: *es}
 				}(
 					start3, pos, label0)
 			}
@@ -13242,7 +13252,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 								}
 								node13 = func(
 									start, end int, n Ident, t *TypeName) Var {
-									return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
+									return Var{Range: makeRange(parser, start, end), Name: n.Text, Type: t}
 								}(
 									start15, pos, label0, label1)
 							}
@@ -13292,7 +13302,7 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 								}
 								node13 = func(
 									start, end int, n Ident, t *TypeName) Var {
-									return Var{location: loc(parser, start, end), Name: n.Text, Type: t}
+									return Var{Range: makeRange(parser, start, end), Name: n.Text, Type: t}
 								}(
 									start23, pos, label0, label1)
 							}
@@ -13346,9 +13356,9 @@ func _BlockAction(parser *_Parser, start int) (int, *Expr) {
 				label4 = func(
 					start, end int, n Ident, ps []Var, ss []Stmt, t *TypeName) *Block {
 					return &Block{
-						location: loc(parser, start, end),
-						Parms:    ps,
-						Stmts:    ss,
+						Range: makeRange(parser, start, end),
+						Parms: ps,
+						Stmts: ss,
 					}
 				}(
 					start3, pos, label0, label2, label3, label1)
@@ -13623,7 +13633,7 @@ func _IntAction(parser *_Parser, start int) (int, *Expr) {
 				}
 				label1 = func(
 					start, end int, text string) *Int {
-					return &Int{location: loc(parser, start, end), Text: text}
+					return &Int{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
@@ -14201,7 +14211,7 @@ func _FloatAction(parser *_Parser, start int) (int, *Expr) {
 				}
 				label1 = func(
 					start, end int, text string) *Float {
-					return &Float{location: loc(parser, start, end), Text: text}
+					return &Float{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
@@ -14592,7 +14602,7 @@ func _RuneAction(parser *_Parser, start int) (int, *Expr) {
 					if w != len(data) {
 						panic("impossible")
 					}
-					return &Rune{location: loc(parser, start, end), Text: text, Rune: r}
+					return &Rune{Range: makeRange(parser, start, end), Text: text, Rune: r}
 				}(
 					start3, pos, label0, label1)
 			}
@@ -15213,9 +15223,9 @@ func _StringAction(parser *_Parser, start int) (int, *String) {
 					label2 = func(
 						start, end int, data0 string, text0 string) String {
 						return String{
-							location: loc(parser, start, end),
-							Text:     text0,
-							Data:     data0,
+							Range: makeRange(parser, start, end),
+							Text:  text0,
+							Data:  data0,
 						}
 					}(
 						start8, pos, label0, label1)
@@ -15324,9 +15334,9 @@ func _StringAction(parser *_Parser, start int) (int, *String) {
 					label5 = func(
 						start, end int, data0 string, data1 string, text0 string, text1 string, tok0 String) String {
 						return String{
-							location: loc(parser, start, end),
-							Text:     text1,
-							Data:     data1,
+							Range: makeRange(parser, start, end),
+							Text:  text1,
+							Data:  data1,
 						}
 					}(
 						start32, pos, label0, label3, label1, label4, label2)
@@ -16417,7 +16427,7 @@ func _OpAction(parser *_Parser, start int) (int, *Ident) {
 				}
 				label1 = func(
 					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					return Ident{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start11, pos, label0)
 			}
@@ -16632,7 +16642,7 @@ func _TypeOpAction(parser *_Parser, start int) (int, *Ident) {
 				}
 				label1 = func(
 					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					return Ident{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
@@ -16875,7 +16885,7 @@ func _ModNameAction(parser *_Parser, start int) (int, *ModTag) {
 				}
 				label1 = func(
 					start, end int, text string) ModTag {
-					return ModTag{location: loc(parser, start, end), Text: text}
+					return ModTag{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}
@@ -17226,7 +17236,7 @@ func _IdentCAction(parser *_Parser, start int) (int, *Ident) {
 				}
 				label1 = func(
 					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					return Ident{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start11, pos, label0)
 			}
@@ -17575,7 +17585,7 @@ func _CIdentAction(parser *_Parser, start int) (int, *Ident) {
 				}
 				label1 = func(
 					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					return Ident{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start11, pos, label0)
 			}
@@ -17963,7 +17973,7 @@ func _IdentAction(parser *_Parser, start int) (int, *Ident) {
 				}
 				label1 = func(
 					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					return Ident{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start11, pos, label0)
 			}
@@ -18192,7 +18202,7 @@ func _TypeVarAction(parser *_Parser, start int) (int, *Ident) {
 				}
 				label1 = func(
 					start, end int, text string) Ident {
-					return Ident{location: loc(parser, start, end), Text: text}
+					return Ident{Range: makeRange(parser, start, end), Text: text}
 				}(
 					start3, pos, label0)
 			}

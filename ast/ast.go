@@ -1,7 +1,11 @@
 // Package ast defines the syntax. It contains an AST and a parser.
 package ast
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/eaburns/pea/loc"
+)
 
 //go:generate peggy -t=false -o grammar.go grammar.peggy
 
@@ -9,12 +13,11 @@ import "strings"
 type Mod struct {
 	Path  string
 	Files []File
+	Locs  *loc.Files
 }
 
 // File is a single source code file.
 type File struct {
-	offs    int   // offset of the start of the file
-	lines   []int // offset of newlines
 	Path    string
 	Imports []Import
 	Defs    []Def
@@ -22,7 +25,7 @@ type File struct {
 
 // An Import is an import statement.
 type Import struct {
-	location
+	loc.Range
 	// All indicates whether the keyword was "Import",
 	// which imports all the exported symbols
 	// in addition to the module name.
@@ -30,9 +33,9 @@ type Import struct {
 	Path string
 }
 
-// A Node is a node of the AST with location information.
+// A Node is a node of the AST with loc.Range information.
 type Node interface {
-	loc() (int, int)
+	GetRange() loc.Range
 }
 
 // A Def is a module-level definition.
@@ -47,15 +50,9 @@ type Def interface {
 	String() string
 }
 
-type location struct {
-	start, end int
-}
-
-func (n location) loc() (int, int) { return n.start, n.end }
-
 // A Val is a module-level value definition.
 type Val struct {
-	location
+	loc.Range
 	priv bool
 	Var  Var
 	Init []Stmt
@@ -65,7 +62,7 @@ func (n *Val) Priv() bool { return n.priv }
 
 // A Fun is a function or method definition.
 type Fun struct {
-	location
+	loc.Range
 	priv   bool
 	Test   bool
 	Recv   *Recv
@@ -88,7 +85,7 @@ type Recv struct {
 
 // A FunSig is the signature of a function.
 type FunSig struct {
-	location
+	loc.Range
 	Sel   string
 	Parms []Var // types cannot be nil
 	Ret   *TypeName
@@ -109,7 +106,7 @@ type FunSig struct {
 // 	   Any type with the required methods is automatically
 // 	   convertable to the virtual type.
 type Type struct {
-	location
+	loc.Range
 	priv bool
 	Sig  TypeSig
 
@@ -134,7 +131,7 @@ func (n Type) Priv() bool { return n.priv }
 
 // A TypeName is the name of a concrete type.
 type TypeName struct {
-	location
+	loc.Range
 	Var  bool
 	Mod  *ModTag
 	Name string
@@ -143,7 +140,7 @@ type TypeName struct {
 
 // A TypeSig is a type signature, a pattern defining a type or set o types.
 type TypeSig struct {
-	location
+	loc.Range
 	Name  string
 	Parms []Var // types may be nil
 }
@@ -153,7 +150,7 @@ type TypeSig struct {
 // In some cases, the type must be non-nil.
 // In others, the type may be nil.
 type Var struct {
-	location
+	loc.Range
 	Name string
 	Type *TypeName
 }
@@ -170,9 +167,9 @@ type Ret struct {
 	Expr  Expr
 }
 
-func (n *Ret) loc() (int, int) {
-	_, end := n.Expr.loc()
-	return n.start, end
+// GetRange returns the source location Range.
+func (n *Ret) GetRange() loc.Range {
+	return loc.Range{n.start, n.Expr.GetRange()[1]}
 }
 
 // An Assign is an assignment statement.
@@ -181,10 +178,12 @@ type Assign struct {
 	Expr Expr
 }
 
-func (n *Assign) loc() (int, int) {
-	start, _ := n.Vars[0].loc()
-	_, end := n.Expr.loc()
-	return start, end
+// GetRange returns the source location Range.
+func (n *Assign) GetRange() loc.Range {
+	return loc.Range{
+		n.Vars[0].Range[0],
+		n.Expr.GetRange()[1],
+	}
 }
 
 // An Expr is an expression
@@ -195,7 +194,7 @@ type Expr interface {
 
 // A Call is a method call or a cascade.
 type Call struct {
-	location
+	loc.Range
 	Recv Expr // nil for function calls
 	Msgs []Msg
 }
@@ -204,7 +203,7 @@ func (*Call) isExpr() {}
 
 // A Msg is a message, sent to a value.
 type Msg struct {
-	location
+	loc.Range
 	Mod  *ModTag
 	Sel  string
 	Args []Expr
@@ -212,7 +211,7 @@ type Msg struct {
 
 // A Ctor type constructor literal.
 type Ctor struct {
-	location
+	loc.Range
 	Args []Expr
 }
 
@@ -220,7 +219,7 @@ func (*Ctor) isExpr() {}
 
 // A Block is a block literal.
 type Block struct {
-	location
+	loc.Range
 	Parms []Var // if type is nil, it must be inferred
 	Stmts []Stmt
 }
@@ -229,7 +228,7 @@ func (*Block) isExpr() {}
 
 // An Ident is a variable name as an expression.
 type Ident struct {
-	location
+	loc.Range
 	Mod  *ModTag
 	Text string
 }
@@ -238,13 +237,13 @@ func (*Ident) isExpr() {}
 
 // A ModTag is a module name preceeded by #.
 type ModTag struct {
-	location
+	loc.Range
 	Text string
 }
 
 // An Int is an integer literal.
 type Int struct {
-	location
+	loc.Range
 	Text string
 }
 
@@ -252,7 +251,7 @@ func (*Int) isExpr() {}
 
 // A Float is a floating point literal.
 type Float struct {
-	location
+	loc.Range
 	Text string
 }
 
@@ -260,7 +259,7 @@ func (*Float) isExpr() {}
 
 // A Rune is a rune literal.
 type Rune struct {
-	location
+	loc.Range
 	Text string
 	Rune rune
 }
@@ -269,7 +268,7 @@ func (*Rune) isExpr() {}
 
 // A String is a string literal.
 type String struct {
-	location
+	loc.Range
 	Text string
 	Data string
 }

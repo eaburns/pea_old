@@ -115,7 +115,7 @@ var univ = `
 `
 
 func newUniv(x *state) []Def {
-	p := ast.NewParser("")
+	p := ast.NewParserWithLocs("", nil)
 	tmp, err := template.New("").Parse(univ)
 	if err != nil {
 		panic("failed to parse template: " + err.Error())
@@ -145,6 +145,5 @@ func newUniv(x *state) []Def {
 	if len(errs) > 0 {
 		panic("check error in univ: " + errs[0].Error())
 	}
-	clearAST(mod.Defs)
 	return mod.Defs
 }

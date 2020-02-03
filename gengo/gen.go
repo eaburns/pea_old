@@ -484,7 +484,7 @@ func genMakeVirt(stmt *basic.MakeVirt, ts typeSet, s *strings.Builder) {
 }
 
 func genPanic(f *basic.Fun, stmt *basic.Panic, s *strings.Builder) {
-	loc := f.Mod.Mod.AST.Loc(stmt.Msg.AST)
+	loc := f.Mod.Mod.AST.Locs.Loc(stmt.Msg.AST.GetRange())
 	fmt.Fprintf(s, "panic(panicVal{msg: string(*x%d), file: %q, line: %d})",
 		stmt.Arg.Num(), loc.Path, loc.Line[0])
 }
@@ -495,7 +495,7 @@ func genCall(f *basic.Fun, stmt *basic.Call, s *strings.Builder) {
 		// Wrap the call in a function containing a defer
 		// to catch a panicVal panic and
 		// set the testFile and testLine.
-		loc := f.Mod.Mod.AST.Loc(stmt.Msg.AST)
+		loc := f.Mod.Mod.AST.Locs.Loc(stmt.Msg.AST.GetRange())
 		fmt.Fprintf(s, "func() {defer recoverTestLoc(%q, %d); ",
 			loc.Path, loc.Line[0])
 		defer s.WriteString("}()")

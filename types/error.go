@@ -5,11 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eaburns/pea/ast"
+	"github.com/eaburns/pea/loc"
 )
 
 type checkError struct {
-	loc   ast.Loc
+	loc   loc.Loc
 	msg   string
 	notes []string
 	cause []checkError
