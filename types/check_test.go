@@ -67,6 +67,17 @@ func TestBugRegressions(t *testing.T) {
 			`,
 			err: "",
 		},
+		{
+			// This is testing a bug regression causing a crash
+			// when generating the capture field for a BlockType
+			// for the return value of its containing function
+			// in the case that the return type had an error and was nil.
+			name: "block capture erroneous return type",
+			src: `
+				func [foo ^Unknown | ^[]]
+			`,
+			err: "type Unknown not found",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

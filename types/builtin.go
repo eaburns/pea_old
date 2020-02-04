@@ -368,14 +368,16 @@ func makeBlockType(x *scope, blk *Block) *Type {
 
 	// Add a field to capture the containing function's return slot.
 	if fun := x.function(); fun != nil && fun.Sig.Ret != nil {
-		retType := fun.Sig.Ret.Type
-		typ.Fields = append(typ.Fields, Var{
-			Name:     "",
-			TypeName: makeTypeName(retType.Ref()),
-			Field:    blk.Type(),
-			Index:    len(typ.Fields) - 1,
-			typ:      retType.Ref(),
-		})
+		v := Var{
+			Name:  "",
+			Field: blk.Type(),
+			Index: len(typ.Fields) - 1,
+		}
+		if retType := fun.Sig.Ret.Type; retType != nil {
+			v.typ = retType.Ref()
+			v.TypeName = makeTypeName(v.typ)
+		}
+		typ.Fields = append(typ.Fields, v)
 	}
 	typ.refDef = builtInType(x, "&", *makeTypeName(typ))
 	return typ
