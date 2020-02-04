@@ -51,7 +51,8 @@ func main() {
 
 func compile(m *mod.Mod) {
 	objFile := objFile(m)
-	if !*force && lastModTime(m.SrcFiles).Before(modTime(objFile)) {
+	srcMod := lastModTime(append(m.SrcFiles, m.SrcDir))
+	if !*force && srcMod.Before(modTime(objFile)) {
 		vprintf("ok %s\n", m.ModPath)
 		return
 	}
