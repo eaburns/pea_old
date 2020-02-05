@@ -24,6 +24,7 @@ var (
 	test    = flag.Bool("test", false, "build a test executable")
 	verbose = flag.Bool("v", false, "enable verbose output")
 	output  = flag.String("o", "", "name of executable file or directory")
+	cleanUp = flag.Bool("cleanup", true, "remove temporary files")
 )
 
 func main() {
@@ -133,7 +134,9 @@ func link(m *mod.Mod) {
 		die("failed to run go build", err)
 	}
 
-	os.Remove(goFile)
+	if *cleanUp {
+		os.Remove(goFile)
+	}
 
 	vprintf("linking %s\n", binFile)
 	cmd = exec.Command("go", "tool", "link", "-o", binFile, objFile)
@@ -144,7 +147,9 @@ func link(m *mod.Mod) {
 		die("failed to run go build", err)
 	}
 
-	os.Remove(objFile)
+	if *cleanUp {
+		os.Remove(objFile)
+	}
 }
 
 func binFile() string {
