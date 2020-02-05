@@ -187,7 +187,7 @@ func deps(srcFiles []string) ([]string, error) {
 // TopologicalDeps returns root and its dependencies
 // in topologically sorted order, with dependencies
 // before their dependants.
-func TopologicalDeps(root *Mod) []*Mod {
+func TopologicalDeps(roots []*Mod) []*Mod {
 	var sorted []*Mod
 	seen := make(map[*Mod]bool)
 	var add func(*Mod)
@@ -201,6 +201,8 @@ func TopologicalDeps(root *Mod) []*Mod {
 		}
 		sorted = append(sorted, m)
 	}
-	add(root)
+	for _, root := range roots {
+		add(root)
+	}
 	return sorted
 }

@@ -41,7 +41,7 @@ func main() {
 	if err := root.LoadDeps(*modRoot); err != nil {
 		die("failed to load dependencies", err)
 	}
-	for _, m := range mod.TopologicalDeps(root) {
+	for _, m := range mod.TopologicalDeps([]*mod.Mod{root}) {
 		compile(m)
 	}
 	if *modPath == "main" || *test {

@@ -228,7 +228,7 @@ func TestTopologicalDeps(t *testing.T) {
 		t.Fatalf("LoadDeps failed: %v", err)
 	}
 
-	sorted := TopologicalDeps(foo)
+	sorted := TopologicalDeps([]*Mod{foo})
 	if len(sorted) != 3 {
 		t.Fatalf("len(sorted)=%d, want 3", len(sorted))
 	}
