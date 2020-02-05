@@ -1006,8 +1006,7 @@ func TestWriteMod(t *testing.T) {
 			stdout: "5",
 		},
 		{
-			// String atByte is broken in a few places
-			name: "SKIP: make virtual of built-in String atByte method",
+			name: "make virtual of built-in String atByte method",
 			src: `
 				func [main |
 					s := "Hello".
