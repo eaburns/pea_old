@@ -263,12 +263,10 @@ func subRet(x *scope, sub map[*TypeVar]TypeName, ret0 *Ret) *Ret {
 
 func subAssign(x *scope, sub map[*TypeVar]TypeName, assign0 *Assign) *Assign {
 	defer x.tr("subAssign(%s)", assign0.Var.Name)()
-
-	return &Assign{
-		AST:  assign0.AST,
-		Var:  lookUpVar(x, assign0.Var),
-		Expr: subExpr(x, sub, assign0.Expr),
-	}
+	v := lookUpVar(x, assign0.Var)
+	markCapture(x, v)
+	expr := subExpr(x, sub, assign0.Expr)
+	return &Assign{AST: assign0.AST, Var: v, Expr: expr}
 }
 
 func subExprs(x *scope, sub map[*TypeVar]TypeName, exprs0 []Expr) []Expr {

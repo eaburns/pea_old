@@ -900,6 +900,7 @@ func checkAssignVars(x *scope, astAss *ast.Assign) (*scope, []*Var, []bool, []ch
 			vars[i] = vr
 			newLocal[i] = true
 		case *Var:
+			x.log("found var %s", found.Name)
 			if found.Val != nil {
 				x.use(found.Val, astAss)
 			}

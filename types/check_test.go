@@ -3841,6 +3841,36 @@ func TestBlockCapture(t *testing.T) {
 	}
 }
 
+// This tests for the regression of a previous bug.
+// The bug was that substitution did not mark captures
+// on assignment target variables.
+func TestBlockCaptureAfterSub(t *testing.T) {
+	t.Parallel()
+	var src = `
+		func T [foo: t T ^T |
+			cap := t.
+			[cap := t].
+			^cap
+		]
+		val _ := [foo: 5]
+	`
+	p := ast.NewParser("/test/test")
+	if err := p.Parse("", strings.NewReader(src)); err != nil {
+		t.Fatalf("failed to parse source: %s", err)
+	}
+	mod, errs := Check(p.Mod(), Config{})
+	if len(errs) > 0 {
+		t.Fatalf("failed to check the source: %v", errs)
+	}
+	foo := findTestFun(mod, "foo:")
+	inst := foo.Insts[0] // get the Int [foo:] instance.
+	block := inst.Stmts[1].(*Block)
+	want := []string{"cap", "t"}
+	if got := sortedCaptureNames(block); !reflect.DeepEqual(got, want) {
+		t.Errorf("block0 captures %v, wanted %v", got, want)
+	}
+}
+
 func sortedCaptureNames(block *Block) []string {
 	var names []string
 	for _, c := range block.Captures {
