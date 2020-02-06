@@ -39,8 +39,6 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 		AST:  astMod,
 		Path: astMod.Path,
 	}
-	x = x.new()
-	x.mod = mod
 
 	// Checking happens in multiple passes.
 	// Sorry, but some of the passes need more explanation
@@ -51,11 +49,11 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	// These have just enough information to lookup by name.
 	// This also happens to pull in file-level imports,
 	// since we need to hook up defs to their defining file anyway.
-	mod.Defs, errs = makeDefs(x, astMod.Files, isUniv)
+	mod.Defs, errs = makeDefs(x, mod, astMod.Files, isUniv)
 	if isUniv {
 		// In this case, we are checking the univ mod.
 		// We've only now just gathered the defs, so set them in the state.
-		x.up.univ = mod.Defs
+		x.univ = mod.Defs
 	}
 
 	// Check duplicates, except method duplicates.
@@ -86,7 +84,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	if isUniv {
 		// In this case, we are checking the univ mod.
 		// Add the additional built-in defs to the state.
-		x.up.univ = mod.Defs
+		x.univ = mod.Defs
 	}
 
 	// Now that we have resolved types and added any built-in methods,
@@ -107,7 +105,7 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	// Phew!
 	errs = append(errs, checkDefs(x, mod.Defs)...)
 
-	errs = append(errs, checkInitCycles(x, mod.Defs)...)
+	errs = append(errs, checkInitCycles(x, mod, mod.Defs)...)
 
 	if len(errs) > 0 {
 		return nil, errs
@@ -132,14 +130,18 @@ func check(x *scope, astMod *ast.Mod) (_ *Mod, errs []checkError) {
 	return mod, errs
 }
 
-func makeDefs(x *scope, files []ast.File, isUniv bool) ([]Def, []checkError) {
+func makeDefs(x *scope, mod *Mod, files []ast.File, isUniv bool) ([]Def, []checkError) {
 	var defs []Def
 	var errs []checkError
 	for i := range files {
 		file := &file{ast: &files[i]}
 		x.files = append(x.files, file)
-		file.x = x.new()
-		file.x.file = file
+
+		fileX := x.new()
+		fileX.file = file
+		file.x = fileX.new()
+		file.x.mod = mod
+
 		errs = append(errs, imports(x, file)...)
 		for _, astDef := range file.ast.Defs {
 			def := makeDef(x, astDef, isUniv)
@@ -297,7 +299,7 @@ func checkDupMeths(x *scope, defs []Def) []checkError {
 	return errs
 }
 
-func checkInitCycles(x *scope, defs []Def) (errs []checkError) {
+func checkInitCycles(x *scope, mod *Mod, defs []Def) (errs []checkError) {
 	defer x.tr("checkInitCycles()")(&errs)
 
 	seen := make(map[Def]bool)
@@ -337,7 +339,7 @@ func checkInitCycles(x *scope, defs []Def) (errs []checkError) {
 			path = path[:len(path)-1]
 		}
 		if isVal {
-			x.mod.SortedVals = append(x.mod.SortedVals, val)
+			mod.SortedVals = append(mod.SortedVals, val)
 		}
 	}
 	for _, def := range defs {
@@ -345,7 +347,7 @@ func checkInitCycles(x *scope, defs []Def) (errs []checkError) {
 			check(val)
 		}
 	}
-	sorted := x.mod.SortedVals
+	sorted := mod.SortedVals
 	n := len(sorted)
 	for i := 0; i < n/2; i++ {
 		sorted[i], sorted[n-i-1] = sorted[n-i-1], sorted[i]
@@ -1256,7 +1258,7 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 }
 
 func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
-	x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
+	defer x.tr("findMsgFun(infer=%s, %s, %s)", infer, recv, msg.name())(&errs)
 
 	var mod *ast.ModTag
 	if msg.Mod != "" {
@@ -1274,7 +1276,7 @@ func findMsgFun(x *scope, infer, recv *Type, msg *Msg) (errs []checkError) {
 }
 
 func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel string, argTypes argTypes) (fun *Fun, errs []checkError) {
-	x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
+	defer x.tr("findFunInst(infer=%s, %s, %s)", infer, recv, sel)(&errs)
 
 	if recv != nil && recv.Var != nil {
 		if mod == nil {
@@ -1295,6 +1297,7 @@ func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel
 			return nil, append(errs, *err)
 		}
 	}
+	x.log("found %s", fun)
 	return instRecvAndFun(x, recv, infer, fun, argTypes)
 }
 

@@ -3077,6 +3077,26 @@ func TestCall(t *testing.T) {
 			`,
 			err: "tests cannot be called",
 		},
+		{
+			name: "in-module fun shadows imported",
+			src: `
+				Import "/test/foo"
+				Func [foo ^String | ^"Hello"]
+				Func [main |
+					// This should be the current module's foo,
+					// which returns a type String.
+					// It should not be #foo foo.
+					_ Int := foo.
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/foo",
+					"Func [foo ^Int | ^5]",
+				},
+			},
+			err: "have String, want Int",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
