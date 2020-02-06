@@ -78,6 +78,28 @@ func TestBugRegressions(t *testing.T) {
 			`,
 			err: "type Unknown not found",
 		},
+		{
+			// Tests a regression where there was no infer type
+			// on the return of calls during substitution.
+			// If the call was to a parameterized fun,
+			// we could not infer its parameter type
+			// and failed to correctly substitute it.
+			name: "instantiate vector new:",
+			src: `
+				type T Vector {data: T& Array size: Int}
+				func T [new ^T Vector& | ^{data: {} size: 0}]
+				func T [new: ts T Array ^T Vector& |
+					vec T Vector& := new.
+					vec pushAll: ts.
+					^vec.
+				]
+				type T SizeDoer {[size ^Int] [do: (T&, Nil) Fun]}
+				meth T Vector [pushAll: _ T SizeDoer]
+				meth T Array [do: _ (T&, Nil) Fun]
+				test [new_ | _ Int Vector& := new: {5; 6; 7}.]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)

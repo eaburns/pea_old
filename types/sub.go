@@ -172,7 +172,7 @@ func subRecv(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, recv0 *R
 }
 
 func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun) *Fun {
-	defer x.tr("subFun(%s)", fun)()
+	defer x.tr("subFun(%s, %s)", subDebugString(sub), fun)()
 
 	inst := &Fun{
 		AST:     fun.AST,
@@ -211,6 +211,8 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 	// Note that we don't substitute the statements here.
 	// They are instead substituted after the check pass
 	// if there were no check errors.
+
+	x.tr("inst=%s", inst)
 
 	return inst
 }
@@ -345,7 +347,14 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 		recv = recv.Args[0].Type
 		typeVarCall = call0.Recv.Type().Args[0].Type.Var != nil
 	}
-	call1.Msgs = subMsgs(x, sub, call1.typ, recv, call0.Msgs, typeVarCall)
+
+	// We need an infer type to instantiate parameterized calls.
+	// We use the substituted type of the incoming call.
+	// However, we do not use this as the resulting type of call1,
+	// becaues the message found after substitution
+	// may differ from the pre-substituted in the number of & on the return type.
+	inferRetType := subType(x, map[*Type]*Type{}, sub, call0.typ)
+	call1.Msgs = subMsgs(x, sub, inferRetType, recv, call0.Msgs, typeVarCall)
 
 	lastMsg := &call1.Msgs[len(call1.Msgs)-1]
 	if lastMsg.Fun.Sig.Ret == nil {
