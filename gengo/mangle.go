@@ -105,7 +105,7 @@ func mangleTypesFun(modPath string, fun *types.Fun, s *strings.Builder) *strings
 		for i, f := range fun.Def.Insts {
 			if f == fun {
 				writeInt(i, s)
-				mangleMod(modPath, s)
+				mangleMod(fun.InstModPath, s)
 				return s
 			}
 		}

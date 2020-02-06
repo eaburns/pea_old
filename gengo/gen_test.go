@@ -1511,6 +1511,32 @@ func TestWriteMod(t *testing.T) {
 			},
 			stderr: "/test/bar:5: panic: oh no!\n",
 		},
+		{
+			// This is testing for regression of a bug
+			// causing imported, instantiated functions
+			// of the same name as an in-module function
+			// to have colliding names.
+			name: "imported param fun of the same name",
+			src: `
+				Import "/test/array"
+				Type _? {}
+				func T [new ^T? | ^{}]
+				func [main |]
+				// The code under test is in a test not a func,
+				// because we don't want to inline.
+				test [blamo |
+					_ Int? := new.
+					_ Int Array := #array new.
+				]
+			`,
+			imports: [][2]string{
+				{
+					"/test/array",
+					"Func T [new ^T Array | ^{}]",
+				},
+			},
+			stdout: "",
+		},
 	}
 	for _, test := range tests {
 		test := test

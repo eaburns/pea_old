@@ -90,14 +90,17 @@ type Fun struct {
 	// If the fun is an instance, Def points to the non-instantiated *Fun.
 	Def *Fun
 	// Insts are all instances of this fun.
-	Insts   []*Fun
-	Priv    bool
-	Test    bool
+	Insts []*Fun
+	Priv  bool
+	Test  bool
+	// ModPath is the module path of the defining module.
 	ModPath string
-	Recv    *Recv
-	TParms  []TypeVar
-	TArgs   []TypeName
-	Sig     FunSig
+	// InstModPath is the module path of the instantiating module.
+	InstModPath string
+	Recv        *Recv
+	TParms      []TypeVar
+	TArgs       []TypeName
+	Sig         FunSig
 
 	Locals []*Var
 

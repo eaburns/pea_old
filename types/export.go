@@ -189,6 +189,7 @@ func writeFun(w io.Writer, objs *outObjs, f *Fun) {
 	writeInt(w, getFunNum(objs, f.Def))
 	writeBool(w, f.Priv)
 	writeString(w, f.ModPath)
+	writeString(w, f.InstModPath)
 	writeBool(w, f.Recv != nil)
 	if f.Recv != nil {
 		writeRecv(w, objs, f.Recv)
@@ -224,6 +225,7 @@ func readFun(r io.Reader, objs *inObjs) *Fun {
 	patchFun(objs, readInt(r), &f.Def)
 	f.Priv = readBool(r)
 	f.ModPath = readString(r)
+	f.InstModPath = readString(r)
 	if readBool(r) {
 		f.Recv = readRecv(r, objs)
 	}

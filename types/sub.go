@@ -175,11 +175,12 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 	defer x.tr("subFun(%s, %s)", subDebugString(sub), fun)()
 
 	inst := &Fun{
-		AST:     fun.AST,
-		Priv:    fun.Priv,
-		ModPath: x.astMod.Path,
-		Recv:    subRecv(x, seen, sub, fun.Recv),
-		TParms:  subTypeParms(x, seen, sub, fun.TParms),
+		AST:         fun.AST,
+		Priv:        fun.Priv,
+		ModPath:     fun.ModPath,
+		InstModPath: x.astMod.Path,
+		Recv:        subRecv(x, seen, sub, fun.Recv),
+		TParms:      subTypeParms(x, seen, sub, fun.TParms),
 		Sig: FunSig{
 			AST: fun.Sig.AST,
 			Sel: fun.Sig.Sel,
