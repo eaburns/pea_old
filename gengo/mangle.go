@@ -44,10 +44,11 @@ func mangleFun(f *basic.Fun, s *strings.Builder) *strings.Builder {
 	case f.Block != nil:
 		if f.Fun != nil {
 			mangleMod(f.Fun.ModPath, s)
+			mangleMod(f.Fun.InstModPath, s)
 		} else {
 			mangleMod(f.Val.ModPath, s)
 		}
-		fmt.Fprintf(s, "block%d", f.N)
+		writeStr(f.Block.BlockType.Name, s)
 	case f.Val != nil:
 		fmt.Fprintf(s, "init__%s", valName(f.Val))
 	case f.Fun != nil:

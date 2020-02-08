@@ -114,7 +114,7 @@ func TestMangleFun(t *testing.T) {
 			`,
 			want: []string{
 				"F0_main__foo__",
-				"main__block[0-9]",
+				"main_____24Block[0-9]__",
 			},
 		},
 		{
