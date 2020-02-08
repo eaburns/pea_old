@@ -145,6 +145,8 @@ func F0___print_3A__(x *[]byte) {
 
 const mainTemplate = `
 {{if  .Test -}}
+var exitStatus = 0
+
 func runTest(name string, test func()) {
 	fmt.Print("Test ", name, " ")
 	defer func() {
@@ -152,6 +154,7 @@ func runTest(name string, test func()) {
 		case nil:
 			fmt.Println("ok")
 		case panicVal:
+			exitStatus = 1
 			fmt.Printf("failed\n\t%s:%d: %s\n", r.testFile, r.testLine, r.msg)
 		default:
 			panic(r)
@@ -185,6 +188,7 @@ func main() {
 		{{range .Tests -}}
 		runTest({{printf "%q" .Name}}, {{.Fun}})
 		{{end -}}
+		os.Exit(exitStatus)
 	{{end -}}
 }
 `
