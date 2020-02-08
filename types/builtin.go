@@ -200,8 +200,7 @@ func makeCaseMeth(x *scope, typ *Type) *Fun {
 			sel.WriteRune(':')
 			parmType = builtInType(x, "Fun", retName)
 		} else {
-			ref := builtInType(x, "&", *c.TypeName)
-			parmType = builtInType(x, "Fun", *makeTypeName(ref), retName)
+			parmType = builtInType(x, "Fun", *c.TypeName, retName)
 		}
 		parm := Var{
 			Name:     fmt.Sprintf("x%d", i),

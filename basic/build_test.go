@@ -1413,7 +1413,7 @@ func TestBuild(t *testing.T) {
 						$2 := alloc(#test $Block0)
 						$3 := alloc(Nil Fun)
 						$4 := alloc(#test $Block1)
-						$5 := alloc((Int&, Nil) Fun)
+						$5 := alloc((Int, Nil) Fun)
 						jmp 1
 					1:
 						[in: 0] [out: 2 3]
@@ -1432,7 +1432,8 @@ func TestBuild(t *testing.T) {
 					3:
 						[in: 1] [out: 4]
 						$7 := $0.1 [some:]
-						virt call $5.0($5, $7)
+						$8 := load($7)
+						virt call $5.0($5, $8)
 						jmp 4
 					4:
 						[in: 2 3] [out:]
@@ -1460,7 +1461,7 @@ func TestBuild(t *testing.T) {
 						$3 := alloc(#test $Block0)
 						$4 := alloc(Int Fun)
 						$6 := alloc(#test $Block1)
-						$7 := alloc((Int&, Int) Fun)
+						$7 := alloc((Int, Int) Fun)
 						$8 := alloc(Int)
 						jmp 1
 					1:
@@ -1483,13 +1484,14 @@ func TestBuild(t *testing.T) {
 					3:
 						[in: 1] [out: 4]
 						$10 := $0.1 [some:]
-						virt call $7.0($7, $10, $8)
+						$11 := load($10)
+						virt call $7.0($7, $11, $8)
 						jmp 4
 					4:
 						[in: 2 3] [out:]
-						$11 := load($8)
-						$12 := arg(0)
-						store($12, $11)
+						$12 := load($8)
+						$13 := arg(0)
+						store($13, $12)
 						return
 			`,
 		},
@@ -1514,7 +1516,7 @@ func TestBuild(t *testing.T) {
 						$3 := alloc(#test $Block0)
 						$4 := alloc(String Fun)
 						$6 := alloc(#test $Block1)
-						$7 := alloc((Int&, String) Fun)
+						$7 := alloc((Int, String) Fun)
 						$8 := alloc(String)
 						jmp 1
 					1:
@@ -1537,12 +1539,13 @@ func TestBuild(t *testing.T) {
 					3:
 						[in: 1] [out: 4]
 						$10 := $0.1 [some:]
-						virt call $7.0($7, $10, $8)
+						$11 := load($10)
+						virt call $7.0($7, $11, $8)
 						jmp 4
 					4:
 						[in: 2 3] [out:]
-						$11 := arg(0)
-						copy($11, $8, String)
+						$12 := arg(0)
+						copy($12, $8, String)
 						return
 			`,
 		},

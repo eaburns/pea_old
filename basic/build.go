@@ -584,8 +584,16 @@ func buildCaseMeth(f *Fun, b *BBlk, recv Val, msg *types.Msg) (Val, *BBlk) {
 		cases = append(cases, bb)
 		valueArgs := []Val{arg}
 		if orType.Cases[i].TypeName != nil {
-			f := addField(f, bb, recv, i)
-			valueArgs = append(valueArgs, f)
+			typ := orType.Cases[i].TypeName.Type
+			field := addField(f, bb, recv, i)
+			if SimpleType(typ) {
+				v := addLoad(f, bb, field)
+				valueArgs = append(valueArgs, v)
+			} else {
+				a := addAlloc(f, bb, typ)
+				addCopy(bb, a, field)
+				valueArgs = append(valueArgs, a)
+			}
 		}
 		if ret != nil {
 			valueArgs = append(valueArgs, ret)

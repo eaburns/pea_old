@@ -47,7 +47,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type IntOrString { int: Int | string: String }
 			`,
 			want: []string{
-				"IntOrString $0 [ifInt: x0 (Int&, $0) Fun ifString: x1 (String&, $0) Fun ^$0]",
+				"IntOrString $0 [ifInt: x0 (Int, $0) Fun ifString: x1 (String, $0) Fun ^$0]",
 			},
 		},
 		{
@@ -56,7 +56,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type IntOpt { int: Int | none }
 			`,
 			want: []string{
-				"IntOpt $0 [ifInt: x0 (Int&, $0) Fun ifNone: x1 $0 Fun ^$0]",
+				"IntOpt $0 [ifInt: x0 (Int, $0) Fun ifNone: x1 $0 Fun ^$0]",
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type T? { none | some: T }
 			`,
 			want: []string{
-				"T? $0 [ifNone: x0 $0 Fun ifSome: x1 (T&, $0) Fun ^$0]",
+				"T? $0 [ifNone: x0 $0 Fun ifSome: x1 (T, $0) Fun ^$0]",
 			},
 		},
 		{

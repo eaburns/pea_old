@@ -987,7 +987,7 @@ func TestWriteMod(t *testing.T) {
 					print: (v ifNone: [3.14] ifSome: [:i | i asFloat])
 				]
 				type (T, U) IfNoneIfSomer {
-					[ifNone: U Fun ifSome: (T&, U) Fun ^U]
+					[ifNone: U Fun ifSome: (T, U) Fun ^U]
 				}
 				type T? {none | some: T}
 			`,
@@ -1536,6 +1536,30 @@ func TestWriteMod(t *testing.T) {
 				},
 			},
 			stdout: "",
+		},
+		{
+			// This is testing for a regression on a bug in the language.
+			// The language used to define case methods
+			// as taking a reference argument, which referred
+			// to the value inside the tagged union.
+			// However, this is broken, becasue inside the case method
+			// the enum can be assigned to, and that memory
+			// can become invalidated.
+			// Instead, case methods must take value arguments.
+			name: "enum case method passes arg by value",
+			src: `
+				type T? {none | some: T}
+				func [main |
+					strOpt String& ? := {some: "42"}.
+					strOpt
+						ifNone: [print: "none"]
+						ifSome: [:s |
+							strOpt := {none}.
+							print: s.
+						]
+				]
+			`,
+			stdout: "42",
 		},
 	}
 	for _, test := range tests {
