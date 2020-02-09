@@ -202,7 +202,7 @@ TParms <- tps:(
 	n:TypeVar {
 		return []Var{{Range: n.Range, Name: n.Text}}
 	} /
-	_ v:( "_" {
+	_ v:( "_" !([_a-zA-Z0-9]) {
 		return []Var{{Range: n.Range, Name: "_"}}
 	} ) { return []Var(v) } /
 	_"(" p0:TParm ps:( _"," p1:TParm { return Var(p1) } )* ( _ "," )? _")" {
@@ -217,7 +217,9 @@ TParms <- tps:(
 
 TParm <- n:(
 	TypeVar /
-	_ empty:( "_" { return Ident{Range:makeRange(parser, start, end), Text: "_"} } ) {
+	_ empty:( "_" !([_a-zA-Z0-9]) {
+		return Ident{Range:makeRange(parser, start, end), Text: "_"}
+	} ) {
 		 return Ident(empty)
 	}
 ) t1:TypeName? {
