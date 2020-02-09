@@ -164,7 +164,7 @@ func deps(srcFiles []string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		ds, err := ast.ReadImports(bufio.NewReader(f))
+		ds, err := ast.ReadImports(file, bufio.NewReader(f))
 		if err != nil {
 			return nil, err
 		}
