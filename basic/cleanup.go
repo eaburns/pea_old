@@ -5,10 +5,16 @@ import (
 )
 
 func cleanUp(f *Fun) {
-	collapseChains(f)
+again:
 	propagateDeletes(f)
 	rmDeletes(f)
-	rmEmptyBBlks(f)
+	renumber(f)
+	collapseChains(f)
+	if deleteEmptyBBlks(f) {
+		// We marked more statements as deleted after rmDeletes.
+		// We need to repropagate and go again.
+		goto again
+	}
 	renumber(f)
 }
 
@@ -90,24 +96,8 @@ func unused(v Val) bool {
 	return true
 }
 
-func rmDeletes(f *Fun) {
-	for _, b := range f.BBlks {
-		var i int
-		for _, s := range b.Stmts {
-			if _, ok := s.(*Comment); ok {
-				// delete comments.
-				continue
-			}
-			if !s.deleted() {
-				b.Stmts[i] = s
-				i++
-			}
-		}
-		b.Stmts = b.Stmts[:i]
-	}
-}
-
-func rmEmptyBBlks(f *Fun) {
+func deleteEmptyBBlks(f *Fun) bool {
+	changed := false
 	sub := makeBBlkMap(len(f.BBlks))
 	for _, b := range f.BBlks {
 		if len(b.Stmts) == 1 && len(b.Out()) == 1 {
@@ -115,38 +105,50 @@ func rmEmptyBBlks(f *Fun) {
 		}
 	}
 	subBBlks(f.BBlks, sub)
-	var i int
-	for _, b := range f.BBlks {
+	for i, b := range f.BBlks {
 		if i == 0 || len(b.In) > 0 {
-			f.BBlks[i] = b
-			i++
-		} else {
-			for _, o := range b.Out() {
-				o.rmIn(b)
-			}
+			continue
+		}
+		changed = true
+		for _, s := range b.Stmts {
+			s.delete()
+		}
+		for _, o := range b.Out() {
+			o.rmIn(b)
 		}
 	}
-	f.BBlks = f.BBlks[:i]
+	return changed
+}
+
+func rmDeletes(f *Fun) bool {
+	changed := false
+	var bi int
+	for _, b := range f.BBlks {
+		var si int
+		for _, s := range b.Stmts {
+			if _, ok := s.(*Comment); ok {
+				// delete comments.
+				continue
+			}
+			if !s.deleted() {
+				b.Stmts[si] = s
+				si++
+			}
+		}
+		b.Stmts = b.Stmts[:si]
+		if len(b.Stmts) > 0 {
+			f.BBlks[bi] = b
+			bi++
+		}
+	}
+	f.BBlks = f.BBlks[:bi]
+	return changed
 }
 
 func collapseChains(f *Fun) {
 	i := 1
 	for _, b := range f.BBlks[1:] {
 		if b.Stmts == nil {
-			continue
-		}
-		if b.N > 0 && len(b.In) == 0 {
-			// This BBlk has no incoming edges.
-			// It should be deleted.
-			// Delete its statements, so we can propagate.
-			// The remaining empty block will be cleaned up
-			// in another pass.
-			for _, s := range b.Stmts[:len(b.Stmts)-1] {
-				s.delete()
-			}
-			b.N = i
-			f.BBlks[i] = b
-			i++
 			continue
 		}
 		for len(b.Out()) == 1 && len(b.Out()[0].In) == 1 {
