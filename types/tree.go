@@ -410,8 +410,6 @@ type Call struct {
 	// a reference to some non-reference type.
 	Recv Expr
 	Msgs []Msg
-
-	typ *Type
 }
 
 func (n *Call) ast() ast.Node { return n.AST }
@@ -419,7 +417,12 @@ func (n *Call) ast() ast.Node { return n.AST }
 // Type returns the return type of the last message in the Call.
 // If the last message in the call has no return,
 // then Type() is the Nil type.
-func (n *Call) Type() *Type { return n.typ }
+func (n *Call) Type() *Type {
+	if len(n.Msgs) == 0 {
+		return nil
+	}
+	return n.Msgs[len(n.Msgs)-1].Type()
+}
 
 // A Msg is a message, sent to a value.
 type Msg struct {

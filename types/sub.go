@@ -352,15 +352,8 @@ func subCall(x *scope, sub map[*TypeVar]TypeName, call0 *Call) Expr {
 	// However, we do not use this as the resulting type of call1,
 	// becaues the message found after substitution
 	// may differ from the pre-substituted in the number of & on the return type.
-	inferRetType := subType(x, map[*Type]*Type{}, sub, call0.typ)
+	inferRetType := subType(x, map[*Type]*Type{}, sub, call0.Type())
 	call1.Msgs = subMsgs(x, sub, inferRetType, recv, call0.Msgs, typeVarCall)
-
-	lastMsg := &call1.Msgs[len(call1.Msgs)-1]
-	if lastMsg.Fun.Sig.Ret == nil {
-		call1.typ = builtInType(x, "Nil")
-	} else {
-		call1.typ = lastMsg.Fun.Sig.Ret.Type
-	}
 	return call1
 }
 

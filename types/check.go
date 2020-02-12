@@ -1203,12 +1203,6 @@ func checkCall(x *scope, infer *Type, astCall *ast.Call) (_ *Call, errs []checkE
 		call.Msgs[i], es = checkMsg(x, infer, recvBaseType, &astCall.Msgs[i])
 		errs = append(errs, es...)
 	}
-
-	lastMsg := &call.Msgs[len(call.Msgs)-1]
-	if lastMsg.Fun == nil {
-		return call, errs
-	}
-	call.typ = lastMsg.Type()
 	return call, errs
 }
 
@@ -1248,10 +1242,10 @@ func checkMsg(x *scope, infer, recv *Type, astMsg *ast.Msg) (_ Msg, errs []check
 		errs = append(errs, es...)
 	}
 
-	if msg.Fun.Sig.Ret != nil {
-		msg.typ = msg.Fun.Sig.Ret.Type
-	} else {
+	if msg.Fun.Sig.Ret == nil {
 		msg.typ = builtInType(x, "Nil")
+	} else {
+		msg.typ = msg.Fun.Sig.Ret.Type
 	}
 
 	return msg, errs
@@ -1648,26 +1642,29 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 		ident.typ = vr.Type().Ref()
 		return deref(ident), errs
 	case *Fun:
-		defer x.tr("checkMsg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
-		msg := Msg{
+		defer x.tr("check ident msg(infer=%s, nil, %s)", infer, astIdent.Text)(&errs)
+		call := &Call{
 			AST: astIdent,
-			Mod: modString(astIdent.Mod),
-			Sel: astIdent.Text,
+			Msgs: []Msg{{
+				AST: astIdent,
+				Mod: modString(astIdent.Mod),
+				Sel: astIdent.Text,
+			}},
 		}
-		es := findMsgFun(x, infer, nil, &msg)
+		msg := &call.Msgs[0]
+		es := findMsgFun(x, infer, nil, msg)
 		errs = append(errs, es...)
-		call := &Call{AST: astIdent, Msgs: []Msg{msg}}
-		if msg.Fun == nil {
+		switch {
+		case msg.Fun == nil:
 			return call, errs
-		}
-		if msg.Fun.Test {
+		case msg.Fun.Test:
 			err := x.err(astIdent, "tests cannot be called")
 			errs = append(errs, *err)
-		}
-		if msg.Fun.Sig.Ret == nil {
-			call.typ = builtInType(x, "Nil")
-		} else {
-			call.typ = msg.Fun.Sig.Ret.Type
+			return call, errs
+		case msg.Fun.Sig.Ret == nil:
+			msg.typ = builtInType(x, "Nil")
+		default:
+			msg.typ = msg.Fun.Sig.Ret.Type
 		}
 		return call, errs
 	default:

@@ -3771,6 +3771,18 @@ func TestBlockLiteral(t *testing.T) {
 			err: "have Int, want String",
 		},
 		{
+			// This is a bit of a surprise: it seems like we should be able to infer that :i is an Int. But, we cannot, because ifInt:ifFloat: is parameterized on the return type. There is no assignment of the return value it infer the return type, so it defaults to using the 0th argument to infer the type. To do this, we check the first argument with infer=nil, which causes checking the block literal to fail with an uninferrable block parm.
+			name: "infer first case argument param — fails",
+			src: `
+				type IntOrFloat {int: Int | float: Float}
+				func [main |
+					iof IntOrFloat := {int: 5}.
+					iof ifInt: [:i | i asFloat] ifFloat: [:f | f].
+				]
+			`,
+			err: "cannot infer block parameter type",
+		},
+		{
 			name: "any result type is OK in return-ending block",
 			src: `
 				func [foo ^Int |
