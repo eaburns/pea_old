@@ -213,21 +213,22 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	return inst, errs
 }
 
-func instRecvAndFun(x *scope, recv, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs []checkError) {
+func instRecvAndFun(x *scope, loc ast.Node, recv, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs []checkError) {
+	defer x.tr("instRecvAndFun(recv=%s, fun=%s, infer=%s)", recv, fun, infer)(&errs)
 	if recv != nil && recv.Var == nil && recv != fun.Recv.Type {
-		if fun, errs = instRecv(x, recv, fun); len(errs) > 0 {
+		if fun, errs = instRecv(x, loc, recv, fun); len(errs) > 0 {
 			return nil, errs
 		}
 	}
 	if len(fun.TParms) > 0 {
-		if fun, errs = instFun(x, infer, fun, argTypes); len(errs) > 0 {
+		if fun, errs = instFun(x, loc, infer, fun, argTypes); len(errs) > 0 {
 			return nil, errs
 		}
 	}
 	return fun, nil
 }
 
-func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
+func instRecv(x *scope, loc ast.Node, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 	defer x.tr("instRecv(%s, %s)", recv, fun)(&errs)
 
 	var sub map[*TypeVar]TypeName
@@ -239,7 +240,7 @@ func instRecv(x *scope, recv *Type, fun *Fun) (_ *Fun, errs []checkError) {
 		funRecvName := makeTypeName(fun.Recv.Type)
 		recvName := makeTypeName(recv)
 		sub = make(map[*TypeVar]TypeName)
-		err := unify(x, fun, funRecvName, recvName, tparms, sub)
+		err := unify(x, loc, funRecvName, recvName, tparms, sub)
 		if err != nil {
 			errs = append(errs, *err)
 		}
@@ -308,10 +309,10 @@ func (s funSigArgTypes) arg(x *scope, i int) (*Type, ast.Node, []checkError) {
 }
 
 // instFun returns the *Fun instance; on error the *Fun is nil.
-func instFun(x *scope, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs []checkError) {
+func instFun(x *scope, loc ast.Node, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs []checkError) {
 	defer x.tr("instFun(infer=%s, %s)", infer, fun)(&errs)
 
-	sub, errs := unifyFunTParms(x, infer, fun, argTypes)
+	sub, errs := unifyFunTParms(x, loc, infer, fun, argTypes)
 	if len(errs) > 0 {
 		return nil, errs
 	}
@@ -352,7 +353,7 @@ func instFun(x *scope, infer *Type, fun *Fun, argTypes argTypes) (_ *Fun, errs [
 // unifyFunTParms sets msg.Args for each arg passed to
 // a fun param with a type variable in its type.
 // The rest of msg.Args are left nil.
-func unifyFunTParms(x *scope, infer *Type, fun *Fun, argTypes argTypes) (sub map[*TypeVar]TypeName, errs []checkError) {
+func unifyFunTParms(x *scope, loc ast.Node, infer *Type, fun *Fun, argTypes argTypes) (sub map[*TypeVar]TypeName, errs []checkError) {
 	defer x.tr("unifyFunTParms(infer=%s, %s)", infer, fun)(&errs)
 	defer func() { x.log("sub=%s", subDebugString(sub)) }()
 
@@ -369,7 +370,7 @@ func unifyFunTParms(x *scope, infer *Type, fun *Fun, argTypes argTypes) (sub map
 		// has a locatable node to use for error reporting.
 		inferName := makeTypeName(infer)
 		inferName.AST = argTypes.ast()
-		if err := unify(x, fun, fun.Sig.Ret, inferName, tparms, sub); err != nil {
+		if err := unify(x, loc, fun.Sig.Ret, inferName, tparms, sub); err != nil {
 			errs = append(errs, *err)
 		}
 	}
@@ -397,7 +398,7 @@ func unifyFunTParms(x *scope, infer *Type, fun *Fun, argTypes argTypes) (sub map
 		}
 		argTypeName := makeTypeName(argType)
 		argTypeName.AST = argAST
-		if err := unify(x, fun, tname, argTypeName, tparms, sub); err != nil {
+		if err := unify(x, loc, tname, argTypeName, tparms, sub); err != nil {
 			errs = append(errs, *err)
 		}
 	}
@@ -419,7 +420,7 @@ func hasTParm(tparms map[*TypeVar]bool, name *TypeName) bool {
 	return false
 }
 
-func unify(x *scope, loc Node, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*TypeVar]TypeName) (err *checkError) {
+func unify(x *scope, loc ast.Node, pat, typ *TypeName, tparms map[*TypeVar]bool, sub map[*TypeVar]TypeName) (err *checkError) {
 	defer x.tr("unify(%s, %s, sub=%s)", pat, typ, subDebugString(sub))(err)
 
 	if tparms[pat.Type.Var] {
@@ -446,6 +447,7 @@ func unify(x *scope, loc Node, pat, typ *TypeName, tparms map[*TypeVar]bool, sub
 	if pat.Type.ModPath != typ.Type.ModPath ||
 		pat.Type.Name != typ.Type.Name ||
 		pat.Type.Arity != typ.Type.Arity {
+		x.log("type mismatch: have %s, want %s", typ.name(), pat.name())
 		return x.err(loc, "type mismatch: have %s, want %s", typ.name(), pat.name())
 	}
 	var errs []checkError
@@ -551,7 +553,7 @@ func instFunBody(x *scope, fun *Fun) {
 		}
 		patName := makeTypeName(fun.Def.Recv.Type)
 		recvName := makeTypeName(fun.Recv.Type)
-		err := unify(x, fun, patName, recvName, tparms, sub)
+		err := unify(x, fun.ast(), patName, recvName, tparms, sub)
 		if err != nil {
 			panic(fmt.Sprintf("impossible: %v", err))
 		}

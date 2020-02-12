@@ -1298,7 +1298,7 @@ func findFunInst(x *scope, loc ast.Node, infer, recv *Type, mod *ast.ModTag, sel
 		}
 	}
 	x.log("found %s", fun)
-	return instRecvAndFun(x, recv, infer, fun, argTypes)
+	return instRecvAndFun(x, loc, recv, infer, fun, argTypes)
 }
 
 func findIfaceMeth(x *scope, loc ast.Node, sel string, ifaces []TypeName) (*Type, *Fun, *checkError) {

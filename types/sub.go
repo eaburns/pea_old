@@ -393,7 +393,7 @@ func subMsg(x *scope, sub map[*TypeVar]TypeName, ret1, recv1 *Type, msg0 *Msg, t
 		errs = findMsgFun(x, ret1, recv1, &msg1)
 	} else {
 		// This is a static or virtual call; instantiate it.
-		msg1.Fun, errs = instRecvAndFun(x, recv1, ret1, msg0.Fun.Def, &msg1)
+		msg1.Fun, errs = instRecvAndFun(x, msg0.ast(), recv1, ret1, msg0.Fun.Def, &msg1)
 	}
 	if len(errs) > 0 {
 		panic(fmt.Sprintf("impossible: %v", errs))
