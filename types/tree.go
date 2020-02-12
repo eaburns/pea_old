@@ -517,8 +517,14 @@ type Ident struct {
 	typ *Type
 }
 
-func (n *Ident) ast() ast.Node { return n.AST }
-func (n *Ident) Type() *Type   { return n.typ }
+func (n *Ident) ast() ast.Node {
+	if n.AST == nil {
+		return nil
+	}
+	return n.AST
+}
+
+func (n *Ident) Type() *Type { return n.typ }
 
 // An Int is an integer literal.
 type Int struct {
