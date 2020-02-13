@@ -60,8 +60,10 @@ func main() {
 func seeDeps(root *mod.Mod, seen map[string]*mod.Mod) {
 	for i, d := range root.Deps {
 		s, ok := seen[d.ModPath]
-		if ok && s != d {
-			root.Deps[i] = s
+		if ok {
+			if s != d {
+				root.Deps[i] = s
+			}
 			continue
 		}
 		seen[d.ModPath] = d
