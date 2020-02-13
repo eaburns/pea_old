@@ -181,6 +181,7 @@ func goFiles(m *mod.Mod) []string {
 		if seen[m] {
 			return
 		}
+		seen[m] = true
 		goFiles = append(goFiles, m.GoSrcFiles...)
 		for _, d := range m.Deps {
 			addGoFiles(d)
