@@ -111,10 +111,7 @@ func writeObj(basicMod *basic.Mod, objFile string) {
 }
 
 func link(m *mod.Mod) {
-	objFiles := []string{objFile(m)}
-	for _, d := range m.Deps {
-		objFiles = append(objFiles, objFile(d))
-	}
+	objFiles := objFiles(m)
 	binFile := binFile()
 	if !*force && lastModTime(objFiles).Before(modTime(binFile)) {
 		return
@@ -150,6 +147,24 @@ func link(m *mod.Mod) {
 	if *cleanUp {
 		os.Remove(objFile)
 	}
+}
+
+func objFiles(m *mod.Mod) []string {
+	var objFiles []string
+	seen := make(map[*mod.Mod]bool)
+	var addObjFiles func(*mod.Mod)
+	addObjFiles = func(m *mod.Mod) {
+		if seen[m] {
+			return
+		}
+		seen[m] = true
+		objFiles = append(objFiles, objFile(m))
+		for _, d := range m.Deps {
+			addObjFiles(d)
+		}
+	}
+	addObjFiles(m)
+	return objFiles
 }
 
 func binFile() string {
