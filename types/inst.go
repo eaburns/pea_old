@@ -402,6 +402,17 @@ func unifyFunTParms(x *scope, loc ast.Node, infer *Type, fun *Fun, argTypes argT
 			errs = append(errs, *err)
 		}
 	}
+
+	// TODO: require that all type parameters of a Fun appear in its parms.
+	// Not simply as constraints to other type parameters.
+	for i := range fun.TParms {
+		tparm := &fun.TParms[i]
+		if _, ok := sub[tparm]; !ok {
+			err := x.err(loc, "unable to infer type parameter %s of %s",
+				tparm.Name, fun)
+			errs = append(errs, *err)
+		}
+	}
 	return sub, errs
 }
 

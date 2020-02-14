@@ -233,6 +233,19 @@ func TestInstCallError(t *testing.T) {
 			`,
 			err: "",
 		},
+		{
+			name: "cannot infer type parm not referenced in Fun.Sig",
+			src: `
+				type T Bar {[bar ^T]}
+				// Since T is not referenced in the method parameters
+				// or its return value, we cannot infer it.
+				// This is an error.
+				func (T, S T Bar) [foo: s S ^S | ^s]
+				meth Int [bar ^Int | ^self]
+				func [main | foo: 5]
+			`,
+			err: "unable to infer type parameter T",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
