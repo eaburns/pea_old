@@ -65,7 +65,10 @@ func main() {
 
 func compile(m *mod.Mod) {
 	objFile := objFile(m)
-	srcMod := lastModTime(append(m.SrcFiles, m.SrcDir))
+	srcMod := lastModTime(m.SrcFiles)
+	// TODO: checking timestamps is insufficient to determine whether an object file is stale.
+	// We could delete a source file; it will have no timestamp change, but the object file is now stale.
+	// Instead, we should add the source file list to the object file and check that.
 	if !*force && srcMod.Before(modTime(objFile)) {
 		vprintf("ok %s\n", m.ModPath)
 		return
