@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/pprof"
 	"time"
 
 	"github.com/eaburns/pea/ast"
@@ -18,13 +19,14 @@ import (
 )
 
 var (
-	modPath = flag.String("path", "main", "the current module's path")
-	modRoot = flag.String("root", ".", "root directory for imported modules")
-	force   = flag.Bool("force", false, "force compilation event if up-to-date")
-	test    = flag.Bool("test", false, "build a test executable")
-	verbose = flag.Bool("v", false, "enable verbose output")
-	output  = flag.String("o", "", "name of executable file or directory")
-	cleanUp = flag.Bool("cleanup", true, "remove temporary files")
+	modPath    = flag.String("path", "main", "the current module's path")
+	modRoot    = flag.String("root", ".", "root directory for imported modules")
+	force      = flag.Bool("force", false, "force compilation event if up-to-date")
+	test       = flag.Bool("test", false, "build a test executable")
+	verbose    = flag.Bool("v", false, "enable verbose output")
+	output     = flag.String("o", "", "name of executable file or directory")
+	cleanUp    = flag.Bool("cleanup", true, "remove temporary files")
+	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 )
 
 func main() {
@@ -34,6 +36,17 @@ func main() {
 		usage()
 		os.Exit(1)
 	}
+
+	flag.Parse()
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			die("failed to create cpu profile file", err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	srcPath := flag.Args()[0]
 	root, err := mod.Load(srcPath, *modPath)
 	if err != nil {
