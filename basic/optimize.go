@@ -53,12 +53,12 @@ func optimize(f *Fun) {
 	// to ensure we cleanUp once even if
 	// none of the above passes triggered.
 	cleanUp(f)
-	f.CanInline = canInline(f) && (hasFunParm(f) || !inlinedCall)
-
 	if f.Block == nil && f.CanFarRet {
 		// We may have removed the far ret, so re-scan for it.
 		f.CanFarRet = canFarRet(f)
 	}
+	f.CanInline = canInline(f) && (hasFunParm(f) || !inlinedCall)
+
 }
 
 func hasFunParm(f *Fun) bool {
