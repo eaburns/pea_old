@@ -1148,7 +1148,7 @@ func _checkExpr(x *scope, infer *Type, astExpr ast.Expr) (Expr, []checkError) {
 	case *ast.Float:
 		return checkFloat(x, infer, astExpr, astExpr.Text)
 	case *ast.Rune:
-		return checkRune(x, astExpr)
+		return checkRune(x, infer, astExpr)
 	case *ast.String:
 		return checkString(x, astExpr)
 	default:
@@ -1675,22 +1675,23 @@ func checkIdent(x *scope, infer *Type, astIdent *ast.Ident) (_ Expr, errs []chec
 func checkInt(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
 	defer x.tr("checkInt(infer=%s, %s)", infer, text)(&errs)
 
-	if isAnyFloat(infer) {
-		return checkFloat(x, infer, AST, text)
-	}
-	var i big.Int
+	n := &Int{AST: AST, Val: new(big.Int)}
 	x.log("parsing int [%s]", text)
-	if _, ok := i.SetString(text, 0); !ok {
+	if _, ok := n.Val.SetString(text, 0); !ok {
 		panic("malformed int")
 	}
-	typ := builtInType(x, "Int")
-	if isAnyInt(infer) {
-		typ = infer
+	switch {
+	case isAnyFloat(infer):
+		return checkFloat(x, infer, AST, text)
+	case isAnyInt(infer):
+		n.typ = infer
+	default:
+		n.typ = builtInType(x, "Int")
 	}
-	if err := checkIntBounds(x, AST, typ, &i); err != nil {
+	if err := checkIntBounds(x, AST, n.typ, n.Val); err != nil {
 		errs = append(errs, *err)
 	}
-	return &Int{AST: AST, Val: &i, typ: typ}, errs
+	return n, errs
 }
 
 func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
@@ -1710,33 +1711,45 @@ func checkIntBounds(x *scope, n interface{}, t *Type, i *big.Int) *checkError {
 func checkFloat(x *scope, infer *Type, AST ast.Expr, text string) (_ Expr, errs []checkError) {
 	defer x.tr("checkFloat(infer=%s, %s)", infer, text)(&errs)
 
-	var f big.Float
-	if _, _, err := f.Parse(text, 10); err != nil {
+	n := &Float{AST: AST, Val: new(big.Float)}
+	if _, _, err := n.Val.Parse(text, 10); err != nil {
 		panic("malformed float")
 	}
-	if isAnyInt(infer) {
+	switch {
+	case isAnyInt(infer):
 		var i big.Int
-		if _, acc := f.Int(&i); acc != big.Exact {
+		if _, acc := n.Val.Int(&i); acc != big.Exact {
 			err := x.err(AST, "type %s cannot represent %s: truncation", infer.name(), text)
 			errs = append(errs, *err)
 		}
 		expr, es := checkInt(x, infer, AST, i.String())
 		return expr, append(errs, es...)
+	case isAnyFloat(infer):
+		n.typ = infer
+	default:
+		n.typ = builtInType(x, "Float")
 	}
-	typ := builtInType(x, "Float")
-	if isAnyFloat(infer) {
-		typ = infer
-	}
-	return &Float{AST: AST, Val: &f, typ: typ}, errs
+	return n, errs
 }
 
-func checkRune(x *scope, astRune *ast.Rune) (*Int, []checkError) {
-	defer x.tr("checkRune(%s)", astRune.Text)()
-	return &Int{
-		AST: astRune,
-		Val: big.NewInt(int64(astRune.Rune)),
-		typ: builtInType(x, "Int32"),
-	}, nil
+func checkRune(x *scope, infer *Type, AST *ast.Rune) (_ Expr, errs []checkError) {
+	defer x.tr("checkRune(infer=%s, %s)", infer, AST.Text)(&errs)
+	n := &Int{
+		AST: AST,
+		Val: big.NewInt(int64(AST.Rune)),
+	}
+	switch {
+	case isAnyFloat(infer):
+		return checkFloat(x, infer, AST, n.Val.String())
+	case isAnyInt(infer):
+		n.typ = infer
+	default:
+		n.typ = builtInType(x, "Int32")
+	}
+	if err := checkIntBounds(x, AST, n.typ, n.Val); err != nil {
+		errs = append(errs, *err)
+	}
+	return n, errs
 }
 
 func checkString(x *scope, astString *ast.String) (*String, []checkError) {

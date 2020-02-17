@@ -4198,6 +4198,52 @@ func TestFloatLit(t *testing.T) {
 	}
 }
 
+func TestRuneLit(t *testing.T) {
+	t.Parallel()
+	tests := []errorTest{
+		{
+			name: "ok",
+			src: `
+				val w := ['a']
+				val x Float := ['a']
+				val y Float32 := ['a']
+				val z Float64 := ['a']
+				val a Int := ['a']
+				val b Int8 := ['a']
+				val c Int16 := ['a']
+				val d Int32 := ['a']
+				val e Int64 := ['a']
+				val f UInt := ['a']
+				val g UInt8 := ['a']
+				val h UInt16 := ['a']
+				val i UInt32 := ['a']
+				val j UInt64 := ['a']
+			`,
+			err: "",
+		},
+		{
+			name: "defaults to Int32",
+			src: `
+				func [foo |
+					x := '☺'.
+					x := "hi".
+					use: x.
+				]
+				func T [use: _ T]
+			`,
+			err: "have String, want Int32",
+		},
+		{
+			name: "bad truncation",
+			src:  "val x Int8 := ['☺']",
+			err:  "Int8 cannot represent 9786: overflow",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 // TestTypeInstSub tests type instantiation substitution.
 func TestTypeInstSub(t *testing.T) {
 	t.Parallel()
