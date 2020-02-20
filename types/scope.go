@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/eaburns/pea/ast"
 )
 
@@ -389,11 +391,26 @@ func findFun(x *scope, loc ast.Node, recv *Type, mod *ast.ModTag, sel string) (f
 		if fun != nil {
 			return fun, nil
 		}
+		if fun = findDefModMeth(x, recv, sel); fun != nil {
+			return fun, nil
+		}
 	}
 	if recv == nil {
 		return nil, x.err(loc, "function %s%s not found", modName, sel)
 	}
 	return nil, x.err(loc, "method %s %s%s not found", recv, modName, sel)
+}
+
+func findDefModMeth(x *scope, recv *Type, sel string) *Fun {
+	if recv == nil {
+		fmt.Println("receiver is nil")
+		return nil
+	}
+	imp := x.findImport("#" + recv.ModPath)
+	if imp == nil {
+		return nil
+	}
+	return imp.findFun(recv, sel)
 }
 
 func (x *scope) findFun(loc ast.Node, recv *Type, sel string) (*Fun, *checkError) {

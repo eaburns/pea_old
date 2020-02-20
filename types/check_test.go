@@ -2863,6 +2863,27 @@ func TestCall(t *testing.T) {
 			err: "have Int, want String",
 		},
 		{
+			name: "mod tag not need for method from defining module",
+			src: `
+				import "foo"
+				// Even though it is a lower-case import,
+				// asString is in Foo's defining module,
+				// so we can use it without the #foo tag.
+				val _ String := [#foo new asString]
+			`,
+			imports: [][2]string{
+				{
+					"foo",
+					`
+						Type Foo {}
+						Func [new ^Foo]
+						Meth Foo [asString ^String]
+					`,
+				},
+			},
+			err: "",
+		},
+		{
 			name: "ambiguous method call",
 			src: `
 				Import "foo"
