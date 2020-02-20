@@ -1,3 +1,5 @@
+// © 2020 the Pea Authors under the MIT license. See AUTHORS for the list of authors.
+
 // The pealist command lists all pea modules in the given directory
 // in topological order, dependencies first.
 package main
