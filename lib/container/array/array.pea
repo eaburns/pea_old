@@ -1,0 +1,13 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+Func T [new: size Int fill: t T ^T Array]
+Func T [new: size Int init: t (Int, T) Fun ^T Array]
+
+Type T Ord {[< T ^Bool]}
+Meth (T T Ord) Array [sort]
+Meth (T T Ord) Array [sortBy: less (T&, T&, Bool) Fun]
+
+Meth T Array [linearSearch: t T ^Int?]
+Meth (T T Ord) Array [binarySearch: t T ^Int]

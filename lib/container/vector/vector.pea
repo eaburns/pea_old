@@ -1,0 +1,22 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Type T Vector := T _Vector.
+
+type _ _Vector {}
+
+Func T [new ^T Vector]
+Func T [new: ts T Array ^T Vector]
+Meth _ Vector [size ^Int]
+Meth T Vector [at: i Int ^T&]
+Meth T Vector [at: i Int put: t T &]
+Meth T Vector [push: t T&]
+Meth T Vector [pop ^T&]
+
+Type T SizeDoer {
+	[size ^Int]
+	[do: (T&, Nil) Fun]
+}
+Meth T Vector [pushAll: ts T SizeDoer]
+
+Meth T Vector [do: f (T&, Nil) Fun]
+Meth T Vector [doI: f (Int, T&, Nil) Fun]

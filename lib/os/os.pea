@@ -1,0 +1,8 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+import "io"
+
+Func [args ^String Array]
+Func [stdin ^#io Reader]
+Func [stdout ^#io Writer]
+Func [stderr ^#io Writer]

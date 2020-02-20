@@ -1,0 +1,64 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+import "io"
+
+Type Mode {read | write | readWrite}
+
+Type Options {
+	mode: Mode
+	create: Bool
+	trutruncate: Bool
+	exclusive: Bool
+	directory: Bool
+	permissions: Int
+}
+
+Func [newOptions: mode Mode ^Options]
+Func [open ^Options]
+Func [create ^Options]
+Meth Options [mode: _ Mode]
+Meth Options [create: _ Bool]
+Meth Options [truncate: _ Bool]
+Meth Options [exclusive: _ Bool]
+Meth Options [directory: _ Bool]
+Meth Options [permissions: _ Int]
+Meth Options [path: _ String ^OpenResult]
+
+type OpenResult {
+	| ok: File
+	| exists: Error
+	| doesNotExist: Error
+	| permissionDenied: Error
+	| error: Error
+}
+
+/*
+	f := (#fs open path: "foo")
+		ifDoesNotExist: [:e | ^panic: "does not exist: " + e errorMsg],
+		ifError: [:e | ^panic: "some other error: " + e errorMsg].
+*/
+Meth OpenResult [ifExist: _ (Error, Nil) Fun]
+Meth OpenResult [ifDoesNotExist: _ (Error, Nil) Fun]
+Meth OpenResult [ifPermissionDenied: _ (Error, Nil) Fun]
+Meth OpenResult [ifError: _ (Error, File) Fun ^File]
+
+Type File := fileRef.
+
+type fileRef {}
+
+Meth File [read: _ Byte Array ^#io ReadResult]
+Meth File [write: _ Byte Array ^#io WriteResult]
+Meth File [readDir ^String!]
+Meth File [info ^Info!]
+Meth File [close ^Error?]
+
+Type Info := info.
+
+type info{
+	size: Int64
+	mode: UInt32
+}
+
+Meth Info [size ^Int64]
+Meth Info [isDirectory ^Bool]

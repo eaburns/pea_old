@@ -1,0 +1,18 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+Type T Key {
+	[= T ^Bool]
+	[hash ^UInt64]
+}
+
+Type (K K Key, V) HashMap := (K, V) _HashMap.
+
+type (_, _) _HashMap {}
+
+Func (K K Key, V) [new ^(K, V) HashMap]
+Meth (K K Key, _) HashMap [size ^Int]
+Meth (K K Key, V) HashMap [at: k K ^V?]
+Meth (K K Key, V) HashMap [at: k K put: v V ^V?]
+Meth (K K Key, V) HashMap [remove: k K ^V?]

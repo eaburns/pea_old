@@ -1,0 +1,19 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Type T Stack := T _StackRef.
+
+type _ _StackRef {}
+
+Func T [new ^T Stack]
+Func T [new: ts T Array ^T Stack]
+Meth _ Stack [size ^Int]
+Meth T Stack [last ^T]
+Meth T Stack [push: t T]
+Meth T Stack [pop ^T]
+Meth T Stack [reset ^T Array]
+
+Type T SizeDoer{
+	[size ^Int]
+	[do: (T&, Nil) Fun]
+}
+Meth T Stack [pushAll: ts T SizeDoer]

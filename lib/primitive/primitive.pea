@@ -1,0 +1,102 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+/*
+The primitive module contains types and methods needed by most packages.
+*/
+
+// Option.
+Type T? {none | some: T}
+Func T [none ^T?]
+Func T [some: t T ^T?]
+
+// Error.
+Type Error {[errorMessage ^String]}
+Type T! {[ifError: (Error, T) Fun ^T]}
+Func T [ok: t T ^T!]
+Func T [error: e Error ^T!]
+
+// Control.
+Meth Bool R [ifFalse: _ R Fun ifTrue: _ R Fun ^R]
+Meth Bool [ifTrue: _ Nil Fun]
+Meth Bool [ifFalse: _ Nil Fun]
+Type BoolFun := Bool Fun.
+Meth BoolFun [whileTrue: _ Nil Fun]
+Meth BoolFun [whileFalse: _ Nil Fun]
+Meth Int [to: _ Int do: _ (Int, Nil) Fun]
+Meth Int [downTo: _ Int do: _ (Int, Nil) Fun]
+Meth T Array [do: _ (T&, Nil) Fun]
+Meth T Array [doI: _ (Int, T&, Nil) Fun]
+Meth String [doBytes: _ (Byte, Nil) Fun]
+Meth String [doBytesI: _ (Int, Byte, Nil) Fun]
+Meth T? R [ifSome: s (T, R) Fun ifNone: n R Fun ^R]
+Meth T? [ifSome: f (T, Nil) Fun]
+Meth T? [ifNone: f T Fun ^T]
+Type T OptFun := T? Fun.
+Meth T OptFun [whileSome: f (T&, Nil) Fun]
+Meth T! [ifOk: ok (T, Nil) Fun]
+Meth T! R [ifOk: ok (T, R) Fun ifError: err (Error, R) Fun ^R]
+Meth T! R [ifError: err (Error, R) Fun ifOk: ok (T, R) Fun ^R]
+Type ErrorOpt := Error?.
+Meth ErrorOpt [ifError: f (Error, Nil) Fun ^Nil]
+
+// Slice.
+Meth String [fromByte: _ Int ^String]
+Meth String [toByte: _ Int ^String]
+Meth T Array [from: _ Int ^T Array]
+Meth T Array [to: _ Int ^T Array]
+
+// asString.
+Meth Bool [asString ^String]
+Meth Int [asString ^String]
+Meth Int8 [asString ^String]
+Meth Int16 [asString ^String]
+Meth Int32 [asString ^String]
+Meth Int64 [asString ^String]
+Meth UInt [asString ^String]
+Meth UInt8 [asString ^String]
+Meth UInt16 [asString ^String]
+Meth UInt32 [asString ^String]
+Meth UInt64 [asString ^String]
+Meth Float [asString ^String]
+Meth Float32 [asString ^String]
+Meth Float64 [asString ^String]
+Type Stringer {[asString ^String]}
+Meth (_ Stringer) Array [asString ^String]
+Meth Error [asString ^String]
+
+// hash
+Meth Bool [hash ^UInt64]
+Meth Int [hash ^UInt64]
+Meth Int8 [hash ^UInt64]
+Meth Int16 [hash ^UInt64]
+Meth Int32 [hash ^UInt64]
+Meth Int64 [hash ^UInt64]
+Meth UInt [hash ^UInt64]
+Meth UInt8 [hash ^UInt64]
+Meth UInt16 [hash ^UInt64]
+Meth UInt32 [hash ^UInt64]
+Meth UInt64 [hash ^UInt64]
+Meth Float [hash ^UInt64]
+Meth Float32 [hash ^UInt64]
+Meth Float64 [hash ^UInt64]
+Meth String [hash ^UInt64]
+Type Hasher {[hash ^UInt64]}
+Meth (_ Hasher) Array [hash ^UInt64]
+
+// Ops.
+Meth Bool [|| _ Bool ^Bool]
+Meth Bool [or: _ Bool Fun ^Bool]
+Meth Bool [&& _ Bool ^Bool]
+Meth Bool [and: _ Bool Fun ^Bool]
+Meth Bool [= _ Bool ^Bool]
+Meth Bool [!= _ Bool ^Bool]
+Meth String [+ _ String ^String]
+Meth String [= _ String ^Bool]
+Meth String [!= _ String ^Bool]
+Meth String [< _ String ^Bool]
+Meth String [<= _ String ^Bool]
+Meth String [> _ String ^Bool]
+Meth String [>= _ String ^Bool]
+Type T Eq {[= T ^Bool]}
+Meth (T T Eq) Array [= _ T Array ^Bool]
+Meth (T T Eq) Array [!= _ T Array ^Bool]

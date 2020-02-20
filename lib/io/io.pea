@@ -1,0 +1,20 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+Type ReadResult {error: Error | eof | ok: Int}
+Type Reader {[read: Byte Array ^ReadResult]}
+
+Meth Reader [readAll ^Byte Array!]
+Meth Reader [readAllString ^String!]
+Meth Reader [copyTo: w Writer ^Int64!]
+
+Type ReadFullError {error: Error n: Int}
+Type ReadFullResult {error: ReadFullError | ok: Int}
+Meth ReadFullResult [ifError: f (Error, Int) Fun ^Int]
+Meth Reader [readFull: buf Byte Array ^ReadFullResult!]
+
+Type WriteResult {error: Error | ok: Int}
+Type Writer {[write: Byte Array ^WriteResult]}
+
+Meth Writer [writeString: str String ^Error?]

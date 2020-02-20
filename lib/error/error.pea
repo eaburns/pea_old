@@ -1,0 +1,8 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+Func [new: msg String ^Error]
+Func [format: fmt String values: vs Stringer Array ^Error]
+Func [format: fmt String value: v0 Stringer ^Error]
+Func [format: fmt String value: v0 Stringer value: v1 Stringer ^Error]
