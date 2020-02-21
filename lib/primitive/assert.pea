@@ -1,0 +1,75 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+/*
+We try to use built-in methods where possible in asserts.pea
+so that that the dependencies of the asserts functions are small.
+This lets us use them to test functions that they would
+otherwise depend on in their implementation.
+*/
+
+// assertTrue: panics if b is false.
+Func [assertTrue: b Bool |
+	b ifTrue: [] ifFalse: [panic: "expected true"]
+]
+
+// assertFalse: panics if b is true.
+Func [assertFalse: b Bool |
+	b ifTrue: [panic: "expected false"] ifFalse: []
+]
+
+// (T T EqStringer) assert:equals: panics if a = b is false.
+Func (T T EqStringer) [assert: a T equals: b T |
+	a = b
+		ifTrue: []
+		ifFalse: [panic: a asString + " = " + b asString + " is false"]
+]
+
+// (T T EqStringer) assert:notEquals: panics if a != b is false.
+Func (T T EqStringer) [assert: a T notEquals: b T |
+	a != b
+		ifTrue: []
+		ifFalse: [panic: a asString + " != " + b asString + " is false"]
+]
+
+// (T T OrdStringer) assert:isLessThan: panics if a < b is false.
+Func (T T OrdStringer) [assert: a T isLessThan: b T |
+	a < b
+		ifTrue: []
+		ifFalse: [panic: a asString + " < " + b asString + " is false"]
+]
+
+// (T T OrdStringer) assert:isGreaterThan: panics if a > b is false.
+Func (T T OrdStringer) [assert: a T isGreaterThan: b T |
+	a > b
+		ifTrue: []
+		ifFalse: [panic: a asString + " > " + b asString + " is false"]
+]
+
+// (T Stringer)assertNone: panics if topt is the some-case.
+Func (T Stringer) [assertNone: topt T? |
+	topt
+		ifNone: []
+		ifSome: [:t | panic: "got {some: " + t asString + "}, expected none"]
+]
+
+// T assert:isSome: panics if topt is the none case.
+Func T [assert: topt T? isSome: t T |
+	topt
+		ifNone: [panic: "got none, expected some:"]
+		ifSome: [:_ |]
+]
+
+// (T Stringer) assertError: panics if terr is not an error.
+Func (T Stringer) [assertError: terr T! |
+	t := terr ifError: [:_ | ^{}].
+	panic: "got {ok: " + t asString + "}, expected an error"
+]
+
+// T assert:isOkAndEquals: panics if terr is an error
+// or if t = u is false for the non-error value of terr, t.
+Func (T T EqStringer)  [assert: terr T! isOkAndEquals: u T |
+	t := terr ifError: [:err |
+		panic: "got {error: " + err errorMsg + "}, want ok"
+	].
+	assert: t equals: u.
+]

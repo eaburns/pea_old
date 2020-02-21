@@ -1,0 +1,222 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+// maxInt8 returns the maximum representable value of an Int8.
+Func [maxInt8 ^Int8 | ^127]
+
+// minInt8 returns the minimum representable value of an Int8.
+Func [minInt8 ^Int8 | ^-128]
+
+// maxInt16 returns the maximum representable value of an Int16.
+Func [maxInt16 ^Int16 | ^32767]
+
+// minInt16 returns the minimum representable value of an Int16.
+Func [minInt16 ^Int16 | ^-32768]
+
+// maxInt32 returns the maximum representable value of an Int32.
+Func [maxInt32 ^Int32 | ^2147483647]
+
+// minInt32 returns the minimum representable value of an Int32.
+Func [minInt32 ^Int32 | ^-2147483648]
+
+// maxInt64 returns the maximum representable value of an Int64.
+Func [maxInt64 ^Int64 | ^9223372036854775807]
+
+// minInt64 returns the minimum representable value of an Int64.
+Func [minInt64 ^Int64 | ^-9223372036854775808]
+
+// maxUInt8 returns the maximum representable value of a UInt8.
+Func [maxUInt8 ^UInt8 | ^255]
+
+// maxUInt16 returns the maximum representable value of a UInt16.
+Func [maxUInt16 ^UInt16 | ^65535]
+
+// maxUInt32 returns the maximum representable value of a UInt32.
+Func [maxUInt32 ^UInt32 | ^4294967295]
+
+// maxUInt64 returns the maximum representable value of a UInt64.
+Func [maxUInt64 ^UInt64 | ^18446744073709551615]
+
+// Int to:do: evaluates f with each integer in increasing order
+// from the receiver value to e inclusive.
+// If e is less than the receiver, f is not evaluated.
+Meth Int [to: e Int do: f (Int, Nil) Fun |
+	self > e ifTrue: [^{}].
+	f value: self.
+	self + 1 to: e do: f
+]
+
+test [Int_toDo |
+	j := 0.
+	values Int Array := newArray: 3 init: [:_ | 0].
+	0 to: values size - 1 do: [:i |
+		values at: j put: i.
+		j := j + 1
+	].
+	assert: (values at: 0) equals: 0.
+	assert: (values at: 1) equals: 1.
+	assert: (values at: 2) equals: 2.
+]
+
+// Int downTo:do: evaluates f with each integer in decreasing order
+// from the receiver value to e inclusive.
+// If e is greater then the receiver, f is not evaluated.
+Meth Int [downTo: e Int do: f (Int, Nil) Fun |
+	self < e ifTrue: [^{}].
+	f value: self.
+	self - 1 downTo: e do: f
+]
+
+test [Int_downToDo |
+	j := 0.
+	values Int Array := newArray: 3 init: [:_ | 0].
+	values size - 1 downTo: 0 do: [:i |
+		values at: j put: i.
+		j := j + 1
+	].
+	assert: (values at: 0) equals: 2.
+	assert: (values at: 1) equals: 1.
+	assert: (values at: 2) equals: 0.
+]
+
+// Int asString returns the receiver value as a decimal string.
+Meth Int [asString ^String | ^format: self asInt64 base: 10]
+
+test [Int_asString |
+	assert: 0 asInt asString equals: "0".
+	assert: 1 asInt asString equals: "1".
+	assert: -1 asInt asString equals: "-1".
+	assert: 100 asInt asString equals: "100".
+	assert: -100 asInt asString equals: "-100".
+]
+
+// Int8 asString returns the receiver value as a decimal string.
+Meth Int8 [asString ^String | ^format: self asInt64 base: 10]
+
+test [Int8_asString |
+	assert: 0 asInt8 asString equals: "0".
+	assert: 1 asInt8 asString equals: "1".
+	assert: -1 asInt8 asString equals: "-1".
+	assert: 100 asInt8 asString equals: "100".
+	assert: -100 asInt8 asString equals: "-100".
+	assert: maxInt8 asString equals: "127".
+	assert: minInt8 asString equals: "-128".
+]
+
+// Int16 asString returns the receiver value as a decimal string.
+Meth Int16 [asString ^String | ^format: self asInt64 base: 10]
+
+test [Int16_asString |
+	assert: 0 asInt16 asString equals: "0".
+	assert: 1 asInt16 asString equals: "1".
+	assert: -1 asInt16 asString equals: "-1".
+	assert: 100 asInt16 asString equals: "100".
+	assert: -100 asInt16 asString equals: "-100".
+	assert: maxInt16 asString equals: "32767".
+	assert: minInt16 asString equals: "-32768".
+]
+
+// Int32 asString returns the receiver value as a decimal string.
+Meth Int32 [asString ^String | ^format: self asInt64 base: 10]
+
+test [Int32_asString |
+	assert: 0 asInt32 asString equals: "0".
+	assert: 1 asInt32 asString equals: "1".
+	assert: -1 asInt32 asString equals: "-1".
+	assert: 100 asInt32 asString equals: "100".
+	assert: -100 asInt32 asString equals: "-100".
+	assert: maxInt32 asString equals: "2147483647".
+	assert: minInt32 asString equals: "-2147483648".
+]
+
+// Int64 asString returns the receiver value as a decimal string.
+Meth Int64 [asString ^String | ^format: self asInt64 base: 10]
+
+test [Int64_asString |
+	assert: 0 asInt64 asString equals: "0".
+	assert: 1 asInt64 asString equals: "1".
+	assert: -1 asInt64 asString equals: "-1".
+	assert: 100 asInt64 asString equals: "100".
+	assert: -100 asInt64 asString equals: "-100".
+	assert: maxInt64 asString equals: "9223372036854775807".
+	assert: minInt64 asString equals: "-9223372036854775808".
+]
+
+func [format: x Int64 base: base Int ^String |
+	u := (x < 0 ifTrue: [x neg] ifFalse: [x]) asUInt64.
+	^format: u base: base neg: x < 0.
+]
+
+// UInt asString returns the receiver value as a decimal string.
+Meth UInt [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+
+test [UInt_asString |
+	assert: 0 asUInt asString equals: "0".
+	assert: 1 asUInt asString equals: "1".
+	assert: 100 asUInt asString equals: "100".
+]
+
+// UInt8 asString returns the receiver value as a decimal string.
+Meth UInt8 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+
+test [UInt8_asString |
+	assert: 0 asUInt8 asString equals: "0".
+	assert: 1 asUInt8 asString equals: "1".
+	assert: 100 asUInt8 asString equals: "100".
+	assert: maxUInt8 asString equals: "255".
+]
+
+// UInt16 asString returns the receiver value as a decimal string.
+Meth UInt16 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+
+test [UInt16_asString |
+	assert: 0 asUInt16 asString equals: "0".
+	assert: 1 asUInt16 asString equals: "1".
+	assert: 100 asUInt16 asString equals: "100".
+	assert: maxUInt16 asString equals: "65535".
+]
+
+// UInt32 asString returns the receiver value as a decimal string.
+Meth UInt32 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+
+test [UInt32_asString |
+	assert: 0 asUInt32 asString equals: "0".
+	assert: 1 asUInt32 asString equals: "1".
+	assert: 100 asUInt32 asString equals: "100".
+	assert: maxUInt32 asString equals: "4294967295".
+]
+
+// UInt64 asString returns the receiver value as a decimal string.
+Meth UInt64 [asString ^String | ^format: self asUInt64 base: 10 neg: false]
+
+test [UInt64_asString |
+	assert: 0 asUInt64 asString equals: "0".
+	assert: 1 asUInt64 asString equals: "1".
+	assert: 100 asUInt64 asString equals: "100".
+	assert: maxUInt64 asString equals: "18446744073709551615".
+]
+
+val digits Byte Array := [
+	{'0'; '1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'; 'a'; 'b'; 'c'; 'd'; 'e'; 'f';}
+]
+
+func [format: u UInt64 base: base Int neg: neg Bool ^String |
+	(base < 2) || (base > 16) ifTrue: [panic: "bad base"].
+
+	// 20 bytes is the largest possible 64-bit int including a leading -.
+	bytes Byte Array := newArray: 20 init: [:_ | 0].
+	b := base asUInt64.
+	i := bytes size - 1.
+	[u >= b] whileTrue: [
+		uNext := u / b.
+		d := u - (uNext * b).
+		bytes at: i put: (digits at: d asInt).
+		i := i - 1.
+		u := uNext.
+	].
+	bytes at: i put: (digits at: u asInt).
+	neg ifTrue: [
+		i := i - 1.
+		bytes at: i put: '-'
+	].
+	^newString: (bytes from: i to: bytes size - 1).
+]

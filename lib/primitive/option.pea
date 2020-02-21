@@ -1,0 +1,165 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+// T? is a type that represents either a value of type T or no value.
+Type T? {none | some: T}
+
+// None returns a T? with no value.
+Func T [none ^T? |
+	^{none}
+]
+
+// Some: returns a T? with the value t.
+Func T [some: t T ^T? |
+	^{some: t}
+]
+
+// T? ifSome:ifNone: returns the result of evaluating s
+// with the some-value of the receiver if the case is some,
+// otherwise it returns the result of evaluating n.
+Meth T? R [ifSome: s (T, R) Fun ifNone: n R Fun ^R |
+	^self ifNone: n ifSome: s
+]
+
+test [Option_ifSomeIfNone |
+	x := some: "test".
+	msg := "".
+	x
+		ifSome: [:t String | msg := t]
+		ifNone: [panic: "ifNone evaluated"].
+	assert: msg equals: "test".
+
+	x := none.
+	ok := false.
+	x
+		ifSome: [:t String | panic: "some called with " + t asString]
+		ifNone: [ok := true].
+	assertTrue: ok.
+]
+
+// T? ifSome: evaluates f with the some-value of the receiver
+// if the case is some.
+Meth T? [ifSome: f (T, Nil) Fun |
+	self ifNone: [] ifSome: f
+]
+
+test [Option_ifSome |
+	x := some: "test".
+	msg := "".
+	x ifSome: [:t String | msg := t].
+	assert: msg equals: "test".
+
+	x := none.
+	x ifSome: [:t String | panic: "some called with " + t asString].
+]
+
+// T? ifNone: returns the some-value of the receiver if the case is some,
+// otherwise, if the case is none, it returns the result of evaluating f.
+Meth T? [ifNone: f T Fun ^T |
+	^self ifNone: f ifSome: [:t | t]
+]
+
+test [Option_ifNone |
+	x := some: "test".
+	x ifNone: [panic: "ifNone called"].
+
+	x := none.
+	msg := x ifNone: ["test"].
+	assert: msg equals: "test".
+]
+
+// ErrorOpt is an alias for Error?.
+Type ErrorOpt := Error?.
+
+test [ErrorOptImplementsErrorOr |
+	x Error? := some: (errorMsg: "hi").
+	_ Nil! := x.
+]
+
+// ErrorOpt ifError: evaluates f with the some-value if the receiver case is some.
+Meth ErrorOpt [ifError: f (Error, Nil) Fun ^Nil |
+	^self ifSome: [:e | f value: e] ifNone: []
+]
+
+test [ErrorOpt_ifError |
+	x Error? := none.
+	x ifError: [:e | panic: "ifError called with " + e errorMsg].
+
+	x := some: (errorMsg: "test").
+	ok := false.
+	x ifError: [:e |
+		ok := true.
+		assert: e errorMsg equals: "test".
+	].
+	assertTrue: ok.
+]
+
+// T OptFun is an alias for T? Fun.
+Type T OptFun := T? Fun.
+
+// T OptFun whileSome: continually evaluates the receiver until it returns none.
+// Each time it evaluates to a some case, f is evaluated with the some-value.
+Meth T OptFun [whileSome: f (T&, Nil) Fun |
+	t := self value ifNone: [^{}].
+	f value: t.
+	self whileSome: f
+]
+
+test [OptFun_whileSome |
+	i := 0.
+	[i < 5 ifTrue: [(some: i)] ifFalse: [none]] whileSome: [:got |
+		assert: got equals: i.
+		i := i + 1.
+	].
+	assert: i equals: 5.
+]
+
+// (_ Stringer)? asString returns a string representation of the receiver.
+Meth (_ Stringer)? [asString ^String |
+	^self
+		ifNone: ["{none}"]
+		ifSome: [:t | "{some: " + t asString + "}"]
+]
+
+test [Opt_asString |
+	assert: (some: "hello") asString equals: "{some: hello}".
+	assert: (some: 5 asInt) asString equals: "{some: 5}".
+	x Int? := none.
+	assert: x asString equals: "{none}".
+]
+
+// (T T Eq)? = returns whether the receiver equals other.
+// Two optional types are equal if they are both the none case,
+// or if they are both the some case with values x and y,
+// and x=y is true.
+Meth (T T Eq)? [= other T? ^Bool |
+	x := self ifNone: [
+		other ifNone: [^true].
+		^false.
+	].
+	y := other ifNone: [^false].
+	^x = y.
+]
+
+test [Opt_equals |
+	assertIntOpt: none equals: none.
+	assertIntOpt: none notEquals: (some: 0).
+	assertIntOpt: (some: 0) notEquals: none.
+	assertIntOpt: (some: 0) equals: (some: 0).
+	assertIntOpt: (some: 0) notEquals: (some: 5).
+]
+
+func [assertIntOpt: a Int? equals: b Int? |
+	assert: a equals: b
+]
+
+func [assertIntOpt: a Int? notEquals: b Int? |
+	assert: a notEquals: b
+]
+
+// (T T Eq)? != returns whether the receiver is not equal to other.
+// Two optional types are not equal if they are differing cases,
+// or if they are both the some case with values x and y,
+// and x=y is false.
+Meth (T T Eq)? [!= other T? ^Bool |
+	^(self = other) not.
+]

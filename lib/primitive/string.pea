@@ -1,0 +1,265 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+// String fromByte: returns the substring of the receiver from byte i to the end.
+Meth String [fromByte: i Int ^String |
+	^self fromByte: i toByte: self byteSize - 1
+]
+
+test [String_fromByte |
+	assert: ("abc" fromByte: 0) equals: "abc".
+	assert: ("abc" fromByte: 1) equals: "bc".
+	assert: ("abc" fromByte: 2) equals: "c".
+	assert: ("abc" fromByte: 3) equals: "".
+	assert: ("☹☺" fromByte: 0) equals: "☹☺".
+	assert: ("☹☺" fromByte: 3) equals: "☺".
+	assert: ("☹☺" fromByte: 6) equals: "".
+]
+
+// String toByte: returns the substring of the receiver from byte 0 to byte i (inclusive).
+Meth String [toByte: i Int ^String |
+	^self fromByte: 0 toByte: i
+]
+
+test [String_toByte |
+	assert: ("abc" toByte: 2) equals: "abc".
+	assert: ("abc" toByte: 1) equals: "ab".
+	assert: ("abc" toByte: 0) equals: "a".
+	assert: ("☹☺" toByte: 5) equals: "☹☺".
+	assert: ("☹☺" toByte: 2) equals: "☹".
+]
+
+// String doBytes: evaluates f for each byte of the receiver
+// in order of increasing index.
+Meth String [doBytes: f (Byte, Nil) Fun |
+	0 to: self byteSize - 1 do: [:i |
+		f value: (self atByte: i)
+	]
+]
+
+test [String_doBytes |
+	n := 0.
+	want Byte := 'a'.
+	"abc" doBytes: [:b |
+		assert: b equals: want.
+		want := want + 1.
+		n := n + 1.
+	].
+	assert: n equals: 3.
+]
+
+// String doBytesI: evaluates f for each index and byte of the receiver
+// in order of increasing index.
+Meth String [doBytesI: f (Int, Byte, Nil) Fun |
+	0 to: self byteSize - 1 do: [:i |
+		f value: i value: (self atByte: i)
+	]
+]
+
+test [String_doBytesI |
+	n := 0.
+	want Byte := 'a'.
+	"abc" doBytesI: [:i :b |
+		assert: i equals: n.
+		assert: b equals: want.
+		want := want + 1.
+		n := n + 1.
+	].
+	assert: n equals: 3.
+]
+
+// String asString returns itself.
+Meth String [asString ^String |
+	^self
+]
+
+test [String_asString |
+	// We cannot use assert:equals: to test asString,
+	// since assert:equals: is implemented using asString.
+	"" asString = "" ifFalse: [panic: "fail"].
+	"abc" asString = "abc" ifFalse: [panic: "fail"].
+	"☺" asString = "☺" ifFalse: [panic: "fail"].
+]
+
+Meth String [+ other String ^String |
+	size := self byteSize + other byteSize.
+	data Byte Array := newArray: size init: [:_ | 0].
+	0 to: self byteSize - 1 do: [:i |
+		data at: i put: (self atByte: i).
+	].
+	i := self byteSize.
+	0 to: other byteSize - 1 do: [:j |
+		data at: i put: (other atByte: j).
+		i := i + 1.
+	].
+	^newString: data.
+]
+
+test [String_plus |
+	// We cannot use assert:equals: to test String+,
+	// since assert:equals: is implemented using String+.
+	("" + "") = "" ifFalse: [panic: "fail"].
+	("a" + "") = "a" ifFalse: [panic: "fail"].
+	("" + "a") = "a" ifFalse: [panic: "fail"].
+	("a" + "b") = "ab" ifFalse: [panic: "fail"].
+	("a" + "bcdefg") = "abcdefg" ifFalse: [panic: "fail"].
+	("abcdef" + "g") = "abcdefg" ifFalse: [panic: "fail"].
+	("☺" + "") = "☺" ifFalse: [panic: "fail"].
+	("☹" + "☺") = "☹☺" ifFalse: [panic: "fail"].
+]
+
+// String = returns whether the receiver is equal to other.
+Meth String [= other String ^Bool |
+	self byteSize = other byteSize ifFalse: [^false].
+	0 to: self byteSize - 1 do: [:i |
+		(self atByte: i) = (other atByte: i) ifFalse: [^false].
+	].
+	^true
+]
+
+// String != returns whether the receiver is not equal to other.
+Meth String [!= other String ^Bool |
+	^(self = other) not.
+]
+
+test [String_equals |
+	assert: "" equals: "".
+	assert: "abc" equals: "abc".
+	assert: "☹☺" equals: "☹☺".
+	assert: "\x000" equals: "\x000".
+	assert: "abc\x000xyz" equals: "abc\x000xyz".
+
+	assert: "" notEquals: "abc".
+	assert: "abc" notEquals: "".
+	assert: "abc" notEquals: "abcdef".
+	assert: "abcdef" notEquals: "abc".
+	assert: "☺" notEquals: "☹".
+	assert: "☺" notEquals: "abc".
+	assert: "\x000" notEquals: "".
+	assert: "" notEquals: "\x000".
+	assert: "abc" notEquals: "abc\x000".
+	assert: "abc\x000def" notEquals: "abc\x000xyz".
+]
+
+// String < returns whether the receiver is lexicographically less than other.
+Meth String [< other String ^Bool |
+	self byteSize = other byteSize ifFalse: [
+		^self byteSize < other byteSize.
+	].
+	self doBytesI: [:i :a |
+		b := other atByte: i.
+		a = b ifFalse: [^a < b].
+	].
+	^false.
+]
+
+test [String_less |
+	assert: "" isLessThan: "a".
+	assert: "a" isLessThan: "b".
+	assert: "a" isLessThan: "aa".
+	assert: "abc" isLessThan: "abd".
+	assert: "abc" isLessThan: "abcd".
+
+	assert: "" isNotLessThan: "".
+	assert: "a" isNotLessThan: "a".
+	assert: "b" isNotLessThan: "a".
+	assert: "aa" isNotLessThan: "a".
+]
+
+// String < returns whether the receiver is lexicographically less than or equal to other.
+Meth String [<= other String ^Bool |
+	self byteSize = other byteSize ifFalse: [
+		^self byteSize < other byteSize.
+	].
+	self doBytesI: [:i :a |
+		b := other atByte: i.
+		a = b ifFalse: [^a < b].
+	].
+	^true.
+]
+
+test [String_lessOrEquals |
+	assert: "" isLessThanOrEquals: "".
+	assert: "" isLessThanOrEquals: "a".
+	assert: "a" isLessThanOrEquals: "a".
+	assert: "a" isLessThanOrEquals: "aa".
+	assert: "abc" isLessThanOrEquals: "abd".
+	assert: "abc" isLessThanOrEquals: "abcd".
+
+	assert: "b" isNotLessThanOrEquals: "a".
+	assert: "aa" isNotLessThanOrEquals: "a".
+	assert: "abc" isNotLessThanOrEquals: "abb".
+]
+
+// String < returns whether the receiver is lexicographically greater than other.
+Meth String [> other String ^Bool |
+	self byteSize = other byteSize ifFalse: [
+		^self byteSize > other byteSize.
+	].
+	self doBytesI: [:i :a |
+		b := other atByte: i.
+		a = b ifFalse: [^a > b].
+	].
+	^false.
+]
+
+test [String_greater |
+	assert: "a" isGreaterThan: "".
+	assert: "b" isGreaterThan: "a".
+	assert: "aa" isGreaterThan: "a".
+	assert: "abd" isGreaterThan: "abc".
+	assert: "abcd" isGreaterThan: "abc".
+
+	assert: "" isNotGreaterThan: "".
+	assert: "a" isNotGreaterThan: "a".
+	assert: "a" isNotGreaterThan: "b".
+	assert: "a" isNotGreaterThan: "aa".
+]
+
+// String < returns whether the receiver is lexicographically greater than or equal to other.
+Meth String [>= other String ^Bool |
+	self byteSize = other byteSize ifFalse: [
+		^self byteSize > other byteSize.
+	].
+	self doBytesI: [:i :a |
+		b := other atByte: i.
+		a = b ifFalse: [^a > b].
+	].
+	^true.
+]
+
+test [String_greaterOrEquals |
+	assert: "" isGreaterThanOrEquals: "".
+	assert: "a" isGreaterThanOrEquals: "".
+	assert: "a" isGreaterThanOrEquals: "a".
+	assert: "aa" isGreaterThanOrEquals: "a".
+	assert: "abd" isGreaterThanOrEquals: "abc".
+	assert: "abcd" isGreaterThanOrEquals: "abc".
+
+	assert: "a" isNotGreaterThanOrEquals: "b".
+	assert: "a" isNotGreaterThanOrEquals: "aa".
+	assert: "abb" isNotGreaterThanOrEquals: "abc".
+]
+
+func [assert: a String isNotLessThan: b String |
+	a < b ifTrue: [panic: a + " < " + b + " is false"]
+]
+
+func [assert: a String isLessThanOrEquals: b String |
+	a <= b ifFalse: [panic: a + " <= " + b + " is false"]
+]
+
+func [assert: a String isNotLessThanOrEquals: b String |
+	a <= b ifTrue: [panic: a + " <= " + b + " is false"]
+]
+
+func [assert: a String isNotGreaterThan: b String |
+	a > b ifTrue: [panic: a + " > " + b + " is false"]
+]
+
+func [assert: a String isGreaterThanOrEquals: b String |
+	a >= b ifFalse: [panic: a + " >= " + b + " is false"]
+]
+
+func [assert: a String isNotGreaterThanOrEquals: b String |
+	a >= b ifTrue: [panic: a + " >= " + b + " is false"]
+]

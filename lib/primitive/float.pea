@@ -1,0 +1,167 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+func [maxFloat64 ^Float64 |
+	^1.797693134862315708145274237317043567981e+308
+]
+
+func [smallestPositiveFloat64 ^Float64 |
+	^4.940656458412465441765687928682213723651e-324
+]
+
+// Float asString returns a string representation of the receiver.
+Meth Float [asString ^String |
+	^self asFloat64 asString
+]
+
+// Float32 asString returns a string representation of the receiver.
+Meth Float32 [asString ^String |
+	^self asFloat64 asString
+]
+
+// Float64 asString returns a string representation of the receiver.
+Meth Float64 [asString ^String |
+	// This is a very simple algorithm from
+	// https://blog.benoitblanchon.fr/lightweight-float-to-string/.
+	self != self ifTrue: [^"NaN"].
+	self > maxFloat64 ifTrue: [^"Inf"].
+	self < maxFloat64 neg ifTrue: [^"-Inf"].
+
+	f := self < 0 ifTrue: [self neg] ifFalse: [self].
+
+	e := 0.
+  	maxPosExp Float64 := 1.0e7.
+  	maxNegExp Float64 := 1.0e-5.
+	f >= maxPosExp ifTrue: [
+		f >= 1.0e256 ifTrue: [
+			f := f / 1.0e256.
+			e := e + 256.
+		].
+		f >= 1.0e128 ifTrue: [
+			f := f / 1.0e128.
+			e := e + 128.
+		].
+		f >= 1.0e64 ifTrue: [
+			f := f / 1.0e64.
+			e := e + 64.
+		].
+		f >= 1.0e32 ifTrue: [
+			f := f / 1.0e32.
+			e := e + 32.
+		].
+		f >= 1.0e16 ifTrue: [
+			f := f / 1.0e16.
+			e := e + 16.
+		].
+		f >= 1.0e8 ifTrue: [
+			f := f / 1.0e8.
+			e := e + 8.
+		].
+		f >= 1.0e4 ifTrue: [
+			f := f / 1.0e4.
+			e := e + 4.
+		].
+		f >= 1.0e2 ifTrue: [
+			f := f / 1.0e2.
+			e := e + 2.
+		].
+		f >= 1.0e1 ifTrue: [
+			f := f / 1.0e1.
+			e := e + 1.
+		].
+	].
+	(f > 0) && (f <= maxNegExp) ifTrue: [
+		f < 1.0e-255 ifTrue: [
+			f := f * 1.0e256.
+			e := e - 256.
+		].
+		f < 1.0e-127 ifTrue: [
+			f := f * 1.0e128.
+			e := e - 128.
+		].
+		f < 1.0e-63 ifTrue: [
+			f := f * 1.0e64.
+			e := e - 64.
+		].
+		f < 1.0e-31 ifTrue: [
+			f := f * 1.0e32.
+			e := e - 32.
+		].
+		f < 1.0e-15 ifTrue: [
+			f := f * 1.0e16.
+			e := e - 16.
+		].
+		f < 1.0e-7 ifTrue: [
+			f := f * 1.0e8.
+			e := e - 8.
+		].
+		f < 1.0e-3 ifTrue: [
+			f := f * 1.0e4.
+			e := e - 4.
+		].
+		f < 1.0e-1 ifTrue: [
+			f := f * 1.0e2.
+			e := e - 2.
+		].
+		f < 1.0e0 ifTrue: [
+			f := f * 1.0e1.
+			e := e - 1.
+		].
+	].
+
+	i := f asUInt32.
+	r := (f - i asFloat64) * 1.0e9.
+	d := r asUInt32.
+
+	// Rounding.
+	r := r - d asFloat64.
+	r >= 0.5 ifTrue: [
+		d := d + 1.
+		d >= 1.0e9 ifTrue: [
+			d := 0.
+			i := i + 1.
+			(e != 0) && (i >= 10) ifTrue: [
+				e := e + 1.
+				i := 1.
+			].
+		].
+	].
+
+	// TODO: Float asString creates a lot of unnecessary string copies.
+	^(self < 0 ifTrue: ["-"] ifFalse: [""]) +
+		i asString +
+		(d != 0 ifTrue: ["." + d asString trimZeroes] ifFalse: [""]) +
+		(e < 0 ifTrue: ["e-" + e neg asString] ifFalse: [""]) +
+		(e > 0 ifTrue: ["e" + e asString] ifFalse: [""]).
+]
+
+meth String [trimZeroes ^String |
+	s := self.
+	[(s byteSize > 1) && ((s atByte: s byteSize - 1) = '0')] whileTrue: [
+		s := s toByte: s byteSize - 2
+	].
+	^s
+]
+
+test [Float64_asString |
+	assert: (0.0 / 0.0) asFloat64 asString equals: "NaN".
+	assert: (1.0 / 0.0) asString equals: "Inf".
+	assert: (-1.0 / 0.0) asString equals: "-Inf".
+	assert: 0 asFloat64 asString equals: "0".
+	assert: -0 asFloat64 asString equals: "0".
+	assert: 1 asFloat64 asString equals: "1".
+	assert: -1 asFloat64 asString equals: "-1".
+	assert: 3.14 asFloat64 asString equals: "3.14".
+	assert: -3.14 asFloat64 asString equals: "-3.14".
+	assert: (1.0 / 2.0) asFloat64 asString equals: "0.5".
+	assert: (1.0 / 4.0) asFloat64 asString equals: "0.25".
+	assert: (1.0 / 8.0) asFloat64 asString equals: "0.125".
+	assert: (1.0 / 3.0) asFloat64 asString equals: "0.333333333".
+	assert: (4.0 / 3.0) asFloat64 asString equals: "1.333333333".
+	assert: (2.0 / 3.0) asFloat64 asString equals: "0.666666667".
+	assert: (5.0 / 3.0) asFloat64 asString equals: "1.666666667".
+	assert: maxUInt32 asFloat64 asString equals: "4.294967295e9".
+	assert: maxUInt32 asFloat64 neg asString equals: "-4.294967295e9".
+	assert: maxFloat64 asString equals: "1.797693135e308".
+	assert: maxFloat64 neg asString equals: "-1.797693135e308".
+	assert: smallestPositiveFloat64 asString equals: "4.940656458e-324".
+]

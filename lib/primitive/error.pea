@@ -1,0 +1,115 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+// Error is an interface implemented by types that report an error message.
+Type Error {[errorMsg ^String]}
+
+// Error asString returns the error message string.
+Meth Error [asString ^String |
+	^self errorMsg
+]
+
+type ErrorString{msg: String}
+
+meth ErrorString [errorMsg ^String | ^msg]
+
+// errorMsg returns an Error that returns msg
+// from its errorMsg method.
+Func [errorMsg: msg String ^Error |
+	err ErrorString := {msg: msg}.
+	^err
+]
+
+// T! is an interface implemented by types
+// that represent either a value of type T or an Error.
+Type T! {[ifError: (Error, T) Fun ^T]}
+
+type T OrError {error: Error | ok: T}
+
+meth T OrError [ifError: f (Error, T) Fun ^T |
+	^self ifError: f ifOk: [:t | t]
+]
+
+// ok: returns a T! with the a non-Error value t.
+Func T [ok: t T ^T! |
+	terr T OrError := {ok: t}.
+	^terr
+]
+
+test [Fun_ok |
+	assert: (ok: 1) isOkAndEquals: 1.
+]
+
+// error: returns a T! with an error value e.
+Func T [error: e Error ^T! |
+	terr T OrError := {error: e}.
+	^terr
+]
+
+test [Fun_error |
+	terr Int! := error: (errorMsg: "oops").
+	assertError: terr.
+]
+
+// T! ifOk: evalutase ok with the ok-value if the receiver case is ok.
+Meth T! [ifOk: ok (T, Nil) Fun |
+	t := self ifError: [:_ | ^{}].
+	ok value: t
+]
+
+test [ErrorOrT_ifOk |
+	terr Int! := error: (errorMsg: "fooy").
+	terr ifOk: [:_ | panic: "ifOk called on error"].
+
+	terr := ok: 5.
+	x := -1.
+	terr ifOk: [:i | x := i].
+	assert: x equals: 5.
+]
+
+// T! ifOk:ifError: returns
+// the result of evaluating ok with the ok-value  if the receiver case is ok,
+// otherwise the result of evaluating err with the error value.
+Meth T! R [ifOk: ok (T, R) Fun ifError: err (Error, R) Fun ^R |
+	t := self  ifError: [:e | ^err value: e].
+	^ok value: t
+]
+
+test [ErrorOrT_ifOkIfError |
+	terr Int! := error: (errorMsg: "test").
+	msg := "".
+	terr
+		ifOk: [:_ Int | panic: "ifOk called on error"]
+		ifError: [:e | msg := e errorMsg].
+	assert: msg equals: "test".
+
+	terr := ok: 5.
+	x := -1.
+	terr
+		ifOk: [:i Int | x := i]
+		ifError: [:e | panic: "got error " + e errorMsg].
+	assert: x equals: 5.
+]
+
+// T! ifError:ifOk: returns
+// the result of evaluating ok with the ok-value  if the receiver case is ok,
+// otherwise the result of evaluating err with the error value.
+Meth T! R [ifError: err (Error, R) Fun ifOk: ok (T, R) Fun ^R |
+	t := self  ifError: [:e | ^err value: e].
+	^ok value: t
+]
+
+test [ErrorOrT_ifErrorIfOk |
+	terr Int! := error: (errorMsg: "test").
+	msg := "".
+	terr
+		ifError: [:e Error | msg := e errorMsg]
+		ifOk: [:_ | panic: "ifOk called on error"].
+	assert: msg equals: "test".
+
+	terr := ok: 5.
+	x := -1.
+	terr
+		ifError: [:e Error | panic: "got error " + e errorMsg]
+		ifOk: [:i | x := i].
+	assert: x equals: 5.
+]

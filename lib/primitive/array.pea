@@ -1,0 +1,195 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+// T Array from: returns the portion of the array from index s to the end.
+// The returned Array is a sub-portion of the receiver array,
+// so modifications made to the returned Array elements
+// will also modify the elements of the receiver.
+Meth T Array [from: s Int ^T Array |
+	^self from: s to: self size - 1
+]
+
+test [Array_from |
+	ary Int Array := {}.
+	assert: (ary from: 0) size equals: 0.
+
+	ary := {1}.
+	ary := ary from: 0.
+	assert: ary size equals: 1.
+	assert: (ary at: 0) equals: 1.
+
+	ary := {1; 2}.
+	ary := ary from: 0.
+	assert: ary size equals: 2.
+	assert: (ary at: 0) equals: 1.
+	assert: (ary at: 1) equals: 2.
+
+	ary := {1; 2}.
+	ary := ary from: 1.
+	assert: ary size equals: 1.
+	assert: (ary at: 0) equals: 2.
+
+	ary := {1; 2}.
+	assert: (ary from: 2) size equals: 0.
+]
+
+// T Array to: returns the portion of the array from index 0 to s (inclusive).
+// The returned Array is a sub-portion of the receiver array,
+// so modifications made to the returned Array elements
+// will also modify the elements of the receiver.
+Meth T Array [to: e Int ^T Array |
+	^self from: 0 to: e
+]
+
+test [Array_to |
+	ary Int Array := {1}.
+	assert: (ary to: 0) size equals: 1.
+
+	ary := {1; 2}.
+	ary := ary to: 0.
+	assert: ary size equals: 1.
+	assert: (ary at: 0) equals: 1.
+
+	ary := {1; 2}.
+	ary := ary to: 1.
+	assert: ary size equals: 2.
+	assert: (ary at: 0) equals: 1.
+	assert: (ary at: 1) equals: 2.
+]
+
+// T Array do: evaluates f with a reference to each element of the receiver
+// in increasing order of index.
+Meth T Array [do: f (T&, Nil) Fun |
+	0 to: self size - 1 do: [:i |
+		f value: (self at: i)
+	]
+]
+
+test [Array_do |
+	ary Int Array := {0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10}.
+	prev := -1.
+	sum := 0.
+	ary do: [:x |
+		x > prev ifFalse: [panic: "out of order"].
+		prev := x.
+		sum := sum + x.
+	].
+	assert: sum equals: 55
+]
+
+// T Array do: evaluates f with the index and a reference
+// to each element of the receiver in increasing order of index.
+Meth T Array [doI: f (Int, T&, Nil) Fun |
+	0 to: self size - 1 do: [:i |
+		f value: i value: (self at: i)
+	]
+]
+
+test [Array_doI |
+	ary Int Array := {0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10}.
+	nextI := 0.
+	prev := -1.
+	sum := 0.
+	ary doI: [:i :x |
+		i = nextI ifFalse: [panic: "indices out of order"].
+		nextI := nextI + 1.
+		x > prev ifFalse: [panic: "out of order"].
+		prev := x.
+		sum := sum + x.
+	].
+	assert: sum equals: 55.
+]
+
+// (_ Stringer) Array asString returns a string representation of the receiver.
+Meth (_ Stringer) Array [asString ^String |
+	fill := 1.
+	b Byte Array := {'{'; 0; 0}.
+	self doI: [:i :t |
+		i > 0 ifTrue: [
+			b at: fill put: ' '.
+			fill := fill + 1.
+		].
+		s := t asString.
+		cap := b size.
+		fill + s byteSize + 3 > cap ifTrue: [
+			[fill + s byteSize + 3 > cap] whileTrue: [
+				cap := cap * 2
+			].
+			b2 Byte Array := newArray: cap init: [:_ | '0'].
+			0 to: fill do: [:j |
+				b2 at: j put: (b at: j)
+			].
+			b := b2.
+		].
+		0 to: s byteSize - 1do: [:j |
+			b at: fill + j put: (s atByte: j).
+		].
+		fill := fill + s byteSize.
+		b at: fill put: ';'.
+		fill := fill + 1.
+	].
+	b at: fill put: '}'.
+	fill := fill + 1.
+	^newString: (b to: fill - 1).
+]
+
+test [Array_asString |
+	assertIntArrayAsString: {} equals: "{}".
+	assertIntArrayAsString: {1} equals: "{1;}".
+	assertIntArrayAsString: {1; 2} equals: "{1; 2;}".
+	assertIntArrayAsString: {1; 2; 3} equals: "{1; 2; 3;}".
+	assertIntArrayAsString: {1; 2; 3; 4} equals: "{1; 2; 3; 4;}".
+
+	assertStrArrayAsString: {} equals: "{}".
+	assertStrArrayAsString: {"";} equals: "{;}".
+	assertStrArrayAsString: {""; ""; ""; ""} equals: "{; ; ; ;}".
+]
+
+func [assertIntArrayAsString: a Int Array equals: s String |
+	assert: a asString equals: s
+]
+
+func [assertStrArrayAsString: a String Array equals: s String |
+	assert: a asString equals: s
+]
+
+// (T T Eq) Array = returns whether the receiver is equal to other.
+// The arrays are equal if they have the same size
+// and all pairs of elements at the same index
+// are equal by the = method.
+Meth (T T Eq) Array [= other T Array ^Bool |
+	self size = other size ifFalse: [^false].
+	self doI: [:i :x |
+		y := other at: i.
+		x = y ifFalse: [^false].
+	].
+	^true
+]
+
+// (T T Eq) Array = returns whether the receiver is not equal to other.
+// The arrays are not equal if they differ in size size
+// or any pair of elements at the same index
+// are not equal by the = method.
+Meth (T T Eq) Array [!= other T Array ^Bool |
+	^(self = other) not.
+]
+
+test [Array_equal |
+	assertIntArray: {} equals: {}.
+	assertIntArray: {1} notEquals: {}.
+	assertIntArray: {} notEquals: {1}.
+	assertIntArray: {1} equals: {1}.
+	assertIntArray: {2} notEquals: {1}.
+	assertIntArray: {1; 2} notEquals: {1}.
+	assertIntArray: {1} notEquals: {1; 2}.
+	assertIntArray: {1; 2} equals: {1; 2}.
+	assertIntArray: {1; 2; 3; 4; 5} equals: {1; 2; 3; 4; 5}.
+	assertIntArray: {1; 2; 3; 4; 5} notEquals: {1; 2; 3; 4; 12}.
+]
+
+func [assertIntArray: a Int Array equals: b Int Array |
+	assert: a equals: b
+]
+
+func [assertIntArray: a Int Array notEquals: b Int Array |
+	assert: a notEquals: b
+]

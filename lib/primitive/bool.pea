@@ -1,0 +1,179 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+// Bool ifFalse:ifTrue: returns the result of evaluating f
+// if the receiver case is false,
+// otherwise the result of evaluating t.
+Meth Bool R [ifFalse: f R Fun ifTrue: t R Fun ^R |
+	^self ifTrue: t ifFalse: f
+]
+
+test [Bool_ifFalseIfTrue |
+	ok := false.
+	true ifFalse: [panic: "ifFalse: called on true"] ifTrue: [ok := true].
+	ok ifTrue: [] ifFalse: [panic: "ifTrue: not called on true"].
+
+	ok := false.
+	false ifFalse: [ok := true] ifTrue: [panic: "ifTrue: called on false"].
+	ok ifTrue: [] ifFalse: [panic: "ifFalse: not called on false"].
+
+	// Test the result value.
+	assert: (true ifFalse: [0] ifTrue: [42]) equals: 42.
+	assert: (false ifFalse: [0] ifTrue: [42]) equals: 0.
+]
+
+// Bool ifTrue: evaluates f if the receiver case is true.
+Meth Bool [ifTrue: f Nil Fun |
+	self ifTrue: f ifFalse: []
+]
+
+test [Bool_ifTrue |
+	ok := false.
+	true ifTrue: [ok := true].
+	ok ifTrue: [] ifFalse: [panic: "ifTrue: not called on true"].
+
+	false ifTrue: [panic: "ifTrue: called on false"].
+]
+
+// Bool ifFalse: evaluates f if the receiver case is false.
+Meth Bool [ifFalse: f Nil Fun |
+	self ifTrue: [] ifFalse: f
+]
+
+test [Bool_ifFalse |
+	true ifFalse: [panic: "ifFalse: called on true"].
+
+	ok := false.
+	false ifFalse: [ok := true].
+	ok ifTrue: [] ifFalse: [panic: "ifFalse: not called on false"].
+]
+
+// BoolFun is an alias for Bool Fun.
+Type BoolFun := Bool Fun.
+
+// BoolFun whileTrue: continually evaluates the receiver until it returns false.
+// Each time it returns true, f is evaluated.
+Meth BoolFun [whileTrue: f Nil Fun |
+	self value ifFalse: [^{}].
+	f value.
+	self whileTrue: f.
+]
+
+test [Bool_whileTrue |
+	i := 3.
+	j := 0.
+	[i := i - 1. i >= 0] whileTrue: [j := j + 1].
+	assert: j equals: 3.
+]
+
+// BoolFun whileTrue: continually evaluates the receiver until it returns true.
+// Each time it returns false, f is evaluated.
+Meth BoolFun [whileFalse: f Nil Fun |
+	self value ifTrue: [^{}].
+	f value.
+	self whileFalse: f.
+]
+
+test [Bool_whileFalse |
+	i := 0.
+	j := 0.
+	[i := i + 1. i <= 3] whileTrue: [j := j + 1].
+	assert: j equals: 3.
+]
+
+// Bool asString returns the string "true" if the receiver is true,
+// otherwise it returns the string "false".
+Meth Bool [asString ^String |
+	^self ifTrue: ["true"] ifFalse: ["false"]
+]
+
+test [Bool_asString |
+	assert: true asString equals: "true".
+	assert: false asString equals: "false".
+]
+
+// Bool not returns the logical negation of the receiver,
+// false if the receiver is true, or true if false.
+Meth Bool [not ^Bool |
+	^self ifTrue: [false] ifFalse: [true]
+]
+
+test [Bool_not |
+	assertFalse: true not.
+	assertTrue: false not.
+]
+
+// Bool || returns the logical OR of the receiver and other.
+Meth Bool [|| other Bool ^Bool |
+	^self ifTrue: [true] ifFalse: [other]
+]
+
+test [Bool_or |
+	assertTrue: true || true.
+	assertTrue: true || false.
+	assertTrue: false || true.
+	assertFalse: false || false.
+]
+
+// Bool or: returns the logical OR of the receiver and the value returned by f.
+// If the receiver is true, f is not evaluated.
+Meth Bool [or: f Bool Fun ^Bool |
+	^self ifTrue: [true] ifFalse: [f value]
+]
+
+test [Bool_orLazy |
+	assertTrue: (true or: [true]).
+	assertTrue: (true or: [false]).
+	assertTrue: (false or: [true]).
+	assertFalse: (false or: [false]).
+]
+
+// Bool && returns the logical AND of the receiver and other.
+Meth Bool [&& other Bool ^Bool |
+	^self ifTrue: [other] ifFalse: [false]
+]
+
+test [Bool_and |
+	assertTrue: true && true.
+	assertFalse: true && false.
+	assertFalse: false && true.
+	assertFalse: false && false.
+]
+
+// Bool and: returns the logical AND of the receiver and the value returned by f.
+// If the receiver is false, f is not evaluated.
+Meth Bool [and: f Bool Fun ^Bool |
+	^self ifTrue: [f value] ifFalse: [false]
+]
+
+test [Bool_andLazy |
+	assertTrue: (true and: [true]).
+	assertFalse: (true and: [false]).
+	assertFalse: (false and: [true]).
+	assertFalse: (false and: [false]).
+]
+
+// Bool = returns whether the receiver is equal to other,
+// either both true or both false.
+Meth Bool [= other Bool ^Bool |
+	^self ifTrue: [other] ifFalse: [other not]
+]
+
+test [Bool_equal |
+	assert: true equals: true.
+	assert: true notEquals: false.
+	assert: false notEquals: true.
+	assert: false equals: false.
+]
+
+// Bool = returns whether the receiver is not equal to other,
+// one is true and the other is false.
+Meth Bool [!= other Bool ^Bool |
+	^self ifTrue: [other not] ifFalse: [other]
+]
+
+test [Bool_notEqual |
+	assertFalse: true != true.
+	assertTrue: true != false.
+	assertTrue: false != true.
+	assertFalse: false != false.
+]
