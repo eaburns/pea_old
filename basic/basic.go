@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 // Package basic has an intermediate representation
 // that tries to strike a balance between
 // being high-level enough to easily convertable

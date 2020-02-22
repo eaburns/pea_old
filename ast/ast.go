@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 // Package ast defines the syntax. It contains an AST and a parser.
 package ast
 

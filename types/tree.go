@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 // Package types does type checking and semantic analysis, and
 // builds a type-checked, linked representation of the source.
 package types

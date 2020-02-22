@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 package basic
 
 func liftAllocs(f *Fun, liftParms bool) bool {

@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 // Package loc has routines for tracking file locations.
 package loc
 

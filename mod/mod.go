@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 // Package mod loads module source and object file lists
 // along with dependency modules.
 package mod
