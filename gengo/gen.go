@@ -559,7 +559,9 @@ func genVal(v basic.Val, ts typeSet, s *strings.Builder) {
 		fmt.Fprintf(s, "%s(%s)", t, v.Val.String())
 	case *basic.FloatLit:
 		t := builtInTypes[v.Type().BuiltIn]
-		fmt.Fprintf(s, "%s(%s)", t, v.Val.String())
+		// 39 digits of precision are needed to output the values of
+		// math.MaxFloat64 and math.SmallestNonzeroFloat64.
+		fmt.Fprintf(s, "%s(%.39e)", t, v.Val)
 	case *basic.Op:
 		genOp(v, s)
 	case *basic.Load:
