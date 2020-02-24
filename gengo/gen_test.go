@@ -79,6 +79,18 @@ func TestWriteMod(t *testing.T) {
 			stdout: "0\n1\n1\n1\n15\n",
 		},
 		{
+			name: "int xor op",
+			src: `
+				func [main |
+					print: (0 xor: 0). print: "\n".
+					print: (0 xor: 1). print: "\n".
+					print: (1 xor: 1). print: "\n".
+					print: (1 xor: 0). print: "\n".
+				]
+			`,
+			stdout: "0\n1\n0\n1\n",
+		},
+		{
 			name: "int not op",
 			src: `
 				func [main |

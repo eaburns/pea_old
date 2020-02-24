@@ -352,6 +352,7 @@ var builtInMethOp = map[types.BuiltInMeth]OpCode{
 	types.ArraySizeMeth:  ArraySizeOp,
 	types.BitwiseAndMeth: BitwiseAndOp,
 	types.BitwiseOrMeth:  BitwiseOrOp,
+	types.BitwiseXOrMeth: BitwiseXOrOp,
 	types.BitwiseNotMeth: BitwiseNotOp,
 	types.RightShiftMeth: RightShiftOp,
 	types.LeftShiftMeth:  LeftShiftOp,

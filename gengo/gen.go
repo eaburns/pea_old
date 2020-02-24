@@ -40,6 +40,7 @@ var builtInTypes = map[types.BuiltInType]string{
 var numOps = map[basic.OpCode]string{
 	basic.BitwiseAndOp: "&",
 	basic.BitwiseOrOp:  "|",
+	basic.BitwiseXOrOp: "^",
 	basic.BitwiseNotOp: "^",
 	basic.RightShiftOp: ">>",
 	basic.LeftShiftOp:  "<<",

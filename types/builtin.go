@@ -76,6 +76,7 @@ const (
 	FunValueMeth
 	BitwiseAndMeth
 	BitwiseOrMeth
+	BitwiseXOrMeth
 	BitwiseNotMeth
 	RightShiftMeth
 	LeftShiftMeth
@@ -120,6 +121,7 @@ var builtInFunTag = map[string]BuiltInMeth{
 	"value:value:value:value:": FunValueMeth,
 	"&":                        BitwiseAndMeth,
 	"|":                        BitwiseOrMeth,
+	"xor:":                     BitwiseXOrMeth,
 	"not":                      BitwiseNotMeth,
 	">>":                       RightShiftMeth,
 	"<<":                       LeftShiftMeth,

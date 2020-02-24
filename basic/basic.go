@@ -581,6 +581,7 @@ const (
 	ArraySizeOp OpCode = iota + 1
 	BitwiseAndOp
 	BitwiseOrOp
+	BitwiseXOrOp
 	BitwiseNotOp
 	RightShiftOp
 	LeftShiftOp

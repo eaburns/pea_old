@@ -71,6 +71,7 @@ var univ = `
 		type {{$t}} {}
 		meth {{$t}} [& x {{$t}} ^{{$t}} | ^self & x]
 		meth {{$t}} [| x {{$t}} ^{{$t}} | ^self | x]
+		meth {{$t}} [xor: x {{$t}} ^{{$t}} | ^self xor: x]
 		meth {{$t}} [not ^{{$t}} | ^self not]
 		meth {{$t}} [>> x Int ^{{$t}} | ^self >> x]
 		meth {{$t}} [<< x Int ^{{$t}} | ^self << x]
