@@ -301,7 +301,7 @@ func vprintf(f string, vs ...interface{}) {
 func usage() {
 	out := flag.CommandLine.Output()
 	fmt.Fprintf(out, "Usage of %s:", os.Args[0])
-	fmt.Fprintf(out, "%s [flags] <module dir or file>", os.Args[0])
+	fmt.Fprintf(out, "%s [flags] <module dir or file>\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
