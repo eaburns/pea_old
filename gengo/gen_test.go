@@ -368,7 +368,7 @@ func TestWriteMod(t *testing.T) {
 			src: `
 				func [main |
 					p Int Array := {40; 41; 42; 43; 44; 45}.
-					s := p from: 2 to: 3.
+					s := p from: 2 to: 2.
 					print: s size.
 					print: "\n".
 					print: (s at: 0).

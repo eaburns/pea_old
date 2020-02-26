@@ -416,7 +416,7 @@ func genNewArray(stmt *basic.NewArray, ts typeSet, s *strings.Builder) {
 }
 
 func genMakeSlice(stmt *basic.MakeSlice, s *strings.Builder) {
-	fmt.Fprintf(s, "*x%d = (*x%d)[x%d:x%d]",
+	fmt.Fprintf(s, "*x%d = (*x%d)[x%d:x%d+1]",
 		stmt.Dst.Num(), stmt.Ary.Num(), stmt.From.Num(), stmt.To.Num())
 }
 
