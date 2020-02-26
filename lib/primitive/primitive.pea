@@ -34,3 +34,12 @@ Type T OrdStringer {
 	[> T ^Bool]
 	[asString ^String]
 }
+
+// Bytes is implemented by types that are sequences of random-access bytes.
+Type B Bytes {
+	[byteSize ^Int]
+	[atByte: Int ^Byte]
+	[fromByte: Int toByte: Int ^B]
+	[fromByte: Int ^B]
+	[toByte: Int ^B]
+}

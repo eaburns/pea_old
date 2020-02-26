@@ -1,0 +1,468 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+/*
+The xxhash64 module implements the 64-bit xxhash algorithm
+from https://xxhash.org/.
+*/
+Import "primitive"
+
+func [prime1 ^UInt64 | ^11400714785074694791] // 0x9E3779B185EBCA87
+func [prime2 ^UInt64 | ^14029467366897019727] // 0xC2B2AE3D27D4EB4F
+func [prime3 ^UInt64 | ^1609587929392839161] // 0x165667B19E3779F9
+func [prime4 ^UInt64 | ^9650029242287828579] // 0x85EBCA77C2B2AE63
+func [prime5 ^UInt64 | ^2870177450012600261] // 0x27D4EB2F165667C5
+
+// string:seed: returns the 64-bit xxhash value
+// of a string of bytes s with seed seed.
+Func (B B Bytes) [string: s B seed: seed UInt64 ^UInt64 |
+	h UInt64 := 0.
+	totalLen := s byteSize.
+	totalLen >= 32 ifTrue: [
+		v1 := seed + prime1 + prime2.
+		v2 := seed + prime2.
+		v3 := seed + 0.
+		v4 := seed - prime1.
+		[s byteSize >= 32] whileTrue: [
+			v1 := v1 round: (read64: s from: 0).
+			v2 := v2 round: (read64: s from: 8).
+			v3 := v3 round: (read64: s from: 16).
+			v4 := v4 round: (read64: s from: 24).
+			s := s fromByte: 32.
+		].
+		h := (v1 rotl64: 1) + (v2 rotl64: 7) + (v3 rotl64: 12) + (v4 rotl64: 18).
+		h := h mergeRound: v1.
+		h := h mergeRound: v2.
+		h := h mergeRound: v3.
+		h := h mergeRound: v4.
+	] ifFalse: [
+		h := seed + prime5
+	].
+	h := h + totalLen asUInt64.
+	^h finalize: s
+]
+
+meth UInt64 (B B Bytes) [finalize: s B ^UInt64 |
+	h := self.
+	[s byteSize >= 8] whileTrue: [
+		k1 := 0 asUInt64 round: (read64: s from: 0).
+		h := h xor: k1.
+		h := (h rotl64: 27) * prime1 + prime4.
+		s := s fromByte: 8.
+	].
+	[s byteSize >= 4] whileTrue: [
+		h := h xor: (read32: s from: 0) * prime1.
+		h := (h rotl64: 23) * prime2 + prime3.
+		s := s fromByte: 4.
+	].
+	[s byteSize > 0] whileTrue: [
+		h := h xor: (read8: s from: 0) * prime5.
+		h := (h rotl64: 11) * prime1.
+		s := s fromByte: 1.
+	].
+	^h avalanche
+]
+
+meth UInt64 [round: input UInt64 ^UInt64 |
+	acc := self.
+	acc := input * prime2 + acc.
+	acc := acc rotl64: 31.
+	acc := acc * prime1.
+	^acc
+]
+
+meth UInt64 [avalanche ^UInt64 |
+	h := self.
+	h := h xor: h >> 33.
+	h := h * prime2.
+	h := h xor: h >> 29.
+	h := h * prime3.
+	h := h xor: h >> 32.
+	^h
+]
+
+meth UInt64 [rotl64: r Int ^UInt64 |
+	^(self << r) | (self >> (64 - r))
+]
+
+// State holds state for incrementally computing a 64-bit xxhash value.
+// Multiple calls to update: followed by hash
+// returns the same hash value as hash:seed:
+// with the same seed on the same string of bytes.
+Type State := _State.
+type _State {
+	totalLen: UInt64
+	v1: UInt64
+	v2: UInt64
+	v3: UInt64
+	v4: UInt64
+	mem: Byte Array // 32 bytes
+	memSize: Int
+}
+
+// newState: returns a new State with the given seed.
+Func [newState: seed UInt64 ^State& |
+	^{
+		totalLen: 0
+		v1: seed + prime1 + prime2
+		v2: seed + prime2
+		v3: seed + 0
+		v4: seed - prime1
+		mem: (newArray: 32 init: [:_ | 0])
+		memSize: 0
+	}
+]
+
+// update: adds s as the next sequence of bytes to the hash state.
+Meth State (B B Bytes) [update: s B |
+	totalLen := totalLen + s byteSize asUInt64.
+	memSize + s byteSize < 32 ifTrue: [
+		0 to: s byteSize - 1 do: [:i | mem at: memSize + i put: (s atByte: i)].
+		memSize := memSize + s byteSize.
+		^{}.
+	].
+	memSize > 0 ifTrue: [
+		0 to: 32 - s byteSize - 1 do: [:i | mem at: memSize + i put: (s atByte: i)].
+		s := s fromByte: 32 - s byteSize.
+		v1 := v1 round: (read64: mem from: 0).
+		v2 := v2 round: (read64: mem from: 8).
+		v3 := v3 round: (read64: mem from: 16).
+		v4 := v4 round: (read64: mem from: 24).
+		memSize := 0.
+	].
+	vv1 := v1.
+	vv2 := v2.
+	vv3 := v3.
+	vv4 := v4.
+	[s byteSize >= 32] whileTrue: [
+		vv1 := vv1 round: (read64: s from: 0).
+		vv2 := vv2 round: (read64: s from: 8).
+		vv3 := vv3 round: (read64: s from: 16).
+		vv4 := vv4 round: (read64: s from: 24).
+		s := s fromByte: 32.
+	].
+	v1 := vv1.
+	v2 := vv2.
+	v3 := vv3.
+	v4 := vv4.
+	s byteSize > 0 ifTrue: [
+		0 to: s byteSize - 1 do: [:i | mem at: i put: (s atByte: i)].
+		memSize := s byteSize.
+	].
+]
+
+// hash returns the current hash value of the receiver State.
+// The receiver can still be used with further calls to update: and hash.
+Meth State [hash ^UInt64 |
+	h UInt64 := 0.
+	totalLen >= 32 ifTrue: [
+		h := (v1 rotl64: 1) + (v2 rotl64: 7) + (v3 rotl64: 12) + (v4 rotl64: 18).
+		h := h mergeRound: v1.
+		h := h mergeRound: v2.
+		h := h mergeRound: v3.
+		h := h mergeRound: v4.
+	] ifFalse: [
+		h := v3 + prime5
+	].
+	h := h + totalLen.
+	^h finalize: (mem to: memSize - 1)
+]
+
+meth UInt64 [mergeRound: val UInt64 ^UInt64 |
+	acc := self.
+	val := 0 asUInt64 round: val.
+	acc := acc xor: val.
+	acc := acc * prime1 + prime4.
+	^acc.
+]
+
+func (B B Bytes) [read8: s B from: i Int ^UInt64 |
+	^(s atByte: i) asUInt64.
+]
+
+func (B B Bytes) [read32: s B from: i Int ^UInt64 |
+	x := (s atByte: i+0) asUInt64.
+	x := (s atByte: i+1) asUInt64 << 8 | x.
+	x := (s atByte: i+2) asUInt64 << 16 | x.
+	^(s atByte: i+3) asUInt64 << 24 | x.
+]
+
+func (B B Bytes) [read64: s B from: i Int ^UInt64 |
+	x := (s atByte: i+0) asUInt64.
+	x := (s atByte: i+1) asUInt64 << 8 | x.
+	x := (s atByte: i+2) asUInt64 << 16 | x.
+	x := (s atByte: i+3) asUInt64 << 24 | x.
+	x := (s atByte: i+4) asUInt64 << 32 | x.
+	x := (s atByte: i+5) asUInt64 << 40 | x.
+	x := (s atByte: i+6) asUInt64 << 48 | x.
+	^(s atByte: i+7) asUInt64 << 56 | x.
+]
+
+test [string |
+	str := "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz".
+	// hashes are the hashes of all prefix substrings of the above string
+	// computed by the original C implementation of xxhash
+	// using a seed equal to the index.
+	hashes UInt64 Array := {
+		15154266338359012955;	// first byte, seed 0.
+		1571953340945042543;		// first 2 bytes, seed 1.
+		6026019377950218999;		// first 3 bytes, seed 2.
+		1059664709004429125;		// …
+		14241119618480759089;
+		3364620269565776003;
+		71156280398670413;
+		1540715919929048689;
+		17187824289566256375;
+		1870073827478620584;
+		11761030514714818903;
+		12618196905304978175;
+		2977281128991368011;
+		2135758297031927186;
+		18275324657247226773;
+		16575396306914414658;
+		5894689987949668894;
+		11554965590246032553;
+		10650829790814206661;
+		9451121426204459862;
+		4498399813458489065;
+		16213577800306109541;
+		5527449374629476812;
+		10689472944009909982;
+		18221334226049022594;
+		4439287011295470910;
+		18087713406166224615;
+		8072423899637251227;
+		14035704683676800039;
+		16310623500907894879;
+		4205560758726204893;
+		11057898260459453740;
+		4542519202134386268;
+		9980584055633668287;
+		12778076864264303634;
+		1132772266867632367;
+		9206388593747186550;
+		10693168181447346098;
+		12731750826500942608;
+		2821518663728515756;
+		17156492271440596140;
+		16308775924524930282;
+		6622241807266559189;
+		2090911641597597942;
+		13705980941283769950;
+		16787088128008234329;
+		17737710429844192943;
+		10641275024114851781;
+		8388710862509126843;
+		15306022753098817353;
+		3084505135299374866;
+		13133420609162821582;
+	}.
+	0 to: str byteSize - 1 do: [:i |
+		s := str toByte: i.
+		want := hashes at: i.
+
+		h0 := (newState: i asUInt64) update: s, hash.
+		h0 = want ifFalse: [
+			panic: "using state " + i asString + ": " + h0 asString + " != " + want asString.
+		].
+		h1 UInt64 := string: s seed: i asUInt64.
+		h1 = want ifFalse: [
+			panic: i asString + ": " + h1 asString + " != " + want asString.
+		].
+	]
+]
+
+// uint8:seed: returns the xxhash value for a UInt8.
+Func [uint8: x UInt8 seed: seed UInt64 ^UInt64 |
+	h := seed + prime5 + 1.
+	h := h xor: x asUInt64 * prime5.
+	h := (h rotl64: 11) * prime1.
+	^h avalanche
+]
+
+test [uint8Seed |
+	0 to: 255 do: [:i |
+		x := i asUInt8.
+		seed := i asUInt64.
+		got := uint8: x seed: seed.
+		s Byte Array := {x}.
+		want := string: s seed: seed.
+		got = want ifFalse: [
+			panic: "uint8: " + x asString + " seed: " + seed asString +
+				" = " + got asString + ", want " + want asString.
+		]
+	].
+]
+
+// uint16:seed: returns the xxhash value for a UInt16.
+Func [uint16: x UInt16 seed: seed UInt64 ^UInt64 |
+	h := seed + prime5 + 2.
+	h := h xor: (x & 255) asUInt64 * prime5.
+	h := (h rotl64: 11) * prime1.
+	h := h xor: (x >> 8) asUInt64 * prime5.
+	h := (h rotl64: 11) * prime1.
+	^h avalanche
+]
+
+test [uint16Seed |
+	0 to: 65535 do: [:i |
+		x := i asUInt16.
+		seed := i asUInt64.
+		got := uint16: x seed: seed.
+		s Byte Array := {
+			(x >> 0) asUInt8;
+			(x >> 8) asUInt8;
+		}.
+		want := string: s seed: seed.
+		got = want ifFalse: [
+			panic: "uint16: " + x asString + " seed: " + seed asString +
+				" = " + got asString + ", want " + want asString.
+		]
+	].
+]
+
+// uint32:seed: returns the xxhash value for a UInt32.
+Func [uint32: x UInt32 seed: seed UInt64 ^UInt64 |
+	h := seed + prime5 + 4.
+	h := h xor: x asUInt64 * prime1.
+	h := (h rotl64: 23) * prime2 + prime3.
+	^h avalanche
+]
+
+test [uint32Seed |
+	xs UInt32 Array := {
+		0;
+		1;
+		255;
+		65535;
+		16777215;
+		4294967295;
+	}.
+	xs do: [:x |
+		seed := x asUInt64.
+		got := uint32: x seed: seed.
+		s Byte Array := {
+			(x >> 0) asUInt8;
+			(x >> 8) asUInt8;
+			(x >> 16) asUInt8;
+			(x >> 24) asUInt8;
+		}.
+		want := string: s seed: seed.
+		got = want ifFalse: [
+			panic: "uint32: " + x asString + " seed: " + seed asString +
+				" = " + got asString + ", want " + want asString.
+		]
+	]
+]
+
+// uint63:seed: returns the xxhash value for a UInt64.
+Func [uint64: x UInt64 seed: seed UInt64 ^UInt64 |
+	h := seed + prime5 + 8.
+	k1 := 0 asUInt64 round: x.
+	h := h xor: k1.
+	h := (h rotl64: 27) * prime1 + prime4.
+	^h avalanche
+]
+
+test [uint64Seed |
+	xs UInt64 Array := {
+		0;
+		1;
+		2 asUInt64 << 8 - 1;
+		2 asUInt64 << 16 - 1;
+		2 asUInt64 << 24 - 1;
+		2 asUInt64 << 32 - 1;
+		2 asUInt64 << 40 - 1;
+		2 asUInt64 << 48 - 1;
+		2 asUInt64 << 56 - 1;
+	}.
+	xs do: [:x |
+		seed := x asUInt64.
+		got := uint64: x seed: seed.
+		s Byte Array := {
+			(x >> 0) asUInt8;
+			(x >> 8) asUInt8;
+			(x >> 16) asUInt8;
+			(x >> 24) asUInt8;
+			(x >> 32) asUInt8;
+			(x >> 40) asUInt8;
+			(x >> 48) asUInt8;
+			(x >> 56) asUInt8;
+		}.
+		want := string: s seed: seed.
+		got = want ifFalse: [
+			panic: "uint64: " + x asString + " seed: " + seed asString +
+				" = " + got asString + ", want " + want asString.
+		]
+	]
+]
+
+// uint128:seed: returns the xxhash value for 128-bits
+// specified by the high and low 64-bit halves.
+Func [uint128: high UInt64 and: low UInt64 seed: seed UInt64 ^UInt64 |
+	h := seed + prime5 + 16.
+	k1 := 0 asUInt64 round: low.
+	h := h xor: k1.
+	h := (h rotl64: 27) * prime1 + prime4.
+	k1 := 0 asUInt64 round: high.
+	h := h xor: k1.
+	h := (h rotl64: 27) * prime1 + prime4.
+	^h avalanche
+]
+
+test [uint128Seed |
+	xs UInt64 Array := {
+		0;	0;
+		0;	2 asUInt64 << 8 - 1;
+		0;	2 asUInt64 << 16 - 1;
+		0;	2 asUInt64 << 24 - 1;
+		0;	2 asUInt64 << 32 - 1;
+		0;	2 asUInt64 << 40 - 1;
+		0;	2 asUInt64 << 48 - 1;
+		0;	2 asUInt64 << 56 - 1;
+		2 asUInt64 << 8 - 1;	0;
+		2 asUInt64 << 16 - 1;	0;
+		2 asUInt64 << 24 - 1;	0;
+		2 asUInt64 << 32 - 1;	0;
+		2 asUInt64 << 40 - 1;	0;
+		2 asUInt64 << 48 - 1;	0;
+		2 asUInt64 << 56 - 1;	0;
+		2 asUInt64 << 8 - 1;	2 asUInt64 << 8 - 1;
+		2 asUInt64 << 16 - 1;	2 asUInt64 << 16 - 1;
+		2 asUInt64 << 24 - 1;	2 asUInt64 << 24 - 1;
+		2 asUInt64 << 32 - 1;	2 asUInt64 << 32 - 1;
+		2 asUInt64 << 40 - 1;	2 asUInt64 << 40 - 1;
+		2 asUInt64 << 48 - 1;	2 asUInt64 << 48 - 1;
+		2 asUInt64 << 56 - 1;	2 asUInt64 << 56 - 1;
+	}.
+	0 to: xs size / 2 - 1 do: [:i |
+		high := xs at: i * 2.
+		low := xs at: i * 2 + 1.
+		seed := i asUInt64.
+		got := uint128: high and: low seed: seed.
+		s Byte Array := {
+			(low >> 0) asUInt8;
+			(low >> 8) asUInt8;
+			(low >> 16) asUInt8;
+			(low >> 24) asUInt8;
+			(low >> 32) asUInt8;
+			(low >> 40) asUInt8;
+			(low >> 48) asUInt8;
+			(low >> 56) asUInt8;
+			(high >> 0) asUInt8;
+			(high >> 8) asUInt8;
+			(high >> 16) asUInt8;
+			(high >> 24) asUInt8;
+			(high >> 32) asUInt8;
+			(high >> 40) asUInt8;
+			(high >> 48) asUInt8;
+			(high >> 56) asUInt8;
+		}.
+		want := string: s seed: seed.
+		got = want ifFalse: [
+			panic: "uint128: " + high asString +
+				" and: " + low asString +
+				" seed: " + seed asString +
+				" = " + got asString + ", want " + want asString.
+		]
+	]
+]

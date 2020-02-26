@@ -193,3 +193,34 @@ func [assertIntArray: a Int Array equals: b Int Array |
 func [assertIntArray: a Int Array notEquals: b Int Array |
 	assert: a notEquals: b
 ]
+
+// ByteArray is an alias for Byte Array.
+Type ByteArray := Byte Array.
+
+// ByteArray byteSize returns the size of the array.
+Meth ByteArray [byteSize ^Int |
+	^self size
+]
+
+// ByteArray atByte: returns the ith element of the array.
+Meth ByteArray [atByte: i Int ^Byte |
+	^self at: i
+]
+
+// ByteArray fromByte:toByte: returns the portion of the array
+// from the element at index s to the element at index e (inclusive).
+Meth ByteArray [fromByte: s Int toByte: e Int ^ByteArray |
+	^self from: s to: e
+]
+
+// ByteArray fromByte: returns the portion of the array
+// from the element at index s to the end.
+Meth ByteArray [fromByte: s Int ^ByteArray |
+	^self from: s to: self size - 1
+]
+
+// ByteArray toByte: returns the portion of the array
+// from the element at index 0 to the element at index e (inclusive).
+Meth ByteArray [toByte: e Int ^ByteArray |
+	^self from: 0 to: e
+]
