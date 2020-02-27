@@ -7,7 +7,7 @@ go build -o $peac ./peac
 
 find $root -name [0-9]*.go | xargs rm
 
-for d in `go run pealist/pealist.go $root`; do
+for d in $(go run pealist/pealist.go $root); do
 	if test -d $root/$d; then
 		/bin/echo -n "$d "
 		cd $root/$d
@@ -18,7 +18,7 @@ for d in `go run pealist/pealist.go $root`; do
 			exit 1
 		}
 		tmp=$(mktemp tmp.XXXXXXXXXX)
-		if $out >& $tmp; then
+		if $out > $tmp 2>&1; then
 			empty=$(mktemp tmp.XXXXXXXXXX)
 			touch $empty
 			if diff $tmp $empty 2>&1 > /dev/null; then
@@ -33,6 +33,6 @@ for d in `go run pealist/pealist.go $root`; do
 		fi
 		rm $tmp
 	fi
-done;
+done
 
 cd $root/..

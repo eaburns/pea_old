@@ -3,7 +3,7 @@ on: [push]
 jobs:
 
   build:
-    name: Build
+    name: Build and test
     runs-on: ubuntu-latest
     steps:
 
@@ -28,3 +28,8 @@ jobs:
       run: |
         export PATH=$PATH:$HOME/go/bin
         ./gok.sh
+
+    - name: Run peaok.sh
+      run: |
+        export PATH=$PATH:$HOME/go/bin
+        ./peaok.sh
