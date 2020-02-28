@@ -179,13 +179,14 @@ func instType(x *scope, typ *Type, args []TypeName) (res *Type, errs []checkErro
 	defer func() { x.log("inst: %s (%p)", res, res) }()
 
 	if typ.Alias != nil {
-		if typ.Alias.Type == nil {
+		aliasType := typ.Alias.Type
+		if aliasType == nil {
 			return nil, errs // error reported elsewhere
 		}
 		sub := newSubMap(typ.Parms, args)
 		errs = append(errs, instTypeName(x, typ.Alias)...)
-		args = subTypeNames(x, map[*Type]*Type{}, sub, typ.Alias.Args)
-		typ = typ.Alias.Type
+		args = subTypeNames(x, map[*Type]*Type{}, sub, aliasType.Args)
+		typ = aliasType
 		x.log("using alias type %s %p", typ, typ)
 	}
 	if len(args) == 0 {

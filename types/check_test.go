@@ -1322,6 +1322,20 @@ func TestAliasTypeDef(t *testing.T) {
 			`,
 			err: "type alias cycle",
 		},
+		{
+			// Here we test that when instantiating IntLambda,
+			// which has an alias target that itself is an alias,
+			// we use the non-alias type (T, T) Fun
+			// for the argument binding, not the intemediate alias
+			// T Lambda, which differs in arity from (T, T) Fun.
+			name: "chained alias argument binding",
+			src: `
+				type T Lambda := (T, T) Fun.
+				type IntLambda := Int Lambda.
+				meth IntLambda [one ^Int | ^self value: 1]
+			`,
+			err: "",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, test.run)
