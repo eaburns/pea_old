@@ -1340,7 +1340,7 @@ func TestBuild(t *testing.T) {
 			`,
 		},
 		{
-			name: "make virt",
+			name: "make virtual",
 			src: `
 				func [foo ^Fooer | ^5]
 				type Fooer {[foo]}

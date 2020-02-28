@@ -76,7 +76,7 @@ func TestBuiltInMeths(t *testing.T) {
 				type Foo { [bar: Int baz: String ^Float] }
 			`,
 			want: []string{
-				"#test Foo [bar: _ Int baz: _ String ^Float]",
+				"#test Foo [bar: x0 Int baz: x1 String ^Float]",
 			},
 		},
 		{
@@ -90,8 +90,8 @@ func TestBuiltInMeths(t *testing.T) {
 			`,
 			want: []string{
 				"#test Foo [bar]",
-				"#test Foo [baz: _ Int]",
-				"#test Foo [* _ Foo ^Foo]",
+				"#test Foo [baz: x0 Int]",
+				"#test Foo [* x0 Foo ^Foo]",
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func TestBuiltInMeths(t *testing.T) {
 				}
 			`,
 			want: []string{
-				"T #test Eq [= _ T& ^Bool]",
+				"T #test Eq [= x0 T& ^Bool]",
 			},
 		},
 	}

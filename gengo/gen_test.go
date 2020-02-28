@@ -1008,6 +1008,17 @@ func TestWriteMod(t *testing.T) {
 			stdout: "5",
 		},
 		{
+			name: "make virtual of built-in virtual method",
+			src: `
+				Type Function {[value: Int ^Int]}
+				func [main |
+					f Function := [:x Int | x].
+					print: (f value: 42).
+				]
+			`,
+			stdout: "42",
+		},
+		{
 			name: "make virtual of built-in String byteSize method",
 			src: `
 				func [main |

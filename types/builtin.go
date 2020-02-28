@@ -254,14 +254,16 @@ func makeCaseBody(x *scope, fun *Fun) []Stmt {
 			typ:  parm.Type(),
 		})
 	}
-	msgs := []Msg{
-		{
-			Sel:  fun.Sig.Sel,
-			Args: args,
-			Fun:  fun,
-			typ:  fun.Sig.Ret.Type,
-		},
+	var retType *Type
+	if fun.Sig.Ret != nil {
+		retType = fun.Sig.Ret.Type
 	}
+	msgs := []Msg{{
+		Sel:  fun.Sig.Sel,
+		Args: args,
+		Fun:  fun,
+		typ:  retType,
+	}}
 	recv := &Convert{
 		Expr: &Ident{
 			Text: "self",
@@ -311,7 +313,7 @@ func makeVirtMeth(x *scope, typ *Type, sel string) *Fun {
 		typ:      recvType,
 	}
 	for i, p := range sig.Parms {
-		p.Name = "_"
+		p.Name = fmt.Sprintf("x%d", i)
 		p.FunParm = &fun
 		p.Index = i + 1
 		parms[i+1] = p
@@ -332,6 +334,7 @@ func makeVirtMeth(x *scope, typ *Type, sel string) *Fun {
 		Sig:     sig,
 		BuiltIn: VirtMeth,
 	}
+	fun.Stmts = makeCaseBody(x, &fun)
 	return &fun
 }
 
