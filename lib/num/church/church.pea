@@ -1,0 +1,95 @@
+/*
+Package church implements arithmetic on Church numerals.
+*/
+
+Import "primitive"
+
+// Num is a Church numeral.
+Type Num {[value: Num ^Num]}
+
+func [num: x Num ^Num | ^x]	// type convert
+
+// Zero returns the number 0.
+Func [zero ^Num |
+	^[:f Num | num: [:x Num | x]]
+]
+
+test [zeroTest |
+	assert: zero asInt equals: 0.
+]
+
+// Num succ returns the successor of the receiver.
+Meth Num [succ ^Num |
+	^[:f Num | num: [:x Num | f value: ((self value: f) value: x)]]
+]
+
+test [succTest |
+	assert: zero asInt equals: 0.
+	assert: zero succ asInt equals: 1.
+	assert: zero succ succ asInt equals: 2.
+]
+
+// Num + returns the sum of the receiver and n.
+Meth Num [+ n Num ^Num |
+	^[:f Num | num: [:x Num | (n value: f) value: ((self value: f) value: x)]]
+]
+
+test [plus |
+	one := zero succ.
+	two := one succ.
+	assert: (zero + zero) asInt equals: 0.
+	assert: (zero + one) asInt equals: 1.
+	assert: (zero + two) asInt equals: 2.
+	assert: (one + zero) asInt equals: 1.
+	assert: (one + one) asInt equals: 2.
+	assert: (one + two) asInt equals: 3.
+	assert: (two + zero) asInt equals: 2.
+	assert: (two + one) asInt equals: 3.
+	assert: (two + two) asInt equals: 4.
+]
+
+// Num * returns the product of the receiver and n.
+Meth Num [* n Num ^Num |
+	^[:f Num | num: [:x Num | (n value: (self value: f)) value: x]]
+]
+
+test [times |
+	one := zero succ.
+	two := one succ.
+	assert: (zero * zero) asInt equals: 0.
+	assert: (zero * one) asInt equals: 0.
+	assert: (zero * two) asInt equals: 0.
+	assert: (one * zero) asInt equals: 0.
+	assert: (one * one) asInt equals: 1.
+	assert: (one * two) asInt equals: 2.
+	assert: (two * zero) asInt equals: 0.
+	assert: (two * one) asInt equals: 2.
+	assert: (two * two) asInt equals: 4.
+	assert: (two * two * two) asInt equals: 8.
+]
+
+// Num ** returns the receiver to the power n.
+Meth Num [** n Num ^Num |
+	^n value: self.
+]
+
+test [exp |
+	one := zero succ.
+	two := one succ.
+	assert: (zero ** zero) asInt equals: 1.
+	assert: (zero ** one) asInt equals: 0.
+	assert: (zero ** two) asInt equals: 0.
+	assert: (one ** zero) asInt equals: 1.
+	assert: (one ** one) asInt equals: 1.
+	assert: (one ** two) asInt equals: 1.
+	assert: (two ** zero) asInt equals: 1.
+	assert: (two ** one) asInt equals: 2.
+	assert: (two ** two) asInt equals: 4.
+	assert: (two ** two ** two) asInt equals: 16.
+]
+
+Meth Num [asInt ^Int |
+	i := 0.
+	(self value: [:x Num | i := i + 1. x]) value: zero.
+	^i
+]
