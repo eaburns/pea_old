@@ -2,11 +2,7 @@
 
 package types
 
-import (
-	"fmt"
-
-	"github.com/eaburns/pea/ast"
-)
+import "github.com/eaburns/pea/ast"
 
 type scope struct {
 	*state
@@ -405,7 +401,6 @@ func findFun(x *scope, loc ast.Node, recv *Type, mod *ast.ModTag, sel string) (f
 
 func findDefModMeth(x *scope, recv *Type, sel string) *Fun {
 	if recv == nil {
-		fmt.Println("receiver is nil")
 		return nil
 	}
 	imp := x.findImport("#" + recv.ModPath)
