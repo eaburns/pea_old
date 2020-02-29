@@ -521,7 +521,7 @@ func rmLiftedFunInsts(defs []Def) {
 }
 
 func instFunBody(x *scope, fun *Fun) {
-	defer x.tr("instFunStmts(%s)", fun)()
+	defer x.tr("instFunBody(%s)", fun)()
 
 	if !isGroundFun(fun) {
 		x.log("skipping lifted instance: %s", fun)
@@ -552,10 +552,6 @@ func instFunBody(x *scope, fun *Fun) {
 		x = x.new()
 		x.variable = &fun.Sig.Parms[i]
 	}
-	for i := range fun.Locals {
-		x = x.new()
-		x.variable = fun.Locals[i]
-	}
 
 	sub := newSubMap(fun.Def.TParms, fun.TArgs)
 	if fun.Def.Recv != nil {
@@ -571,6 +567,23 @@ func instFunBody(x *scope, fun *Fun) {
 		if err != nil {
 			panic(fmt.Sprintf("impossible: %v", err))
 		}
+	}
+
+	x.log("%d locals", len(fun.Def.Locals))
+	seen := map[*Type]*Type{}
+	fun.Locals = make([]*Var, len(fun.Def.Locals))
+	for i, l := range fun.Def.Locals {
+		typ := subType(x, seen, sub, l.Type())
+		fun.Locals[i] = &Var{
+			AST:      l.AST,
+			Name:     l.Name,
+			TypeName: subTypeName(x, seen, sub, l.TypeName),
+			Local:    &fun.Locals,
+			Index:    i,
+		}
+		fun.Locals[i].typ = typ
+		x = x.new()
+		x.variable = fun.Locals[i]
 	}
 	fun.Stmts = subStmts(x, sub, fun.Def.Stmts)
 }

@@ -198,19 +198,6 @@ func subFun(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, fun *Fun)
 		inst.Sig.Parms[i].Index = i
 	}
 
-	inst.Locals = make([]*Var, len(fun.Locals))
-	for i, loc0 := range fun.Locals {
-		typ := subType(x, seen, sub, loc0.Type())
-		inst.Locals[i] = &Var{
-			AST:      loc0.AST,
-			Name:     loc0.Name,
-			TypeName: subTypeName(x, seen, sub, loc0.TypeName),
-			Local:    &inst.Locals,
-			Index:    i,
-		}
-		inst.Locals[i].typ = typ
-	}
-
 	// Note that we don't substitute the statements here.
 	// They are instead substituted after the check pass
 	// if there were no check errors.
