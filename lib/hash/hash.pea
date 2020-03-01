@@ -1,0 +1,92 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+/*
+The hash module implements a non-cryptographic hashing
+suitable for data structures like a hash table.
+The hash algorithm itself is not specified and is subject to change.
+*/
+
+Import "primitive"
+import "hash/xxhash64"
+
+// TODO: generate a random hash seed at each program startup.
+val seed UInt64 := [123]
+
+// Hasher is implemented by types that can return a hash value.
+Type Hasher {
+	[hash ^UInt64]
+}
+
+// combineHash:and: combines two hashes into a new hash value.
+Func [combineHash: h0 UInt64 and: h1 UInt64 ^UInt64|
+	^#xxhash64 uint128: h0 and: h1 seed: seed.
+]
+
+// String hash returns the hash value of the receiver.
+Meth String [hash ^UInt64 |
+	^#xxhash64 string: self seed: seed
+]
+
+// (_ Hasher) Array hash returns hash value of the receiver.
+Meth (_ Hasher) Array [hash ^UInt64 |
+	h := seed.
+	0 to: self size - 1 do: [:t |
+		h := combineHash: h and: t hash.
+	].
+	^h.
+]
+
+// Bool hash returns the hash value of the receiver.
+Meth Bool [hash ^UInt64 |
+	^#xxhash64 uint8: (self ifTrue: [1] ifFalse: [0]) seed: seed.
+]
+
+// Int hash returns the hash value of the receiver.
+Meth Int [hash ^UInt64 |
+	^#xxhash64 uint64: self asUInt64 seed: seed.
+]
+
+// Int8 hash returns the hash value of the receiver.
+Meth Int8 [hash ^UInt64 |
+	^#xxhash64 uint8: self asUInt8 seed: seed.
+]
+
+// Int16 hash returns the hash value of the receiver.
+Meth Int16 [hash ^UInt64 |
+	^#xxhash64 uint16: self asUInt16 seed: seed.
+]
+
+// Int32 hash returns the hash value of the receiver.
+Meth Int32 [hash ^UInt64 |
+	^#xxhash64 uint32: self asUInt32 seed: seed.
+]
+
+// Int64 hash returns the hash value of the receiver.
+Meth Int64 [hash ^UInt64 |
+	^#xxhash64 uint64: self asUInt64 seed: seed.
+]
+
+// UInt hash returns the hash value of the receiver.
+Meth UInt [hash ^UInt64 |
+	^#xxhash64 uint64: self asUInt64 seed: seed.
+]
+
+// UInt8 hash returns the hash value of the receiver.
+Meth UInt8 [hash ^UInt64 |
+	^#xxhash64 uint8: self seed: seed.
+]
+
+// UInt16 hash returns the hash value of the receiver.
+Meth UInt16 [hash ^UInt64 |
+	^#xxhash64 uint16: self seed: seed.
+]
+
+// UInt32 hash returns the hash value of the receiver.
+Meth UInt32 [hash ^UInt64 |
+	^#xxhash64 uint32: self seed: seed.
+]
+
+// UInt64 hash returns the hash value of the receiver.
+Meth UInt64 [hash ^UInt64 |
+	^#xxhash64 uint64: self seed: seed.
+]
