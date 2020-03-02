@@ -207,3 +207,30 @@ Func [mkdir: _ String perm: perm Int ^Int]
 // on success returns 0,
 // on error returns a negative errno number.
 Func [rmdir: _ String ^Int]
+
+// A Timeval represents a time as seconds and microseconds.
+Type Timeval {
+	sec: Int64
+	uSec: Int64
+}
+
+// Timeval sec returns the number of seconds.
+Meth Timeval [sec ^Int64 | ^sec]
+
+// Timeval uSec returns the number of microseconds.
+Meth Timeval [uSec ^Int64 | ^uSec]
+
+// GetTimeOfDayResult is the result of a call to getTimeOfDay.
+Type GetTimeOfDayResult {errno: Int | ok: Timeval}
+
+// GetTimeOfDayResult ifError: returns the Timeval
+// if the receiver case is ok,
+// otherwise returns the result of evaluating f
+// with the error reported by the errno number.
+Meth GetTimeOfDayResult [ifError: f (Error, Timeval) Fun ^Timeval |
+	^self
+		ifErrno: [:e Int | f value: (errorMsg: (strerror: e))]
+		ifOk: [:t | t]
+]
+
+Func [getTimeOfDay ^GetTimeOfDayResult]

@@ -3,28 +3,31 @@
 package main
 
 import (
-	"fmt"
 	unix "syscall"
 	"unsafe"
 )
 
 const (
-	readDirBufSize        = 8192
-	openDirResultErrnoTag = 0
-	openDirResultOKTag    = 1
-	readDirResultErrnoTag = 0
-	readDirResultEndTag   = 1
-	readDirResultOKTag    = 2
-	statResultErrnoTag    = 0
-	statResultOKTag       = 1
+	readDirBufSize             = 8192
+	openDirResultErrnoTag      = 0
+	openDirResultOKTag         = 1
+	readDirResultErrnoTag      = 0
+	readDirResultEndTag        = 1
+	readDirResultOKTag         = 2
+	statResultErrnoTag         = 0
+	statResultOKTag            = 1
+	getTimeOfDayResultErrnoTag = 0
+	getTimeOfDayResultOKTag    = 1
 )
 
 type (
-	Dir           = os_2Fposix__0__5FDir__
-	OpenDirResult = os_2Fposix__0_OpenDirResult__
-	ReadDirResult = os_2Fposix__0_ReadDirResult__
-	StatResult    = os_2Fposix__0_StatResult__
-	Stat          = os_2Fposix__0_Stat__
+	Dir                = os_2Fposix__0__5FDir__
+	OpenDirResult      = os_2Fposix__0_OpenDirResult__
+	ReadDirResult      = os_2Fposix__0_ReadDirResult__
+	StatResult         = os_2Fposix__0_StatResult__
+	Stat               = os_2Fposix__0_Stat__
+	Timeval            = os_2Fposix__0_Timeval__
+	GetTimeOfDayResult = os_2Fposix__0_GetTimeOfDayResult__
 )
 
 func F0_os_2Fposix__STDIN_5FFILENO__(ret *int)  { *ret = int(unix.Stdin) }
@@ -192,7 +195,6 @@ func F0_os_2Fposix__readDir_3A__(dir *Dir, ret *ReadDirResult) {
 		switch {
 		case err != nil:
 			e := err.(unix.Errno)
-			fmt.Println("==>", err.Error())
 			*ret = ReadDirResult{
 				tag:      readDirResultErrnoTag,
 				errno_3A: int(e),
@@ -262,4 +264,23 @@ func cstr(str *[]byte) (uintptr, bool) {
 		cstr[i] = b
 	}
 	return uintptr(unsafe.Pointer(&cstr[0])), true
+}
+
+func F0_os_2Fposix__getTimeOfDay__(ret *GetTimeOfDayResult) {
+	var tval unix.Timeval
+	err := unix.Gettimeofday(&tval)
+	if err != nil {
+		*ret = GetTimeOfDayResult{
+			tag:      getTimeOfDayResultErrnoTag,
+			errno_3A: int(err.(unix.Errno)),
+		}
+		return
+	}
+	*ret = GetTimeOfDayResult{
+		tag: getTimeOfDayResultOKTag,
+		ok_3A: Timeval{
+			sec:  int64(tval.Sec),
+			uSec: int64(tval.Usec),
+		},
+	}
 }
