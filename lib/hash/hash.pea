@@ -8,9 +8,17 @@ The hash algorithm itself is not specified and is subject to change.
 
 Import "primitive"
 import "hash/xxhash64"
+import "os/posix"
 
-// TODO: generate a random hash seed at each program startup.
-val seed UInt64 := [123]
+val seed UInt64 := [
+	#posix getTimeOfDay #posix
+		ifErrno: [:_ | 0]
+		ifOk: [:t |
+			#xxhash64 uint128: t #posix sec asUInt64
+				and: t #posix uSec asUInt64
+				seed: 0
+		]
+]
 
 // Hasher is implemented by types that can return a hash value.
 Type Hasher {
