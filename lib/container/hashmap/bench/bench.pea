@@ -1,0 +1,75 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "container/hashmap"
+Import "primitive"
+Import "os/posix"
+Import "hash"
+
+func [main |
+	print: "start\n".
+	words := readWords.
+	print: words size asString + " words\n".
+
+	maps (String, Int) HashMap& Array :=
+		newArray: 10 init: [:_ | #hashmap new].
+
+	print: "insert: ".
+	time: [
+		maps do: [:m |
+			words doI: [:i :word | m at: word put: i].
+		].
+	].
+	(maps at: 0) printStats.
+
+
+	print: "remove: ".
+	time: [
+		maps do: [:m |
+			words do: [:word | m remove: word].
+		].
+	].
+
+]
+
+func [time: f Nil Fun |
+	time := #posix getTimeOfDay ifError: [:e | panic: e errorMsg].
+	start := time sec asFloat + (time uSec asFloat * 1.0e-6).
+
+	f value.
+
+	time := #posix getTimeOfDay ifError: [:e | panic: e errorMsg].
+	end := time sec asFloat + (time uSec asFloat * 1.0e-6).
+
+	print: (end - start) asString + "s\n".
+]
+
+func [readWords ^String Array|
+	fd := #posix open: "/usr/share/dict/words" mode: #posix O_RDONLY perm: 0.
+	fd < 0 ifTrue: [panic: "failed to open words: " + (#posix strerror: fd)].
+
+	stat := (#posix fstat: fd) ifError: [:e | panic: "failed to stat: " + e errorMsg].
+
+	total := 0.
+	buf Byte Array := newArray: stat size asInt init: [:_ | 0].
+	[total < buf size] whileTrue: [
+		n := #posix read: fd buf: (buf from: total).
+		n < 0 ifTrue: [panic: "failed to read words: " + (#posix strerror: n)].
+		total := total + n.
+	].
+
+	nLines := 0.
+	buf do: [:b | b = '\n' ifTrue: [nLines := nLines + 1]].
+
+	lines String Array := newArray: nLines init: [:_ | ""].
+	lineStart := 0.
+	lineIndex := 0.
+	buf doI: [:i :b |
+		b = '\n' ifTrue: [
+			line := newString: (buf from: lineStart to: i-1).
+			lines at: lineIndex put: line.
+			lineIndex := lineIndex + 1.
+			lineStart := i + 1.
+		]
+	].
+	^lines.
+]

@@ -1,18 +1,262 @@
 // Copyright © 2020 The Pea Authors under an MIT-style license.
 
+Import "hash"
 Import "primitive"
 
+// Key is implemented by types that can be keys in a HashMap.
 Type T Key {
 	[= T ^Bool]
 	[hash ^UInt64]
 }
 
-Type (K K Key, V) HashMap := (K, V) _HashMap.
+// (K K Key, V) HashMap is a map from keys of type K to values of type V.
+// It is implemented as a hash table with amortized constant time
+// lookup, insert, and removal.
+Type (K, V) HashMap := (K, V) _HashMap.
 
-type (_, _) _HashMap {}
+type (K, V) _HashMap {
+	size: Int
+	buckets: (K, V) EntryList Array
+	first: (K, V) EntryList
+	last: (K, V) EntryList
+	ngrow: Int
+}
 
-Func (K K Key, V) [new ^(K, V) HashMap]
-Meth (K K Key, _) HashMap [size ^Int]
-Meth (K K Key, V) HashMap [at: k K ^V?]
-Meth (K K Key, V) HashMap [at: k K put: v V ^V?]
-Meth (K K Key, V) HashMap [remove: k K ^V?]
+// (K K Key, V) new returns a new, empty (K, V) HashMap.
+Func (K K Key, V) [new ^(K, V) HashMap& |
+	^{
+		size: 0
+		buckets: (newArray: 13 init: [:_ | {empty}])
+		first: {empty}
+		last: {empty}
+		ngrow: 0
+	}
+]
+
+// (K K Key, _) HashMap size returns the number of items in the receiver.
+Meth (_, _) HashMap [size ^Int |
+	^size
+]
+
+// (_, _) HashMap printStats writes statistics about the receiver to stdout.
+Meth (_, _) HashMap [printStats |
+	usedSizes := 0.
+	usedBuckets := 0.
+	emptyBuckets := 0.
+	buckets do: [:b |
+		b ifEmpty: [
+			emptyBuckets := emptyBuckets + 1
+		] ifEntry: [:e |
+			usedBuckets := usedBuckets + 1.
+			usedSizes := usedSizes + b size.
+		]
+	].
+	avgBucketLen := usedSizes asFloat / usedBuckets asFloat.
+	print: "number of grows: " + ngrow asString + "\n".
+	print: "number of entries: " + size asString + "\n".
+	print: "number of buckets: " + buckets size asString + "\n".
+	print: "number of empty buckets: " + emptyBuckets asString + "\n".
+	print: "number of used buckets: " + usedBuckets asString + "\n".
+	print: "avg used bucket length: " + avgBucketLen asString + "\n".
+]
+
+// (K K Key, V) HashMap at: returns the value mapped by k if any.
+Meth (K K Key, V) HashMap [at: k K ^V? |
+	i := self indexOf: k.
+	b := buckets at: i.
+	b do: [:e | e key = k ifTrue: [^some: e val]].
+	^none
+]
+
+// (K K Key, V) HashMap at:put: sets the value mapped by k to v,
+// and returns the previously mapped value, if any.
+Meth (K K Key, V) HashMap [at: k K put: v V ^V? |
+	i := self indexOf: k.
+	b := buckets at: i.
+	b do: [:e |
+		e key = k ifTrue: [
+			p := e val.
+			e val: v.
+			^some: p.
+		]
+	].
+	e (K, V) Entry& := {
+		key: k
+		val: v
+		next: b
+		before: last
+		after: {empty}
+	}.
+	last := {entry: e}.
+	buckets at: i put: {entry: e}.
+	size := size + 1.
+	self grow.
+	^none
+]
+
+meth (K K Key, _) HashMap [grow |
+	size asFloat > (buckets size asFloat * 0.8) ifFalse: [
+		^{}
+	].
+	ngrow := ngrow + 1.
+	old := buckets.
+	buckets := newArray: old size * 2 init: [:_ | {empty}].
+	old do: [:b |
+		b do: [:e |
+			i := self indexOf: e key.
+			e next: (buckets at: i).
+			buckets at: i put: {entry: e}.
+		]
+	]
+]
+
+// (K K Key, V) HashMap remove: removes the mapping from k to its value,
+// and returns the previously mapped value, if any.
+Meth (K K Key, V) HashMap [remove: k K ^V? |
+	i := self indexOf: k.
+	b := buckets at: i.
+	e := (b remove: k) ifNone: [^none].
+	size := size -1.
+	e before
+		ifEmpty: [first := e after]
+		ifEntry: [:b | b after: e after].
+	e after
+		ifEmpty: [last := e before]
+		ifEntry: [:a | a before: e before].
+	^some: e val
+]
+
+meth (K K Key, _) HashMap [indexOf: k K ^Int |
+	// 9223372036854775807 = 0x7FFFFFFFFFFFFFFF.
+	^(k hash & 9223372036854775807) asInt % buckets size.
+]
+
+test [hashMap |
+	m (String, Int) HashMap& := new.
+	assert: m size equals: 0.
+	assertNone: (m at: "Hello").
+
+	m at: "Hello" put: 1.
+	assert: m size equals: 1.
+	assertNone: (m at: "Good Bye").
+	assert: (m at: "Hello") isSome: 1.
+
+	m (String, Int) HashMap& := new.
+	letters := "abcdefghijklmnopqrstuvwxyz".
+	0 to: letters byteSize - 1 do: [:i |
+		l := letters fromByte: i toByte: i.
+		m at: l put: i+1.
+	].
+	assert: m size equals: letters byteSize.
+	assert: (m at: "a") isSome: 1.
+	assert: (m at: "e") isSome: 5.
+	assert: (m at: "z") isSome: 26.
+	assertNone: (m at: "1").
+
+	0 to: letters byteSize - 1 do: [:i |
+		l := letters fromByte: i toByte: i.
+		assert: (m remove: l) isSome: i+1.
+		assert: m size equals: letters byteSize - i - 1.
+		assertNone: (m at: l).
+	].
+	assert: m size equals: 0.
+]
+
+// (K, V) HashMap do: evaluates f with each entry in the HashMap
+// in the order that their keys were inserted into the map.
+//
+// f may add, remove, or change entries in the map:
+//
+// If an entry is remove on which f has not yet been evaluated,
+// f will not be evaluated on the removed entry.
+//
+// If an entry is added f will be evaluated on the entry in insertion order (last).
+//
+// If the value mapped to by a key is changed
+// and f has not already been evaluated on the entry
+// f will be evaluated on the entry with its new value.
+// If f has already been evaluated on the entry,
+// it will not be evaluated again.
+Meth (K, V) HashMap [do: f ((K, V) Entry, Nil) Fun |
+	first do: [:e | f value: e]
+]
+
+test [hashMap_do |
+	m (String, Int) HashMap& := new.
+	letters := "abcdefghijklmnopqrstuvwxyz".
+	0 to: letters byteSize - 1 do: [:i |
+		m at: (letters fromByte: i toByte: i) put: i
+	].
+	i := 0.
+	m do: [:e |
+		assert: e key equals: (letters fromByte: i toByte: i).
+		assert: e val equals: i.
+		i := i + 1
+	].
+]
+
+// (K, V) Entry is an entry in the HashMap,
+// mapping a key of type K to a value of type V.
+Type (K, V) Entry := (K, V) _Entry.
+
+// (K, _) Entry key returns the key of the receiver.
+Meth (K, _) Entry [key ^K | ^key]
+
+// (_, V) Entry val returns the value of the receiver.
+Meth (_, V) Entry [val ^V | ^val]
+
+type (K, V) _Entry {
+	key: K
+	val: V
+	// next is the next element in the bucket.
+	next: (K, V) EntryList
+
+	// before and after are a double-linked list
+	// of elements in insertion order.
+	before: (K, V) EntryList
+	after: (K, V) EntryList
+}
+
+meth (K, _) Entry [key: k K | key := k]
+meth (_, V) Entry [val: v V | val := v]
+meth (K, V) Entry [next ^(K, V) EntryList& | ^next]
+meth (K, V) Entry [next: n (K, V) EntryList | next := n]
+meth (K, V) Entry [before ^(K, V) EntryList& | ^before]
+meth (K, V) Entry [before: l (K, V) EntryList | before := l]
+meth (K, V) Entry [after ^(K, V) EntryList& | ^after]
+meth (K, V) Entry [after: l (K, V) EntryList | after := l]
+
+type (K, V) EntryList {
+	| empty
+	| entry: (K, V) Entry&
+}
+
+meth (K, V) EntryList [ifEmpty: f (K, V) Entry& Fun ^(K, V) Entry& |
+	^self ifEmpty: [f value] ifEntry: [:e | e]
+]
+
+meth (K, V) EntryList [ifEntry: f ((K, V) Entry&, Nil) Fun |
+	self ifEmpty: [] ifEntry: [:e | f value: e]
+]
+
+meth (_, _) EntryList [size ^Int |
+	^self ifEmpty: [0] ifEntry: [:e | 1 + e next size]
+]
+
+meth (K, V) EntryList [do: f ((K, V) Entry&, Nil) Fun |
+	self ifEntry: [:e |
+		n (K, V) EntryList := e next.
+		f value: e.
+		n do: f
+	]
+]
+
+meth (K K Eq, V) EntryList [remove: k K ^(K, V) Entry& ? |
+	e := self ifEmpty: [^none].
+	e key = k ifTrue: [
+		self := e next.
+		^some: e.
+	].
+	^e next remove: k.
+]
+
