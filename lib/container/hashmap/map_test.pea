@@ -1,0 +1,370 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "hash"
+Import "primitive"
+
+test [newTest |
+	m (String, Int) Map& := new.
+	assert: m size equals: 0.
+	assertNone: (m at: "").
+	assertNone: (m at: "abc").
+	assertNone: (m remove: "").
+	assertNone: (m remove: "xyz").
+]
+
+test [size |
+	m (String, Int) Map& := new.
+	assert: m size equals: 0.
+	m at: "" put: 0.
+	assert: m size equals: 1.
+	m at: "1" put: 1.
+	assert: m size equals: 2.
+	m at: "2" put: 2.
+	assert: m size equals: 3.
+	m remove: "".
+	assert: m size equals: 2.
+	m remove: "2".
+	assert: m size equals: 1.
+	m remove: "1".
+	assert: m size equals: 0.
+]
+
+test [at |
+	m (String, Int) Map& := new.
+	m at: "0" put: 0.
+	m at: "1" put: 1.
+	m at: "2" put: 2.
+
+	assertNone: (m at: "").
+	assertNone: (m at: "abc").
+	assert: (m at: "0") isSome: 0.
+	assert: (m at: "1") isSome: 1.
+	assert: (m at: "2") isSome: 2.
+]
+
+test [atPut |
+	m (String, Int) Map& := new.
+	assertNone: (m at: "0" put: 0).
+	assertNone: (m at: "1" put: 1).
+	assertNone: (m at: "2" put: 2).
+	assert: (m at: "0" put: -1) isSome: 0.
+	assert: (m at: "0" put: -2) isSome: -1.
+	assert: (m at: "0" put: -3) isSome: -2.
+	assert: (m at: "1" put: 10) isSome: 1.
+	assert: (m at: "2" put: 20) isSome: 2.
+	assert: (m at: "0" put: -4) isSome: -3.
+]
+
+test [remove |
+	m (String, Int) Map& := new.
+	m at: "0" put: 0.
+	m at: "1" put: 1.
+	m at: "2" put: 2.
+
+	assert: m size equals: 3.
+
+	assertNone: (m remove: "").
+	assert: m size equals: 3.
+
+	assertNone: (m remove: "3").
+	assert: m size equals: 3.
+
+	assertNone: (m remove: "☺").
+	assert: m size equals: 3.
+
+	assert: (m remove: "0") isSome: 0.
+	assert: m size equals: 2.
+	assertNone: (m remove: "").
+	assertNone: (m remove: "0").
+
+	assert: (m remove: "1") isSome: 1.
+	assert: m size equals: 1.
+	assertNone: (m remove: "").
+	assertNone: (m remove: "0").
+	assertNone: (m remove: "1").
+
+	assert: (m remove: "2") isSome: 2.
+	assert: m size equals: 0.
+	assertNone: (m remove: "").
+	assertNone: (m remove: "0").
+	assertNone: (m remove: "1").
+	assertNone: (m remove: "2").
+]
+
+test [do_emptyMap |
+	m (String, Int) Map& := new.
+	m do: [:e | panic: "called with " + e asString].
+]
+
+test [do_singletonMap |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	assert: m elementsAre: {{key: "a" val: 1}}.
+	m remove: "a".
+	assertEmpty: m.
+]
+
+test [do_insertionOrder |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+	m at: "Z" put: 1.
+	m at: "Y" put: 1.
+	m at: "X" put: 1.
+	assert: m elementsAre: {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+		{key: "Z" val: 1};
+		{key: "Y" val: 1};
+		{key: "X" val: 1};
+	}.
+]
+
+test [do_orderMaintainedOnChange |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+	m at: "a" put: 2.
+	assert: m elementsAre: {
+		{key: "a" val: 2};
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+	}.
+]
+
+test [do_orderMaintainedOnRemove |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+	m remove: "b".
+	assert: m elementsAre: {
+		{key: "a" val: 1};
+		{key: "c" val: 1};
+	}.
+]
+
+test [do_removePrevious |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "b" ifTrue: [m remove: "a"].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 3.
+
+	assert: m elementsAre: {
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+	}.
+]
+
+test [do_removeCurrent |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "a" ifTrue: [m remove: "a"].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 3.
+
+	assert: m elementsAre: {
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+	}.
+]
+
+test [do_removeNext |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "b" ifTrue: [m remove: "c"].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 2.
+
+	assert: m elementsAre: {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+	}.
+]
+
+test [do_removeAfterNext |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "a" ifTrue: [m remove: "c"].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 2.
+
+	assert: m elementsAre: {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+	}.
+]
+
+test [do_addNext |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+		{key: "d" val: 1};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "c" ifTrue: [m at: "d" put: 1].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 4.
+	assert: m elementsAre: es.
+]
+
+test [do_addAfterNext |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+		{key: "c" val: 1};
+		{key: "d" val: 1};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "a" ifTrue: [m at: "d" put: 1].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 4.
+	assert: m elementsAre: es.
+]
+
+test [do_changeNext |
+	m (String, Int) Map& := new.
+	m at: "a" put: 1.
+	m at: "b" put: 1.
+	m at: "c" put: 1.
+
+	es Pair Array := {
+		{key: "a" val: 1};
+		{key: "b" val: 1};
+		{key: "c" val: 2};
+	}.
+	i := 0.
+	m do: [:e |
+		e key = "b" ifTrue: [m at: "c" put: 2].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	assert: i equals: 3.
+	assert: m elementsAre: es.
+]
+
+type Pair {key: String val: Int}
+meth Pair [key ^String | ^key]
+meth Pair [val ^Int | ^val]
+
+func [assert: m (String, Int) Map& elementsAre: es Pair Array |
+	i := 0.
+	m do: [:e |
+		i < es size ifFalse: [
+			panic: "size: " + i asString + " != " + es size asString + " " + e asString.
+		].
+		assert: e key equals: (es at: i) key.
+		assert: e val equals: (es at: i) val.
+		i := i + 1.
+	].
+	i = es size ifFalse: [panic: "size: " + i asString + " != " + es size asString].
+]
+
+func [assertEmpty: m (String, Int) Map& |
+	m do: [:e | panic: "called with " + e asString].
+]
+
+test [addRemove |
+	m (String, Int) Map& := new.
+	assert: m size equals: 0.
+	assertNone: (m at: "Hello").
+
+	m at: "Hello" put: 1.
+	assert: m size equals: 1.
+	assertNone: (m at: "Good Bye").
+	assert: (m at: "Hello") isSome: 1.
+
+	m (String, Int) Map& := new.
+	letters := "abcdefghijklmnopqrstuvwxyz".
+	0 to: letters byteSize - 1 do: [:i |
+		l := letters fromByte: i toByte: i.
+		m at: l put: i+1.
+	].
+	assert: m size equals: letters byteSize.
+	assert: (m at: "a") isSome: 1.
+	assert: (m at: "e") isSome: 5.
+	assert: (m at: "z") isSome: 26.
+	assertNone: (m at: "1").
+
+	0 to: letters byteSize - 1 do: [:i |
+		l := letters fromByte: i toByte: i.
+		assert: (m remove: l) isSome: i+1.
+		assert: m size equals: letters byteSize - i - 1.
+		assertNone: (m at: l).
+	].
+	assert: m size equals: 0.
+]
