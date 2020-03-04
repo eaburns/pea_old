@@ -647,7 +647,8 @@ type Global struct {
 	Val *types.Val // non-nil
 }
 
-// Index is the address of an element of an array.
+// Index is the address of an element of an array,
+// or the value of the byte of a string.
 type Index struct {
 	val
 	// Ary is the address of the array.
