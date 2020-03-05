@@ -94,6 +94,31 @@ func escapes(alloc *Alloc) bool {
 			if alloc, ok := u.Dst.(*Alloc); ok && alloc.Stack {
 				continue
 			}
+		case *Call:
+			// If the alloc is only used as the return location of a call,
+			// it cannot possibly escape, since the called function
+			// only has access to this location in order to assign to it.
+			if u.Fun.Ret == nil {
+				// The function doesn't have a return value,
+				// so the alloc must be a non-return argument.
+				return true
+			}
+			// Check that our alloc isn't a non-final argument.
+			// The final argument is the return.
+			for _, arg := range u.Args[:len(u.Args)-1] {
+				if arg == alloc {
+					return true
+				}
+			}
+			continue
+		case *Index:
+			// An Index that returns a non-reference
+			// does not expose the address of u, so it is non-escaping.
+			// This occurs, for example, for string indexing,
+			// which returns the byte value, not the address of the byte.
+			if u.Ary == alloc && !isRefType(u) {
+				continue
+			}
 		}
 		return true
 	}
