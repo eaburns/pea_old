@@ -21,14 +21,15 @@ import (
 )
 
 var (
-	modPath    = flag.String("path", "main", "the current module's path")
-	modRoot    = flag.String("root", ".", "root directory for imported modules")
-	force      = flag.Bool("force", false, "force compilation event if up-to-date")
-	test       = flag.Bool("test", false, "build a test executable")
-	verbose    = flag.Bool("v", false, "enable verbose output")
-	output     = flag.String("o", "", "name of executable file or directory")
-	cleanUp    = flag.Bool("cleanup", true, "remove temporary files")
-	cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
+	modPath       = flag.String("path", "main", "the current module's path")
+	modRoot       = flag.String("root", ".", "root directory for imported modules")
+	force         = flag.Bool("force", false, "force compilation event if up-to-date")
+	test          = flag.Bool("test", false, "build a test executable")
+	verbose       = flag.Bool("v", false, "enable verbose output")
+	output        = flag.String("o", "", "name of executable file or directory")
+	cleanUp       = flag.Bool("cleanup", true, "remove temporary files")
+	cpuProfile    = flag.String("cpuprofile", "", "write cpu profile to file for the compiler")
+	profileBinary = flag.Bool("profile_binary", false, "whether the generated binary should emit profiler output")
 )
 
 func main() {
@@ -238,6 +239,7 @@ func merge(objFiles []string) string {
 	if *test {
 		merger.TestMod = *modPath
 	}
+	merger.Profile = *profileBinary
 	for _, file := range objFiles {
 		f, err := os.Open(file)
 		if err != nil {

@@ -13,6 +13,11 @@ import (
 // Merger merges peago object files into a single, complete Go source file.
 type Merger struct {
 	TestMod string
+	// Profile is whether to enable cpu and mem profiling in the output .go file.
+	// When true, the generated program will write cpu.prof and mem.prof files
+	// to the current directory when run.
+	// These file can be read with go tool pprof.
+	Profile bool
 	w       io.Writer
 	seen    map[string]bool
 	inits   []string
@@ -95,9 +100,10 @@ func (m *Merger) Done() error {
 		panic(err)
 	}
 	return t.Execute(m.w, map[string]interface{}{
-		"Inits": m.inits,
-		"Tests": m.tests,
-		"Test":  m.TestMod != "",
+		"Inits":   m.inits,
+		"Tests":   m.tests,
+		"Test":    m.TestMod != "",
+		"Profile": m.Profile,
 	})
 }
 
@@ -106,6 +112,7 @@ const header = `package main
 import (
 	"fmt"
 	"os"
+	"runtime/pprof"
 	"sync/atomic"
 )
 
@@ -181,6 +188,25 @@ func main() {
 			panic(r)
 		}
 	}()
+
+	if {{.Profile}} {
+		f, err := os.Create("cpu.prof")
+		if err != nil {
+			panic("failed to create cpu profile file: " + err.Error())
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+
+		defer func() {
+			f, err := os.Create("mem.prof")
+			if err != nil {
+				panic("failed to create mem profile file: " + err.Error())
+			}
+			pprof.WriteHeapProfile(f)
+			f.Close()
+		}()
+	}
+
 	{{range .Inits -}}
 	{{.}}()
 	{{end -}}
