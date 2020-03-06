@@ -45,6 +45,12 @@ func subType(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ0 *Ty
 	if typ1 := seen[typ0]; typ1 != nil {
 		return typ1
 	}
+	for typ0.Alias != nil {
+		// The type we are substituting is an alias definition.
+		// We need to find the underlying, non-alias type.
+		x.log("alias %s", typ0.Alias)
+		typ0 = typ0.Alias.Type
+	}
 
 	defer x.tr("subType(%s, %s %p)", subDebugString(sub), typ0, typ0)()
 
@@ -124,6 +130,7 @@ func subCases(x *scope, seen map[*Type]*Type, sub map[*TypeVar]TypeName, typ *Ty
 	cases0 := typ.Cases
 	typ.Cases = make([]Var, len(cases0))
 	for i := range cases0 {
+		x.log("case %s", cases0[i].Name)
 		typ.Cases[i] = subVar(x, seen, sub, &cases0[i])
 		typ.Cases[i].Case = typ
 		typ.Cases[i].Index = i

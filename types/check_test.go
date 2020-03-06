@@ -108,6 +108,66 @@ func TestBugRegressions(t *testing.T) {
 	}
 }
 
+// Tests for a regression where substituting an alias
+// whose target had a type body that references the alias itself
+// would crash.
+func TestAliasTypeBodyCycleRegression(t *testing.T) {
+	t.Parallel()
+	tests := []errorTest{
+		{
+			// This was the original issue.
+			name: "alias used from alias target body",
+			src: `
+				Type X HashTable {buckets: X EntryList Array}
+				Type X Entry := X _Entry.
+				type X _Entry {next: X EntryList}
+				type X EntryList {empty | entry: X Entry&}
+			`,
+			err: "",
+		},
+		{
+			// This was the original issue,
+			// but change the arity between the alias and target.
+			name: "alias used from alias target body",
+			src: `
+				Type X HashTable {buckets: X EntryList Array}
+				Type X Entry := (X, Int) _Entry.
+				type (X, Y) _Entry {y: Y next: X EntryList}
+				type X EntryList {empty | entry: X Entry&}
+			`,
+			err: "",
+		},
+		{
+			// A tests that is the original issue,
+			// but adds an extra level of alias indirection.
+			name: "alias used from alias used from alias target body",
+			src: `
+				Type X HashTable {buckets: X EntryList Array}
+				Type X Entry := X _Entry.
+				Type X _Entry := X __Entry.
+				type X __Entry {next: X EntryList}
+				type X EntryList {empty | entry: X Entry&}
+			`,
+			err: "",
+		},
+		{
+			// This is just like the original, but with a cycle
+			// to make sure we return an error and don't loop to infinity.
+			name: "alias cycle is an non-crashing error",
+			src: `
+				Type X HashTable {buckets: X EntryList Array}
+				Type X Entry := X _Entry.
+				Type X _Entry := X __Entry.
+				type X __Entry := X Entry.
+			`,
+			err: "type alias cycle",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, test.run)
+	}
+}
+
 // This tests that Call.Recv is set to the receiver,
 // and that if it is a conversion it's type is set.
 // This is to catch a regression from a previous bug fix.
