@@ -1,0 +1,161 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+import "os/posix"
+
+func [nsecPerUsec ^Int64 | ^1000]
+func [nsecPerMsec ^Int64 | ^1000000]
+func [nsecPerSec ^Int64 | ^1000000000]
+func [nsecPerMin ^Int64 | ^nsecPerSec*60]
+func [nsecPerHour ^Int64 | ^nsecPerMin*60]
+func [nsecPerDay ^Int64 | ^nsecPerHour*24]
+
+// Duration is a duration of time with nanosecond precision.
+Type Duration := _Duration.
+type _Duration {
+	nsec: Int64
+}
+
+meth Duration [nsec ^Int64 | ^nsec]
+
+// Int64 nanoseconds returns the Duration
+// that is the receiver value in nano seconds.
+Meth Int64 [nanoseconds ^Duration |
+	^{nsec: self}
+]
+
+// Int nanoseconds returns the Duration
+// that is the receiver value in nano-seconds.
+Meth Int [nanoseconds ^Duration |
+	^{nsec: self asInt64}
+]
+
+// Int microseconds returns the Duration
+// that is the receiver value in microseconds.
+Meth Int [microseconds ^Duration |
+	^{nsec: self asInt64 * nsecPerUsec}
+]
+
+// Int milliseconds returns the Duration
+// that is the receiver value in milliseconds.
+Meth Int [milliseconds ^Duration |
+	^{nsec: self asInt64 * nsecPerMsec}
+]
+
+// Int seconds returns the Duration
+// that is the receiver value in seconds.
+Meth Int [seconds ^Duration |
+	^{nsec: self asInt64 * nsecPerSec}
+]
+
+// Int minutes returns the Duration
+// that is the receiver value in minutes.
+Meth Int [minutes ^Duration |
+	^{nsec: self asInt64 * nsecPerMin}
+]
+
+// Int hours returns the Duration
+// that is the receiver value in hours.
+Meth Int [hours ^Duration |
+	^{nsec: self asInt64 * nsecPerHour}
+]
+
+// Int days returns the Duration
+// that is the receiver value in days.
+Meth Int [days ^Duration |
+	^{nsec: self asInt64 * nsecPerDay}
+]
+
+// Duration + returns the sum of the receiver and other.
+Meth Duration [+ other Duration ^Duration |
+	^{nsec: nsec + other nsec}
+]
+
+// Duration - returns the difference between the receiver and other.
+Meth Duration [- other Duration ^Duration |
+	^{nsec: nsec - other nsec}
+]
+
+// Duration returns the receiver as a string.
+Meth Duration [asString ^String |
+	nsec < nsecPerUsec ifTrue: [
+		^nsec asString + "ns".
+	].
+	nsec < nsecPerMsec ifTrue: [
+		usec := nsec asFloat / nsecPerUsec asFloat.
+		^usec asString + "μs".
+	].
+	nsec < nsecPerSec ifTrue: [
+		msec := nsec asFloat / nsecPerMsec asFloat.
+		^msec asString + "ms".
+	].
+
+	str := "".
+	ns := nsec.
+	ns >= nsecPerDay ifTrue: [
+		days := ns / nsecPerDay.
+		ns := ns - (days * nsecPerDay).
+		str := str + days asString + "d".
+	].
+	ns >= nsecPerHour ifTrue: [
+		hours := ns / nsecPerHour.
+		ns := ns - (hours * nsecPerHour).
+		str := str + hours asString + "h".
+	].
+	ns >= nsecPerMin ifTrue: [
+		min := ns / nsecPerMin.
+		ns := ns - (min * nsecPerMin).
+		str := str + min asString + "m".
+	].
+	ns >= nsecPerSec ifTrue: [
+		sec := ns asFloat / nsecPerSec asFloat.
+		str := str + sec asString + "s".
+	].
+	^str
+]
+
+test [Duration_asString |
+	assert: 1 nanoseconds asString equals: "1ns".
+	assert: 1 microseconds asString equals: "1μs".
+	assert: 1 milliseconds asString equals: "1ms".
+	assert: 1 seconds asString equals: "1s".
+	assert: 1 minutes asString equals: "1m".
+	assert: 1 hours asString equals: "1h".
+	assert: 1 days asString equals: "1d".
+	assert: 2 nanoseconds asString equals: "2ns".
+	assert: 2 microseconds asString equals: "2μs".
+	assert: 2 milliseconds asString equals: "2ms".
+	assert: 2 seconds asString equals: "2s".
+	assert: 2 minutes asString equals: "2m".
+	assert: 2 hours asString equals: "2h".
+	assert: 2 days asString equals: "2d".
+	assert: (1 days + 2 hours + 3 minutes + 4 seconds + 500 milliseconds) asString equals: "1d2h3m4.5s".
+	assert: (2 milliseconds + 500 microseconds) asString equals: "2.5ms".
+	assert: (2 microseconds + 500 nanoseconds) asString equals: "2.5μs".
+	assert: 1000000000 nanoseconds asString equals: "1s".
+	assert: 1000000 microseconds asString equals: "1s".
+	assert: 1000 milliseconds asString equals: "1s".
+	assert: 60 seconds asString equals: "1m".
+	assert: 60 minutes asString equals: "1h".
+	assert: 24 hours asString equals: "1d".
+	assert: 86400 seconds asString equals: "1d".
+]
+
+// Time represents an absolute point in time.
+Type Time := _Time.
+type _Time {
+	dur: Duration
+}
+
+meth Time [dur ^Duration| ^dur]
+
+// now returns the current wall-clock time in the system's local time zone.
+Func [now ^Time |
+	tv := #posix getTimeOfDay #posix ifError: [:e | panic: e errorMsg].
+	sec := tv #posix sec.
+	usec := tv #posix uSec.
+	^{dur: {nsec: sec * nsecPerSec + (usec asInt64 * nsecPerUsec)}}
+]
+
+// Time - returns the duration between the receiver and other.
+Meth Time [- other Time ^Duration | ^dur - other dur]
