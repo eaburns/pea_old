@@ -3,6 +3,7 @@
 Import "container/hashmap"
 Import "primitive"
 Import "os/posix"
+Import "os/time"
 Import "hash"
 
 func [main |
@@ -32,15 +33,10 @@ func [main |
 ]
 
 func [time: f Nil Fun |
-	time := #posix getTimeOfDay ifError: [:e | panic: e errorMsg].
-	start := time sec asFloat + (time uSec asFloat * 1.0e-6).
-
+	start := #time now.
 	f value.
-
-	time := #posix getTimeOfDay ifError: [:e | panic: e errorMsg].
-	end := time sec asFloat + (time uSec asFloat * 1.0e-6).
-
-	print: (end - start) asString + "s\n".
+	end := #time now.
+	print: (end - start) asString + "\n".
 ]
 
 func [readWords ^String Array|
