@@ -1,12 +1,49 @@
 // Copyright © 2020 The Pea Authors under an MIT-style license.
 
 Import "primitive"
+Import "string"
 
-Type ReadResult {error: Error | eof | ok: Int}
+// ReadResult is the result of a call to Reader read.
+Type ReadResult {error: Error | end | ok: Int}
+
+// Reader is implemented by types with a read method.
 Type Reader {[read: Byte Array ^ReadResult]}
 
-Meth Reader [readAll ^Byte Array!]
-Meth Reader [readAllString ^String!]
+// Reader readAll returns a Byte Array of all bytes
+// read from the receiver until its end.
+Meth Reader [readAll ^Byte Array! |
+	total := 0.
+	buf Byte Array := newArray: 1024 init: [:_ | 0].
+	[true] whileTrue: [
+		total = buf size ifTrue: [
+			old := buf.
+			buf := newArray: old size * 2 init: [:_ | 0].
+			old doI: [:i :b | buf at: i put: b].
+		].
+		(self read: (buf from: total))
+			ifError: [:e | ^error: e]
+			ifEnd: [^ok: (buf to: total - 1)]
+			ifOk: [:n | total := total + n]
+	].
+	panic: "impossible". ^error: (errorMsg: "impossible").
+]
+
+// Reader readAllString returns a String of  all bytes
+// read from the receiver until its end.
+Meth Reader [readAllString ^String! |
+	b := #string newBuilder.
+	buf Byte Array := newArray: 1024 init: [:_ | 0].
+	[true] whileTrue: [
+		(self read: buf)
+			ifError: [:e | ^error: e]
+			ifEnd: [^ok: b reset]
+			ifOk: [:n | b add: (buf to: n - 1)]
+	].
+	panic: "impossible". ^error: (errorMsg: "impossible").
+]
+
+// Reader copyTo copies all bytes
+// from the receiver to w until its end.
 Meth Reader [copyTo: w Writer ^Int64!]
 
 Type ReadFullError {error: Error n: Int}

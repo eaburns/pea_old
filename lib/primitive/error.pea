@@ -25,7 +25,7 @@ Type T! {[ifError: (Error, T) Fun ^T]}
 
 type T OrError {error: Error | ok: T}
 
-meth T OrError [ifError: f (Error, T) Fun ^T |
+Meth T OrError [ifError: f (Error, T) Fun ^T |
 	^self ifError: f ifOk: [:t | t]
 ]
 

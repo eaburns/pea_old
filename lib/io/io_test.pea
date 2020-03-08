@@ -1,0 +1,46 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+test [Reader_readAll |
+	assert: (newTestReader: "") readAll isOkAndEquals: {}.
+	assert: (newTestReader: "Hello")
+		readAll isOkAndEquals: {'H'; 'e'; 'l'; 'l'; 'o'}.
+	assert: (newTestReader: "☺☹")
+		readAll isOkAndEquals: {226; 152; 186; 226; 152; 185}.
+
+	assertError: newTestErrorReader readAll.
+]
+
+test [Reader_readAllString |
+	assert: (newTestReader: "") readAllString isOkAndEquals: "".
+	assert: (newTestReader: "Hello") readAllString isOkAndEquals: "Hello".
+	assert: (newTestReader: "☺☹") readAllString isOkAndEquals: "☺☹".
+
+	assertError: newTestErrorReader readAllString.
+]
+
+type TestErrorReader {}
+
+func [newTestErrorReader ^Reader |
+	r TestErrorReader := {}.
+	^r
+]
+
+meth TestErrorReader [read: buf Byte Array ^ReadResult |
+	^{error: (errorMsg: "test error")}
+]
+
+type TestReader {str: String}
+
+func [newTestReader: s String ^Reader |
+	r TestReader := {str: s}.
+	^r
+]
+
+meth TestReader [read: buf Byte Array ^ReadResult |
+	str = "" ifTrue: [^{end}].
+	buf at: 0 put: (str atByte: 0).
+	str := str fromByte: 1.
+	^{ok: 1}
+]
