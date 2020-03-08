@@ -299,6 +299,41 @@ func TestInlineFunParmFuncs(t *testing.T) {
 	}
 }
 
+func TestMakeArrayShallowCopyArgs(t *testing.T) {
+	const srcA = `
+		Func [foo ^Int Array | ^{1; 2; 3; 5; 7}]
+	`
+	const srcB = `
+		Func [foo ^Int Array | ^{1; 2; 3; 5; 7}]
+		Func [useFoo |
+			x := 1.
+			y := 2.
+			z := 3.
+			// This should inline foo, modifying the inlined copy.
+			// The original copy should not change.
+			f := foo.
+			f at: 0 put: z.
+			f at: 1 put: y.
+			f at: 2 put: x.
+		]
+	`
+	modA, errs := compile(srcA)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	fooA := findTestFunBySelector(modA, "foo")
+
+	modB, errs := compile(srcB)
+	if len(errs) > 0 {
+		t.Fatalf("failed to compile: %s", errs)
+	}
+	fooB := findTestFunBySelector(modB, "foo")
+
+	if fooA.String() != fooB.String() {
+		t.Errorf("got:\n%s\nwant:\n%s", fooB, fooA)
+	}
+}
+
 func compile(src string) (*Mod, []error) {
 	p := ast.NewParser("#test")
 	if err := p.Parse("", strings.NewReader(src)); err != nil {

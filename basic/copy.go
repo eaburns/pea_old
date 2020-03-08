@@ -50,10 +50,15 @@ func copyBBlks(bs0 []*BBlk, nval int) []*BBlk {
 	return bs1
 }
 
-func (n Comment) shallowCopy() Stmt    { return &n }
-func (n Store) shallowCopy() Stmt      { return &n }
-func (n Copy) shallowCopy() Stmt       { return &n }
-func (n MakeArray) shallowCopy() Stmt  { return &n }
+func (n Comment) shallowCopy() Stmt { return &n }
+func (n Store) shallowCopy() Stmt   { return &n }
+func (n Copy) shallowCopy() Stmt    { return &n }
+
+func (n MakeArray) shallowCopy() Stmt {
+	n.Args = append([]Val{}, n.Args...)
+	return &n
+}
+
 func (n NewArray) shallowCopy() Stmt   { return &n }
 func (n MakeSlice) shallowCopy() Stmt  { return &n }
 func (n MakeString) shallowCopy() Stmt { return &n }
@@ -86,17 +91,52 @@ func (n Switch) shallowCopy() Stmt {
 	return &n
 }
 
-func (n IntLit) shallowCopy() Stmt   { return &n }
-func (n FloatLit) shallowCopy() Stmt { return &n }
+func (v *val) copyUsers() {
+	v.users = append([]Stmt{}, v.users...)
+}
+
+func (n IntLit) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
+
+func (n FloatLit) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
 
 func (n Op) shallowCopy() Stmt {
+	n.copyUsers()
 	n.Args = append([]Val{}, n.Args...)
 	return &n
 }
 
-func (n Load) shallowCopy() Stmt   { return &n }
-func (n Alloc) shallowCopy() Stmt  { return &n }
-func (n Arg) shallowCopy() Stmt    { return &n }
-func (n Global) shallowCopy() Stmt { return &n }
-func (n Index) shallowCopy() Stmt  { return &n }
-func (n Field) shallowCopy() Stmt  { return &n }
+func (n Load) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
+
+func (n Alloc) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
+
+func (n Arg) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
+
+func (n Global) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
+
+func (n Index) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
+
+func (n Field) shallowCopy() Stmt {
+	n.copyUsers()
+	return &n
+}
