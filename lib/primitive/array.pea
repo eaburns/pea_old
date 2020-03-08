@@ -224,3 +224,9 @@ Meth ByteArray [fromByte: s Int ^ByteArray |
 Meth ByteArray [toByte: e Int ^ByteArray |
 	^self from: 0 to: e
 ]
+
+// ByteArray doBytes: evaluates f with each byte of the receiver
+// in increasing order of index.
+Meth ByteArray [doBytes: f (Byte, Nil) Fun |
+	self do: [:b | f value: b]
+]

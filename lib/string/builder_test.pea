@@ -1,0 +1,106 @@
+Import "primitive"
+
+test [Builder_empty |
+	b := newBuilder.
+	assert: b elementsAre: {}.
+	assert: b reset equals: "".
+]
+
+test [Builder_addByte |
+	b := newBuilder.
+	b addByte: 'a'.
+	assert: b elementsAre: {'a'}.
+	assert: b reset equals: "a".
+
+	b := newBuilder.
+	b addByte: 'a'.
+	b addByte: 'b'.
+	b addByte: 'c'.
+	b addByte: 'd'.
+	assert: b elementsAre: {'a'; 'b'; 'c'; 'd'}.
+	assert: b reset equals: "abcd".
+]
+
+test [Builder_add |
+	b := newBuilder.
+	b add: "".
+	assert: b elementsAre: {}.
+	assert: b reset equals: "".
+
+	b := newBuilder.
+	b add: "abcdef☺☹".
+	assert: b elementsAre: {'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 226; 152; 186; 226; 152; 185}.
+	assert: b reset equals: "abcdef☺☹".
+
+	b := newBuilder.
+	b add: "abc".
+	b add: "def".
+	b add: "☺☹".
+	assert: b elementsAre: {'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 226; 152; 186; 226; 152; 185}.
+	assert: b reset equals: "abcdef☺☹".
+
+	b := newBuilder.
+	bs Byte Array := {'a'; 'b'; 'c'}.
+	b add: bs.
+	bs := {'d'; 'e'; 'f'}.
+	b add: bs.
+	bs := {226; 152; 186; 226; 152; 185}. // ☺☹
+	b add: bs.
+	assert: b elementsAre: {'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 226; 152; 186; 226; 152; 185}.
+	assert: b reset equals: "abcdef☺☹".
+
+	b := newBuilder.
+	bb := newBuilder.
+	bb add: "abc".
+	b add: bb.
+	bb := newBuilder.
+	bb add: "def".
+	b add: bb.
+	bb := newBuilder.
+	bb add: "☺☹".
+	b add: bb.
+	assert: b elementsAre: {'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 226; 152; 186; 226; 152; 185}.
+	assert: b reset equals: "abcdef☺☹".
+]
+
+test [Builder_reset |
+	b := newBuilder.
+	b add: "abc".
+	assert: b reset equals: "abc".
+	assert: b elementsAre: {}.
+	b add: "abc".
+	assert: b reset equals: "abc".
+	assert: b elementsAre: {}.
+]
+
+test [builderBehavesLikeAReference |
+	b := newBuilder.
+	c := b.
+	assert: b elementsAre: {}.
+	assert: c elementsAre: {}.
+
+	b add: "abc".
+	assert: b elementsAre: {'a'; 'b'; 'c'}.
+	assert: c elementsAre: {'a'; 'b'; 'c'}.
+
+	c add: "def".
+	assert: b elementsAre: {'a'; 'b'; 'c'; 'd'; 'e'; 'f'}.
+	assert: c elementsAre: {'a'; 'b'; 'c'; 'd'; 'e'; 'f'}.
+
+	assert: b reset equals: "abcdef".
+	assert: b elementsAre: {}.
+	assert: c elementsAre: {}.
+]
+
+func [assert: b Builder elementsAre: es Byte Array |
+	i := 0.
+	b doBytes: [:b |
+		i < es size ifFalse: [
+			panic: "size: " + i asString + " != " +
+				es size asString + " " + b asString.
+		].
+		assert: b equals: (es at: i).
+		i := i + 1.
+	].
+	i = es size ifFalse: [panic: "size: " + i asString + " != " + es size asString].
+]

@@ -1,0 +1,98 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+// Bytes is implemented by types that are sequences of bytes.
+Type ByteDoer {
+	[byteSize ^Int]
+	[doBytes: (Byte, Nil) Fun]
+}
+
+// Builder allows for efficiently building a string.
+// Builder behaves like a reference;
+// copies refer to the same underlying object.
+Type Builder := _BuilderRef.
+type _BuilderRef {ref: _Builder&}
+
+type _Builder {
+	size: Int
+	data: Byte Array
+}
+
+// newBuilder returns a new, empty Builder.
+Func [newBuilder ^Builder |
+	^{ref: {size: 0 data: {0; 0}}}
+]
+
+// Builder byteSize returns the number of bytes in the builder.
+Meth Builder [byteSize ^Int |
+	^ref byteSize
+]
+
+meth _Builder [byteSize ^Int |
+	^size
+]
+
+// Builder doBytes: evaluates f with each byte of the receiver
+// in increasing order of index.
+Meth Builder [doBytes: f (Byte, Nil) Fun |
+	ref doBytes: f
+]
+
+meth _Builder [doBytes: f (Byte, Nil) Fun |
+	(data to: size - 1) doBytes: f
+]
+
+// Builder addByte: adds a single Byte to the string under construction.
+Meth Builder [addByte: b Byte |
+	ref addByte: b
+]
+
+meth _Builder [addByte: b Byte |
+	self ensure: 1.
+	data at: size put: b.
+	size := size + 1.
+]
+
+// Builder add: adds a string of bytes to the string underconstruction.
+Meth Builder (S ByteDoer) [add: s S |
+	ref add: s
+]
+
+meth _Builder (S ByteDoer) [add: s S |
+	self ensure: s byteSize.
+	s doBytes: [:b |
+		data at: size put: b.
+		size := size + 1
+	]
+]
+
+// Builder reset returns the constructed string and resets the builder to empty.
+Meth Builder [reset ^String |
+	^ref reset
+]
+
+meth _Builder [reset ^String |
+	str := newString: (data toByte: size - 1).
+	data := {0; 0}.
+	size := 0.
+	^str
+]
+
+meth _Builder [ensure: n Int |
+	need := size + n.
+	have := data size.
+	need <= have ifTrue: [
+		^{}
+	].
+	[need > have] whileTrue: [
+		have := have * 2.
+	].
+	old := data.
+	data := newArray: have init: [:_ | 0].
+	old doI: [:i :b | data at: i put: b].
+]
+
+Meth Builder [addFormat: fmt String values: vs Stringer Array]
+Meth Builder [addFormat: fmt String value: v Stringer]
+Meth Builder [addFormat: fmt String value: v0 Stringer value: v1 Stringer]

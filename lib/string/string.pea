@@ -2,20 +2,6 @@
 
 Import "primitive"
 
-Type ByteDoer {
-	[byteSize ^Int]
-	[doBytes: (Byte, Nil) Fun]
-}
-
-Type Builder {}
-Meth Builder [byteSize ^Int]
-Meth Builder [doBytes: f (Byte, Nil) Fun]
-Meth Builder [addByte: b Byte]
-Meth Builder (S ByteDoer) [add: s S]
-Meth Builder [addFormat: fmt String values: vs Stringer Array]
-Meth Builder [addFormat: fmt String value: v Stringer]
-Meth Builder [addFormat: fmt String value: v0 Stringer value: v1 Stringer]
-
 Func [format: fmt String values: vs Stringer Array ^String]
 Func [format: fmt String value: v0 Stringer ^String]
 Func [format: fmt String value: v0 Stringer value: v1 Stringer ^String]
