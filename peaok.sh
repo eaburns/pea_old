@@ -3,7 +3,7 @@
 root="$PWD/lib"
 peac="$root/peac"
 
-go build -o $peac ./peac
+go build -o $peac ./peac || exit 1
 
 find $root -name [0-9]*.go | xargs rm
 
