@@ -1,0 +1,204 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "io"
+Import "primitive"
+import "os/posix"
+
+val testPath := ["test_file"]
+
+test [Mode_readOnly |
+	touch: "test_file".
+	f := (newOptions mode: {readOnly}, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	(f read: {'0'})
+		ifError: [:e Error | panic: "expected end, got error: " + e errorMsg]
+		ifEnd: []
+		ifOk: [:_ | panic: "expected end, got OK"].
+	(f write: {'0'})
+		ifError: [:_ Error |]
+		ifOk: [:_ | panic: "expected error, got OK"].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Mode_writeOnly |
+	touch: "test_file".
+	f := (newOptions mode: {writeOnly}, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	(f read: {'0'})
+		ifError: [:_ Error |]
+		ifEnd: [panic: "expected error, got end"]
+		ifOk: [:_ | panic: "expected error, got OK"].
+	(f write: {'0'})
+		ifError: [:e Error | panic: "expected OK, got error: " + e errorMsg]
+		ifOk: [:_ |].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Mode_readWriteOnly |
+	touch: "test_file".
+	f := (newOptions mode: {readWrite}, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	(f read: {'0'})
+		ifError: [:e Error | panic: "expected end, got error: " + e errorMsg]
+		ifEnd: []
+		ifOk: [:_ | panic: "expected end, got OK"].
+	(f write: {'0'})
+		ifError: [:e Error | panic: "expected OK, got error: " + e errorMsg]
+		ifOk: [:_ |].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_createFalse |
+	f := (newOptions mode: {writeOnly}, create: false, path: testPath)
+		ifError: [:_ | ^{}].
+
+	// Silently close and remove.
+	f close.
+	#posix unlink: testPath.
+
+	panic: "expected open to fail".
+]
+
+test [Options_createTrue |
+	f := (newOptions mode: {writeOnly}, create: true, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_truncateFalse |
+	touch: testPath text: "Hello, World".
+	f := (newOptions mode: {readOnly}, truncate: false, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+
+	r #io Reader := f.
+	assert: r readAllString isOkAndEquals: "Hello, World".
+
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_truncateTrue |
+	touch: testPath text: "Hello, World".
+	f := (newOptions mode: {readOnly}, truncate: true, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+
+	r #io Reader := f.
+	assert: r readAllString isOkAndEquals: "".
+
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_exclusiveFalse |
+	touch: testPath text: "Hello, World".
+	f := (newOptions mode: {writeOnly},
+			create: true,
+			exclusive: false,
+			path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_exclusiveTrue_Fails |
+	touch: testPath text: "Hello, World".
+	f := (newOptions mode: {writeOnly},
+			create: true,
+			exclusive: true,
+			path: testPath)
+		ifError: [:_ Error | ^{}].
+
+	// Silently close and remove.
+	f close.
+	#posix unlink: testPath.
+
+	panic: "expected open to fail".
+]
+
+test [Options_exclusiveTrue_OK |
+	#posix unlink: testPath. // Make sure it's not there.
+
+	f := (newOptions mode: {writeOnly},
+			create: true,
+			exclusive: true,
+			path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_directoryFalse |
+	touch: testPath.
+	f := (newOptions mode: {readOnly}, directory: false, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+]
+
+test [Options_directoryTrue_Fails |
+	touch: testPath.
+	f := (newOptions mode: {readOnly}, directory: true, path: testPath)
+		ifError: [:_ Error | ^{}].
+
+	// Silently close and remove.
+	f close.
+	#posix unlink: testPath.
+
+	panic: "expected open to fail".
+]
+
+test [Options_directoryTrue_OK |
+	// Make sure it's not there.
+	#posix unlink: testPath.
+	#posix rmdir: testPath.
+
+	res := #posix mkdir: testPath perm: 0777.
+	res < 0 ifTrue: [panic: "failed to create the dir: " + (#posix strerror: res)].
+
+	f := (newOptions mode: {readOnly}, directory: true, path: testPath)
+		ifError: [:e | panic: "failed to open: " + e errorMsg].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+
+	res := #posix rmdir: testPath.
+	res < 0 ifTrue: [panic: "failed to remove the dir: " + (#posix strerror: res)].
+]
+
+test [File_info |
+	touch: testPath text: "Hello, World".
+	f := (open path: testPath) ifError: [:e | panic: "failed to open: " + e errorMsg].
+
+	info := f info ifError: [:e | panic: "failed to stat: " + e errorMsg].
+	assert: info size equals: "Hello, World" byteSize asInt64.
+	assertFalse: info isDirectory.
+
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+	rm: testPath.
+
+	f := (open path: ".") ifError: [:e | panic: "failed to open: " + e errorMsg].
+	info := f info ifError: [:e | panic: "failed to stat: " + e errorMsg].
+	assertTrue: info isDirectory.
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+]
+
+func [touch: path String | touch: path text: ""]
+
+func [touch: path String text: s String |
+	f := (create path: path) ifError: [:e | panic: "failed to create: " + e errorMsg].
+	buf Byte Array := newArray: s byteSize init: [:i | s atByte: i].
+	[buf size > 0] whileTrue: [
+		(f write: buf)
+			ifError: [:e | panic: "failed to write: " + e errorMsg]
+			ifOk: [:n | buf := buf from: n]
+	].
+	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
+]
+
+func [rm: path String |
+	res := #posix unlink: path.
+	res < 0 ifTrue: [panic: "failed to remove: " + (#posix strerror: res)].
+]

@@ -2,29 +2,111 @@
 
 Import "primitive"
 import "io"
+import "os/posix"
 
-Type Mode {read | write | readWrite}
+// Mode is the mode in which to open a file.
+Type Mode {readOnly | writeOnly | readWrite}
 
+// Options are options for opening a file.
 Type Options {
 	mode: Mode
+
+	// create: specifies whether to create a new file
+	// if one does not exist, otherwise fail.
 	create: Bool
-	trutruncate: Bool
+
+	// truncate: specifies whether to truncate
+	// a write-opened file to empty if it exists.
+	truncate: Bool
+
+	// exclusive: specifies whether to report an error
+	// opening a file for write if the file already exists.
 	exclusive: Bool
+
+	// directory: specifies whether to fail
+	// if the file exists and is not a directory.
 	directory: Bool
+
+	// permissions: are the permission bits before umask
+	// used if a file is created.
 	permissions: Int
 }
 
-Func [newOptions: mode Mode ^Options]
-Func [open ^Options]
-Func [create ^Options]
-Meth Options [mode: _ Mode]
-Meth Options [create: _ Bool]
-Meth Options [truncate: _ Bool]
-Meth Options [exclusive: _ Bool]
-Meth Options [directory: _ Bool]
-Meth Options [permissions: _ Int]
-Meth Options [path: _ String ^OpenResult]
+// newOptions returns a new Options with mode set to readOnly,
+// all of the boolean fields set to false, and permissions set to 0.
+Func [newOptions ^Options |
+	^{
+		mode: {readOnly}
+		create: false
+		truncate: false
+		exclusive: false
+		directory: false
+		permissions: 0
+	}
+]
 
+// open returns the default Options to open a read-only file.
+Func [open ^Options |
+	^newOptions.
+]
+
+// create returns the default Options to create a new write-only file.
+Func [create ^Options |
+	^newOptions
+		mode: {writeOnly},
+		create: true,
+		truncate: true,
+		permissions: 0666,
+		yourself
+]
+
+// Options mode: sets the mode field of the receiver.
+Meth Options [mode: x Mode | mode := x]
+
+// Options create: sets the create field of the receiver.
+Meth Options [create: x Bool | create := x]
+
+// Options truncate: sets the truncate field of the receiver.
+Meth Options [truncate: x Bool | truncate := x]
+
+// Options exclusive: sets the exclusive field of the receiver.
+Meth Options [exclusive: x Bool | exclusive := x]
+
+// Options directory: sets the directory field of the receiver.
+Meth Options [directory: x Bool | directory := x]
+
+// Options permissions: sets the permissions field of the receiver.
+Meth Options [permissions: x Int | permissions := x]
+
+meth Options [yourself ^Options | ^self]
+
+meth Options [bits ^Int |
+	b Int := mode
+		ifReadOnly: [#posix O_RDONLY]
+		ifWriteOnly: [#posix O_WRONLY]
+		ifReadWrite: [#posix O_RDWR].
+	create ifTrue: [b := b | #posix O_CREAT].
+	truncate ifTrue: [b := b | #posix O_TRUNC].
+	exclusive ifTrue: [b := b | #posix O_EXCL].
+	directory ifTrue: [b := b | #posix O_DIRECTORY].
+	^b
+]
+
+// Options path: opens thie file at path using the receiver options.
+Meth Options [path: p String ^OpenResult |
+	fd := #posix open: p mode: self bits perm: permissions.
+	fd < 0 ifTrue: [
+		fd := fd neg.
+		err := errorMsg: (#posix strerror: fd).
+		fd = #posix EACCES ifTrue: [^{permissionDenied: err}].
+		fd = #posix EEXIST ifTrue: [^{exists: err}].
+		fd = #posix ENOENT ifTrue: [^{doesNotExist: err}].
+		^{error: err}
+	].
+	^{ok: {ref: {fd: fd dir: {none}}}}
+]
+
+// OpenResult is the result of opening a file with Options path:.
 type OpenResult {
 	| ok: File
 	| exists: Error
@@ -33,32 +115,141 @@ type OpenResult {
 	| error: Error
 }
 
-/*
-	f := (#fs open path: "foo")
-		ifDoesNotExist: [:e | ^panic: "does not exist: " + e errorMsg],
-		ifError: [:e | ^panic: "some other error: " + e errorMsg].
-*/
-Meth OpenResult [ifExist: _ (Error, Nil) Fun]
-Meth OpenResult [ifDoesNotExist: _ (Error, Nil) Fun]
-Meth OpenResult [ifPermissionDenied: _ (Error, Nil) Fun]
-Meth OpenResult [ifError: _ (Error, File) Fun ^File]
+// OpenResult ifExists evaluates f with the error value
+// if the receiver case is exists:.
+Meth OpenResult [ifExists: f (Error, Nil) Fun |
+	self
+		ifOk: [:_ File |]
+		ifExists: f
+		ifDoesNotExist: [:_|]
+		ifPermissionDenied: [:_|]
+		ifError: [:_|]
+]
 
-Type File := fileRef.
+// OpenResult ifDoesNotExist evaluates f with the error value
+// if the receiver case is doesNotExist:.
+Meth OpenResult [ifDoesNotExist: f (Error, Nil) Fun |
+	self
+		ifOk: [:_ File |]
+		ifExists: [:_|]
+		ifDoesNotExist: f
+		ifPermissionDenied: [:_|]
+		ifError: [:_|]
+]
 
-type fileRef {}
+// OpenResult ifPermissionDenied evaluates f with the error value
+// if the receiver case is permissionDenied:.
+Meth OpenResult [ifPermissionDenied: f (Error, Nil) Fun |
+	self
+		ifOk: [:_ File |]
+		ifExists: [:_|]
+		ifDoesNotExist: [:_|]
+		ifPermissionDenied: f
+		ifError: [:_|]
+]
 
-Meth File [read: _ Byte Array ^#io ReadResult]
-Meth File [write: _ Byte Array ^#io WriteResult]
-Meth File [readDir ^String!]
-Meth File [info ^Info!]
-Meth File [close ^Error?]
+// OpenResult ifError returns the open File if the receiver case is ok:,
+// otherwise returns the result of evaluating f with the error.
+Meth OpenResult [ifError: f (Error, File) Fun ^File |
+	^self
+		ifOk: [:f | f]
+		ifExists: f
+		ifDoesNotExist: f
+		ifPermissionDenied: f
+		ifError: f
+]
 
-Type Info := info.
+// File is a reference to an open file.
+Type File := _FileRef.
 
-type info{
-	size: Int64
-	mode: UInt32
+type _FileRef {ref: _File&}
+
+type _File {
+	fd: Int
+	dir: #posix Dir?
 }
 
-Meth Info [size ^Int64]
-Meth Info [isDirectory ^Bool]
+meth _File [fd ^Int | ^fd]
+meth _File [dir ^#posix Dir? & | ^dir]
+meth _File [dir: d #posix Dir& | dir := {some: d}]
+
+// File read: reads up to buf size bytes from the receiver into buf.
+Meth File [read: buf Byte Array ^#io ReadResult |
+	n := #posix read: ref fd buf: buf.
+	n = 0 ifTrue: [^{end}].
+	n < 0 ifTrue: [^{error: (errorMsg: (#posix strerror: n))}].
+	^{ok: n}
+]
+
+// File write: writes up to buf size bytes from buf to the receiver.
+Meth File [write: buf Byte Array ^#io WriteResult |
+	n := #posix write: ref fd buf: buf.
+	n < 0 ifTrue: [^{error: (errorMsg: (#posix strerror: n))}].
+	^{ok: n}
+]
+
+// ReadDirResult is the result of a call to File readDir.
+Type ReadDirResult {error: Error | end | ok: String}
+
+// ReadDirResult ifError:ifEnd: returns the file name if the case is ok,
+// returns the result of evaluating ferr with the Error if the case is error,
+// or returns the result of evaluating fend if the case is end.
+Meth ReadDirResult [ifError: ferr (Error, String) Fun ifEnd: fend String Fun ^String |
+	^self
+		ifError: [:err Error | ferr value: err]
+		ifEnd: [fend value]
+		ifOk: [:name | name].
+]
+
+// File readDir reads and returns the next filename
+// from the reciver, which must be a file referring a directory.
+Meth File [readDir ^ReadDirResult |
+	dir := ref dir ifNone: [
+		(#posix fdOpenDir: ref fd) #posix
+			ifErrno: [:e | ^{error: (errorMsg: (#posix strerror: e))}]
+			ifOk: [:d | ref dir: d. d]
+	].
+	^(#posix readDir: dir) #posix
+		ifErrno: [:e Int | {error: (errorMsg: (#posix strerror: e))}]
+		ifEnd: [{end}]
+		ifOk: [:name | {ok: name}]
+]
+
+// Info contains information about a file.
+Type Info := _Info.
+
+type _Info {
+	mode: UInt32
+	size: Int64
+}
+
+// Info size returns the file size.
+Meth Info [size ^Int64 |
+	^size
+]
+
+// Info isDirectory returns whether the file is a directory.
+Meth Info [isDirectory ^Bool |
+	^mode asUInt & #posix S_IFMT = #posix S_IFDIR
+]
+
+// File info returns an Info describing the receiver file.
+Meth File [info ^Info! |
+	s := (#posix fstat: ref fd) #posix ifErrno: [:e |
+		^error: (errorMsg: (#posix strerror: e))
+	].
+	^ok: {
+		mode: s #posix mode asUInt32
+		size: s #posix size
+	}
+]
+
+// File close closes the receiver's file.
+// The receiver should not be used again after calling close.
+Meth File [close ^Error? |
+	res := ref dir
+		ifNone: [#posix close: ref fd]
+		ifSome: [:dir | #posix closeDir: dir].
+	res < 0 ifTrue: [^some: (errorMsg: (#posix strerror: res))].
+	^none
+]
