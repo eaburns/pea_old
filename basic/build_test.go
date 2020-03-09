@@ -2495,6 +2495,34 @@ func TestBuild(t *testing.T) {
 						return
 				`,
 		},
+		{
+			name: "MakeVirt of an empty object",
+			src: `
+				func [main |
+					e Empty := {}.
+					_ Fooer := e.
+				]
+				type Fooer {[foo]}
+				type Empty {}
+				meth Empty [foo]
+			`,
+			fun: "function0",
+			want: `
+				function0
+					parms:
+					0:
+						[in:] [out: 1]
+						$0 := alloc(#test Empty)
+						$1 := alloc(#test Fooer)
+						$2 := alloc(#test Fooer)
+						jmp 1
+					1:
+						[in: 0] [out:]
+						virt($2, {function1})
+						copy($1, $2, #test Fooer)
+						return
+			`,
+		},
 	}
 	for _, test := range tests {
 		test := test

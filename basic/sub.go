@@ -92,7 +92,9 @@ func (n *MakeOr) subVals(sub valMap) {
 
 func (n *MakeVirt) subVals(sub valMap) {
 	sub1(sub, n, &n.Dst)
-	sub1(sub, n, &n.Obj)
+	if n.Obj != nil {
+		sub1(sub, n, &n.Obj)
+	}
 }
 
 func (n *Call) subVals(sub valMap) {

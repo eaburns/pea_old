@@ -408,14 +408,20 @@ func (n *MakeOr) Uses() []Val {
 // MakeVirt initializes a virtual type.
 type MakeVirt struct {
 	stmt
-	Dst   Val
+	Dst Val
+	// Obj may be nill if the virtual type is an empty type.
 	Obj   Val
 	Virts []*Fun
 
 	Convert *types.Convert
 }
 
-func (n *MakeVirt) Uses() []Val { return []Val{n.Dst, n.Obj} }
+func (n *MakeVirt) Uses() []Val {
+	if n.Obj == nil {
+		return []Val{n.Dst}
+	}
+	return []Val{n.Dst, n.Obj}
+}
 
 // Call is a static function call.
 type Call struct {

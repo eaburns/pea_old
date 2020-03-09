@@ -477,9 +477,12 @@ func genMakeVirt(stmt *basic.MakeVirt, ts typeSet, s *strings.Builder) {
 		n := genVirtSig(&typ.Virts[i], ts, s)
 		s.WriteRune('{')
 		mangleFun(v, s)
-		fmt.Fprintf(s, "(x%d", stmt.Obj.Num())
+		s.WriteRune('(')
+		if stmt.Obj != nil {
+			fmt.Fprintf(s, "x%d, ", stmt.Obj.Num())
+		}
 		for i := 0; i < n; i++ {
-			fmt.Fprintf(s, ", p%d", i)
+			fmt.Fprintf(s, "p%d, ", i)
 		}
 		s.WriteString(")}, ")
 	}

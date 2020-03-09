@@ -1586,6 +1586,23 @@ func TestWriteMod(t *testing.T) {
 			`,
 			stdout: "42",
 		},
+		{
+			// This is testing a crash regression
+			// where an empty interface object
+			// caused a nil pointer dereference.
+			name: "make virtual from an empty",
+			src: `
+				type Fooer {[foo]}
+				type Empty {}
+				meth Empty [foo | print: 42]
+				func [main |
+					e Empty := {}.
+					f Fooer := e.
+					f foo.
+				]
+			`,
+			stdout: "42",
+		},
 	}
 	for _, test := range tests {
 		test := test

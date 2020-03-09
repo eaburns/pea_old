@@ -254,7 +254,11 @@ func (n *MakeOr) buildString(s *strings.Builder) *strings.Builder {
 }
 
 func (n *MakeVirt) buildString(s *strings.Builder) *strings.Builder {
-	fmt.Fprintf(s, "virt($%d, $%d, {", n.Dst.Num(), n.Obj.Num())
+	fmt.Fprintf(s, "virt($%d, ", n.Dst.Num())
+	if n.Obj != nil {
+		fmt.Fprintf(s, "$%d, ", n.Obj.Num())
+	}
+	s.WriteRune('{')
 	for i, v := range n.Virts {
 		if i > 0 {
 			s.WriteString(", ")
