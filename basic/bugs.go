@@ -216,9 +216,13 @@ func (n *VirtCall) bugs() (b string) {
 		"virtual call argument count mismatch: got %d, want %d",
 		len(checkArgs), len(virt.Parms))
 	for i, a := range checkArgs {
-		bugIf(a.Type() != virt.Parms[i].Type(),
+		wantType := virt.Parms[i].Type()
+		if !SimpleType(wantType) {
+			wantType = wantType.Ref()
+		}
+		bugIf(a.Type() != wantType,
 			"argument %d type mismatch: got %s, want %s",
-			i, a.Type(), virt.Parms[i].Type())
+			i, a.Type(), wantType)
 	}
 	return ""
 }

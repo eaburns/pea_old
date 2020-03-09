@@ -598,8 +598,8 @@ func TestBuild(t *testing.T) {
 		{
 			name: "virtual call",
 			src: `
-				func [foo: v Fooer | v f: 1 b: 2 b: 3]
-				type Fooer {[f: Int b: Int b: Int]}
+				func [foo: v Fooer | v f: 1 b: "Hello" b: 3]
+				type Fooer {[f: Int b: String b: Int]}
 			`,
 			fun: "function0",
 			want: `
@@ -608,14 +608,17 @@ func TestBuild(t *testing.T) {
 						0 [v] #test Fooer& (value)
 					0:
 						[in:] [out: 1]
+						$2 := alloc(String)
+						$3 := alloc(String)
 						jmp 1
 					1:
 						[in: 0] [out:]
 						$0 := arg(0 [v])
 						$1 := 1
-						$2 := 2
-						$3 := 3
-						virt call $0.0 [f:b:b:]($0, $1, $2, $3)
+						string($2, string1)
+						copy($3, $2, String)
+						$4 := 3
+						virt call $0.0 [f:b:b:]($0, $1, $3, $4)
 						return
 			`,
 		},
