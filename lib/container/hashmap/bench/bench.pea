@@ -1,10 +1,11 @@
 // Copyright © 2020 The Pea Authors under an MIT-style license.
 
 Import "container/hashmap"
-Import "primitive"
-Import "os/posix"
-Import "os/time"
 Import "hash"
+Import "io"
+Import "os/fs"
+Import "os/time"
+Import "primitive"
 
 func [main |
 	print: "start\n".
@@ -29,7 +30,6 @@ func [main |
 			words do: [:word | m remove: word].
 		].
 	].
-
 ]
 
 func [time: f Nil Fun |
@@ -40,18 +40,11 @@ func [time: f Nil Fun |
 ]
 
 func [readWords ^String Array|
-	fd := #posix open: "/usr/share/dict/words" mode: #posix O_RDONLY perm: 0.
-	fd < 0 ifTrue: [panic: "failed to open words: " + (#posix strerror: fd)].
-
-	stat := (#posix fstat: fd) ifError: [:e | panic: "failed to stat: " + e errorMsg].
-
-	total := 0.
-	buf Byte Array := newArray: stat size asInt init: [:_ | 0].
-	[total < buf size] whileTrue: [
-		n := #posix read: fd buf: (buf from: total).
-		n < 0 ifTrue: [panic: "failed to read words: " + (#posix strerror: n)].
-		total := total + n.
-	].
+	path := "/usr/share/dict/words".
+	file := (#fs open path: path) ifError: [:e | panic: e errorMsg].
+	r #io Reader := file.
+	buf := r readAll ifError: [:e | panic: e errorMsg].
+	file close ifError: [:e | panic: e errorMsg].
 
 	nLines := 0.
 	buf do: [:b | b = '\n' ifTrue: [nLines := nLines + 1]].
