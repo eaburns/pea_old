@@ -253,3 +253,12 @@ Meth File [close ^Error? |
 	res < 0 ifTrue: [^some: (errorMsg: (#posix strerror: res))].
 	^none
 ]
+
+// readFile returns the entire contents of the file at path.
+Func [readFile: path String ^Byte Array! |
+	f := (open path: path) ifError: [:e | ^error: e].
+	r #io Reader := f.
+	d := r readAll ifError: [:e | f close. ^error: e].
+	f close ifError: [:e | ^error: e].
+	^ok: d
+]

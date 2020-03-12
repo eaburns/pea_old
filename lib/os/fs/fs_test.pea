@@ -185,6 +185,18 @@ test [File_info |
 	f close ifError: [:e | panic: "failed to close: " + e errorMsg].
 ]
 
+test [readFile |
+	str := "こんにちは、皆さん".
+	touch: testPath text: str.
+	want Byte Array := newArray: str byteSize init: [:i | str atByte: i].
+	assert: (readFile: testPath) isOkAndEquals: want.
+	rm: testPath.
+]
+
+test [readFileError |
+	assertError: (readFile: "no such file").
+]
+
 func [touch: path String | touch: path text: ""]
 
 func [touch: path String text: s String |

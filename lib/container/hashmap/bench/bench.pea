@@ -2,7 +2,6 @@
 
 Import "container/hashmap"
 Import "hash"
-Import "io"
 Import "os/fs"
 Import "os/time"
 Import "primitive"
@@ -39,22 +38,18 @@ func [time: f Nil Fun |
 	print: (end - start) asString + "\n".
 ]
 
-func [readWords ^String Array|
+func [readWords ^String Array |
 	path := "/usr/share/dict/words".
-	file := (#fs open path: path) ifError: [:e | panic: e errorMsg].
-	r #io Reader := file.
-	buf := r readAll ifError: [:e | panic: e errorMsg].
-	file close ifError: [:e | panic: e errorMsg].
-
+	data := (#fs readFile: path) ifError: [:e | panic: e errorMsg].
 	nLines := 0.
-	buf do: [:b | b = '\n' ifTrue: [nLines := nLines + 1]].
+	data do: [:b | b = '\n' ifTrue: [nLines := nLines + 1]].
 
 	lines String Array := newArray: nLines init: [:_ | ""].
 	lineStart := 0.
 	lineIndex := 0.
-	buf doI: [:i :b |
+	data doI: [:i :b |
 		b = '\n' ifTrue: [
-			line := newString: (buf from: lineStart to: i-1).
+			line := newString: (data from: lineStart to: i-1).
 			lines at: lineIndex put: line.
 			lineIndex := lineIndex + 1.
 			lineStart := i + 1.
