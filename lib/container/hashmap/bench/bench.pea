@@ -1,6 +1,7 @@
 // Copyright © 2020 The Pea Authors under an MIT-style license.
 
 Import "container/hashmap"
+Import "container/stack"
 Import "hash"
 Import "os/fs"
 Import "os/time"
@@ -44,16 +45,16 @@ func [readWords ^String Array |
 	nLines := 0.
 	data do: [:b | b = '\n' ifTrue: [nLines := nLines + 1]].
 
-	lines String Array := newArray: nLines init: [:_ | ""].
+	lines String Stack := #stack new.
 	lineStart := 0.
 	lineIndex := 0.
 	data doI: [:i :b |
 		b = '\n' ifTrue: [
 			line := newString: (data from: lineStart to: i-1).
-			lines at: lineIndex put: line.
+			lines push: line.
 			lineIndex := lineIndex + 1.
 			lineStart := i + 1.
 		]
 	].
-	^lines.
+	^lines reset.
 ]
