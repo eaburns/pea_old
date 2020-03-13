@@ -1,0 +1,111 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+Import "primitive"
+
+test [newTest |
+	intStack Int Stack := new.
+	assert: intStack size equals: 0.
+
+	strStack String Stack := new.
+	assert: strStack size equals: 0.
+]
+
+test [size |
+	s Int Stack := new.
+	assert: s size equals: 0.
+	s push: 0.
+	assert: s size equals: 1.
+	s push: 0.
+	assert: s size equals: 2.
+	s push: 0.
+	assert: s size equals: 3.
+	s pop.
+	assert: s size equals: 2.
+	s pop.
+	assert: s size equals: 1.
+	s pop.
+	assert: s size equals: 0.
+]
+
+test [pushTop |
+	intStack Int Stack := new.
+	intStack push: 0.
+	assert: intStack top equals: 0.
+	intStack push: 1.
+	assert: intStack top equals: 1.
+	intStack push: 2.
+	assert: intStack top equals: 2.
+
+	strStack String Stack := new.
+	strStack push: "abc".
+	assert: strStack top equals: "abc".
+	strStack push: "def".
+	assert: strStack top equals: "def".
+	strStack push: "ghi".
+	assert: strStack top equals: "ghi".
+]
+
+test [pushPop |
+	intStack Int Stack := new.
+	intStack push: 0.
+	intStack push: 1.
+	intStack push: 2.
+	assert: intStack pop equals: 2.
+	assert: intStack pop equals: 1.
+	assert: intStack pop equals: 0.
+
+	strStack String Stack := new.
+	strStack push: "abc".
+	strStack push: "def".
+	strStack push: "ghi".
+	assert: strStack pop equals: "ghi".
+	assert: strStack pop equals: "def".
+	assert: strStack pop equals: "abc".
+]
+
+test [pushAll |
+	intArray Int Array := {0; 1; 2}.
+	intStack Int Stack := new.
+	intStack pushAll: intArray.
+	assert: intStack size equals: 3.
+	assert: intStack pop equals: 2.
+	assert: intStack pop equals: 1.
+	assert: intStack pop equals: 0.
+
+	strArray String Array := {"abc"; "def"; "ghi"}.
+	strStack String Stack := new.
+	strStack pushAll: strArray.
+	assert: strStack size equals: 3.
+	assert: strStack pop equals: "ghi".
+	assert: strStack pop equals: "def".
+	assert: strStack pop equals: "abc".
+]
+
+test [reset |
+	ary Int Array := {0; 1; 2}.
+	stack Int Stack := new.
+	stack pushAll: ary.
+	copy := stack.
+	assert: stack size equals: 3.
+	assert: copy size equals: 3.
+
+	got := stack reset.
+	assert: got size equals: 3.
+	assert: (got at: 0) equals: 0.
+	assert: (got at: 1) equals: 1.
+	assert: (got at: 2) equals: 2.
+
+	// Both stack and its copy are reset.
+	assert: stack size equals: 0.
+	assert: copy size equals: 0.
+
+	stack push: 8.
+	assert: stack size equals: 1.
+	assert: copy size equals: 1.
+
+	// got is unmodified.
+	assert: got size equals: 3.
+	assert: (got at: 0) equals: 0.
+	assert: (got at: 1) equals: 1.
+	assert: (got at: 2) equals: 2.
+]

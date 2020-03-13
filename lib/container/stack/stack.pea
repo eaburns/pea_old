@@ -1,19 +1,102 @@
 // Copyright © 2020 The Pea Authors under an MIT-style license.
 
+Import "primitive"
+
+// T Stack implements a stack.
+// A stack allows access to on end of a sequence of elements.
+// Elements can be added to the end pushed onto the top.
+// The top element can be read.
+// Lastly the stack can be reset to empty, returning its backing array.
+//
+// A common idiom is to use a stack to build an array
+// when the size is not known up-front.
+// Elements are pushed onto the stack and it is reset when done.
+// The array returned from reset will not be re-used by the Stack
+// if new elements are pushed on; a new array will be allocated.
+//
+// A Stack behaves as a reference,
+// so copies refer to the same underlying structure.
 Type T Stack := T _StackRef.
 
-type _ _StackRef {}
+// new returns a new, empty stack.
+Func T [new ^T Stack |
+	^{ref: {size: 0 data: {}}}
+]
 
-Func T [new ^T Stack]
-Func T [new: ts T Array ^T Stack]
-Meth _ Stack [size ^Int]
-Meth T Stack [last ^T]
-Meth T Stack [push: t T]
-Meth T Stack [pop ^T]
-Meth T Stack [reset ^T Array]
+// _ Stack size returns the number of elements on the receiver.
+Meth _ Stack [size ^Int | ^ref size]
 
-Type T SizeDoer{
+// T Stack top returns the end element of the receiver.
+Meth T Stack [top ^T | ^ref top]
+
+// T Stack push: pushes t to the top of the stack.
+Meth T Stack [push: t T | ref push: t]
+
+// T SizeDoer is a sequence of elements with a fixed size and do: method.
+Type T SizeDoer {
 	[size ^Int]
 	[do: (T&, Nil) Fun]
 }
-Meth T Stack [pushAll: ts T SizeDoer]
+
+// T Stack pushAll: pushes all elements of ts onto the receiver.
+Meth T Stack [pushAll: ts T SizeDoer | ref pushAll: ts]
+
+// T Stack pop removes and returns the top element of  the receiver.
+Meth T Stack [pop ^T | ^ref pop]
+
+// T Stack reset returns the backing array of the receiver
+// and resets the receiver back to empty.
+// The returned array will not be re-used
+// by future operations on the receiver,
+// instead a new array will be allocated.
+Meth T Stack [reset ^T Array | ^ref reset]
+
+type T _StackRef {ref: T _Stack&}
+type T _Stack {size: Int data: T Array}
+
+meth _ _Stack [size ^Int | ^size]
+
+meth T _Stack [top ^T | ^data at: size - 1]
+
+meth T _Stack [push: t T |
+	self ensure: 1 fill: t.
+	data at: size put: t.
+	size := size + 1.
+]
+
+Meth T _Stack [pushAll: ts T SizeDoer |
+	ensured := false.
+	ts do: [:t |
+		ensured ifFalse: [
+			self ensure: ts size fill: t.
+			ensured := true.
+		].
+		data at: size put: t.
+		size := size + 1.
+	].
+]
+
+meth T _Stack [ensure: n Int fill: t T |
+	cap := data size.
+	need := size + n.
+	need < cap ifTrue: [^{}].
+
+	cap < 2 ifTrue: [cap := 2].
+	[cap < need] whileTrue: [cap := cap * 2].
+	old := data.
+	data := newArray: cap init: [:_ | t].
+	0 to: size - 1 do: [:i | data at: i put: (old at: i)].
+]
+
+meth T _Stack [pop ^T |
+	t := self top.
+	size := size - 1.
+	^t
+]
+
+meth T _Stack [reset ^T Array |
+	ts := data to: size - 1.
+	size := 0.
+	data := {}.
+	^ts.
+]
