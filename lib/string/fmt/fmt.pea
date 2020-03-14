@@ -1,0 +1,130 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
+/*
+The fmt module implements simple string formatting.
+The fmt package constructs strings from a format string
+and a sequence of values.
+
+A string constructed from a format string is just like the format string, except:
+	{{}} is replaced by {}.
+	{} replaced by the result of asString of the ith value,
+		where i is the number of preceeding {} in the format string.
+*/
+
+Import "primitive"
+import "io"
+import "os"
+import "string"
+
+// #string Builder add:values: adds the result
+// of formatting fmt with values vs to the receiver.
+Meth #string Builder [add: fmt String values: vs Stringer Array |
+	f Formatter := {fmt: fmt out: self i: 0 values: vs}.
+	f format.
+]
+
+// #string Builder add:values: adds the result
+// of formatting fmt with value v to the receiver.
+Meth #string Builder [add: fmt String value: v Stringer |
+	self add: fmt values: {v}
+]
+
+// #string Builder add:values: adds the result
+// of formatting fmt with values v0 and v1 to the receiver.
+Meth #string Builder [add: fmt String value: v0 Stringer value: v1 Stringer |
+	self add: fmt values: {v0; v1}
+]
+
+// string:values: returns the string resulting from formatting fmt with values vs.
+Func [string: fmt String values: vs Stringer Array ^String |
+	b := #string newBuilder.
+	b add: fmt values: vs.
+	^b reset.
+]
+
+// string:value: returns the string resulting from formatting fmt with value v.
+Func [string: fmt String value: v0 Stringer ^String |
+	^string: fmt values: {v0}
+]
+
+// string:value:value: returns the string resulting
+// from formatting fmt with values v0 and v1.
+Func [string: fmt String value: v0 Stringer value: v1 Stringer ^String |
+	^string: fmt values: {v0; v1}
+]
+
+// printf:values: writes the string resulting
+// from formatting fmt with values v to #os stdout.
+Func [print: fmt String values: vs Stringer Array ^#io WriteResult |
+	^to: #os stdout print: fmt values: vs
+]
+
+// printf:values: writes the string resulting
+// from formatting fmt with values v to w.
+Func [to: w #io Writer print: fmt String values: vs Stringer Array ^#io WriteResult |
+	^w #io writeString: (string: fmt values: vs).
+]
+
+type Formatter {
+	fmt: String&
+	out: #string Builder&
+	i: Int
+	values: Stringer Array
+}
+
+meth Formatter [format |
+	[fmt byteSize > 0] whileTrue: [
+		b := fmt atByte: 0.
+		fmt := fmt fromByte: 1.
+		b = '{'
+			ifTrue: [self formatToken]
+			ifFalse: [out #string addByte: b]
+	].
+	i >= values size ifTrue: [^{}].
+	out add: "{EXTRA: ".
+	[i < values size] whileTrue: [
+		out add: (values at: i) asString.
+		i < (values size - 1) ifTrue: [out add: "; "].
+		i := i + 1.
+	].
+	out add: "}".
+]
+
+meth Formatter [formatToken |
+	(fmt #string hasPrefix: "}") ifTrue: [
+		fmt := fmt fromByte: 1.
+		i < values size ifFalse: [
+			out add: "{MISSING}".
+			^{}
+		].
+		out add: (values at: i) asString.
+		i := i + 1.
+		^{}
+	].
+	(fmt #string hasPrefix: "{}}") ifTrue: [
+		fmt := fmt fromByte: 3.
+		out add: "{}".
+		^{}
+	].
+	// We failed to match anything, so just emit the opening {.
+	out addByte: '{'.
+]
+
+test [format |
+	assert: (string: "" values: {}) equals: "".
+	assert: (string: "abc" values: {}) equals: "abc".
+	assert: (string: "☺☹" values: {}) equals: "☺☹".
+	assert: (string: "{}" values: {123}) equals: "123".
+	assert: (string: "{}" values: {"abc"}) equals: "abc".
+	assert: (string: "abc{}" values: {"def"}) equals: "abcdef".
+	assert: (string: "abc{}ghi{}" values: {"def"; "jkl"}) equals: "abcdefghijkl".
+	assert: (string: "{{}}" values: {}) equals: "{}".
+	assert: (string: "abc{{}}ghi{{}}" values: {}) equals: "abc{}ghi{}".
+	assert: (string: "{" values: {}) equals: "{".
+	assert: (string: "abc{def" values: {}) equals: "abc{def".
+	assert: (string: "{}" values: {}) equals: "{MISSING}".
+	assert: (string: "{}abc{}" values: {}) equals: "{MISSING}abc{MISSING}".
+	assert: (string: "{}def{}" values: {"abc"}) equals: "abcdef{MISSING}".
+	assert: (string: "" values: {"abc"; 123}) equals: "{EXTRA: abc; 123}".
+	assert: (string: "..." values: {"abc"; 123}) equals: "...{EXTRA: abc; 123}".
+]

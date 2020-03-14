@@ -2,11 +2,26 @@
 
 Import "primitive"
 
-Func [format: fmt String values: vs Stringer Array ^String]
-Func [format: fmt String value: v0 Stringer ^String]
-Func [format: fmt String value: v0 Stringer value: v1 Stringer ^String]
+// String hasPrefix: returns whether the receiver has prefix p.
+Meth String [hasPrefix: p String ^Bool |
+	^self byteSize >= p byteSize
+		ifFalse: [false]
+		ifTrue: [(self toByte: p byteSize - 1) = p]
+]
 
-Meth String [hasPrefix: s String ^Bool]
+test [String_hasPrefix |
+	assertFalse: ("" hasPrefix: "a").
+	assertFalse: ("a" hasPrefix: "b").
+	assertFalse: ("ABC" hasPrefix: "ABCD").
+	assertFalse: ("☺☹" hasPrefix: "123").
+	assertTrue: ("" hasPrefix: "").
+	assertTrue: ("a" hasPrefix: "").
+	assertTrue: ("a" hasPrefix: "a").
+	assertTrue: ("abc" hasPrefix: "a").
+	assertTrue: ("abcdef" hasPrefix: "abc").
+	assertTrue: ("こんにちは、皆さん" hasPrefix: "こんにちは").
+]
+
 Meth String [hasSuffix: s String ^Bool]
 Meth String [contains: s String ^Bool]
 Meth String [indexOf: s String ^Int?]

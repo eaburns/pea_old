@@ -1,3 +1,5 @@
+// Copyright © 2020 The Pea Authors under an MIT-style license.
+
 Import "primitive"
 
 test [Builder_empty |

@@ -92,7 +92,3 @@ meth _Builder [ensure: n Int |
 	data := newArray: have init: [:_ | 0].
 	old doI: [:i :b | data at: i put: b].
 ]
-
-Meth Builder [addFormat: fmt String values: vs Stringer Array]
-Meth Builder [addFormat: fmt String value: v Stringer]
-Meth Builder [addFormat: fmt String value: v0 Stringer value: v1 Stringer]

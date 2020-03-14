@@ -28,7 +28,7 @@ Meth Reader [readAll ^Byte Array! |
 	panic: "impossible". ^error: (errorMsg: "impossible").
 ]
 
-// Reader readAllString returns a String of  all bytes
+// Reader readAllString returns a String of all bytes
 // read from the receiver until its end.
 Meth Reader [readAllString ^String! |
 	b := #string newBuilder.
@@ -51,7 +51,19 @@ Type ReadFullResult {error: ReadFullError | ok: Int}
 Meth ReadFullResult [ifError: f (Error, Int) Fun ^Int]
 Meth Reader [readFull: buf Byte Array ^ReadFullResult!]
 
+// TODO: WriteResult error should return how many bytes written.
 Type WriteResult {error: Error | ok: Int}
 Type Writer {[write: Byte Array ^WriteResult]}
 
-Meth Writer [writeString: str String ^Error?]
+// Writer writeString: writes str to the receiver and returns
+// the byte length of the string on success
+// or an error on error.
+Meth Writer [writeString: str String ^WriteResult |
+	b Byte Array := newArray: str byteSize init: [:i | str atByte: i].
+	[b size > 0] whileTrue: [
+		(self write: b)
+			ifError: [:e | ^{error: e}]
+			ifOk: [:n | b := b from: n].
+	].
+	^{ok: str byteSize}
+]

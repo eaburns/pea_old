@@ -1,8 +1,36 @@
 // Copyright © 2020 The Pea Authors under an MIT-style license.
 
+Import "primitive"
 import "io"
+import "os/posix"
 
 Func [args ^String Array]
-Func [stdin ^#io Reader]
-Func [stdout ^#io Writer]
-Func [stderr ^#io Writer]
+
+// stdin returns an #io Reader that reads from standard input.
+Func [stdin ^#io Reader | ^_stdin]
+
+// stdout returns an #io Writer that writes to standard output.
+// The writer is not buffered.
+Func [stdout ^#io Writer | ^_stdout]
+
+// stderr returns an #io Writer that writes to standard error.
+Func [stderr ^#io Writer | ^_stderr]
+
+val _stdin file := [{descr: #posix STDIN_FILENO}]
+val _stdout file := [{descr: #posix STDOUT_FILENO}]
+val _stderr file := [{descr: #posix STDERR_FILENO}]
+
+type file {descr: Int}
+
+meth file [read: buf Byte Array ^#io ReadResult |
+	n := #posix read: descr buf: buf.
+	n < 0 ifTrue: [^{error: (errorMsg: (#posix strerror: n))}].
+	n = 0 ifTrue: [^{end}].
+	^{ok: n}.
+]
+
+meth file [write: buf Byte Array ^#io WriteResult |
+	n := #posix write: descr buf: buf.
+	n < 0 ifTrue: [^{error: (errorMsg: (#posix strerror: n))}].
+	^{ok: n}.
+]
